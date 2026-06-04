@@ -10,21 +10,24 @@ migration order. The "what's next" pointer lives in Claude's project memory
 - [x] 1. Create package skeleton
 - [x] 2. Copy LICENSE + DESCRIPTION
 - [x] 3. Add `R/msamodel-package.R` (`@importFrom` directives)
-- [ ] 4. Copy `R/` files in dependency order:
-  - [x] 4.1 `utils.R`
-  - [x] 4.2 `loess_compare.R`
+- [ ] 4. Copy `R/` files in dependency order (RE-SCOPED 2026-06-04 — plan §1/§9;
+      deferred files removed; `utils.R`/`loess_compare.R` reverted):
+  - [~] 4.1 `utils.R` — migrated then **reverted** (deferred to vNext)
+  - [~] 4.2 `loess_compare.R` — migrated then **reverted** (deferred to vNext)
   - [ ] 4.3 `pdb_utils.R`, `enm_setup.R`, `site_properties.R`
   - [ ] 4.4 `spm_generate.R`, `spm_preprocess.R`
   - [ ] 4.5 `msa_evaluate.R`
-  - [ ] 4.6 `msa_mcmc.R`, `msa_model_comparison.R`
-  - [ ] 4.7 `msa_decomposition_site.R`, `msa_decomposition_protein.R`
-  - [ ] 4.8 `msa_allotment_site.R`, `msa_allotment_protein.R`
-  - [ ] 4.9 `a1a2grid.R`
-  - [ ] 4.10 `msa_workflow.R` (last)
-- [ ] 5. `devtools::document()` — confirm NAMESPACE populated
+  - [ ] 4.6 `msa_mcmc.R`
+  - [ ] 4.7 `msa_decomposition_site.R`
+  - [ ] 4.8 `a1a2grid.R`
+  - [ ] 4.9 `msa_workflow.R` (last; assessment calls removed → 7-elem return)
+  - deferred (not in v0.1): `msa_model_comparison.R`,
+    `msa_decomposition_protein.R`, `msa_allotment_site.R`,
+    `msa_allotment_protein.R`
+- [ ] 5. `devtools::document()` — confirm NAMESPACE populated (18 exports)
 - [ ] 6. Write + run `data-raw/prepare_znb_data.R` → `data/*.rda`
 - [ ] 7. Write `R/data-doc.R` (dataset docs); re-`document()`
-- [ ] 8. Write tests (9 files, plan §7)
+- [ ] 8. Write tests (7 files, plan §7)
 - [ ] 9. Write vignette (`msamodel-intro.Rmd`)
 - [ ] 10. `devtools::check()` clean
 
@@ -36,6 +39,23 @@ docs reconciliation, git init — see the log.
 Newest first. One short entry per working session.
 
 ### 2026-06-04
+- **v0.1 RE-SCOPED (major):** narrowed v0.1 to "compute divergence profiles + fit
+  to data". Traced the real call graph from `run_msa_bayesian_analysis` + the grid
+  entry points to decide scope. **Kept:** setup, SPM, profiles/eval, grid, MCMC
+  fitting + the four model profiles, site-level Shapley decomposition (wired into
+  the workflow). **Deferred to vNext:** the model-fit *assessment* layer
+  (`model_comparison_functions.R` + its sole-consumer `loess_compare.R` + the
+  `utils.R` error metrics), *allotment* (unsettled), protein-level decomposition,
+  trajectory route, visualization. Decisions: keep site decomposition; defer
+  assessment (NOT the profiles — those are kept); pull `utils.R` + `loess_compare.R`
+  back out. **Reverted** R/utils.R + R/loess_compare.R + their man pages + 7
+  exports (forward commit, no history rewrite); `document()`/`load_all()` clean,
+  NAMESPACE now 0 exports, R/ = just `msamodel-package.R`. **Rewrote `dev/plan.md`
+  §1/§2/§6/§7/§8/§9/§11/§12** to match (exports 39 → 18; tests 9 → 7; workflow
+  edited to drop assessment calls → 7-elem return). Reconciled `CLAUDE.md` and
+  this file. The §9 step-4 sub-step list above is the new dependency order. Next:
+  resume migration at §9 step 4.3 (`pdb_utils.R`, `enm_setup.R`,
+  `site_properties.R`) against the re-scoped plan.
 - **§9 step 4.2 done:** copied `compare_loess_fits.R` → `R/loess_compare.R`
   (renamed per §2). `compare_loess_fits` + `compare_loess_rmse` exported with
   `@family loess comparison`; `plot_loess_comparison` kept `@noRd` (deferred to

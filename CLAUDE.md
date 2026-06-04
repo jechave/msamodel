@@ -6,10 +6,16 @@ Guidance for Claude Code when working in this repository.
 
 `msamodel` implements the Mutation-Stability-Activity (MSA) model of neutral
 structural evolution: it predicts site-specific structural divergence in protein
-evolution from single-point-mutation scans (SPMs). It provides Bayesian
-parameter estimation, model comparison (mutation-only / selection-only
-variants), Shapley and proportional-allotment decompositions of evolutionary
-constraint, and grid exploration of the selection parameter space.
+evolution from single-point-mutation scans (SPMs). **v0.1 scope** (re-scoped
+2026-06-04, see `dev/plan.md` §1) is "compute divergence profiles + fit them to
+data": SPM generation, structure-divergence profiles, a1/a2 grid exploration,
+Bayesian parameter estimation (MCMC), and site-level Shapley decomposition.
+
+Deferred to later versions (real code, not fossils — see `dev/plan.md` §1/§12):
+the model-fit *assessment* layer (goodness-of-fit / MSA-vs-MM/MS/MA comparison
+and its LOESS + error-metric utilities), proportional-*allotment* decomposition,
+protein-level Shapley decomposition, the trajectory/star-tree route, and
+visualization.
 
 It depends on the `penm` package (an `Imports:` dependency) for the ENM
 machinery — `set_enm()`, mutation scans, response matrices. `penm` is consumed
