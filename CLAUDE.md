@@ -32,9 +32,12 @@ governed by:
   file layout, DESCRIPTION, refactor rules, the data-prep script, the export
   list, the test matrix, migration order, known bugs to fix, resolved decisions.
   **Read it before doing anything.**
-- **`dev/PROGRESS.md`** — human-readable history + an at-a-glance checklist of
-  the §9 migration order (what's done, what's left). Read it to see where we
-  are. (The precise "what's next" pointer lives in Claude project memory.)
+- **`dev/PROGRESS.md`** — the live checklist: a 1:1 mirror of `dev/plan.md` §9
+  (what's done, what's left). Read it to see where we are. (The precise "what's
+  next" pointer lives in Claude project memory.)
+- **`dev/LOG.md`** — append-only history of what was done and attempted
+  (sessions, decisions, dead ends). Read it for the "why" behind the current
+  state; it holds the context the checklist and the plan don't.
 
 When the plan and this file disagree, **the plan wins** — update this file or
 flag the contradiction, don't silently follow the stale one.
@@ -104,12 +107,21 @@ plan §9. No public function name changes in v0.1.
 
 ## Tracking progress
 
-**After completing any plan §9 step (or sub-step), update `dev/PROGRESS.md`
-immediately:** tick the checklist item and add a one-line entry under the
-current date in the log. Do this as soon as the step is done — it is tied to
-*finishing a step*, not to ending the session (there is no reliable
-end-of-session moment). Keeping it current means the worst case is one unticked
-item, not a lost session's worth of history.
+Progress is tracked across two files with distinct jobs (keep them distinct):
+
+- **`dev/PROGRESS.md`** is the *checklist* — a strict 1:1 mirror of `dev/plan.md`
+  §9: bare step titles, only `[ ]`/`[x]`. No log, no annotations. Its labels must
+  always agree with plan.md §9. **When the plan changes, regenerate PROGRESS.md
+  to match it** (don't let the two drift — that's what broke the old combined
+  file).
+- **`dev/LOG.md`** is the *history* — append-only, newest first. Non-plan events
+  (reverts, scope changes, decisions, dead ends) live here, not in the checklist.
+
+**After completing any plan §9 step (or sub-step):** (a) tick the item in
+`dev/PROGRESS.md`, and (b) add a one-line dated entry to `dev/LOG.md`. Do this as
+soon as the step is done — it is tied to *finishing a step*, not to ending the
+session (there is no reliable end-of-session moment). Keeping it current means
+the worst case is one unticked item, not a lost session's worth of history.
 
 ## Development commands
 

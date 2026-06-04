@@ -382,17 +382,17 @@ No plots required (ggplot2 is in Suggests). A few print() calls are enough.
 3. **Add `msamodel-package.R`** with `@importFrom` directives for all tidyverse functions used.
 4. **Copy files in dependency order** (so each file can be sourced without
    errors). Re-scoped 2026-06-04 — deferred files removed (see §1):
-   1. `pdb_utils.R`, `enm_setup.R`, `site_properties.R`
-   2. `spm_generate.R`, `spm_preprocess.R`
-   3. `msa_evaluate.R`
-   4. `msa_mcmc.R`
-   5. `msa_decomposition_site.R`
-   6. `a1a2grid.R`
-   7. `msa_workflow.R` (LAST) — copy with the **assessment calls removed**: drop
-      the `calculate_model_comparison_samples/summary` blocks and their two
-      return-list entries; keep the decomposition blocks. v0.1 return list has 7
-      elements (see §7). Its remaining deps (`preprocess_spm`, the 4 mcmc fns,
-      the 2 decomposition samples/summary fns) are all migrated by this point.
+   - **4.1** `pdb_utils.R`, `enm_setup.R`, `site_properties.R`
+   - **4.2** `spm_generate.R`, `spm_preprocess.R`
+   - **4.3** `msa_evaluate.R`
+   - **4.4** `msa_mcmc.R`
+   - **4.5** `msa_decomposition_site.R`
+   - **4.6** `a1a2grid.R`
+   - **4.7** `msa_workflow.R` (LAST) — copy with the **assessment calls removed**:
+     drop the `calculate_model_comparison_samples/summary` blocks and their two
+     return-list entries; keep the decomposition blocks. v0.1 return list has 7
+     elements (see §7). Its remaining deps (`preprocess_spm`, the 4 mcmc fns,
+     the 2 decomposition samples/summary fns) are all migrated by this point.
    - DEFERRED, not copied in v0.1: `utils.R`, `loess_compare.R`,
      `msa_model_comparison.R`, `msa_decomposition_protein.R`,
      `msa_allotment_site.R`, `msa_allotment_protein.R`.
@@ -461,7 +461,7 @@ just not in the first release:
   (`rmse`, `r2`, `rmse_trend`, `mrr`, `mrr_trend`). Re-wire the assessment calls
   back into `run_msa_bayesian_analysis` (return list grows from 7 → 9). Re-add
   `test-model-comparison.R`. (Both `utils.R` and `loess_compare.R` were migrated
-  then reverted in the same session — see PROGRESS — so re-migration is
+  then reverted in the same session — see `dev/LOG.md` — so re-migration is
   straightforward.)
 - **Allotment** (the unsettled constraint-splitting alternative):
   `msa_allotment.R` → `msa_allotment_site.R`, `protein_msa_allotment.R` →
