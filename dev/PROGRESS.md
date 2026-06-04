@@ -47,9 +47,11 @@ Newest first. One short entry per working session.
   pre-flight questions into §13.
 - Reorganized: `dev/plan.md` is now the single normative spec; deleted
   `dev/RESUME.md`; added this `dev/PROGRESS.md`.
-- `git init` (local-only, no remote) on `main`. **Initial commit done**
-  (`33f2c46`): skeleton + `dev/plan.md`, `dev/PROGRESS.md`, `CLAUDE.md`.
-  `tmp_src/` and `.claude/settings.local.json` excluded.
+- `git init` on `main`. **Initial commit done** (`020ac2b`): skeleton +
+  `dev/plan.md`, `dev/PROGRESS.md`, `CLAUDE.md`. `tmp_src/` and
+  `.claude/settings.local.json` excluded.
+- **Remote set up:** public repo `github.com/jechave/msamodel` (SSH origin),
+  `main` pushed and tracking `origin/main`. Verified `tmp_src/` not pushed.
 
 ### 2026-04-22
 - Created the package skeleton: `DESCRIPTION` (plan §3), `LICENSE` + `LICENSE.md`
