@@ -9,7 +9,7 @@ migration order. The "what's next" pointer lives in Claude's project memory
 
 - [x] 1. Create package skeleton
 - [x] 2. Copy LICENSE + DESCRIPTION
-- [ ] 3. Add `R/msamodel-package.R` (`@importFrom` directives)  ← **next**
+- [x] 3. Add `R/msamodel-package.R` (`@importFrom` directives)
 - [ ] 4. Copy `R/` files in dependency order:
   - [ ] 4.1 `utils.R`
   - [ ] 4.2 `loess_compare.R`
@@ -36,6 +36,12 @@ docs reconciliation, git init — see the log.
 Newest first. One short entry per working session.
 
 ### 2026-06-04
+- **§9 step 3 done:** added `R/msamodel-package.R` with the package-wide
+  `@importFrom` directives (Option A namespacing — imports declared once;
+  copied function files use bare calls). Inventory verified against the 16
+  migrated source files; ggplot2 excluded (Suggests). `document()` populated
+  NAMESPACE (incl. `importFrom(rlang,"!!")`, `importFrom(magrittr,"%>%")`, no
+  exports yet); `load_all()` clean. Next: §9 step 4.1, copy `utils.R`.
 - Set up source isolation: froze a snapshot of the source project to
   `tmp_src/` (build- and git-ignored), removed the live source from the
   session's additional directories, repointed all docs at `tmp_src/`.
