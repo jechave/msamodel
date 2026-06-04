@@ -1,0 +1,57 @@
+# created from https://www.gitignore.io/api/r
+
+### R ###
+# History files
+.Rhistory
+.Rapp.history
+
+# Session Data files
+.RData
+.RDataTmp
+
+# User-specific files
+.Ruserdata
+
+# Reports created by .Rmd
+*.html
+
+# Example code in package build process
+*-Ex.R
+
+# Output files from R CMD build
+/*.tar.gz
+
+# Output files from R CMD check
+/*.Rcheck/
+
+# RStudio files
+.Rproj.user/
+
+# produced vignettes
+vignettes/*.html
+vignettes/*.pdf
+
+# OAuth2 token
+.httr-oauth
+
+# knitr and R markdown default cache directories
+*_cache/
+/cache/
+
+# Temporary files created by R markdown
+*.utf8.md
+*.knit.md
+
+### R.Bookdown Stack ###
+/*_files/
+
+.DS_Store
+
+### msamodel-specific ###
+
+# Frozen snapshot of the migration source project. Heavy, has its own .git,
+# is a build-ignored disposable copy — must never be committed.
+/tmp_src/
+
+# Claude Code local (per-user) settings; shared settings.json IS tracked.
+.claude/settings.local.json
