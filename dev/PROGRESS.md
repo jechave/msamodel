@@ -11,7 +11,7 @@ migration order. The "what's next" pointer lives in Claude's project memory
 - [x] 2. Copy LICENSE + DESCRIPTION
 - [x] 3. Add `R/msamodel-package.R` (`@importFrom` directives)
 - [ ] 4. Copy `R/` files in dependency order:
-  - [ ] 4.1 `utils.R`
+  - [x] 4.1 `utils.R`
   - [ ] 4.2 `loess_compare.R`
   - [ ] 4.3 `pdb_utils.R`, `enm_setup.R`, `site_properties.R`
   - [ ] 4.4 `spm_generate.R`, `spm_preprocess.R`
@@ -36,6 +36,27 @@ docs reconciliation, git init — see the log.
 Newest first. One short entry per working session.
 
 ### 2026-06-04
+- **Toolchain decision (not a §9 step):** investigated whether to update the R
+  stack first. Finding: R itself is old (4.2.1; latest 4.6.0) but the packages
+  are current (dplyr 1.1.4, ggplot2 4.0.1, etc.). **Decision: do NOT upgrade R
+  now** — 4.2.1 satisfies the plan (`R >= 3.5`); revisit after v0.1. When done,
+  upgrade R **side-by-side via `rig`** (keep 4.2 for the MSA paper project),
+  reinstall packages into the new library, rebuild `penm` from source — that's
+  the safe path (single shared library; all 436 pkgs built under 4.2.x). The
+  only risk to penm/paper is upgrading *R*, not packages.
+  **Updated roxygen2 7.2.3 → 8.0.0** (compiles under R 4.2; `Depends: R >= 4.1`):
+  resolves the version-mismatch warning. 8.0.0 records its version as the new
+  `Config/roxygen2/version: 8.0.0` field and removed the old `RoxygenNote` line.
+  8.0.0 also enforces **one-line `@importFrom`** — flattened the wrapped dplyr/
+  stats/penm directives in `msamodel-package.R`. `document()` + `load_all()`
+  clean; 5 utils exports intact.
+- **§9 step 4.1 done:** copied `utils.R` (`rmse_trend`, `rmse`, `r2`, `mrr`,
+  `mrr_trend`). Stripped the `@requires` tags, added `@export` + `@family error
+  metrics` to all 5, kept signatures/logic identical (no `library()` calls in
+  source). `document()` wrote 5 `.Rd` + NAMESPACE (5 exports); `load_all()`
+  clean. Bare `loess`/`predict`/`cor` resolve via the existing
+  `@importFrom stats`. Next: §9 step 4.2, copy `loess_compare.R` (the ggplot2
+  `requireNamespace` exception, rule 2/8).
 - **§9 step 3 done:** added `R/msamodel-package.R` with the package-wide
   `@importFrom` directives (Option A namespacing — imports declared once;
   copied function files use bare calls). Inventory verified against the 16
