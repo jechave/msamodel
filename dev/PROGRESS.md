@@ -12,7 +12,7 @@ migration order. The "what's next" pointer lives in Claude's project memory
 - [x] 3. Add `R/msamodel-package.R` (`@importFrom` directives)
 - [ ] 4. Copy `R/` files in dependency order:
   - [x] 4.1 `utils.R`
-  - [ ] 4.2 `loess_compare.R`
+  - [x] 4.2 `loess_compare.R`
   - [ ] 4.3 `pdb_utils.R`, `enm_setup.R`, `site_properties.R`
   - [ ] 4.4 `spm_generate.R`, `spm_preprocess.R`
   - [ ] 4.5 `msa_evaluate.R`
@@ -36,6 +36,18 @@ docs reconciliation, git init — see the log.
 Newest first. One short entry per working session.
 
 ### 2026-06-04
+- **§9 step 4.2 done:** copied `compare_loess_fits.R` → `R/loess_compare.R`
+  (renamed per §2). `compare_loess_fits` + `compare_loess_rmse` exported with
+  `@family loess comparison`; `plot_loess_comparison` kept `@noRd` (deferred to
+  v0.3), inline `library(ggplot2)` stripped, every ggplot2 call qualified
+  `ggplot2::` behind the existing `requireNamespace` guard (§4 rule 2/8).
+  Dropped the orphaned `@param evaluation_points` (not a real arg — doc-only).
+  `gridExtra` left out of Suggests and no `globalVariables()` shim added (both
+  decided: minimal change, the only consumer is the deferred internal plot fn).
+  `document()` wrote 2 `.Rd` (none for the `@noRd` fn) + NAMESPACE (now 7
+  exports); `load_all()` clean; smoke test of both exported fns returns finite
+  values with the expected result names. Next: §9 step 4.3 — `pdb_utils.R`,
+  `enm_setup.R`, `site_properties.R`.
 - **Toolchain decision (not a §9 step):** investigated whether to update the R
   stack first. Finding: R itself is old (4.2.1; latest 4.6.0) but the packages
   are current (dplyr 1.1.4, ggplot2 4.0.1, etc.). **Decision: do NOT upgrade R
