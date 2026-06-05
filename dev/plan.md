@@ -73,14 +73,14 @@ msamodel/
 │   ├── pdb_utils.R             # load_protein, get_active_site
 │   ├── enm_setup.R             # setup_enm
 │   ├── site_properties.R       # add_site_properties
-│   ├── spm_generate.R          # delta_structure_dr, delta_structure_dr2, generate_spm_data
-│   ├── spm_preprocess.R        # preprocess_spm
-│   ├── msa_evaluate.R          # calculate_dr2i_msa, calculate_loglik_msa
-│   ├── msa_mcmc.R              # run_mcmc_msa, calculate_prediction_samples,
+│   ├── generate_spm_data.R     # delta_structure_dr, delta_structure_dr2, generate_spm_data
+│   ├── msa_bayesian_data_preparation.R  # preprocess_spm
+│   ├── msa_model_evaluation.R  # calculate_dr2i_msa, calculate_loglik_msa
+│   ├── msa_bayesian_analysis.R # run_mcmc_msa, calculate_prediction_samples,
 │   │                             calculate_parameter_summary, calculate_prediction_summary
-│   ├── msa_decomposition_site.R     # site-level Shapley (calculate_msa_decomposition, ...)
-│   ├── a1a2grid.R              # calculate_dr2i_msa_a1a2grid, define_selection_grid
-│   ├── msa_workflow.R          # run_msa_bayesian_analysis (decomposition kept, assessment removed)
+│   ├── msa_decomposition.R     # site-level Shapley (calculate_msa_decomposition, ...)
+│   ├── msa_a1a2grid_workflow.R # calculate_dr2i_msa_a1a2grid, define_selection_grid
+│   ├── msa_bayesian_workflow.R # run_msa_bayesian_analysis (decomposition kept, assessment removed)
 │   └── data-doc.R              # roxygen docs for embedded datasets
 │   # DEFERRED (not in v0.1, see §1): utils.R, loess_compare.R,
 │   #   msa_model_comparison.R, msa_decomposition_protein.R,
@@ -113,17 +113,14 @@ msamodel/
     └── msamodel-intro.Rmd      # reproduce 1znb_A fit end-to-end
 ```
 
-**Rationale for renaming a few files** (the only renames):
-- `msa_bayesian_workflow.R` → `msa_workflow.R` (it *is* the Bayesian workflow; no other workflow exists in v0.1)
-- `msa_bayesian_analysis.R` → `msa_mcmc.R` (more specific to its content)
-- `msa_bayesian_data_preparation.R` → `spm_preprocess.R` (the function is `preprocess_spm`, so the filename should match)
-- `msa_model_evaluation.R` → `msa_evaluate.R` (shorter)
-- `msa_a1a2grid_workflow.R` → `a1a2grid.R`
-- `compare_loess_fits.R` → `loess_compare.R` (filename matches the "compare LOESS fits" topic, not just one function)
-- `model_comparison_functions.R` → `msa_model_comparison.R` (scope is MSA model comparison)
-- `msa_decomposition.R` → `msa_decomposition_site.R` (paired with `_protein`)
-- `msa_allotment.R` → `msa_allotment_site.R` (paired with `_protein`)
-- `generate_spm_data.R` → `spm_generate.R`
+**No file renames in v0.1** (decided 2026-06-05). Files are copied from
+`tmp_src/R/` keeping their source filenames — this makes provenance obvious while
+the migration is in progress, and avoids renames whose rationale was v0.1-scoped
+(e.g. "only one workflow exists in v0.1") and would have to be undone in v0.2.
+File naming/layout is revisited as a deliberate refactor in a later version, when
+files are actually rearranged — not folded into this copy. (Deferred files listed
+elsewhere in this plan may still be renamed when *they* are migrated; that's
+decided then, not now.)
 
 No **function** names change in v0.1.
 
@@ -383,12 +380,12 @@ No plots required (ggplot2 is in Suggests). A few print() calls are enough.
 4. **Copy files in dependency order** (so each file can be sourced without
    errors). Re-scoped 2026-06-04 — deferred files removed (see §1):
    - **4.1** `pdb_utils.R`, `enm_setup.R`, `site_properties.R`
-   - **4.2** `spm_generate.R`, `spm_preprocess.R`
-   - **4.3** `msa_evaluate.R`
-   - **4.4** `msa_mcmc.R`
-   - **4.5** `msa_decomposition_site.R`
-   - **4.6** `a1a2grid.R`
-   - **4.7** `msa_workflow.R` (LAST) — copy with the **assessment calls removed**:
+   - **4.2** `generate_spm_data.R`, `msa_bayesian_data_preparation.R`
+   - **4.3** `msa_model_evaluation.R`
+   - **4.4** `msa_bayesian_analysis.R`
+   - **4.5** `msa_decomposition.R`
+   - **4.6** `msa_a1a2grid_workflow.R`
+   - **4.7** `msa_bayesian_workflow.R` (LAST) — copy with the **assessment calls removed**:
      drop the `calculate_model_comparison_samples/summary` blocks and their two
      return-list entries; keep the decomposition blocks. v0.1 return list has 7
      elements (see §7). Its remaining deps (`preprocess_spm`, the 4 mcmc fns,
@@ -439,8 +436,7 @@ All verified against `tmp_src/R/` on 2026-06-04.
    `msa_allotment.R` and `protein_msa_allotment.R`, both now DEFERRED — so this
    item is moot for v0.1. No remaining v0.1 file has an inline `library()`.
 3. **Roxygen typo** `"lower,Quite upper"` at `msa_bayesian_analysis.R:205`
-   (becomes `msa_mcmc.R`; `@return` of `calculate_prediction_summary`). Fix —
-   still in scope (kept file).
+   (`@return` of `calculate_prediction_summary`). Fix — still in scope (kept file).
 4. **Non-standard `@requires` roxygen tags** in every file — strip during the
    copy (§4 rule 6). roxygen2 does not recognise them.
 5. **`setup_enm` default is `node = "sc"`** but the fixture/tests use

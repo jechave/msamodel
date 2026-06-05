@@ -2,7 +2,7 @@
 "_PACKAGE"
 
 ## usethis namespace: start
-#' @importFrom dplyr across all_of any_of arrange bind_rows everything filter group_by inner_join left_join mutate rename select starts_with summarise where
+#' @importFrom dplyr across all_of any_of arrange bind_rows everything filter group_by group_split inner_join left_join mutate rename select starts_with summarise transmute where
 #' @importFrom tidyr complete fill pivot_longer pivot_wider
 #' @importFrom tibble as_tibble tibble
 #' @importFrom purrr discard map_dfr possibly

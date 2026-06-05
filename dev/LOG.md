@@ -7,6 +7,37 @@ history those two don't keep.
 
 One short entry per working session.
 
+### 2026-06-05
+- **§9 step 4 done (all sub-steps 4.1–4.7), in one batch + step 5.** Copied the 7
+  v0.1 source files from `tmp_src/R/` into `R/` keeping source filenames (per the
+  no-rename change below), in dependency order. Applied §4 rules: stripped all
+  `@requires` tags; added `@export` to the 18 public fns + `@family` groups; the
+  2 helpers (`delta_structure_dr`, `delta_structure_dr2`) marked `@noRd`. No
+  inline `library()` existed to strip. **Bug fixes:** §11.1 — deleted the
+  duplicate `define_selection_grid` (the `a1_range, a2_range` override at source
+  lines 106–119), keeping the real defaulted one; §11.3 — fixed the
+  `"lower,Quite upper"` roxygen typo in `calculate_prediction_summary`'s
+  `@return`. **4.7 assessment removal:** dropped the two
+  `calculate_model_comparison_samples/summary` blocks + their return-list entries
+  from `run_msa_bayesian_analysis` → 7-element return; updated its `@return`.
+  **Imports:** added `transmute` + `group_split` to the dplyr `@importFrom` in
+  `msamodel-package.R` (used by `msa_decomposition.R`). **Verify:**
+  `devtools::document()` clean (no roxygen warnings; 18 `.Rd` written, none for
+  the `@noRd` helpers); NAMESPACE has exactly 18 exports, `delta_structure_*`
+  absent; `devtools::load_all()` clean. Behavioral/numeric checks deferred to
+  steps 6–8 (no data/tests yet).
+- **Plan change — no file renames in v0.1.** Dropped the §2 rename list (10
+  renames) before starting §9 step 4. Files are now copied from `tmp_src/R/`
+  keeping their **source filenames**. Rationale: source names keep provenance
+  obvious during the migration, and some rename rationales were v0.1-scoped (e.g.
+  `msa_bayesian_workflow.R` → `msa_workflow.R` "because only one workflow in
+  v0.1") — an assumption v0.2 breaks, which would force a *second* rename (churn
+  the migration explicitly avoids). File naming/layout is now an explicit later
+  refactor, not folded into the copy. Edited `dev/plan.md` §2 (rename block + `R/`
+  layout tree) and §9 step-4 sub-steps; regenerated the §9-step-4 labels in
+  `dev/PROGRESS.md` to match. Deferred-file renames mentioned elsewhere in the
+  plan are left as advisory (decided when those files are actually migrated).
+
 ### 2026-06-04
 - **Docs split:** `dev/PROGRESS.md` was doing two jobs (append-only log + a
   checklist meant to mirror plan.md §9); the re-scope made the checklist
