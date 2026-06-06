@@ -7,6 +7,32 @@ history those two don't keep.
 
 One short entry per working session.
 
+### 2026-06-06
+- **Plan change — §5 embedded-data approach: generate the SPM, don't copy it.**
+  Rejected the original §5 (copy `tmp_src/.../1znb_A_spm.rds`, point `SRC` at
+  `tmp_src/`/the live project): not self-consistent — once `tmp_src/` is deleted,
+  `data-raw/` would have no in-repo recipe to rebuild `data/`, and pointing at the
+  live project isn't reproducibility. **New approach:** vendor only the *small*
+  inputs (PDB → `inst/extdata/`, the 1znb_A rows of the two CSVs →
+  `data-raw/raw/`), and **generate** `znb_spm` with the package's own
+  `generate_spm_data()`. Validate the generated SPM **once** against the
+  `tmp_src/` original via `stopifnot(all.equal(...))` (migration-correctness
+  proof, fenced as removable) — this is NOT the permanent test; the
+  regenerate-and-compare drift guard remains step 8's `test-spm-generate.R`.
+  **Feasibility verified before deciding:** recovered the generation params from
+  `tmp_src/scripts/03_scan_mutants_all_cases.R` (n_mutations=10, model="lfenm",
+  sigma=0.3, min_sd=2, seed=1024; ENM node="ca", ming_wall, d_max=10.5,
+  frustrated=FALSE); confirmed the scan is seed-deterministic — penm's
+  `get_mutant_site_lfenm` does `set.seed(seed + site_mut*mutation)` per mutant
+  (tested: same seed → identical mutant xyz, different seed → different;
+  penm 0.2.0.9000, R 4.2). The .rds carries no provenance, so the params are
+  hard-coded in the script and must match the step-8 test (option a). **Edited
+  `dev/plan.md` §5 (rewrite), §2 (layout: znb_spm "generated"; data-raw adds
+  `raw/`), §9 step 6, §13 decision 5.** Done as a standalone turn *before* writing
+  any step-6 code, so a fresh context reads the corrected plan (per
+  `CLAUDE.md` "read plan.md before doing anything"). Step-6 code execution is the
+  next turn.
+
 ### 2026-06-05
 - **§9 step 4 done (all sub-steps 4.1–4.7), in one batch + step 5.** Copied the 7
   v0.1 source files from `tmp_src/R/` into `R/` keeping source filenames (per the
