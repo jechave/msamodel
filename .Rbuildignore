@@ -2,6 +2,7 @@
 ^\.Rproj\.user$
 ^\.claude$
 ^dev$
+^data-raw$
 ^\.DS_Store$
 ^LICENSE\.md$
 ^tmp_src$

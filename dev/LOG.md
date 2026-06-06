@@ -8,6 +8,21 @@ history those two don't keep.
 One short entry per working session.
 
 ### 2026-06-06
+- **§9 step 6 done — embedded `znb_*` data, SPM generated + validated.** Vendored
+  the small inputs (`inst/extdata/1znb_A.pdb`; `data-raw/raw/dataset_1znb_A.csv`
+  1 row; `data-raw/raw/profiles_1znb_A.csv` 225 rows), wrote
+  `data-raw/prepare_znb_data.R` (generates `znb_spm` via the package's own
+  `generate_spm_data`, params as named constants flagged to match the step-8
+  test), ran it. **One-time validation PASSED:** `all.equal(znb_spm,
+  readRDS(tmp_src/.../1znb_A_spm.rds), tol=1e-8)` is TRUE — the migrated
+  `generate_spm_data` reproduces the source SPM (migration-correctness proof;
+  block fenced as removable). Saved 5 `.rda` via `use_data(compress="xz")`.
+  Sanity: znb_spm 2508 rows, znb_profile 225, 8 active sites, dr2mat 2280×228.
+  Added `^data-raw$` to `.Rbuildignore`; wrote `data-raw/source_files.txt`. Scan
+  runtime ~20 s. **Flag for step 10:** `znb_spm.rda` ≈ 13 MB and `znb_wt.rda`
+  ≈ 6 MB even xz-compressed — will trigger an `R CMD check` data-size NOTE; needs
+  a decision later (subsample? fewer mutations? accept the NOTE?). Not a step-6
+  blocker.
 - **Plan change — §5 embedded-data approach: generate the SPM, don't copy it.**
   Rejected the original §5 (copy `tmp_src/.../1znb_A_spm.rds`, point `SRC` at
   `tmp_src/`/the live project): not self-consistent — once `tmp_src/` is deleted,

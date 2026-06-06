@@ -17,7 +17,7 @@ it (and record the change in `dev/LOG.md`).
   - [x] 4.6 `msa_a1a2grid_workflow.R`
   - [x] 4.7 `msa_bayesian_workflow.R`
 - [x] 5. `devtools::document()` — confirm NAMESPACE populated
-- [ ] 6. Write + run `data-raw/prepare_znb_data.R` → `data/*.rda`
+- [x] 6. Write + run `data-raw/prepare_znb_data.R` → `data/*.rda`
 - [ ] 7. Write `R/data-doc.R` (dataset docs); re-`document()`
 - [ ] 8. Write tests
 - [ ] 9. Write vignette (`msamodel-intro.Rmd`)
