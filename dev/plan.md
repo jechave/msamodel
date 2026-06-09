@@ -392,14 +392,18 @@ Minimal but meaningful coverage; tests use embedded `znb_*` data, run fast:
 |---|---|
 | `test-spm-generate.R` | `load_protein("1znb_A", data_dir = system.file("extdata", package = "msamodel"))` returns a bio3d pdb (NB: `load_protein(pdb_chain, data_dir)` builds the path internally as `file.path(data_dir, paste0(pdb_chain, ".pdb"))` — so the embedded PDB must be `inst/extdata/1znb_A.pdb`, which it is); `get_active_site("1znb_A", znb_dataset)` returns expected active-site indices for 1znb_A; `setup_enm(znb_pdb, node = "ca", ...)` reproduces `znb_wt` (note `setup_enm`'s default is `node = "sc"`; the fixture uses `"ca"`); `generate_spm_data(znb_wt, ...)` reproduces `znb_spm` within tolerance; `add_site_properties(...)` returns expected columns. Closes the loop between SPM-generation code and the embedded fixture — if either drifts, the test fails. Uses the same parameters recorded by `data-raw/prepare_znb_data.R` (see §5). |
 | `test-spm-preprocess.R` | `preprocess_spm(znb_spm)` returns list with `energy_data` + `dr2mat`, correct dims |
-| `test-msa-evaluate.R` | `calculate_dr2i_msa` returns tibble of expected size; `calculate_loglik_msa` returns finite scalar; known-value regression with a fixed snapshot |
-| `test-msa-mcmc.R` | `run_mcmc_msa` with `n_iter=50, burn_in=10, seed` returns a tibble of correct shape; acceptance rate > 0 |
-| `test-decomposition.R` | Shapley columns `shap_mut + shap_stab + shap_act` equal `lrmsd_msa` on synthetic input (site-level only in v0.1) |
-| `test-a1a2grid.R` | `define_selection_grid()` with defaults returns 6×9 = 54 rows; `calculate_dr2i_msa_a1a2grid` output has expected columns |
-| `test-workflow-endtoend.R` | `run_msa_bayesian_analysis(znb_spm, znb_profile, n_mcmc_iter=200, n_burnin=50)` runs and returns a list with the **7** expected elements (observed_data, parameter_samples, parameter_summary, prediction_samples, prediction_summary, decomposition_samples, decomposition_summary — NO model_comparison_* in v0.1). No numeric assertion (too expensive); just structural. |
+| `test-spm-preprocess.R` | `preprocess_spm(znb_spm)` returns `{energy_data, dr2mat (2280×228, colnames=site idx), site_map (228×2: i,pdb_site)}`; site_map mapping matches the SPM list-cols (the contract depends on it) |
+| `test-msa-evaluate.R` | `calculate_dr2i_msa` returns `{i, dr2_i}` 228 rows, all finite & >0; `calculate_loglik_msa(pp, znb_profile, 2, 5)` equals a **frozen** literal value (captured once, hard-coded — not recomputed in-test) |
+| `test-msa-mcmc.R` | `run_mcmc_msa` validation errors on bad prior ranges; **deterministic** check: `fix_a1`/`fix_a2` produce constant a1/a2 columns; output shape `(n_iter-burn_in)×{sample_id,a1,a2}`. (No "acceptance rate" assertion — not returned.) |
+| `test-decomposition.R` | Validation `stop()`s on missing columns (all three fns); `pdb_site` optional branch works both present and absent; summary has expected per-(site×component) shape. (Shapley additivity is NOT asserted — it is algebraically the implementation.) |
+| `test-a1a2grid.R` | `define_selection_grid()` returns 6×9 = 54 rows (cols a1,a2); `calculate_dr2i_msa_a1a2grid` output has cols `a1,a2,i,pdb_site,dr2_msa,dr2_mm,dr2_ms,dr2_ma`, with pdb_site aligned to i |
+| `test-workflow-endtoend.R` | `run_msa_bayesian_analysis(znb_spm, znb_profile, n_mcmc_iter=200, n_burnin=50)` runs and returns a list with the **7** expected elements (observed_data, parameter_samples, parameter_summary, prediction_samples, prediction_summary, decomposition_samples, decomposition_summary — NO model_comparison_* in v0.1). Structural only; this is where the real decomposition pipeline runs end-to-end. |
+| `test-contract.R` | The `observed_data` pdb_site contract: unknown `pdb_site` → `expect_error("not present in the model")`; subset coverage (225/228 sites) gives a finite loglik; loglik via the pdb_site contract equals the independent manual pdb_site→i+join route (catches mis-mapping, non-circular); site-keyed outputs (prediction_summary, decomposition_summary, grid) carry `pdb_site`. |
 
 Dropped from v0.1 (assessment/allotment deferred — see §1): `test-allotment.R`,
-`test-model-comparison.R`. The §2 layout shows 9 test files; v0.1 has **7**.
+`test-model-comparison.R`. v0.1 has **8** test files (the 7 in the original
+matrix plus `test-contract.R`, added 2026-06-09 for the pdb_site contract).
+Tests use `observed_data`/`znb_profile` keyed by `pdb_site` (see §5).
 
 ---
 
@@ -450,7 +454,7 @@ No plots required (ggplot2 is in Suggests). A few print() calls are enough.
    embedded datasets (`znb_pdb`, `znb_wt`, `znb_spm`, `znb_profile`,
    `znb_dataset`). Required, or `R CMD check` warns about undocumented data.
    Re-run `devtools::document()`.
-8. **Write tests** (plan §7, 7 files — easier after all functions are in place).
+8. **Write tests** (plan §7, 8 files — easier after all functions are in place).
 9. **Write vignette** (`msamodel-intro.Rmd`).
 10. **`devtools::check()`** — must pass with zero errors/warnings/notes (or
     documented notes only). Integration coverage comes from the vignette +

@@ -7,6 +7,34 @@ history those two don't keep.
 
 One short entry per working session.
 
+### 2026-06-09 (later)
+- **§9 step 8 done — test suite written (8 files, 55 tests, all pass).** Scaffolded
+  `tests/testthat.R` + `tests/testthat/`. Files: spm-generate (the fixture-drift
+  guard — reproduces znb_wt/znb_spm from the §5 params, ~20s, dominates runtime),
+  spm-preprocess (dr2mat shape + the site_map mapping the pdb_site contract relies
+  on), msa-evaluate (dr2i finiteness + a FROZEN loglik literal -184.3241923285),
+  msa-mcmc (prior-range validation errors + deterministic fix_a1/fix_a2 constancy
+  + shape), decomposition (validation stop()s + the pdb_site optional branch both
+  ways + summary shape — additivity NOT asserted, it's tautological), a1a2grid
+  (54-row grid + output cols + pdb_site alignment), workflow-endtoend (7-element
+  return, real pipeline), contract (unknown-pdb_site error, subset-coverage finite
+  loglik, independent-route mapping equality, pdb_site on outputs). Suite: 55 pass
+  / 0 fail / 0 warn, ~29s. **Failure-sanity check:** perturbed the frozen loglik
+  and the dr2mat shape → the relevant tests FAILED, then reverted → clean. Confirms
+  assertions aren't vacuous.
+- **Plan §7 reconciled for step 8 (tests).** Updated the test matrix to the
+  pdb_site contract and to vetted assertions (the prior matrix had tautological /
+  untestable rows). Key changes: dropped the Shapley-additivity assertion (it is
+  algebraically the implementation — can't fail except by editing the formula);
+  replaced the loglik "regression" with a FROZEN literal (captured once, not
+  recomputed in-test); dropped the "acceptance rate > 0" claim (`accepts` isn't
+  returned); added deterministic `fix_a1/fix_a2` and validation-error tests for
+  MCMC; made decomposition test validation + the pdb_site optional-branch + shape.
+  Added **`test-contract.R`** (8th file) for the pdb_site contract: unknown-pdb_site
+  error, subset-coverage finite loglik, independent-route mapping equality (non-
+  circular), pdb_site on outputs. v0.1 test count 7 → 8. Done before writing tests
+  (fix-plan-first). See memory `feedback-test-quality`.
+
 ### 2026-06-09
 - **Fixed the `observed_data` site-key contract (pdb_site, not i) + documented
   datasets (step 7).** Surfaced while prepping step 7: `observed_data` is
