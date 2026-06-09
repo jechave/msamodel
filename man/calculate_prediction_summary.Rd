@@ -7,10 +7,11 @@
 calculate_prediction_summary(prediction_samples)
 }
 \arguments{
-\item{prediction_samples}{Tibble with per-sample predictions in wide format}
+\item{prediction_samples}{Tibble with per-sample predictions in wide format
+(with both `i` and `pdb_site`, as returned by calculate_prediction_samples)}
 }
 \value{
-A tibble with predictions in long format (i, variable, mean, sd, median, lower, upper)
+A tibble with predictions in long format (i, pdb_site, variable, mean, sd, median, lower, upper)
 }
 \description{
 Summarize lrmsd predictions across samples in long format

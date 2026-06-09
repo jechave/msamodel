@@ -10,7 +10,9 @@ GENERATED (not copied):
   znb_pdb      = bio3d::read.pdb(inst/extdata/1znb_A.pdb)
   znb_wt       = setup_enm(znb_pdb, node="ca", model="ming_wall", d_max=10.5, frustrated=FALSE)
   znb_dataset  = dataset_1znb_A.csv (active-site cols read as character)
-  znb_profile  = profiles_1znb_A.csv -> transmute(i=site, lrmsd_obs=lrmsd, dactive, lrmsf)
+  znb_profile  = profiles_1znb_A.csv -> transmute(pdb_site, lrmsd_obs=lrmsd)
+                 Keyed by pdb_site (NOT internal index i). dactive/lrmsf NOT stored:
+                 derivable from znb_wt (add_site_properties; lrmsf=log(sqrt(get_msf_site))).
   znb_spm      = generate_spm_data(znb_wt, n_mutations=10, model="lfenm", sigma=0.3,
                                    min_sd=2, pdb_site_active=<8 active sites>, seed=1024)
                  2508 rows (228 sites x 11 states m=0..10).

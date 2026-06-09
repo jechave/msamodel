@@ -18,7 +18,10 @@ run_msa_bayesian_analysis(
 \arguments{
 \item{spm}{SPM data}
 
-\item{observed_data}{Observed data with i and lrmsd_obs columns}
+\item{observed_data}{Observed data with columns `pdb_site` (PDB residue number)
+and `lrmsd_obs` (observed log structural divergence). `pdb_site` is the
+structure-anchored site key; the package maps it to the internal response-site
+index. Site-keyed elements of the returned list carry both `i` and `pdb_site`.}
 
 \item{n_mcmc_iter}{Number of MCMC iterations}
 

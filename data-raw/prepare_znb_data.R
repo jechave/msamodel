@@ -49,11 +49,15 @@ znb_dataset <- readr::read_csv(
 )
 
 # --- 4. znb_profile: observed divergence profile ---------------------------
+# Keyed by pdb_site (the structure-anchored identity a user can actually supply),
+# NOT the internal index i. dactive/lrmsf are NOT embedded: they are derivable
+# from znb_wt (add_site_properties; lrmsf = log(sqrt(get_msf_site))), so storing
+# them would duplicate data the package can regenerate.
 znb_profile <- readr::read_csv(
   here("data-raw", "raw", "profiles_1znb_A.csv"),
-  col_types = readr::cols(site = readr::col_integer(), .default = readr::col_guess())
+  col_types = readr::cols(pdb_site = readr::col_integer(), .default = readr::col_guess())
 ) %>%
-  dplyr::transmute(i = site, lrmsd_obs = lrmsd, dactive, lrmsf)
+  dplyr::transmute(pdb_site, lrmsd_obs = lrmsd)
 
 # --- 5. active-site residues (package code) --------------------------------
 pdb_site_active <- get_active_site(pdb_chain, znb_dataset)$pdb_site_active

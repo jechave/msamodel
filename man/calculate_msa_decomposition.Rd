@@ -7,10 +7,12 @@
 calculate_msa_decomposition(data)
 }
 \arguments{
-\item{data}{Data frame with columns i, lrmsd_mm, lrmsd_ms, lrmsd_ma, lrmsd_msa}
+\item{data}{Data frame with columns i, lrmsd_mm, lrmsd_ms, lrmsd_ma, lrmsd_msa
+(and optionally pdb_site, which is carried through if present)}
 }
 \value{
-Data frame with only the Shapley decomposition columns and i for joining
+Data frame with the site key(s) (i, and pdb_site if present) and the
+  Shapley decomposition columns
 }
 \description{
 Calculate Shapley decomposition of MSA model for lrmsd metric

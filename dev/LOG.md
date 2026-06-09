@@ -7,6 +7,38 @@ history those two don't keep.
 
 One short entry per working session.
 
+### 2026-06-09
+- **Fixed the `observed_data` site-key contract (pdb_site, not i) + documented
+  datasets (step 7).** Surfaced while prepping step 7: `observed_data` is
+  *user-provided* input (public arg of `run_msa_bayesian_analysis`), but the
+  contract required the user to supply `i` — the model's internal 1..N response-
+  site renumbering — which a user can't reliably produce, and the fit joined on it
+  with no validation (silent-misalignment risk). For 1znb_A it worked by luck
+  (verified 225/225 pdb_site agreement), not by construction.
+  **Decision (user): full fix overriding CLAUDE.md §4 "rename nothing"** — justified
+  as a public-API correctness fix. New contract: `observed_data = {pdb_site,
+  lrmsd_obs}`; package maps pdb_site→i internally via a new `site_map` returned by
+  `preprocess_spm`, erroring on any unknown pdb_site. All six site-keyed objects
+  now also carry `pdb_site` alongside `i` (prediction_samples/summary,
+  decomposition_samples/summary, observed_data passthrough, grid output). Internal
+  i/j convention (i=response site, j=perturbed site) unchanged. Files:
+  `R/msa_bayesian_data_preparation.R` (site_map), `R/msa_model_evaluation.R`
+  (map+validate+join), `R/msa_bayesian_analysis.R`, `R/msa_decomposition.R`
+  (pdb_site optional — synthetic test input without it still works),
+  `R/msa_a1a2grid_workflow.R`, `R/msa_bayesian_workflow.R` (docs).
+  **`znb_profile` regenerated** as `{pdb_site, lrmsd_obs}` (dropped i; dropped the
+  derivable dactive/lrmsf — verified reproducible from znb_wt to machine
+  precision: dactive=get_dactive, lrmsf=log(sqrt(get_msf_site))). SPM one-time
+  validation still passed on re-run.
+  **Step 7:** wrote `R/data-doc.R` documenting all 5 datasets (`@family datasets`,
+  accurate `@format`; znb_profile framed as the {pdb_site, lrmsd_obs} fit target).
+  **Verify:** correctness gate — new contract gives loglik identical to the old
+  i-join reference for 1znb_A (-184.3242, all.equal TRUE); negative test — unknown
+  pdb_site errors clearly; `document()` clean, NAMESPACE still 18 exports;
+  `load_all()` clean; full workflow returns 7 elems with pdb_site on every
+  site-keyed output. Updated `dev/plan.md` §2/§5 (contract note + deliberate §4
+  exception) BEFORE coding. v0.2 maybe: make pdb_site the canonical key throughout.
+
 ### 2026-06-06
 - **§9 step 6 done — embedded `znb_*` data, SPM generated + validated.** Vendored
   the small inputs (`inst/extdata/1znb_A.pdb`; `data-raw/raw/dataset_1znb_A.csv`

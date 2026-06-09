@@ -7,9 +7,11 @@
 calculate_loglik_msa(spm_energies_and_dr2mat, observed_data, a1, a2)
 }
 \arguments{
-\item{spm_energies_and_dr2mat}{Preprocessed data from preprocess_spm}
+\item{spm_energies_and_dr2mat}{Preprocessed data from preprocess_spm
+(must include `site_map`, used to translate `pdb_site` to the internal `i`).}
 
-\item{observed_data}{Tibble with i and lrmsd_obs columns}
+\item{observed_data}{Tibble with columns `pdb_site` (PDB residue number) and
+`lrmsd_obs` (observed log structural divergence).}
 
 \item{a1}{Stability selection parameter}
 

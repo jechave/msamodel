@@ -1,7 +1,9 @@
 #' Calculate Shapley decomposition of MSA model for lrmsd metric
 #'
 #' @param data Data frame with columns i, lrmsd_mm, lrmsd_ms, lrmsd_ma, lrmsd_msa
-#' @return Data frame with only the Shapley decomposition columns and i for joining
+#'   (and optionally pdb_site, which is carried through if present)
+#' @return Data frame with the site key(s) (i, and pdb_site if present) and the
+#'   Shapley decomposition columns
 #' @family decomposition
 #' @export
 calculate_msa_decomposition <- function(data) {
@@ -13,7 +15,7 @@ calculate_msa_decomposition <- function(data) {
     stop("Missing required columns: ", paste(missing_cols, collapse = ", "))
   }
 
-  # Calculate Shapley values
+  # Calculate Shapley values (carry pdb_site through when present)
   result <- data %>%
     transmute(
       i = i,
@@ -21,6 +23,9 @@ calculate_msa_decomposition <- function(data) {
       shap_stab = 0.5 * (lrmsd_ms - lrmsd_mm + lrmsd_msa - lrmsd_ma),
       shap_act = 0.5 * (lrmsd_ma - lrmsd_mm + lrmsd_msa - lrmsd_ms)
     )
+  if ("pdb_site" %in% colnames(data)) {
+    result <- dplyr::bind_cols(result["i"], data["pdb_site"], result[c("shap_mut", "shap_stab", "shap_act")])
+  }
 
   return(result)
 }
@@ -62,8 +67,10 @@ calculate_decomposition_samples <- function(data) {
 
 #' Summarize MSA Shapley decomposition across samples in long format
 #'
-#' @param decomposition_samples Data frame with sample_id, i, shap_mut, shap_stab, shap_act columns
-#' @return Data frame with i, component, and summary statistics in long format
+#' @param decomposition_samples Data frame with sample_id, i, shap_mut, shap_stab,
+#'   shap_act columns (and optionally pdb_site, carried through if present)
+#' @return Data frame with i (and pdb_site if present), component, and summary
+#'   statistics in long format
 #' @family decomposition
 #' @export
 calculate_decomposition_summary <- function(decomposition_samples) {
@@ -75,6 +82,13 @@ calculate_decomposition_summary <- function(decomposition_samples) {
     stop("Missing required columns: ", paste(missing_cols, collapse = ", "))
   }
 
+  # Group by the site key(s): carry pdb_site through when present
+  group_keys <- if ("pdb_site" %in% colnames(decomposition_samples)) {
+    c("i", "pdb_site", "component")
+  } else {
+    c("i", "component")
+  }
+
   # Calculate summary statistics in long format
   result <- decomposition_samples %>%
     # Step 1: Convert to long format first
@@ -84,7 +98,7 @@ calculate_decomposition_summary <- function(decomposition_samples) {
       values_to = "value"
     ) %>%
     # Step 2: Group by residue and component
-    group_by(i, component) %>%
+    group_by(across(all_of(group_keys))) %>%
     # Step 3: Calculate summary statistics
     summarise(
       mean = mean(value, na.rm = TRUE),

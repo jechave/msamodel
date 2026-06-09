@@ -3,7 +3,8 @@
 #' Run MCMC using Metropolis-Hastings algorithm (matrix-based version)
 #'
 #' @param spm_energies_and_dr2mat Preprocessed data from preprocess_spm
-#' @param observed_data Tibble with i and lrmsd_obs columns
+#' @param observed_data Tibble with columns `pdb_site` and `lrmsd_obs`
+#'   (`pdb_site` is mapped to the internal index by \code{calculate_loglik_msa})
 #' @param n_iter Number of MCMC iterations
 #' @param burn_in Number of burn-in iterations to discard
 #' @param fix_a1 Optional fixed value for a1
@@ -113,7 +114,8 @@ run_mcmc_msa <- function(spm_energies_and_dr2mat,
 #'
 #' @param spm_energies_and_dr2mat Preprocessed data from preprocess_spm
 #' @param parameter_samples MCMC samples tibble with sample_id, a1, a2 columns
-#' @return Tibble with per-sample lrmsd predictions in wide format
+#' @return Tibble with per-sample lrmsd predictions in wide format, with both the
+#'   internal response-site index `i` and the structure-anchored `pdb_site`.
 #' @family fitting
 #' @export
 calculate_prediction_samples <- function(spm_energies_and_dr2mat, parameter_samples) {
@@ -175,6 +177,11 @@ calculate_prediction_samples <- function(spm_energies_and_dr2mat, parameter_samp
       names_glue = "lrmsd_{model}"
     )
 
+  # Attach the structure-anchored pdb_site alongside the internal index i.
+  wide_predictions <- wide_predictions %>%
+    left_join(spm_energies_and_dr2mat$site_map, by = "i") %>%
+    select(sample_id, i, pdb_site, everything())
+
   return(wide_predictions)
 }
 
@@ -205,7 +212,8 @@ calculate_parameter_summary <- function(parameter_samples) {
 #' Summarize lrmsd predictions across samples in long format
 #'
 #' @param prediction_samples Tibble with per-sample predictions in wide format
-#' @return A tibble with predictions in long format (i, variable, mean, sd, median, lower, upper)
+#'   (with both `i` and `pdb_site`, as returned by calculate_prediction_samples)
+#' @return A tibble with predictions in long format (i, pdb_site, variable, mean, sd, median, lower, upper)
 #' @family fitting
 #' @export
 calculate_prediction_summary <- function(prediction_samples) {
@@ -214,8 +222,8 @@ calculate_prediction_summary <- function(prediction_samples) {
 
   # Create a long format result
   result <- prediction_samples %>%
-    # Step 1: Group by residue position
-    group_by(i) %>%
+    # Step 1: Group by residue position (carry pdb_site through; 1:1 with i)
+    group_by(i, pdb_site) %>%
     # Step 2: For each residue, calculate summary stats for each model
     summarise(across(all_of(lrmsd_cols),
                      list(mean = ~mean(., na.rm = TRUE),
@@ -226,14 +234,14 @@ calculate_prediction_summary <- function(prediction_samples) {
               .groups = "drop") %>%
     # Step 3: Convert to long format - first for the different variables
     pivot_longer(
-      cols = -i,
+      cols = -c(i, pdb_site),
       names_to = c("variable", ".value"),
       names_pattern = "(.+)_(.+)"
     )
 
   # Ensure proper column order
   result <- result %>%
-    select(i, variable, mean, sd, median, lower, upper)
+    select(i, pdb_site, variable, mean, sd, median, lower, upper)
 
   return(result)
 }

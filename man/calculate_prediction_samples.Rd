@@ -12,7 +12,8 @@ calculate_prediction_samples(spm_energies_and_dr2mat, parameter_samples)
 \item{parameter_samples}{MCMC samples tibble with sample_id, a1, a2 columns}
 }
 \value{
-Tibble with per-sample lrmsd predictions in wide format
+Tibble with per-sample lrmsd predictions in wide format, with both the
+  internal response-site index `i` and the structure-anchored `pdb_site`.
 }
 \description{
 Calculate lrmsd predictions for MSA, MS, MA, and MM models

@@ -19,7 +19,8 @@ run_mcmc_msa(
 \arguments{
 \item{spm_energies_and_dr2mat}{Preprocessed data from preprocess_spm}
 
-\item{observed_data}{Tibble with i and lrmsd_obs columns}
+\item{observed_data}{Tibble with columns `pdb_site` and `lrmsd_obs`
+(`pdb_site` is mapped to the internal index by \code{calculate_loglik_msa})}
 
 \item{n_iter}{Number of MCMC iterations}
 

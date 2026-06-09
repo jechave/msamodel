@@ -9,10 +9,13 @@ Preprocess SPM data for matrix-based Bayesian analysis}
 preprocess_spm(spm)
 }
 \arguments{
-\item{spm}{SPM tibble with columns j, m, ddg_dv_jm, ddg_tds_jm, ddgact_dv_jm, ddgact_tds_jm, and list-columns site and dr2}
+\item{spm}{SPM tibble with columns j, m, ddg_dv_jm, ddg_tds_jm, ddgact_dv_jm, ddgact_tds_jm, and list-columns site, pdb_site and dr2}
 }
 \value{
-List containing energy_data and dr2mat
+List containing energy_data, dr2mat, and site_map. `site_map` is a
+  tibble with columns `i` (the internal response-site index, matching the
+  `dr2mat` column names) and `pdb_site` (the structure-anchored PDB residue
+  number), used to translate user-supplied `pdb_site` keys to internal `i`.
 }
 \description{
 MSA Data Preparation

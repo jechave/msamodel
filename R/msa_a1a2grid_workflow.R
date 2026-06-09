@@ -13,6 +13,9 @@ calculate_dr2i_msa_a1a2grid <- function(spm, a1a2grid, verbose = TRUE) {
   if (verbose) cat("Preparing site-specific data from SPM tibble\n")
   spm_energies_and_dr2mat <- preprocess_spm(spm)
   site_ids <- as.integer(colnames(spm_energies_and_dr2mat$dr2mat))
+  # structure-anchored pdb_site aligned to site_ids (via the model's site_map)
+  site_map <- spm_energies_and_dr2mat$site_map
+  pdb_site_ids <- site_map$pdb_site[match(site_ids, site_map$i)]
 
   if (verbose) cat("Calculating for", nrow(a1a2grid), "selection parameter combinations\n")
   result <- map_dfr(1:nrow(a1a2grid), function(idx) {
@@ -37,6 +40,7 @@ calculate_dr2i_msa_a1a2grid <- function(spm, a1a2grid, verbose = TRUE) {
       a1 = a1,
       a2 = a2,
       i = site_ids,
+      pdb_site = pdb_site_ids,
       dr2_msa,
       dr2_mm,
       dr2_ms,

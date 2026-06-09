@@ -7,10 +7,12 @@
 calculate_decomposition_summary(decomposition_samples)
 }
 \arguments{
-\item{decomposition_samples}{Data frame with sample_id, i, shap_mut, shap_stab, shap_act columns}
+\item{decomposition_samples}{Data frame with sample_id, i, shap_mut, shap_stab,
+shap_act columns (and optionally pdb_site, carried through if present)}
 }
 \value{
-Data frame with i, component, and summary statistics in long format
+Data frame with i (and pdb_site if present), component, and summary
+  statistics in long format
 }
 \description{
 Summarize MSA Shapley decomposition across samples in long format

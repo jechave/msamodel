@@ -28,7 +28,9 @@ calculate_dr2i_msa <- function(spm_energies_and_dr2mat, a1, a2) {
 #' Calculate log-likelihood of observed data given model parameters (matrix approach)
 #'
 #' @param spm_energies_and_dr2mat Preprocessed data from preprocess_spm
-#' @param observed_data Tibble with i and lrmsd_obs columns
+#'   (must include `site_map`, used to translate `pdb_site` to the internal `i`).
+#' @param observed_data Tibble with columns `pdb_site` (PDB residue number) and
+#'   `lrmsd_obs` (observed log structural divergence).
 #' @param a1 Stability selection parameter
 #' @param a2 Activity selection parameter
 #' @return Log-likelihood value
@@ -36,7 +38,7 @@ calculate_dr2i_msa <- function(spm_energies_and_dr2mat, a1, a2) {
 #' @export
 calculate_loglik_msa <- function(spm_energies_and_dr2mat, observed_data, a1, a2) {
 
-  # Generate model predictions
+  # Generate model predictions (keyed by the internal response-site index i)
   dr2i_msa <- calculate_dr2i_msa(spm_energies_and_dr2mat, a1, a2)  %>%
     rename(dr2_msa = dr2_i)
 
@@ -46,7 +48,20 @@ calculate_loglik_msa <- function(spm_energies_and_dr2mat, observed_data, a1, a2)
     ) %>%
     dplyr::select(i, lrmsd_msa)
 
+  # Translate user-supplied pdb_site to the internal index i via the model's
+  # site_map. pdb_site is the structure-anchored key; i is model-internal.
+  site_map <- spm_energies_and_dr2mat$site_map
   observations <- observed_data %>%
+    dplyr::select(pdb_site, lrmsd_obs)
+
+  unknown <- setdiff(observations$pdb_site, site_map$pdb_site)
+  if (length(unknown) > 0) {
+    stop("observed_data has pdb_site value(s) not present in the model: ",
+         paste(unknown, collapse = ", "))
+  }
+
+  observations <- observations %>%
+    inner_join(site_map, by = "pdb_site") %>%
     dplyr::select(i, lrmsd_obs)
 
   # Match predictions with observations

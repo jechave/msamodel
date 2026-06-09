@@ -1,7 +1,10 @@
 #' Run Bayesian analysis for MSA model, including Shapley decomposition
 #'
 #' @param spm SPM data
-#' @param observed_data Observed data with i and lrmsd_obs columns
+#' @param observed_data Observed data with columns `pdb_site` (PDB residue number)
+#'   and `lrmsd_obs` (observed log structural divergence). `pdb_site` is the
+#'   structure-anchored site key; the package maps it to the internal response-site
+#'   index. Site-keyed elements of the returned list carry both `i` and `pdb_site`.
 #' @param n_mcmc_iter Number of MCMC iterations
 #' @param n_burnin Number of burn-in iterations to discard
 #' @param a1_prior_range Vector of length 2 giving [min, max] for a1 prior

@@ -3,8 +3,11 @@
 
 #' Preprocess SPM data for matrix-based Bayesian analysis
 #'
-#' @param spm SPM tibble with columns j, m, ddg_dv_jm, ddg_tds_jm, ddgact_dv_jm, ddgact_tds_jm, and list-columns site and dr2
-#' @return List containing energy_data and dr2mat
+#' @param spm SPM tibble with columns j, m, ddg_dv_jm, ddg_tds_jm, ddgact_dv_jm, ddgact_tds_jm, and list-columns site, pdb_site and dr2
+#' @return List containing energy_data, dr2mat, and site_map. `site_map` is a
+#'   tibble with columns `i` (the internal response-site index, matching the
+#'   `dr2mat` column names) and `pdb_site` (the structure-anchored PDB residue
+#'   number), used to translate user-supplied `pdb_site` keys to internal `i`.
 #' @family spm
 #' @export
 preprocess_spm <- function(spm) {
@@ -28,5 +31,13 @@ preprocess_spm <- function(spm) {
   }
   colnames(dr2mat) <- spm_filtered$site[[1]]  # Site numbers as column names
 
-  list(energy_data = energy_data, dr2mat = dr2mat)
+  # Map internal site index i (= dr2mat column names) to structure-anchored
+  # pdb_site. The site / pdb_site list-columns are per-row parallel vectors;
+  # the first row carries the full ordered mapping.
+  site_map <- tibble(
+    i = as.integer(spm_filtered$site[[1]]),
+    pdb_site = as.integer(spm_filtered$pdb_site[[1]])
+  )
+
+  list(energy_data = energy_data, dr2mat = dr2mat, site_map = site_map)
 }
