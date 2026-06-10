@@ -1,13 +1,47 @@
 # Log — msamodel migration
 
 Append-only history of what was done and attempted (newest first), including
-dead ends and decisions. The **normative spec is `dev/plan.md`**; the live
-checklist is `dev/PROGRESS.md` (a 1:1 mirror of plan.md §9). This file is the
-history those two don't keep.
+dead ends and decisions. The durable roadmap is `dev/plan.md`; `dev/PROGRESS.md`
+is the checklist for the version currently in flight. This file is the history
+those two don't keep.
 
 One short entry per working session.
 
-### 2026-06-10 (later)
+### 2026-06-10 (latest) — planning restructured + full tmp_src survey
+
+- **Restructured planning into two tiers (user-driven).** Lesson from v0.1: the
+  575-line `dev/plan.md` was both blueprint and execution script, so every
+  execution surprise forced a plan edit. Now: `dev/plan.md` = COARSE durable
+  roadmap (what each version is) + durable findings; detailed planning is done
+  per-version at execution time (in plan mode, against the actual code) and tracked
+  in `dev/PROGRESS.md`. Rewrote `dev/plan.md` (dropped the 13 v0.1 sections — that
+  job is done; history is here), repurposed `dev/PROGRESS.md` as the in-flight-
+  version checklist (currently dormant), and rewrote `CLAUDE.md` for the post-v0.1
+  reality + the two-tier model.
+- **Full read of `tmp_src/` (.R + .Rmd) — much more unmigrated than §12 tracked.**
+  The old §12 only listed unmigrated `R/*.R` files. Surveyed all four regions:
+  (A) deferred R/ model code [assessment 3-file bundle, allotment, protein decomp,
+  viz]; (B) `Rmd/` paper analyses [figure library, AlphaFold2 validation,
+  sequence-vs-structure divergence — new feature signals]; (C) `someday_maybe/tree/`
+  trajectory route; (D) **`.archive/` — the model's MOTION/MODE arm**, which the
+  user wants for future projects and which was buried/never analyzed.
+- **KEY FINDING (durable, now in plan.md): the precomputation property generalizes
+  for the SPM-mean route but NOT the tree.** The model is a 2×2 grid {structure
+  dr2, motion dh} × {site i, mode n} (+ nh_n); v0.1 implements only structure×site.
+  All archive quantities are `X = sum(pfix_jm * X_jm)/sum(pfix_jm)` with a1/a2 only
+  in per-mutant pfix → the v0.1 `[mutant×site]` reweighting matrix generalizes to
+  more value-matrices reweighted by the same weights. So motion/mode (D) ≈ "more
+  SPM columns + reweighting", mechanically close to v0.1. The TREE (C) uses
+  sequential substitutions → weights don't factorize → it interpolates over an
+  a1/a2 grid (akima) instead; no clean precomputation. Hence roadmap order
+  v0.3=motion/mode (D), v0.4=tree (C).
+- **Roadmap set (user decisions):** v0.2 = API-only (phi rename, PDB path input,
+  pdb_site-vector active sites, grid keep/demote/drop); v0.3 = motion/mode (D),
+  read rest of `.archive/` incl. model_rates.R at its start; v0.4 = tree (C);
+  later/unordered = assessment+allotment+protein-decomp, viz/figure-lib, AF2,
+  sequence divergence. No v0.2 code written yet.
+
+### 2026-06-10 (earlier)
 - **§9 step 10 done — `devtools::check()` as clean as v0.1 gets (GitHub-only, not
   CRAN).** Final: **0 errors, 1 warning, 2 notes**, tests pass. Fixed the two
   genuinely-fixable items: (N2) `.Rbuildignore`d top-level `CLAUDE.md`; (N4)
