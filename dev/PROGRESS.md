@@ -20,5 +20,5 @@ it (and record the change in `dev/LOG.md`).
 - [x] 6. Write + run `data-raw/prepare_znb_data.R` → `data/*.rda`
 - [x] 7. Write `R/data-doc.R` (dataset docs); re-`document()`
 - [x] 8. Write tests
-- [ ] 9. Write vignette (`msamodel-intro.Rmd`)
-- [ ] 10. `devtools::check()` clean
+- [x] 9. Write vignette (`msamodel-intro.Rmd`)
+- [x] 10. `devtools::check()` clean

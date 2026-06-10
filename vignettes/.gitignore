@@ -1,0 +1,5 @@
+*.html
+*.R
+!precompute.R
+*.knit.md
+*_files/

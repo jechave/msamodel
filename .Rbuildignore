@@ -6,3 +6,5 @@
 ^\.DS_Store$
 ^LICENSE\.md$
 ^tmp_src$
+^vignettes/precompute\.R$
+^CLAUDE\.md$

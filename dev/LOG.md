@@ -7,6 +7,67 @@ history those two don't keep.
 
 One short entry per working session.
 
+### 2026-06-10 (later)
+- **§9 step 10 done — `devtools::check()` as clean as v0.1 gets (GitHub-only, not
+  CRAN).** Final: **0 errors, 1 warning, 2 notes**, tests pass. Fixed the two
+  genuinely-fixable items: (N2) `.Rbuildignore`d top-level `CLAUDE.md`; (N4)
+  silenced the package-wide tidyverse-NSE "no visible binding" NOTE via
+  `utils::globalVariables(c(...))` in `R/msamodel-package.R` (28 data-column /
+  grouping names — not real globals). **Accepted (deliberate, user is GitHub-only):**
+  LazyData WARNING + installed-size NOTE (both the known `znb_spm`~13 MB/`znb_wt`~6 MB
+  data-size story) and the spurious future-timestamp NOTE (clock/network skew).
+  **Dead end:** tried removing `LazyData: true` to clear the WARNING — broke 19
+  tests (`object 'znb_spm' not found`: tests use the `znb_*` datasets bare, relying
+  on lazy auto-load). Reverted; not worth editing the whole test suite to chase a
+  cosmetic warning. **v0.1 migration COMPLETE** — all 10 plan §9 steps done. Next:
+  the v0.2 backlog in plan §12 (rename "Shapley"→phi_*, reconsider the grid API,
+  the deferred assessment/allotment/protein-decomp/trajectory/viz layers).
+- **Vignette revisions (user review of step 9).** Per user feedback on the rendered
+  HTML: (3) added active-site vlines to the a1/a2 sweep plots; (4) moved the R²
+  annotation to top-left on the obs-vs-fitted profile (was overlapping); added a
+  "four model variants" table (MM/MS/MA/MSA) — they were referenced but never
+  defined; (5) rewrote the decomposition section — **dropped "Shapley" and the
+  wrong "baseline" gloss** (the latter was my invention, grounded in nothing — the
+  `shap_mut` term is the mutation/no-selection component, which still varies among
+  sites; a baseline would be residue-independent), added the explicit φ formulas
+  (φ_mut, φ_stab, φ_act with the ½-averaging) + the additivity identity; (6)
+  demoted the grid section to a brief mention. Flagged both v0.2 items in plan §12.
+  Re-rendered + re-inspected the changed figures; cache unchanged (only plot/prose
+  edited).
+
+### 2026-06-10
+- **§9 step 9 done — vignette `msamodel-intro.Rmd` written, builds clean.** Full
+  plotted walkthrough (supersedes the old §8 "no plots, print() only" spec —
+  rewrote §8 first, fix-plan-first). **Build mode: precompute + cache** —
+  `vignettes/precompute.R` runs the heavy pipeline once (SPM preprocess, profiles,
+  a1/a2 sweeps, a 4000-iter/1000-burn MCMC fit, decomposition) and saves
+  `vignettes/vignette_cache.rds` (96 KB); the `.Rmd` shows the pipeline code as
+  `eval=FALSE` and draws every plot off the cache. Keeps check fast, no `penm`/MCMC
+  at build time. `precompute.R` is `.Rbuildignore`d; the cache ships. ggplot2 is
+  Suggested, so every plot chunk is guarded by `requireNamespace("ggplot2")` +
+  `eval = have_cache && has_ggplot`.
+  **Sections:** (1) setup from PDB (load_protein→get_active_site→setup_enm→
+  generate_spm_data, eval=FALSE, noted as reproducing the shipped znb_wt/znb_spm);
+  (2) profile at a demo (a1=2,a2=500) — raw lrmsd vs residue (active sites marked),
+  vs lrmsf, vs dactive (+geom_smooth); (3) a1-sweep (a2=0) and a2-sweep (a1=0),
+  whole raw lrmsd; (4) Bayesian fit — parameter summary + observed-vs-fitted on
+  **mean-centered nlrmsd** (what the likelihood compares) as profile/scatter/vs-
+  lrmsf/vs-dactive, each annotated with **R² (≈0.605)** computed inline (v0.1 has
+  no gof fns — §1); (5) Shapley decomposition (shap_mut/stab/act, active sites
+  marked — activity-selection troughs visibly coincide); (6) grid API note.
+  **Decisions (user):** gof = R²; centering differs by section (raw for profile/
+  sweep, centered for fit-vs-obs); full PDB setup path shown. **Verify:** ran
+  precompute (~99 s, MCMC dominates) → cache written; visually inspected all 10
+  figures as standalone PNGs (Read tool) and iterated (added active-site vlines to
+  the decomposition); `rmarkdown::render` → 1 MB self-contained HTML, all 46 chunks
+  ran; **`devtools::check()` = 0 errors**, 1 warning + 4 notes, **all preexisting /
+  step-10** (LazyData + installed-size = the known znb_spm/znb_wt data-size issue;
+  top-level CLAUDE.md; future-timestamp; the package-wide tidyverse NSE
+  "no visible binding"). Confirmed via git that this work touched only
+  `.Rbuildignore`, `dev/plan.md`, `vignettes/` — DESCRIPTION/data untouched, so the
+  warning/notes are not vignette-introduced. Only step 10 (`check()` clean) remains;
+  the data-size warning/note is the main thing to resolve there.
+
 ### 2026-06-09 (later)
 - **§9 step 8 done — test suite written (8 files, 55 tests, all pass).** Scaffolded
   `tests/testthat.R` + `tests/testthat/`. Files: spm-generate (the fixture-drift

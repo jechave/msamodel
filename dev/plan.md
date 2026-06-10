@@ -409,14 +409,33 @@ Tests use `observed_data`/`znb_profile` keyed by `pdb_site` (see §5).
 
 ## 8. Vignette (`vignettes/msamodel-intro.Rmd`)
 
-One short vignette that:
-1. Loads `znb_spm` and `znb_profile`.
-2. Runs `run_msa_bayesian_analysis` with low iteration count (documented as "for demonstration").
-3. Shows the parameter summary and the site-level decomposition. (Model-fit
-   assessment is deferred — see §1 — so the vignette does not demonstrate it.)
-4. Demonstrates the grid-search API with `calculate_dr2i_msa_a1a2grid`.
+A full plotted walkthrough of everything v0.1 can do, end to end (revised
+2026-06-10 — supersedes the earlier "no plots, print() only" spec). Built with a
+**precompute + cache** approach: the heavy work runs once in
+`vignettes/precompute.R`, which saves `vignettes/vignette_cache.rds`; the `.Rmd`
+shows the pipeline code with `eval = FALSE` and renders plots off the cache. This
+keeps `R CMD check` fast and removes `penm`/MCMC from build time. ggplot2 is in
+`Suggests`, so every plot chunk is guarded by `requireNamespace("ggplot2")`.
 
-No plots required (ggplot2 is in Suggests). A few print() calls are enough.
+Sections:
+1. **Intro** — what the MSA model computes; the `znb_*` example (1znb_A).
+2. **Setup from PDB** (`eval=FALSE`): `load_protein` → `get_active_site` →
+   `setup_enm` → `generate_spm_data(seed = 1024)`; note this reproduces the
+   shipped `znb_wt`/`znb_spm`.
+3. **Profiles at a given (a1, a2)** — raw lrmsd = `log(sqrt(dr2_i))` from
+   `calculate_dr2i_msa`; lrmsf/dactive via `add_site_properties`. Three plots:
+   lrmsd vs residue (active sites marked), lrmsd vs lrmsf (+`geom_smooth`),
+   lrmsd vs dactive (+`geom_smooth`).
+4. **Parameter sweeps** — whole raw lrmsd: a1-sweep at a2=0, a2-sweep at a1=0.
+5. **Bayesian fit** (`run_msa_bayesian_analysis`, `eval=FALSE`): parameter
+   summary; observed vs fitted compared as **mean-centered `nlrmsd`** (what the
+   likelihood fits) for profile / vs lrmsf / vs dactive, each annotated with R²
+   (computed inline — v0.1 has no gof functions, §1).
+6. **Site decomposition** — plot `decomposition_summary` (shap_mut/stab/act).
+7. **Grid API** — short `define_selection_grid` + `calculate_dr2i_msa_a1a2grid`.
+
+Centering conventions: §3 and §4 use raw lrmsd; §5 (fit-vs-observed) uses
+mean-centered nlrmsd. The R² helper is vignette-local (not exported).
 
 ---
 
@@ -517,6 +536,20 @@ just not in the first release:
   Re-add `test-allotment.R`. Settle the approach first.
 - **Protein-level Shapley decomposition**: `protein_msa_decomposition.R` →
   `msa_decomposition_protein.R`.
+- **Rename the "Shapley" decomposition (it is a misnomer).** The site
+  decomposition (`msa_decomposition.R`) is *called* Shapley but is not rigorously
+  a Shapley decomposition. v0.2: drop the term "Shapley" from names/docs and
+  rename the components `shap_mut`/`shap_stab`/`shap_act` →
+  `phi_mut`/`phi_stab`/`phi_act` throughout (functions, roxygen, column names,
+  `decomposition_summary`, tests, the vignette). The v0.1 vignette already avoids
+  the word "Shapley" in prose (uses $\phi$ in the formulas) but the code/column
+  names still carry `shap_*`. (Flagged 2026-06-10 by user.)
+- **Reconsider whether the a1/a2 grid workflow belongs in the package.**
+  `define_selection_grid` + `calculate_dr2i_msa_a1a2grid` are thin wrappers over
+  `calculate_dr2i_msa` (a `map_dfr` loop + an `expand.grid`); a user could write
+  them in a few lines. They are exported + tested in v0.1, so left in for now, but
+  v0.2 should decide: keep, demote to internal, or drop. (Flagged 2026-06-10 by
+  user.)
 - **Trajectory module** (`someday_maybe/tree/*`): decide dependency `akima`
   (archived) vs `interp` (modern replacement); fix `p_act`/`p_ma` bug.
 - **Visualization module**: port `msa_visualization.R` and promote

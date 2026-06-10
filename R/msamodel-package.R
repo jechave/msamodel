@@ -14,3 +14,13 @@
 #' @importFrom magrittr %>%
 ## usethis namespace: end
 NULL
+
+# Quiet R CMD check's "no visible binding for global variable" NOTEs from
+# tidyverse non-standard evaluation (column names referenced bare inside
+# dplyr/tidyr verbs). These are data-column / grouping names, not real globals.
+utils::globalVariables(c(
+  "a1", "a2", "dactive", "ddg_dv_jm", "ddg_jm", "ddg_tds_jm", "ddgact_dv_jm",
+  "ddgact_jm", "ddgact_tds_jm", "dr2_i", "dr2_msa", "i", "j", "lower", "lrmsd",
+  "lrmsd_ma", "lrmsd_mm", "lrmsd_ms", "lrmsd_msa", "lrmsd_obs", "m", "model",
+  "parameter", "pdb_site", "sample_id", "upper", "value", "variable"
+))
