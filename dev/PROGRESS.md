@@ -31,4 +31,8 @@ the `dev/plan.md` v0.2 bullet.
       (read.cif→setup_enm OK) + reran `precompute.R` (cache now `phi_*`) +
       `check()` = 0E/1W/2N (= v0.1 baseline) + DESCRIPTION 0.2.0 + NEWS.md
 
-**v0.2 COMPLETE.** Not yet committed.
+**v0.2 COMPLETE — committed + pushed (`9f8338a`) 2026-06-11.** No version in
+flight. Next on the roadmap: **v0.3 — motion/mode arm (region D, `.archive/`)**.
+Per `dev/plan.md`, v0.3 starts by reading the rest of `.archive/` (incl.
+`model_rates.R`) line-by-line in plan mode, then writing its detailed plan and
+rewriting this checklist from it. This file is dormant until then.
