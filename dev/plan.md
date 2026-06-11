@@ -76,9 +76,9 @@ purpose; per-version detail is written when each version starts.
 - **v0.3 — motion/mode via the SPM-mean route (region D).** Extend the SPM to carry
   the extra per-mutant divergence columns (`dr2_njm`, `dh_ijm`, `dh_njm`, `nh_njm`)
   and add the reweighting + evaluation paths. Reuses the v0.1 precompute-and-reweight
-  machinery (see findings). Read the rest of `.archive/` (incl. `model_rates.R`)
-  line-by-line at the *start* of this version, and decide then whether rates land
-  here or later.
+  machinery (see findings). Read the rest of `tmp_src/.archive/` (incl.
+  `tmp_src/.archive/R_backup/model_rates.R`) line-by-line at the *start* of this
+  version, and decide then whether rates land here or later.
 
 - **v0.4 — tree / trajectory route (region C).** Migrate `someday_maybe/tree/`; fix
   the `p_act`→`p_ma` bug; swap `akima`→`interp`; reconcile with the SPM-mean route.
@@ -110,9 +110,9 @@ quantities × {site `i`, mode `n`}, plus `nh_n`. v0.1 implements exactly ONE cel
 | motion/fluctuation divergence `dh` | `dh_ijm` | `dh_njm` | `delta_motion_dhi` / `dhn` | **NO** |
 | mode fluctuation `nh` | — | `nh_njm` | `delta_motion_nhn` | **NO** |
 
-Also in `.archive`, characterized but not yet read line-by-line: `model_rates.R`
-(evolutionary-rate prediction) and the `motion/` / `structure/` / mode-analysis
-backup files. (Read at v0.3 start.)
+Also in `tmp_src/.archive/`, characterized but not yet read line-by-line:
+`tmp_src/.archive/R_backup/model_rates.R` (evolutionary-rate prediction) and the
+`motion/` / `structure/` / mode-analysis backup files. (Read at v0.3 start.)
 
 ### Precomputation property — RESOLVED: it generalizes for the SPM-mean route
 
