@@ -24,7 +24,7 @@ test_that("decomposition functions validate required columns", {
 test_that("decomposition works without pdb_site (optional-branch, absent)", {
   ds <- calculate_decomposition_samples(new_pred_samples(with_pdb_site = FALSE))
   expect_false("pdb_site" %in% names(ds))
-  expect_contains(names(ds), c("sample_id", "i", "shap_mut", "shap_stab", "shap_act"))
+  expect_contains(names(ds), c("sample_id", "i", "phi_mut", "phi_stab", "phi_act"))
 
   dsum <- calculate_decomposition_summary(ds)
   expect_false("pdb_site" %in% names(dsum))

@@ -2,7 +2,7 @@
 % Please edit documentation in R/msa_decomposition.R
 \name{calculate_decomposition_samples}
 \alias{calculate_decomposition_samples}
-\title{Calculate MSA Shapley decomposition for multiple samples}
+\title{Calculate the MSA phi decomposition for multiple samples}
 \usage{
 calculate_decomposition_samples(data)
 }
@@ -10,10 +10,10 @@ calculate_decomposition_samples(data)
 \item{data}{Data frame with columns sample_id, i, lrmsd_mm, lrmsd_ms, lrmsd_ma, lrmsd_msa}
 }
 \value{
-Data frame with only sample_id, i, and Shapley decomposition columns
+Data frame with only sample_id, i, and the phi decomposition columns
 }
 \description{
-Calculate MSA Shapley decomposition for multiple samples
+Calculate the MSA phi decomposition for multiple samples
 }
 \seealso{
 Other decomposition:

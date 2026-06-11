@@ -2,7 +2,7 @@
 % Please edit documentation in R/msa_bayesian_workflow.R
 \name{run_msa_bayesian_analysis}
 \alias{run_msa_bayesian_analysis}
-\title{Run Bayesian analysis for MSA model, including Shapley decomposition}
+\title{Run Bayesian analysis for MSA model, including the phi decomposition}
 \usage{
 run_msa_bayesian_analysis(
   spm,
@@ -36,12 +36,12 @@ index. Site-keyed elements of the returned list carry both `i` and `pdb_site`.}
 \item{fix_a2}{Optional fixed value for a2}
 }
 \value{
-List with MCMC results, including Shapley decomposition: observed_data,
+List with MCMC results, including the phi decomposition: observed_data,
   parameter_samples, parameter_summary, prediction_samples, prediction_summary,
   decomposition_samples, decomposition_summary
 }
 \description{
-Run Bayesian analysis for MSA model, including Shapley decomposition
+Run Bayesian analysis for MSA model, including the phi decomposition
 }
 \seealso{
 Other fitting:

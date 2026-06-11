@@ -1,4 +1,4 @@
-#' Run Bayesian analysis for MSA model, including Shapley decomposition
+#' Run Bayesian analysis for MSA model, including the phi decomposition
 #'
 #' @param spm SPM data
 #' @param observed_data Observed data with columns `pdb_site` (PDB residue number)
@@ -11,7 +11,7 @@
 #' @param log2_a2_plus1_prior_range Vector of length 2 giving [min, max] for log2(a2 + 1) prior
 #' @param fix_a1 Optional fixed value for a1
 #' @param fix_a2 Optional fixed value for a2
-#' @return List with MCMC results, including Shapley decomposition: observed_data,
+#' @return List with MCMC results, including the phi decomposition: observed_data,
 #'   parameter_samples, parameter_summary, prediction_samples, prediction_summary,
 #'   decomposition_samples, decomposition_summary
 #' @family fitting
@@ -56,7 +56,7 @@ run_msa_bayesian_analysis <- function(spm,
   message("Calculating prediction summary...")
   prediction_summary <- calculate_prediction_summary(prediction_samples)
 
-  # Calculate Shapley decomposition
+  # Calculate the phi decomposition
   message("Calculating decomposition samples...")
   decomposition_samples <- calculate_decomposition_samples(prediction_samples)
 

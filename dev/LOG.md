@@ -7,7 +7,99 @@ those two don't keep.
 
 One short entry per working session.
 
-### 2026-06-10 (latest) — planning restructured + full tmp_src survey
+### 2026-06-11 (latest) — v0.2 COMPLETE: all four API changes executed
+
+- **All four v0.2 changes done; `check()` = 0 errors, 1 warning, 2 notes — same
+  as the v0.1 baseline (no new issues).** Tests 55 → 45 pass (the drop removed
+  the grid test file + the `get_active_site` parse test + 3 contract grid lines;
+  no coverage lost — the dropped assertions were redundant with the manual i-join
+  test and the prediction/decomposition pdb_site checks). Exports 18 → 14.
+  DESCRIPTION bumped to 0.2.0; NEWS.md written (changes flagged breaking).
+- **Step 1 (rename):** `shap_* → phi_*` in `R/msa_decomposition.R` (3 columns +
+  both validation `required_cols` + `starts_with("phi_")`), `test-decomposition.R`,
+  vignette prose + `labs_comp`, roxygen prose in `msa_bayesian_workflow.R`,
+  `DESCRIPTION` Description field (also dropped its "grid-based exploration"
+  clause), `CLAUDE.md`. NO `data/*.rda` regen. `man/*.Rd` regenerated. `tmp_src/`
+  untouched.
+- **Step 2 (bio3d object):** deleted `load_protein` (one-line `read.pdb`
+  wrapper). Added `inherits(pdb,"pdb")` guard to `setup_enm` with a clear error
+  pointing at `read.pdb`/`read.cif`. Updated callers (test-spm-generate, vignette
+  precompute + Rmd) to `bio3d::read.pdb`. **mmCIF verified empirically:**
+  `bio3d::get.pdb("1znb", format="cif")` → `read.cif` (class "pdb", 458 sites for
+  the full multi-chain CIF) → `setup_enm` OK, `get_msf_site` works. Caveats
+  recorded in NEWS: bio3d flags `read.cif` as beta; it warned helix/sheet records
+  unparsed (`set_enm` doesn't need them).
+- **Step 3 (active-site vector):** deleted `get_active_site` → `R/pdb_utils.R`
+  emptied → `git rm`'d the file. Inlined `c(99,101,103,162,181,184,193,223)`
+  (from `data-raw/raw/dataset_1znb_A.csv`) in `data-raw/prepare_znb_data.R`,
+  `test-spm-generate.R` (`PDB_SITE_ACTIVE` const), `vignettes/precompute.R` +
+  `.Rmd`. Kept `znb_dataset` shipped; rewrote its data-doc as *illustrative*
+  (its `@seealso get_active_site` would've broken check). Moved `bio3d`
+  Imports→Suggests and dropped `stringr` from Imports + the two `@importFrom`
+  lines (both unused in `R/` after the deletions).
+- **Step 4 (drop grid):** `git rm` `R/msa_a1a2grid_workflow.R` +
+  `tests/testthat/test-a1a2grid.R`. Removed the grid lines from
+  `test-contract.R` (pdb_site-on-output already covered by the prediction/
+  decomposition checks; pdb_site alignment by the independent manual-join test).
+  Replaced vignette §6 with a `preprocess_spm` once → `map_dfr` over
+  `calculate_dr2i_msa` example (makes reshape-once explicit). Reworded
+  `site_properties.R` `@param site_data`. globalVariables unchanged (`dr2_msa`
+  still used in `calculate_loglik_msa`; `dr2_mm/ms/ma` were never listed).
+- **Verify:** `document()` clean (14 exports, 4 dropped `.Rd` deleted, no stale
+  bio3d/stringr in NAMESPACE); `test()` 45 pass / 0 fail / 0 warn; reran
+  `precompute.R` (~100s MCMC) — cache now holds `phi_*` (confirmed no `shap` left
+  anywhere in the `.rds`), so the built vignette matches the renamed columns;
+  `check()` clean vs baseline. The MCMC is seeded (`precompute.R:20`
+  `set.seed(1024)`, base-R RNG), so the rerun is deterministic: every numeric
+  value in the cache is bit-for-bit identical to the committed one (verified
+  parameter_summary + all.equal(prediction_summary) TRUE); only the `component`
+  factor labels changed `shap_*`→`phi_*`. (No drift — an earlier claim of
+  "slight drift" was wrong.)
+
+### 2026-06-11 — v0.2 started: API decisions (plan-docs-first)
+
+- **v0.2 entered plan mode; four API decisions made with the user, recorded in
+  `dev/plan.md` BEFORE any code** (fix-plan-first). No new model capability;
+  exports 18 → 14; all four are breaking; `tmp_src/` not touched.
+  1. **`shap_*` → `phi_*`** rename (misnomer; φ in the paper). Load-bearing edits
+     confined to `R/msa_decomposition.R` (cols + validation + `starts_with`),
+     `test-decomposition.R`, vignette labels/prose, roxygen prose. No `data/*.rda`
+     regen (no `shap_` columns there) — BUT verified `vignette_cache.rds` carries
+     `shap_act/mut/stab` as *values* in its `component` column, so
+     `precompute.R` must be rerun (~100s MCMC; demo R²/summaries will drift
+     slightly — cosmetic, expected).
+  2. **Structure input = bio3d pdb object, NOT a path** (changed from the
+     roadmap's earlier "accept a `.pdb` path"). Rationale (user-driven): the real
+     boundary is already `setup_enm(pdb, ...)`; `load_protein` is a one-line
+     `read.pdb` wrapper forcing an ID→filename layout. Drop it; user calls
+     `bio3d::read.pdb()`/`read.cif()`. Decouples from file I/O and gets **mmCIF
+     for free** (bio3d reads mmCIF via `read.cif`; the package no longer sniffs
+     extensions/tracks formats). Add `inherits(pdb,"pdb")` guard to `setup_enm`.
+     CAVEAT to verify empirically (penm not in repo): does `set_enm` work on a
+     `read.cif` object, or need a `.pdb`-only field? If the latter, dial back the
+     mmCIF docs claim.
+  3. **Active-site input = plain `pdb_site_active` integer vector.** Drop
+     `get_active_site` (only thing forcing the `dataset_ec2024.csv` lookup);
+     downstream (`generate_spm_data`, `add_site_properties`) already take the
+     vector. Inline 1znb_A's vector `c(99,101,103,162,181,184,193,223)` in
+     data-raw/tests/vignette. **Keep `znb_dataset`** shipped as *illustrative* of
+     the source CSV format (no longer consumed by package code).
+  4. **Drop the grid API** (`define_selection_grid` +
+     `calculate_dr2i_msa_a1a2grid`). No real consumer — fit + vignette sweeps use
+     `calculate_dr2i_msa(pp, ...)` directly; the grid fn also re-ran
+     `preprocess_spm` internally (violates reshape-once). A sweep is a 3-line
+     `map_dfr` in user code. Delete `R/msa_a1a2grid_workflow.R` +
+     `test-a1a2grid.R`; re-prove the `pdb_site`-alignment property in
+     `test-contract.R` via `calculate_dr2i_msa` + `site_map` (not the grid route).
+- **Also tightened the durable "precomputation" finding in `dev/plan.md`** — it
+  conflated three stages the user wants kept distinct: SPM *physics*
+  (`generate_spm_data`, the actual precomputation, once) vs *reshaping*
+  (`preprocess_spm`, cheap, not a computation) vs *reweighting*
+  (`calculate_dr2i_msa`, the only a1/a2-dependent step).
+- `dev/PROGRESS.md` rewritten as the v0.2 checklist (Step 0 done). No v0.2 code
+  written yet.
+
+### 2026-06-10 — planning restructured + full tmp_src survey
 
 - **Restructured planning into two tiers (user-driven).** Lesson from v0.1: the
   575-line `dev/plan.md` was both blueprint and execution script, so every

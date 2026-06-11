@@ -1,9 +1,14 @@
-#' Calculate Shapley decomposition of MSA model for lrmsd metric
+#' Calculate the phi (site-level) decomposition of the MSA model for the lrmsd metric
+#'
+#' Splits the per-site log structural divergence into mutation, stability-
+#' selection, and activity-selection components (phi_mut, phi_stab, phi_act).
+#' (Earlier versions called these `shap_*` / a "Shapley" decomposition; that was
+#' a misnomer and the columns were renamed to `phi_*` in v0.2.)
 #'
 #' @param data Data frame with columns i, lrmsd_mm, lrmsd_ms, lrmsd_ma, lrmsd_msa
 #'   (and optionally pdb_site, which is carried through if present)
 #' @return Data frame with the site key(s) (i, and pdb_site if present) and the
-#'   Shapley decomposition columns
+#'   phi decomposition columns (phi_mut, phi_stab, phi_act)
 #' @family decomposition
 #' @export
 calculate_msa_decomposition <- function(data) {
@@ -15,25 +20,25 @@ calculate_msa_decomposition <- function(data) {
     stop("Missing required columns: ", paste(missing_cols, collapse = ", "))
   }
 
-  # Calculate Shapley values (carry pdb_site through when present)
+  # Calculate phi components (carry pdb_site through when present)
   result <- data %>%
     transmute(
       i = i,
-      shap_mut = lrmsd_mm,
-      shap_stab = 0.5 * (lrmsd_ms - lrmsd_mm + lrmsd_msa - lrmsd_ma),
-      shap_act = 0.5 * (lrmsd_ma - lrmsd_mm + lrmsd_msa - lrmsd_ms)
+      phi_mut = lrmsd_mm,
+      phi_stab = 0.5 * (lrmsd_ms - lrmsd_mm + lrmsd_msa - lrmsd_ma),
+      phi_act = 0.5 * (lrmsd_ma - lrmsd_mm + lrmsd_msa - lrmsd_ms)
     )
   if ("pdb_site" %in% colnames(data)) {
-    result <- dplyr::bind_cols(result["i"], data["pdb_site"], result[c("shap_mut", "shap_stab", "shap_act")])
+    result <- dplyr::bind_cols(result["i"], data["pdb_site"], result[c("phi_mut", "phi_stab", "phi_act")])
   }
 
   return(result)
 }
 
-#' Calculate MSA Shapley decomposition for multiple samples
+#' Calculate the MSA phi decomposition for multiple samples
 #'
 #' @param data Data frame with columns sample_id, i, lrmsd_mm, lrmsd_ms, lrmsd_ma, lrmsd_msa
-#' @return Data frame with only sample_id, i, and Shapley decomposition columns
+#' @return Data frame with only sample_id, i, and the phi decomposition columns
 #' @family decomposition
 #' @export
 calculate_decomposition_samples <- function(data) {
@@ -65,17 +70,17 @@ calculate_decomposition_samples <- function(data) {
   return(result)
 }
 
-#' Summarize MSA Shapley decomposition across samples in long format
+#' Summarize the MSA phi decomposition across samples in long format
 #'
-#' @param decomposition_samples Data frame with sample_id, i, shap_mut, shap_stab,
-#'   shap_act columns (and optionally pdb_site, carried through if present)
+#' @param decomposition_samples Data frame with sample_id, i, phi_mut, phi_stab,
+#'   phi_act columns (and optionally pdb_site, carried through if present)
 #' @return Data frame with i (and pdb_site if present), component, and summary
 #'   statistics in long format
 #' @family decomposition
 #' @export
 calculate_decomposition_summary <- function(decomposition_samples) {
   # Validate input columns
-  required_cols <- c("sample_id", "i", "shap_mut", "shap_stab", "shap_act")
+  required_cols <- c("sample_id", "i", "phi_mut", "phi_stab", "phi_act")
 
   missing_cols <- required_cols[!required_cols %in% colnames(decomposition_samples)]
   if (length(missing_cols) > 0) {
@@ -93,7 +98,7 @@ calculate_decomposition_summary <- function(decomposition_samples) {
   result <- decomposition_samples %>%
     # Step 1: Convert to long format first
     pivot_longer(
-      cols = starts_with("shap_"),
+      cols = starts_with("phi_"),
       names_to = "component",
       values_to = "value"
     ) %>%

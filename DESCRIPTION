@@ -1,15 +1,15 @@
 Package: msamodel
 Type: Package
 Title: Mutation-Stability-Activity Model of Neutral Structural Evolution
-Version: 0.1.0.9000
+Version: 0.2.0
 Author: Julian Echave
 Maintainer: Julian Echave <jechave@unsam.edu.ar>
 Description: Implementation of the Mutation-Stability-Activity (MSA) model for
     predicting site-specific structural divergence in protein evolution from
     single-point-mutation scans (SPMs). Provides Bayesian parameter estimation,
     prediction of divergence profiles under mutation-only and selection-only
-    model variants, Shapley decomposition of evolutionary constraint
-    contributions, and grid-based exploration of the selection parameter space.
+    model variants, and a site-level (phi) decomposition of evolutionary
+    constraint contributions.
 License: MIT + file LICENSE
 Encoding: UTF-8
 LazyData: true
@@ -17,16 +17,15 @@ Depends:
     R (>= 3.5)
 Imports:
     penm,
-    bio3d,
     dplyr,
     tidyr,
     tibble,
     purrr,
-    stringr,
     magrittr,
     stats,
     rlang
 Suggests:
+    bio3d,
     testthat (>= 3.0.0),
     knitr,
     rmarkdown,

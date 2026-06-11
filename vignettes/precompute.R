@@ -21,14 +21,13 @@ set.seed(1024)
 
 # ---- Data ------------------------------------------------------------------
 # The shipped znb_* datasets are the cached result of the "Setup from PDB"
-# section (load_protein -> get_active_site -> setup_enm -> generate_spm_data).
+# section (bio3d::read.pdb -> setup_enm -> generate_spm_data).
 data("znb_wt", package = "msamodel")
 data("znb_spm", package = "msamodel")
 data("znb_profile", package = "msamodel")
-data("znb_dataset", package = "msamodel")
 
-active <- get_active_site("1znb_A", znb_dataset)
-pdb_site_active <- active$pdb_site_active
+# 1znb_A active-site residues (PDB numbering), from data-raw/raw/dataset_1znb_A.csv.
+pdb_site_active <- c(99, 101, 103, 162, 181, 184, 193, 223)
 
 # Preprocessed SPM (energies + dr2 matrix + site_map) used everywhere below.
 pp <- preprocess_spm(znb_spm)

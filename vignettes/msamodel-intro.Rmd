@@ -71,7 +71,6 @@ datasets:
 data("znb_wt")       # elastic network model (wild type)
 data("znb_spm")      # single-point-mutation scan
 data("znb_profile")  # observed divergence profile (the fit target)
-data("znb_dataset")  # active-site metadata
 ```
 
 ```{r show-meta, echo = FALSE, eval = have_cache}
@@ -84,13 +83,18 @@ cat("Example protein:", vc$meta$pdb_chain,
 ## 1. Setup: from a PDB structure to an SPM
 
 The shipped `znb_wt` and `znb_spm` are the cached result of the setup pipeline
-below. Starting from a PDB file and the active-site residues, you build an
-elastic network model and run a single-point-mutation scan:
+below. Starting from a structure and the active-site residues, you build an
+elastic network model and run a single-point-mutation scan. `setup_enm()` takes
+a bio3d structure object directly, so you read the file yourself — with
+`bio3d::read.pdb()` for legacy `.pdb` or `bio3d::read.cif()` for mmCIF — and the
+active site is just a vector of PDB residue numbers:
 
 ```{r setup-pipeline, eval = FALSE}
-# Read the structure and look up its active site
-pdb     <- load_protein("1znb_A", data_dir = system.file("extdata", package = "msamodel"))
-active  <- get_active_site("1znb_A", znb_dataset)
+# Read the structure (any source that yields a bio3d pdb object works)
+pdb     <- bio3d::read.pdb(system.file("extdata", "1znb_A.pdb", package = "msamodel"))
+
+# Active-site residues (PDB numbering)
+pdb_site_active <- c(99, 101, 103, 162, 181, 184, 193, 223)
 
 # Build the elastic network model (wild type)
 wt      <- setup_enm(pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
@@ -98,7 +102,7 @@ wt      <- setup_enm(pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustr
 # Single-point-mutation scan: 10 mutations per site
 spm     <- generate_spm_data(wt, n_mutations = 10, model = "lfenm",
                              sigma = 0.3, min_sd = 2,
-                             pdb_site_active = active$pdb_site_active, seed = 1024)
+                             pdb_site_active = pdb_site_active, seed = 1024)
 # `spm` is identical to the embedded `znb_spm`.
 ```
 
@@ -122,7 +126,7 @@ a1 <- 2; a2 <- 500
 profile <- calculate_dr2i_msa(pp, a1, a2) |>
   dplyr::mutate(lrmsd = log(sqrt(dr2_i)))
 
-site_props <- add_site_properties(profile["i"], znb_wt, active$pdb_site_active) |>
+site_props <- add_site_properties(profile["i"], znb_wt, pdb_site_active) |>
   dplyr::mutate(lrmsf = log(sqrt(msf)))
 ```
 
@@ -330,13 +334,13 @@ $\phi_{\text{mut}} + \phi_{\text{stab}} + \phi_{\text{act}} = \text{lrmsd}_{\tex
 The mutation term is the divergence under no selection (it still varies among
 sites — mutations perturb sites unequally); a negative selection term means that
 pressure *reduces* divergence at that site relative to the mutation-only model.
-`run_msa_bayesian_analysis()` returns these as `shap_mut`, `shap_stab`,
-`shap_act` in `decomposition_summary` (one posterior summary per site and term).
+`run_msa_bayesian_analysis()` returns these as `phi_mut`, `phi_stab`,
+`phi_act` in `decomposition_summary` (one posterior summary per site and term).
 
 ```{r decomp, echo = FALSE, eval = have_cache && has_ggplot}
-labs_comp <- c(shap_mut = "mutation",
-               shap_stab = "stability selection",
-               shap_act = "activity selection")
+labs_comp <- c(phi_mut = "mutation",
+               phi_stab = "stability selection",
+               phi_act = "activity selection")
 dec <- vc$decomposition_summary |>
   dplyr::mutate(component = factor(labs_comp[component], levels = labs_comp))
 ggplot(dec, aes(pdb_site, mean)) +
@@ -350,21 +354,23 @@ ggplot(dec, aes(pdb_site, mean)) +
        x = "Residue (PDB numbering)", y = "contribution to lrmsd")
 ```
 
-## 6. Grid exploration of (a1, a2)
+## 6. Systematic 2-D scans of (a1, a2)
 
-For a systematic 2-D scan rather than the one-at-a-time sweeps of section 3,
-`define_selection_grid()` builds a grid of `(a1, a2)` and
-`calculate_dr2i_msa_a1a2grid()` evaluates the four model variants at every grid
-point (one row per `(a1, a2, site)` with `dr2_msa`, `dr2_mm`, `dr2_ms`,
-`dr2_ma`):
+The one-at-a-time sweeps of section 3 generalise to a full 2-D scan with no extra
+machinery: preprocess the SPM **once** (the reshape is independent of `a1, a2`),
+then map `calculate_dr2i_msa()` over a grid of parameter pairs. Reusing the same
+`pp` for every point is the whole point — re-preprocessing per point would be
+wasted work.
 
 ```{r grid-code, eval = FALSE}
-grid    <- define_selection_grid(a1_max = 10, log2_a2_plus1_max = 12, n_a1 = 6, n_a2 = 9)
-grid_dr <- calculate_dr2i_msa_a1a2grid(znb_spm, grid)
+pp   <- preprocess_spm(znb_spm)            # reshape once, reuse for every (a1, a2)
+grid <- expand.grid(a1 = c(0, 2, 4, 8),
+                    a2 = c(0, 31, 127, 511))
+scan <- purrr::map_dfr(seq_len(nrow(grid)), function(k) {
+  calculate_dr2i_msa(pp, grid$a1[k], grid$a2[k]) |>
+    dplyr::mutate(a1 = grid$a1[k], a2 = grid$a2[k])
+})
 ```
-
-These are thin convenience wrappers over `calculate_dr2i_msa()` — the same loop
-used for the sweeps above — provided for systematic parameter scans.
 
 ## Session info
 

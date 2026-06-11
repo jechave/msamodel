@@ -8,10 +8,13 @@ Guidance for Claude Code when working in this repository.
 structural evolution: it predicts site-specific structural divergence in protein
 evolution from single-point-mutation scans (SPMs).
 
-**v0.1 is shipped.** It computes structure-divergence profiles (structure × site)
-and fits them to data: SPM generation, structure-divergence profiles, a1/a2 grid
-exploration, Bayesian parameter estimation (MCMC), and site-level decomposition
-(the `shap_*` columns — a misnomer; see the v0.2 rename in the roadmap).
+**v0.1 is shipped; v0.2 (API cleanup) is in flight.** The package computes
+structure-divergence profiles (structure × site) and fits them to data: SPM
+generation, structure-divergence profiles, Bayesian parameter estimation (MCMC),
+and a site-level decomposition (the `phi_*` columns — renamed from `shap_*` in
+v0.2, since "Shapley" was a misnomer). v0.2 also drops the a1/a2 grid API and
+switches structure/active-site input to a bio3d pdb object + a plain
+`pdb_site_active` integer vector; see the `dev/plan.md` roadmap.
 
 The package was migrated out of a paper-specific research project, and **much
 capability is still unmigrated** — most notably the model's motion/mode arm (only

@@ -2,20 +2,20 @@
 % Please edit documentation in R/msa_decomposition.R
 \name{calculate_decomposition_summary}
 \alias{calculate_decomposition_summary}
-\title{Summarize MSA Shapley decomposition across samples in long format}
+\title{Summarize the MSA phi decomposition across samples in long format}
 \usage{
 calculate_decomposition_summary(decomposition_samples)
 }
 \arguments{
-\item{decomposition_samples}{Data frame with sample_id, i, shap_mut, shap_stab,
-shap_act columns (and optionally pdb_site, carried through if present)}
+\item{decomposition_samples}{Data frame with sample_id, i, phi_mut, phi_stab,
+phi_act columns (and optionally pdb_site, carried through if present)}
 }
 \value{
 Data frame with i (and pdb_site if present), component, and summary
   statistics in long format
 }
 \description{
-Summarize MSA Shapley decomposition across samples in long format
+Summarize the MSA phi decomposition across samples in long format
 }
 \seealso{
 Other decomposition:

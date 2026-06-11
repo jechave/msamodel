@@ -14,7 +14,7 @@ library(bio3d)
 library(dplyr)
 library(readr)
 library(usethis)
-pkgload::load_all(here::here(), quiet = TRUE)  # setup_enm, get_active_site, generate_spm_data
+pkgload::load_all(here::here(), quiet = TRUE)  # setup_enm, generate_spm_data
 
 pdb_chain <- "1znb_A"
 
@@ -59,8 +59,11 @@ znb_profile <- readr::read_csv(
 ) %>%
   dplyr::transmute(pdb_site, lrmsd_obs = lrmsd)
 
-# --- 5. active-site residues (package code) --------------------------------
-pdb_site_active <- get_active_site(pdb_chain, znb_dataset)$pdb_site_active
+# --- 5. active-site residues -----------------------------------------------
+# 1znb_A active-site residues (PDB numbering), from the vendored CSV
+# (data-raw/raw/dataset_1znb_A.csv). Inlined as the source of truth; MUST match
+# tests/testthat/test-spm-generate.R (PDB_SITE_ACTIVE).
+pdb_site_active <- c(99, 101, 103, 162, 181, 184, 193, 223)
 
 # --- 6. znb_spm: GENERATED (not copied) ------------------------------------
 znb_spm <- generate_spm_data(

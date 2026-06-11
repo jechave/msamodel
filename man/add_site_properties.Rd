@@ -7,11 +7,13 @@
 add_site_properties(site_data, wt, pdb_site_active)
 }
 \arguments{
-\item{site_data}{Site-specific data (processed by calculate_dr2i_msa_a1a2grid)}
+\item{site_data}{Site-specific data keyed by the internal site index `i`
+(e.g. the output of `calculate_dr2i_msa()`)}
 
 \item{wt}{Wild type protein structure with ENM}
 
-\item{pdb_site_active}{Active site residue numbers}
+\item{pdb_site_active}{Active site residue numbers (integer vector, PDB
+numbering)}
 }
 \value{
 Enhanced tibble with additional site properties:
@@ -26,8 +28,6 @@ active site, contact number, mean square fluctuation, and shell classification.
 }
 \seealso{
 Other setup:
-\code{\link[=get_active_site]{get_active_site()}},
-\code{\link[=load_protein]{load_protein()}},
 \code{\link[=setup_enm]{setup_enm()}}
 }
 \concept{setup}

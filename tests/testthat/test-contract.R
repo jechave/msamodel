@@ -48,8 +48,4 @@ test_that("site-keyed workflow outputs carry pdb_site", {
   )
   expect_contains(names(res$prediction_summary), "pdb_site")
   expect_contains(names(res$decomposition_summary), "pdb_site")
-
-  grid <- calculate_dr2i_msa_a1a2grid(znb_spm, define_selection_grid(n_a1 = 2, n_a2 = 2),
-                                      verbose = FALSE)
-  expect_contains(names(grid), "pdb_site")
 })

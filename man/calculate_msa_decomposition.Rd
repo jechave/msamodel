@@ -2,7 +2,7 @@
 % Please edit documentation in R/msa_decomposition.R
 \name{calculate_msa_decomposition}
 \alias{calculate_msa_decomposition}
-\title{Calculate Shapley decomposition of MSA model for lrmsd metric}
+\title{Calculate the phi (site-level) decomposition of the MSA model for the lrmsd metric}
 \usage{
 calculate_msa_decomposition(data)
 }
@@ -12,10 +12,13 @@ calculate_msa_decomposition(data)
 }
 \value{
 Data frame with the site key(s) (i, and pdb_site if present) and the
-  Shapley decomposition columns
+  phi decomposition columns (phi_mut, phi_stab, phi_act)
 }
 \description{
-Calculate Shapley decomposition of MSA model for lrmsd metric
+Splits the per-site log structural divergence into mutation, stability-
+selection, and activity-selection components (phi_mut, phi_stab, phi_act).
+(Earlier versions called these `shap_*` / a "Shapley" decomposition; that was
+a misnomer and the columns were renamed to `phi_*` in v0.2.)
 }
 \seealso{
 Other decomposition:

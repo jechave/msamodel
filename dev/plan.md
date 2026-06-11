@@ -46,16 +46,30 @@ purpose; per-version detail is written when each version starts.
   Bayesian (MCMC) fit + site-level decomposition + a1/a2 grid. 18 exports. History
   in `dev/LOG.md`.
 
-- **v0.2 — API improvements (no new model capability).**
+- **v0.2 — API improvements (no new model capability).** Decided 2026-06-11.
+  Exports 18 → 14. All four are breaking signature/contract changes (fine for a
+  0.x GitHub-only package). `tmp_src/` is NOT touched.
   - Rename `shap_*` → `phi_*` (columns, roxygen, tests, vignette). "Shapley" is a
-    misnomer; the user calls these φ in the paper.
-  - PDB input: accept a `.pdb` file *path*, not a `pdb_chain` ID + bundled-CSV
-    layout (so AFDB and other sources work).
-  - Active-site input: accept a plain `pdb_site` integer vector; drop the hidden
-    dependency on the bundled `dataset_ec2024.csv` lookup inside `get_active_site`.
-  - a1/a2 grid: decide keep / demote-to-internal / drop. `define_selection_grid` is
-    a trivial `expand.grid` wrapper; `calculate_dr2i_msa_a1a2grid` carries real
-    logic (preprocess + 4 variants + site-map join).
+    misnomer; the user calls these φ in the paper. No fixture regen (no `shap_`
+    column in `data/*.rda`), but `vignette_cache.rds` carries `shap_*` as
+    *values* in its `component` column → rerun `vignettes/precompute.R`.
+  - **Structure input = a bio3d pdb object** (NOT a path — goal changed from the
+    earlier "accept a `.pdb` path"). `setup_enm()` already takes a pdb object;
+    `load_protein` is just a one-line `read.pdb` wrapper forcing an ID→filename
+    layout. **Drop `load_protein`**; the user calls `bio3d::read.pdb()` /
+    `read.cif()` themselves. Decouples the package from file I/O and gets
+    **mmCIF for free** (no extension-sniffing / format-tracking in the package).
+    Add an `inherits(pdb, "pdb")` check to `setup_enm`.
+  - **Active-site input = a plain `pdb_site_active` integer vector.** Drop
+    `get_active_site` (the only thing forcing the bundled `dataset_ec2024.csv`
+    lookup); `generate_spm_data` / `add_site_properties` already take the vector
+    directly. Keep `znb_dataset` shipped as *illustrative* of the source CSV
+    format (no longer consumed by package code).
+  - **a1/a2 grid: DROP both** `define_selection_grid` and
+    `calculate_dr2i_msa_a1a2grid`. No real consumer — the fit and the vignette
+    sweeps call `calculate_dr2i_msa(pp, ...)` directly. The grid function also
+    re-ran `preprocess_spm` internally, violating reshape-once. A grid sweep is
+    a 3-line `map_dfr` over `calculate_dr2i_msa(pp, a1, a2)` in user code.
 
 - **v0.3 — motion/mode via the SPM-mean route (region D).** Extend the SPM to carry
   the extra per-mutant divergence columns (`dr2_njm`, `dh_ijm`, `dh_njm`, `nh_njm`)
@@ -100,6 +114,18 @@ backup files. (Read at v0.3 start.)
 
 ### Precomputation property — RESOLVED: it generalizes for the SPM-mean route
 
+Three distinct stages, easy to conflate (don't):
+
+1. **SPM physics** — `generate_spm_data()`. The expensive part: ENM + mutation
+   scans via `penm`, producing the per-mutant `dr2` and ΔΔG columns. Computed
+   ONCE, independent of a1/a2. This is "the precomputation".
+2. **Reshaping** — `preprocess_spm()`. NOT a computation: filters `m=0`, sums two
+   pairs of energy columns into `ddg_jm`/`ddgact_jm`, pivots the `dr2`
+   list-column into a `[mutant × site]` matrix, builds the `i ↔ pdb_site`
+   `site_map`. Cheap, deterministic, also a1/a2-independent. Run once, reuse.
+3. **Reweighting** — `calculate_dr2i_msa()` (`R/msa_model_evaluation.R:12-26`).
+   The ONLY place a1/a2 enter, via the per-mutant weights.
+
 Every divergence quantity in the archive is computed as
 
 ```
@@ -107,13 +133,12 @@ X = sum(pfix_jm * X_jm) / sum(pfix_jm)        # pfix_jm = pstab(a1) * pact(a2)
 ```
 
 a1/a2 enter ONLY through the per-mutant `pfix_jm`. The `X_jm` columns are mutant
-properties computed *before* selection — independent of a1/a2. So the v0.1
-mechanism — a `[mutant × site]` matrix reweighted by `weights_jm`
-(`R/msa_model_evaluation.R:12-26`, built in `R/msa_bayesian_data_preparation.R`) —
-**generalizes**: each new quantity is just another value-matrix (`[mutant × site]`
-or `[mutant × mode]`) reweighted by the *same* weights. The SPM must carry the
-extra `_jm` columns. **Motion/mode under the SPM-mean route ≈ "more SPM columns +
-more reweighting" — mechanically close to v0.1.** (Source: archive
+properties computed *before* selection (stage 1) — independent of a1/a2. So the
+v0.1 mechanism — the `[mutant × site]` matrix (stage 2) reweighted by `weights_jm`
+(stage 3) — **generalizes**: each new quantity is just another value-matrix
+(`[mutant × site]` or `[mutant × mode]`) reweighted by the *same* weights. The SPM
+must carry the extra `_jm` columns. **Motion/mode under the SPM-mean route ≈ "more
+SPM columns + more reweighting" — mechanically close to v0.1.** (Source: archive
 `calculate_diff_site_msa.R:97-108`, `calculate_diff_mode_msa.R:76-91`.)
 
 ### The tree route does NOT share this property

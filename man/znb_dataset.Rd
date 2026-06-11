@@ -22,10 +22,15 @@ znb_dataset
 }
 \description{
 One-row dataset giving the catalytic/active-site residues of the example
-protein, used by \code{get_active_site}.
+protein. Illustrative only: it shows the source active-site table format, but
+no package function consumes it. The model takes active sites as a plain
+integer vector of PDB residue numbers (the \code{pdb_site_active} argument of
+\code{generate_spm_data} / \code{add_site_properties}); for 1znb_A that vector
+is \code{c(99, 101, 103, 162, 181, 184, 193, 223)} (the \code{pdb_site_active}
+column below, parsed).
 }
 \seealso{
-\code{\link{get_active_site}}
+\code{\link{generate_spm_data}}, \code{\link{add_site_properties}}
 
 Other datasets:
 \code{\link{znb_pdb}},

@@ -2,7 +2,7 @@ Provenance of the embedded znb_* datasets (example protein 1znb_A).
 Built by data-raw/prepare_znb_data.R. See dev/plan.md §5.
 
 VENDORED INPUTS (committed in this repo; data-raw/ is .Rbuildignore'd):
-  inst/extdata/1znb_A.pdb          <- tmp_src/data/pdb_chain/1znb_A.pdb  (shipped; used by load_protein examples)
+  inst/extdata/1znb_A.pdb          <- tmp_src/data/pdb_chain/1znb_A.pdb  (shipped; read via bio3d::read.pdb in examples)
   data-raw/raw/profiles_1znb_A.csv <- tmp_src/data_input/profiles_ec2024.csv  (rows pdb_chain == 1znb_A; 225 rows)
   data-raw/raw/dataset_1znb_A.csv  <- tmp_src/data_input/dataset_ec2024.csv   (row  pdb_chain == 1znb_A; 1 row)
 

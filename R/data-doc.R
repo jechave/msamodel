@@ -87,7 +87,12 @@ NULL
 #' Active-site metadata for 1znb_A
 #'
 #' One-row dataset giving the catalytic/active-site residues of the example
-#' protein, used by \code{get_active_site}.
+#' protein. Illustrative only: it shows the source active-site table format, but
+#' no package function consumes it. The model takes active sites as a plain
+#' integer vector of PDB residue numbers (the \code{pdb_site_active} argument of
+#' \code{generate_spm_data} / \code{add_site_properties}); for 1znb_A that vector
+#' is \code{c(99, 101, 103, 162, 181, 184, 193, 223)} (the \code{pdb_site_active}
+#' column below, parsed).
 #'
 #' @format A tibble with 1 row and 4 columns:
 #' \describe{
@@ -98,6 +103,6 @@ NULL
 #' }
 #' @source Echave & Carpentier (2024) dataset, filtered to pdb_chain == "1znb_A".
 #'   See \code{data-raw/prepare_znb_data.R}.
-#' @seealso \code{\link{get_active_site}}
+#' @seealso \code{\link{generate_spm_data}}, \code{\link{add_site_properties}}
 #' @family datasets
 "znb_dataset"

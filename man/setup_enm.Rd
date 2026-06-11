@@ -13,7 +13,10 @@ setup_enm(
 )
 }
 \arguments{
-\item{pdb}{PDB structure}
+\item{pdb}{A bio3d pdb object, e.g. from \code{bio3d::read.pdb()} (legacy
+\code{.pdb}) or \code{bio3d::read.cif()} (mmCIF). The package takes the
+structure object directly and does no file I/O, so any source that yields a
+bio3d pdb object works (PDB, AlphaFold-DB, etc.).}
 
 \item{node}{Node type for ENM ("ca" or "sc")}
 
@@ -31,8 +34,6 @@ Set up Elastic Network Model (ENM) for a protein structure
 }
 \seealso{
 Other setup:
-\code{\link[=add_site_properties]{add_site_properties()}},
-\code{\link[=get_active_site]{get_active_site()}},
-\code{\link[=load_protein]{load_protein()}}
+\code{\link[=add_site_properties]{add_site_properties()}}
 }
 \concept{setup}
