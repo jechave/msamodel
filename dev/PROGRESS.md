@@ -36,3 +36,9 @@ flight. Next on the roadmap: **v0.3 — motion/mode arm (region D, `.archive/`)*
 Per `dev/plan.md`, v0.3 starts by reading the rest of `.archive/` (incl.
 `model_rates.R`) line-by-line in plan mode, then writing its detailed plan and
 rewriting this checklist from it. This file is dormant until then.
+
+**Post-v0.2 follow-up (2026-06-11):** reworked the intro vignette to the rOpenSci
+`.Rmd.orig` precompute pattern (one source of truth, shown code == executed code),
+removing the `precompute.R` + `vignette_cache.rds` mechanism that had drifted and
+silently skipped figures. `check()` still at baseline. Details in `dev/LOG.md`.
+Not a v0.2 substep — a correctness fix to already-shipped work.

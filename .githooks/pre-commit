@@ -1,0 +1,36 @@
+#!/bin/sh
+# Guard: the intro vignette uses the .Rmd.orig precompute pattern. The shipped
+# vignettes/msamodel-intro.Rmd is PRE-RENDERED from msamodel-intro.Rmd.orig and
+# must be re-knit whenever the source changes, or it silently goes stale.
+#
+# This hook blocks a commit that stages the .orig source WITHOUT also staging the
+# re-rendered .Rmd. It does NOT recompute or diff content (that would fight
+# intentional edits); it only checks that a re-knit was staged alongside the edit.
+#
+# Enabled via:  git config core.hooksPath .githooks
+# Bypass once (e.g. an unrelated whitespace edit to .orig):  git commit --no-verify
+
+orig="vignettes/msamodel-intro.Rmd.orig"
+rendered="vignettes/msamodel-intro.Rmd"
+
+staged() {
+  git diff --cached --name-only | grep -qx "$1"
+}
+
+if staged "$orig" && ! staged "$rendered"; then
+  cat >&2 <<EOF
+✖ Commit blocked: $orig is staged but $rendered is not.
+
+  $orig is the source of truth; $rendered is pre-rendered from it and ships in
+  the package. Re-knit and stage the result before committing:
+
+      Rscript -e 'knitr::knit("$orig", output = "$rendered")'
+      git add $rendered vignettes/msamodel-intro_files/
+
+  If this .orig change genuinely needs no re-render (e.g. a comment-only edit),
+  bypass with:  git commit --no-verify
+EOF
+  exit 1
+fi
+
+exit 0

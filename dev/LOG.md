@@ -7,7 +7,55 @@ those two don't keep.
 
 One short entry per working session.
 
-### 2026-06-11 (latest) — v0.2 COMPLETE: all four API changes executed
+### 2026-06-11 (latest) — vignette: switch to the `.Rmd.orig` precompute pattern
+
+- **Why:** the intro vignette had drifted and violated "fail loud". Heavy compute
+  lived in a *separate* `vignettes/precompute.R` → `vignette_cache.rds`; the `.Rmd`
+  showed hand-typed `eval=FALSE` snippets *resembling* that script and read the
+  cache. Two hand-maintained copies of the pipeline code with nothing comparing
+  them → they diverged: the `sweep-code` chunk showed only `sweep_a1` while the
+  cache (and a rendered figure) also had `sweep_a2`, so a figure was produced by
+  code the reader never saw. Worse, every figure chunk was gated
+  `eval = have_cache && has_ggplot`, so a missing/stale cache *silently skipped*
+  figures instead of erroring.
+- **Fix (rOpenSci `.Rmd.orig` pattern):** `vignettes/msamodel-intro.Rmd.orig` is
+  now the single source of truth — every pipeline chunk is real `eval=TRUE` and
+  computes inline; the shipped `msamodel-intro.Rmd` is *pre-rendered* from it via
+  `knitr::knit("vignettes/msamodel-intro.Rmd.orig", output="vignettes/msamodel-intro.Rmd")`.
+  Shown code == executed code (one copy), so the drift class is gone structurally.
+  Deleted `precompute.R` and `vignette_cache.rds`. The MCMC fit runs at 500 iter /
+  100 burn-in (fast render). The only `eval=FALSE` chunk is the SPM-scan recipe in
+  §1, explicitly labelled as the code that produced the shipped `znb_spm` (already
+  drift-guarded by `test-spm-generate.R`).
+- **No drift test (deliberate):** a "recompute-and-assert-equal" test (the guard
+  `znb_spm` uses) is wrong for a vignette — a vignette is *meant* to change across
+  versions, so such a test fails on every intentional edit. The `.Rmd.orig` pattern
+  already removes the root cause (two copies). `set.seed(1024)` stays at the top of
+  `.Rmd.orig` only to keep the committed render stable, not as an asserted invariant.
+- **Stale-render guard = a pre-commit hook** (`.githooks/pre-commit`, enabled via
+  `git config core.hooksPath .githooks`). It blocks a commit that stages
+  `msamodel-intro.Rmd.orig` *without* also staging the re-rendered
+  `msamodel-intro.Rmd`. It does NOT recompute/diff content (no brittleness, doesn't
+  fight intentional edits) — it only enforces "re-knit was staged alongside the
+  source edit." `--no-verify` bypasses for genuine no-render edits. Tested: blocks
+  when only `.orig` staged; passes when both staged or `.orig` untouched. (A buried
+  comment alone was no safeguard — it can't tell you that you forgot.) `.githooks`
+  is `.Rbuildignore`d. The re-knit command is also in a comment atop `.Rmd.orig` for
+  reference.
+- **Wiring:** `.Rbuildignore` now ignores `msamodel-intro.Rmd.orig` (was
+  `precompute.R`). `fig.path = "msamodel-intro_files/figure-html/"` so figures don't
+  land in a bare `figure/` dir (which `R CMD check` flags as a knitr leftover —
+  that was the one new NOTE, now cleared). Figures are checked in (un-ignored in
+  `vignettes/.gitignore`).
+- **Verify:** knit ran all chunks incl. the live MCMC (no skips); rendered `.Rmd`
+  carries embedded results (`a1≈0.455`, `a2≈44.4`) and references both sweeps;
+  `tools::pkgVignettes()` sees exactly one vignette; `check()` back at baseline
+  (0 errors, 1 warning, 2 notes); the built `doc/msamodel-intro.html` embeds all
+  10 figures as base64 (0 broken path refs). NOTE: the 2026-06-11 v0.2 entry below
+  describes the now-removed `precompute.R`/cache mechanism — superseded by this
+  entry, not edited (append-only).
+
+### 2026-06-11 — v0.2 COMPLETE: all four API changes executed
 
 - **All four v0.2 changes done; `check()` = 0 errors, 1 warning, 2 notes — same
   as the v0.1 baseline (no new issues).** Tests 55 → 45 pass (the drop removed

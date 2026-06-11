@@ -1,5 +1,7 @@
 *.html
 *.R
-!precompute.R
 *.knit.md
+# Generic _files/ dirs from ad-hoc renders are ignored, but the pre-rendered
+# intro vignette's figures (knit from msamodel-intro.Rmd.orig) must ship.
 *_files/
+!msamodel-intro_files/

@@ -1,10 +1,11 @@
 ^msamodel\.Rproj$
 ^\.Rproj\.user$
 ^\.claude$
+^\.githooks$
 ^dev$
 ^data-raw$
 ^\.DS_Store$
 ^LICENSE\.md$
 ^tmp_src$
-^vignettes/precompute\.R$
+^vignettes/msamodel-intro\.Rmd\.orig$
 ^CLAUDE\.md$
