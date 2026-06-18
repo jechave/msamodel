@@ -91,7 +91,7 @@ below reuses them:
 
 
 ```r
-pp <- preprocess_spm(znb_spm)   # list: energy_data, dr2mat, site_map
+pp <- preprocess_spm(znb_spm)   # list: energy_data, dr2_ijm, site_map
 ```
 
 Per-site structural properties (distance to the active site, flexibility) used by
@@ -99,7 +99,7 @@ the plots below, keyed by the internal site index `i`:
 
 
 ```r
-site_ids   <- as.integer(colnames(pp$dr2mat))
+site_ids   <- as.integer(colnames(pp$dr2_ijm))
 site_props <- add_site_properties(tibble(i = site_ids), znb_wt, pdb_site_active) |>
   mutate(lrmsf = log(sqrt(msf))) |>
   left_join(pp$site_map, by = "i") |>
@@ -108,7 +108,7 @@ site_props <- add_site_properties(tibble(i = site_ids), znb_wt, pdb_site_active)
 
 ## 2. Divergence profiles at given (a1, a2)
 
-For any choice of `(a1, a2)`, `calculate_dr2i_msa()` returns the per-site
+For any choice of `(a1, a2)`, `calculate_dr2_i_msa()` returns the per-site
 weighted mean squared displacement; `lrmsd = log(sqrt(dr2_i))` is the divergence
 profile. We attach the two structural descriptors from `site_props` — the log
 RMSF (flexibility) and the distance to the active site — for context:
@@ -116,7 +116,7 @@ RMSF (flexibility) and the distance to the active site — for context:
 
 ```r
 a1 <- 2; a2 <- 500
-profile_demo <- calculate_dr2i_msa(pp, a1, a2) |>
+profile_demo <- calculate_dr2_i_msa(pp, a1, a2) |>
   mutate(lrmsd = log(sqrt(dr2_i))) |>
   left_join(site_props, by = "i")
 ```
@@ -144,14 +144,14 @@ time and overlay the resulting whole (un-centered) profiles:
 # Stability sweep: vary a1, hold a2 = 0
 a1_values <- c(0, 1, 2, 4, 8)
 sweep_a1 <- purrr::map_dfr(a1_values, function(a1)
-  calculate_dr2i_msa(pp, a1, 0) |>
+  calculate_dr2_i_msa(pp, a1, 0) |>
     mutate(lrmsd = log(sqrt(dr2_i)), a1 = a1) |>
     left_join(site_props, by = "i"))
 
 # Activity sweep: vary a2, hold a1 = 0
 a2_values <- c(0, 31, 127, 511, 2047)
 sweep_a2 <- purrr::map_dfr(a2_values, function(a2)
-  calculate_dr2i_msa(pp, 0, a2) |>
+  calculate_dr2_i_msa(pp, 0, a2) |>
     mutate(lrmsd = log(sqrt(dr2_i)), a2 = a2) |>
     left_join(site_props, by = "i"))
 ```
@@ -169,7 +169,7 @@ selectively around the active site.
 ### The four model variants
 
 Most of what follows refers to four nested model variants, distinguished by
-which selection pressures are switched on. Each is just `calculate_dr2i_msa()`
+which selection pressures are switched on. Each is just `calculate_dr2_i_msa()`
 evaluated at a particular `(a1, a2)`:
 
 | Variant | a1 (stability) | a2 (activity) | meaning |
@@ -319,17 +319,18 @@ pressure *reduces* divergence at that site relative to the mutation-only model.
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] ggplot2_4.0.1  tidyr_1.3.1    dplyr_1.1.4    msamodel_0.2.0
+#> [1] ggplot2_4.0.1       tidyr_1.3.1         dplyr_1.1.4        
+#> [4] msamodel_0.2.0.9000
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] Rcpp_1.1.0         pillar_1.11.1      compiler_4.2.1     RColorBrewer_1.1-3
 #>  [5] highr_0.11         tools_4.2.1        jefuns_0.1.0       viridisLite_0.4.2 
-#>  [9] nlme_3.1-164       evaluate_0.24.0    lifecycle_1.0.4    tibble_3.3.0      
-#> [13] gtable_0.3.6       lattice_0.22-5     mgcv_1.9-1         pkgconfig_2.0.3   
-#> [17] rlang_1.1.6        Matrix_1.5-4.1     cli_3.6.5          rstudioapi_0.16.0 
-#> [21] parallel_4.2.1     xfun_0.41          withr_3.0.2        knitr_1.43        
-#> [25] generics_0.1.4     vctrs_0.6.5        grid_4.2.1         tidyselect_1.2.1  
-#> [29] glue_1.8.0         R6_2.6.1           farver_2.1.2       purrr_1.2.0       
-#> [33] magrittr_2.0.4     splines_4.2.1      scales_1.4.0       bio3d_2.4-5       
-#> [37] labeling_0.4.3     S7_0.2.1           penm_0.2.0.9000
+#>  [9] evaluate_0.24.0    lifecycle_1.0.4    tibble_3.3.0       gtable_0.3.6      
+#> [13] nlme_3.1-164       lattice_0.22-5     mgcv_1.9-1         pkgconfig_2.0.3   
+#> [17] rlang_1.1.6        Matrix_1.5-4.1     cli_3.6.5          parallel_4.2.1    
+#> [21] xfun_0.41          withr_3.0.2        knitr_1.43         generics_0.1.4    
+#> [25] vctrs_0.6.5        grid_4.2.1         tidyselect_1.2.1   glue_1.8.0        
+#> [29] R6_2.6.1           farver_2.1.2       purrr_1.2.0        magrittr_2.0.4    
+#> [33] scales_1.4.0       splines_4.2.1      bio3d_2.4-5        labeling_0.4.3    
+#> [37] S7_0.2.1           penm_0.2.0.9000
 ```

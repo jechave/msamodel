@@ -140,6 +140,22 @@ provenance, motivates these. They are not optional.
 ## House conventions
 
 - **Naming:** `snake_case`, following the source.
+- **`dr2`-family index-signature convention (decided 2026-06-18, v0.3b).** Every
+  `dr2`-family name msamodel *creates* is `dr2_<indices>`: one underscore between
+  `dr2` and the index block, then exactly the free indices the object spans in its
+  representation, letters joined, in order **response index (`i` site / `n` mode),
+  then mutated site `j`, then mutation `m`**. A reduction (sum/mean/weighted-mean
+  over an axis) drops that axis's letter. Examples: a per-mutant SPM list-column
+  whose cell is an `i`-vector (with `j`,`m` as sibling columns) is `dr2_ijm`; its
+  `[mutant × i]` matrix form keeps the same name `dr2_ijm`; the jm-averaged profile
+  is `dr2_i`. No `mat`/`msa`/provenance words *in the index part*. Transform
+  prefixes (`l`=log, `n`=normalized) and source labels (`_msa`/`_obs`) are kept,
+  with the index still underscore-set: `lrmsd_i`, `nlrmsd_i_msa`, `nlrmsd_n_obs`,
+  `dr2_i_msa`. **Scope: this governs names msamodel CREATES, not what it CALLS** —
+  penm's own (no-underscore) names like `penm::delta_structure_dr2i` /
+  `delta_structure_dr2n` are called directly by their own names; never wrap or
+  rename a dependency function to fit this convention. This convention also applies
+  to future motion-arm names (`dh_*`, `nh_*`) and all later migration.
 - **Roxygen on every function.** `#' @export` for public API, `#' @noRd` for
   internal helpers. Document `@param`, `@return`/`@returns`, and add `@family` tags
   to group related functions. `@examples` wrapped in `\dontrun{}` when they need

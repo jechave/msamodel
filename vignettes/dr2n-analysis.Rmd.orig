@@ -52,7 +52,7 @@ if (has_ggplot) {
 ## Site form vs. mode form
 
 The [introduction vignette](msamodel-intro.html) predicts structural divergence
-**per site**: `calculate_dr2i_msa()` returns `dr2_i`, the selection-weighted mean
+**per site**: `calculate_dr2_i_msa()` returns `dr2_i`, the selection-weighted mean
 squared displacement of each residue. This vignette predicts the same divergence
 **per normal mode**.
 
@@ -78,19 +78,19 @@ There is no `pdb_site` map — modes are not anchored to residues.
 
 ```{r preprocess}
 data("znb_spm")
-pp_mode <- preprocess_spm_mode(znb_spm)   # list: energy_data, dr2nmat
-dim(pp_mode$dr2nmat)                       # mutants x modes
+pp_mode <- preprocess_spm_mode(znb_spm)   # list: energy_data, dr2_njm
+dim(pp_mode$dr2_njm)                       # mutants x modes
 ```
 
 ## The mode-divergence profile at given (a1, a2)
 
-For any `(a1, a2)`, `calculate_dr2n_msa()` returns the selection-weighted mean
+For any `(a1, a2)`, `calculate_dr2_n_msa()` returns the selection-weighted mean
 `dr2_n` per mode. The reweighting is identical to the site form (the fixation
 weights live only on the mutant axis); only the response axis differs.
 
 ```{r profile-code}
 a1 <- 2; a2 <- 500
-prof_mode <- calculate_dr2n_msa(pp_mode, a1, a2)
+prof_mode <- calculate_dr2_n_msa(pp_mode, a1, a2)
 head(prof_mode)
 ```
 
@@ -119,12 +119,12 @@ parameter at a time and overlay the resulting whole mode profiles — the same
 # Stability sweep: vary a1, hold a2 = 0
 a1_values <- c(0, 1, 2, 4, 8)
 sweep_a1 <- purrr::map_dfr(a1_values, function(a1)
-  calculate_dr2n_msa(pp_mode, a1, 0) |> mutate(a1 = a1))
+  calculate_dr2_n_msa(pp_mode, a1, 0) |> mutate(a1 = a1))
 
 # Activity sweep: vary a2, hold a1 = 0
 a2_values <- c(0, 31, 127, 511, 2047)
 sweep_a2 <- purrr::map_dfr(a2_values, function(a2)
-  calculate_dr2n_msa(pp_mode, 0, a2) |> mutate(a2 = a2))
+  calculate_dr2_n_msa(pp_mode, 0, a2) |> mutate(a2 = a2))
 ```
 
 The soft modes carry most of the signal, so we focus the plots on the lowest
@@ -159,8 +159,8 @@ same total (basis invariance). This holds per mutant in the scan:
 
 ```{r consistency}
 r <- which(znb_spm$m > 0)[1]
-c(site_total = sum(znb_spm$dr2[[r]]),
-  mode_total = sum(znb_spm$dr2n[[r]]))
+c(site_total = sum(znb_spm$dr2_ijm[[r]]),
+  mode_total = sum(znb_spm$dr2_njm[[r]]))
 ```
 
 ## Session info

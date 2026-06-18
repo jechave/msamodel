@@ -128,14 +128,14 @@ From the SPM we precompute the energy/displacement matrices once; every profile
 below reuses them:
 
 ```{r preprocess}
-pp <- preprocess_spm(znb_spm)   # list: energy_data, dr2mat, site_map
+pp <- preprocess_spm(znb_spm)   # list: energy_data, dr2_ijm, site_map
 ```
 
 Per-site structural properties (distance to the active site, flexibility) used by
 the plots below, keyed by the internal site index `i`:
 
 ```{r site-props}
-site_ids   <- as.integer(colnames(pp$dr2mat))
+site_ids   <- as.integer(colnames(pp$dr2_ijm))
 site_props <- add_site_properties(tibble(i = site_ids), znb_wt, pdb_site_active) |>
   mutate(lrmsf = log(sqrt(msf))) |>
   left_join(pp$site_map, by = "i") |>
@@ -144,14 +144,14 @@ site_props <- add_site_properties(tibble(i = site_ids), znb_wt, pdb_site_active)
 
 ## 2. Divergence profiles at given (a1, a2)
 
-For any choice of `(a1, a2)`, `calculate_dr2i_msa()` returns the per-site
+For any choice of `(a1, a2)`, `calculate_dr2_i_msa()` returns the per-site
 weighted mean squared displacement; `lrmsd = log(sqrt(dr2_i))` is the divergence
 profile. We attach the two structural descriptors from `site_props` — the log
 RMSF (flexibility) and the distance to the active site — for context:
 
 ```{r profile-code}
 a1 <- 2; a2 <- 500
-profile_demo <- calculate_dr2i_msa(pp, a1, a2) |>
+profile_demo <- calculate_dr2_i_msa(pp, a1, a2) |>
   mutate(lrmsd = log(sqrt(dr2_i))) |>
   left_join(site_props, by = "i")
 ```
@@ -200,14 +200,14 @@ time and overlay the resulting whole (un-centered) profiles:
 # Stability sweep: vary a1, hold a2 = 0
 a1_values <- c(0, 1, 2, 4, 8)
 sweep_a1 <- purrr::map_dfr(a1_values, function(a1)
-  calculate_dr2i_msa(pp, a1, 0) |>
+  calculate_dr2_i_msa(pp, a1, 0) |>
     mutate(lrmsd = log(sqrt(dr2_i)), a1 = a1) |>
     left_join(site_props, by = "i"))
 
 # Activity sweep: vary a2, hold a1 = 0
 a2_values <- c(0, 31, 127, 511, 2047)
 sweep_a2 <- purrr::map_dfr(a2_values, function(a2)
-  calculate_dr2i_msa(pp, 0, a2) |>
+  calculate_dr2_i_msa(pp, 0, a2) |>
     mutate(lrmsd = log(sqrt(dr2_i)), a2 = a2) |>
     left_join(site_props, by = "i"))
 ```
@@ -241,7 +241,7 @@ selectively around the active site.
 ### The four model variants
 
 Most of what follows refers to four nested model variants, distinguished by
-which selection pressures are switched on. Each is just `calculate_dr2i_msa()`
+which selection pressures are switched on. Each is just `calculate_dr2_i_msa()`
 evaluated at a particular `(a1, a2)`:
 
 | Variant | a1 (stability) | a2 (activity) | meaning |

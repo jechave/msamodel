@@ -8,51 +8,26 @@ Tick items as substeps finish, and add a one-line dated entry to `dev/LOG.md`.
 
 ---
 
-## v0.3b — `dr2*` naming convention (IN FLIGHT, started 2026-06-18)
+## DORMANT — no version in flight
 
-Adopt msamodel convention `dr2_<indices>` for every `dr2`-family name msamodel
-*creates*; call penm functions directly (no wrappers); delete the duplicate local
-helper; normalize exported fn names. Full detail: approved plan + `dev/plan.md`
-v0.3b bullet.
+**v0.3b SHIPPED 2026-06-18** (`dr2*` naming convention). All steps + verification
+done:
+- Adopted msamodel convention `dr2_<indices>` for every `dr2`-family name msamodel
+  *creates*: SPM list-cols `dr2`→`dr2_ijm`/`dr2n`→`dr2_njm`; matrix fields likewise;
+  exported `calculate_dr2i_msa`→`calculate_dr2_i_msa`, `dr2n`→`dr2_n`; objective col
+  `dr2_msa`→`dr2_i_msa`; param `spm_energies_and_dr2mat`→`spm_pp`.
+- Deleted duplicate local `delta_structure_dr2`; `generate_spm_data` calls
+  `penm::delta_structure_dr2i` directly (penm names NOT renamed/wrapped).
+- `znb_spm` regenerated (Validation OK vs tmp_src, tol 1e-8; data unchanged).
+- **Profile-invariance gate** (`test-profile-invariance.R`, captured pre-rename)
+  reproduces bit-for-bit across BOTH the code rename AND the fixture regen — no
+  numeric value moved.
+- Convention recorded in CLAUDE.md, dev/plan.md, memory.
+- `check()` at v0.1 baseline (0E/1W/2N). Full suite 62/0F.
+- DESCRIPTION bumped 0.2.0.9000 → 0.3.0.9000; NEWS.md v0.3b section + stale-ref fixes.
 
-**Step 0 — freeze profiles BEFORE any rename (hard prerequisite):**
-- [x] 0a. Add `tests/testthat/test-profile-invariance.R` (snapshot `dr2_i`, `dr2_n`
-  profiles + loglik via `expect_snapshot_value(..., style="serialize")`)
-- [x] 0b. Recorded `_snaps/profile-invariance.md` on CURRENT code; stable on re-run
-  (PASS 3, no "Adding"). Note: file is `_snaps/profile-invariance.md` (single md),
-  not a dir.
-
-**Rename:**
-- [x] 1. `R/spm.R` — deleted `delta_structure_dr2`; call `penm::delta_structure_dr2i`
-  directly; vars `dr2`→`dr2_i`, `dr2n`→`dr2_n`; cols `dr2_ijm`/`dr2_njm`; fields
-  `dr2mat`→`dr2_ijm`, `dr2nmat`→`dr2_njm`; left `delta_structure_dr`
-- [x] 2. `R/model.R` — renamed fns `calculate_dr2_i_msa`/`calculate_dr2_n_msa`; field
-  access `$dr2_ijm`/`$dr2_njm`; param `spm_pp`
-- [x] 3. `R/objective.R` — `dr2_msa`→`dr2_i_msa`; field/var; param `spm_pp`
-- [x] 4. `R/msa_bayesian_workflow.R` + `msa_bayesian_analysis.R` — param `spm_pp`, fn
-  call-site renames (perl, verified no old tokens)
-- [x] 5. `R/msamodel-package.R` — `globalVariables` updated (reconcile w/ check())
-- [x] 6. `R/data-doc.R` — `dr2_ijm`/`dr2_njm` + added missing `mode`/`dr2_njm` items
-- [x] 7. `R/site_properties.R` — roxygen xref → `calculate_dr2_i_msa()`
-- [x] 8. Tests — symbol refs renamed (perl); profile-invariance snapshot VALUES untouched
-- [x] 9. `data-raw/prepare_znb_data.R` — orig `dr2`→`dr2_ijm` map in validation;
-  regen ran, Validation OK vs tmp_src (tol 1e-8); znb_spm now `dr2_ijm`/`dr2_njm`
-- [ ] 10. Vignettes (`*.Rmd.orig` → re-knit → preview)
-- [x] 11. `man/` via `document()` — NAMESPACE exports renamed fns, old .Rd deleted
-- [ ] 12. `DESCRIPTION` version + `NEWS.md` entry
-
-**Verify:**
-- [x] V1. `test(filter='profile-invariance')` reproduces Step-0 snapshots — PASS 3, no
-  "Adding" (gate held across BOTH code rename AND fixture regen)
-- [x] V2. `document()` clean
-- [x] V3. `install()`+`test()` — full suite PASS 62/0F
-- [x] V4. `znb_spm` regen = names-only (Validation OK vs tmp_src tol 1e-8)
-- [ ] V5. No dangling old names (grep) — partial: R/ + tests + man/ clean; vignettes pending
-- [ ] V6. Vignettes re-knit + preview OK
-- [ ] V7. `check()` at v0.1 baseline (0E/1W/2N)
-
-**Persist + reconcile:**
-- [ ] P1. CLAUDE.md naming-convention subsection
-- [ ] P2. Memory entry + MEMORY.md pointer
-- [ ] P3. dev/plan.md v0.3b bullet (DONE 2026-06-18, ahead of code per project rule)
-- [ ] DoD. PROGRESS dormant, LOG entry, project_next_session updated, git clean+pushed
+**Next version: v0.3c+ — TBD step-by-step** (observed `dr2_i`/`dr2_n` profiles from
+homologous structures + alignment; fit `dr2_n`; joint fit) OR **v0.4 motion arm**
+(`dh_ijm` → `dh_njm` + `nh_njm`). See `dev/plan.md` + `project_next_session` memory.
+**When the next version starts:** enter plan mode, read the touched code, write the
+detailed plan, then rewrite this checklist from it.

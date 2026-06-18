@@ -7,7 +7,30 @@ those two don't keep.
 
 One short entry per working session.
 
-### 2026-06-18 — v0.3b STARTED: dr2* naming convention decided + profile guard locked
+### 2026-06-18 — v0.3b SHIPPED: dr2* naming convention applied package-wide
+
+Executed the rename below in full. Order: locked the profile-invariance guard
+FIRST (commit `f068a45`), then renamed code+fixture (`6115b7d`), then
+vignettes/docs/version/persistence (final commit this session).
+
+**Result — every verification gate green:**
+- Profile-invariance snapshots (captured pre-rename) reproduce **bit-for-bit**
+  across BOTH the code rename AND the `znb_spm` regen — no numeric value moved.
+- `znb_spm` regen: Validation OK vs tmp_src original (tol 1e-8) — data unchanged,
+  names only.
+- Full suite 62/0F. `check()` = v0.1 baseline (0E/1W/2N) after removing stray
+  top-level `*_files` (knit must run from within `vignettes/`, not repo root, or
+  `fig.path` pollutes the package root — gotcha worth remembering).
+- Code surface (R/ tests/ data-raw/ vignettes) clean of old tokens; only penm::
+  calls + intentional NEWS history references remain.
+- DESCRIPTION 0.2.0.9000 → 0.3.0.9000. Convention recorded in CLAUDE.md,
+  dev/plan.md, memory ([[dr2-naming-convention]]).
+
+Notable: `data-raw/prepare_znb_data.R` validation needed `names(orig)` `dr2`→
+`dr2_ijm` remap so the shared-column check compares CONTENTS not the old name.
+NEWS v0.3a section + one v0.2.0 line had stale old names → fixed.
+
+### 2026-06-18 — v0.3b decision detail: dr2* naming convention + profile guard
 
 Long design discussion settled the `dr2*` naming mess. **Decision:** msamodel adopts
 one convention for every `dr2`-family name it *creates* — `dr2_<indices>` (one
