@@ -7,6 +7,24 @@ those two don't keep.
 
 One short entry per working session.
 
+### 2026-06-18 — SESSION END: reorg + roadmap committed & pushed; next = v0.3b
+
+Committed & pushed both pieces of this session to `main`:
+- `56dac7d` — the R/ reorg (rule retired, files grouped by `@family`, evaluation
+  split into model+objective; see the entry below for detail).
+- `992e771` — roadmap reshape in `dev/plan.md`: **v0.3 is now the complete
+  site+mode structural-divergence suite** (model AND observed, predict AND fit),
+  NOT motion. v0.3a SHIPPED; **v0.3b = consistency tidy** (`dr2→dr2i`; use
+  `penm::delta_structure_dr2i`); v0.3c+ = TBD step-by-step (observed dr2i/dr2n from
+  homologous structures + alignment; fit dr2n; joint fit). **Motion promoted to its
+  own v0.4**; tree route renumbered v0.4→**v0.5**.
+
+Tree clean, in sync with origin/main. PROGRESS.md set dormant. **Next session:
+start v0.3b** — enter plan mode, read `R/spm.R` + `data-raw/prepare_znb_data.R` +
+the drift test, write the detailed plan (the `dr2→dr2i` rename + `penm::` helper
+swap need a deliberate `znb_spm` fixture regen). Memory `project-next-session`
+points here.
+
 ### 2026-06-18 — File-rename rule RETIRED; R/ reorganized by @family; evaluation split
 
 **Decision (with user): retire the "keep `tmp_src` filenames" migration rule.**
