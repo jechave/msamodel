@@ -4,10 +4,10 @@
 \alias{calculate_prediction_samples}
 \title{Calculate lrmsd predictions for MSA, MS, MA, and MM models}
 \usage{
-calculate_prediction_samples(spm_energies_and_dr2mat, parameter_samples)
+calculate_prediction_samples(spm_pp, parameter_samples)
 }
 \arguments{
-\item{spm_energies_and_dr2mat}{Preprocessed data from preprocess_spm}
+\item{spm_pp}{Preprocessed data from preprocess_spm}
 
 \item{parameter_samples}{MCMC samples tibble with sample_id, a1, a2 columns}
 }

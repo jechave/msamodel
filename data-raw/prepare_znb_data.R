@@ -88,6 +88,10 @@ if (file.exists(orig_rds)) {
   # ours) -- the migration-correctness question is "do the SHARED columns
   # match", which is what this one-time check is for. Drift of the new columns
   # is guarded permanently by tests/testthat/test-spm-generate.R.
+  # v0.3b: the per-site list-column was renamed `dr2` -> `dr2_ijm` (index-
+  # signature convention). The 2021 original still calls it `dr2`; rename orig's
+  # column so the shared-column comparison checks CONTENTS, not the old name.
+  names(orig)[names(orig) == "dr2"] <- "dr2_ijm"
   shared <- names(orig)
   stopifnot(all(shared %in% names(znb_spm)))
   cmp <- all.equal(znb_spm[shared], orig, tolerance = 1e-8)

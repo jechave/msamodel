@@ -1,13 +1,13 @@
-test_that("preprocess_spm returns energy_data, dr2mat, and site_map", {
+test_that("preprocess_spm returns energy_data, dr2_ijm, and site_map", {
   pp <- preprocess_spm(znb_spm)
-  expect_named(pp, c("energy_data", "dr2mat", "site_map"))
+  expect_named(pp, c("energy_data", "dr2_ijm", "site_map"))
 })
 
-test_that("dr2mat has the expected shape and site-index column names", {
+test_that("dr2_ijm has the expected shape and site-index column names", {
   pp <- preprocess_spm(znb_spm)
   # 228 sites x 10 mutations (m > 0 rows) = 2280 rows; 228 site columns.
-  expect_equal(dim(pp$dr2mat), c(2280L, 228L))
-  expect_equal(as.integer(colnames(pp$dr2mat)), znb_spm$site[[1]])
+  expect_equal(dim(pp$dr2_ijm), c(2280L, 228L))
+  expect_equal(as.integer(colnames(pp$dr2_ijm)), znb_spm$site[[1]])
 })
 
 test_that("site_map maps the internal index i to pdb_site as in the SPM", {

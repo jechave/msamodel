@@ -4,7 +4,7 @@
 #' active site, contact number, mean square fluctuation, and shell classification.
 #'
 #' @param site_data Site-specific data keyed by the internal site index `i`
-#'   (e.g. the output of `calculate_dr2i_msa()`)
+#'   (e.g. the output of `calculate_dr2_i_msa()`)
 #' @param wt Wild type protein structure with ENM
 #' @param pdb_site_active Active site residue numbers (integer vector, PDB
 #'   numbering)

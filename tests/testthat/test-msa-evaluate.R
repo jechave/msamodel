@@ -1,6 +1,6 @@
-test_that("calculate_dr2i_msa returns one finite, positive dr2_i per site", {
+test_that("calculate_dr2_i_msa returns one finite, positive dr2_i per site", {
   pp <- preprocess_spm(znb_spm)
-  d <- calculate_dr2i_msa(pp, a1 = 2, a2 = 5)
+  d <- calculate_dr2_i_msa(pp, a1 = 2, a2 = 5)
   expect_named(d, c("i", "dr2_i"))
   expect_equal(nrow(d), 228L)
   expect_true(all(is.finite(d$dr2_i)))

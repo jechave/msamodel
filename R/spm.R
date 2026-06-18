@@ -16,34 +16,6 @@ delta_structure_dr <- function(wt, mut) {
   mut$node$xyz - wt$node$xyz
 }
 
-#' Calculate squared displacement per site
-#'
-#' @param wt Wild type protein structure
-#' @param mut Mutant protein structure
-#' @return Vector of squared displacements per site
-#' @noRd
-delta_structure_dr2 <- function(wt, mut) {
-  # Check that sites match
-  stopifnot(all(wt$node$pdb_site == mut$node$pdb_site)) # no indels
-  stopifnot(all(wt$node$site == mut$node$site)) # no indels
-
-  # Calculate displacement vector
-  dr <- mut$node$xyz - wt$node$xyz
-
-  # Calculate squared displacement per site
-  n_sites <- length(wt$node$site)
-  dr2 <- numeric(n_sites)
-
-  for (i in 1:n_sites) {
-    # Get indices for the x, y, z coordinates of site i
-    idx <- (3*i-2):(3*i)
-    # Calculate squared displacement
-    dr2[i] <- sum(dr[idx]^2)
-  }
-
-  return(dr2)
-}
-
 #' Process protein mutants one by one and calculate only necessary metrics
 #'
 #' A memory-efficient approach to generating and analyzing protein mutations.
@@ -62,8 +34,10 @@ delta_structure_dr2 <- function(wt, mut) {
 #'   carrying all measured effects of that mutation: scalar energy changes
 #'   (`ddg_dv_jm`, `ddg_tds_jm`, `ddgact_dv_jm`, `ddgact_tds_jm`) and list-columns
 #'   `site` / `pdb_site` (the site index <-> PDB-residue map), `dr` (displacement
-#'   vector), `dr2` (per-site squared displacement), `mode` (the normal-mode index
-#'   `1:nmodes`), and `dr2n` (per-mode squared contribution to `dr`).
+#'   vector), `dr2_ijm` (per-site squared displacement; each cell a `(dr2_i)` vector
+#'   over response sites `i` for that mutant `j,m`), `mode` (the normal-mode index
+#'   `1:nmodes`), and `dr2_njm` (per-mode squared contribution to `dr`; each cell a
+#'   `(dr2_n)` vector over response modes `n`).
 #' @family spm
 #' @export
 generate_spm_data <- function(wt, n_mutations = 10,
@@ -108,13 +82,15 @@ generate_spm_data <- function(wt, n_mutations = 10,
 
       # Calculate displacement vectors
       dr <- delta_structure_dr(wt, mut)
-      dr2 <- delta_structure_dr2(wt, mut)
+      # Per-mutant site vector (dr2_i): call penm's primitive directly.
+      dr2_i <- penm::delta_structure_dr2i(wt, mut)
 
       # Mode-form structural divergence: per-normal-mode contribution to dr.
-      # Same per-mutant call shape as dr2; another reduction of the same mutant.
-      dr2n <- penm::delta_structure_dr2n(wt, mut)
+      # Same per-mutant call shape as dr2_i; another reduction of the same mutant.
+      dr2_n <- penm::delta_structure_dr2n(wt, mut)
 
-      # Create row and add to results
+      # Create row and add to results. The list-columns dr2_ijm / dr2_njm carry,
+      # per mutant (j,m) row, the (dr2_i) / (dr2_n) vectors.
       row <- tibble(
         j = j,
         m = m,
@@ -125,9 +101,9 @@ generate_spm_data <- function(wt, n_mutations = 10,
         site = list(site_vector),
         pdb_site = list(pdb_site_vector),
         dr = list(dr),
-        dr2 = list(dr2),
-        mode = list(seq_along(dr2n)),
-        dr2n = list(dr2n)
+        dr2_ijm = list(dr2_i),
+        mode = list(seq_along(dr2_n)),
+        dr2_njm = list(dr2_n)
       )
 
       results <- bind_rows(results, row)
@@ -143,11 +119,13 @@ generate_spm_data <- function(wt, n_mutations = 10,
 
 #' Preprocess SPM data for matrix-based Bayesian analysis
 #'
-#' @param spm SPM tibble with columns j, m, ddg_dv_jm, ddg_tds_jm, ddgact_dv_jm, ddgact_tds_jm, and list-columns site, pdb_site and dr2
-#' @return List containing energy_data, dr2mat, and site_map. `site_map` is a
-#'   tibble with columns `i` (the internal response-site index, matching the
-#'   `dr2mat` column names) and `pdb_site` (the structure-anchored PDB residue
-#'   number), used to translate user-supplied `pdb_site` keys to internal `i`.
+#' @param spm SPM tibble with columns j, m, ddg_dv_jm, ddg_tds_jm, ddgact_dv_jm, ddgact_tds_jm, and list-columns site, pdb_site and dr2_ijm
+#' @return List containing energy_data, dr2_ijm, and site_map. `dr2_ijm` is the
+#'   `[mutant x site]` matrix of per-site squared displacements (rows = mutants
+#'   `j,m`, cols = response site `i`). `site_map` is a tibble with columns `i` (the
+#'   internal response-site index, matching the `dr2_ijm` column names) and
+#'   `pdb_site` (the structure-anchored PDB residue number), used to translate
+#'   user-supplied `pdb_site` keys to internal `i`.
 #' @family spm
 #' @export
 preprocess_spm <- function(spm) {
@@ -162,16 +140,16 @@ preprocess_spm <- function(spm) {
     ) %>%
     dplyr::select(j, m, ddg_jm, ddgact_jm)
 
-  # Construct dr2 matrix incrementally to avoid stack issues
+  # Construct the dr2_ijm matrix incrementally to avoid stack issues
   n_rows <- nrow(spm_filtered)
   n_cols <- length(spm_filtered$site[[1]])
-  dr2mat <- matrix(0, nrow = n_rows, ncol = n_cols)
+  dr2_ijm <- matrix(0, nrow = n_rows, ncol = n_cols)
   for (i in 1:n_rows) {
-    dr2mat[i, ] <- spm_filtered$dr2[[i]]
+    dr2_ijm[i, ] <- spm_filtered$dr2_ijm[[i]]
   }
-  colnames(dr2mat) <- spm_filtered$site[[1]]  # Site numbers as column names
+  colnames(dr2_ijm) <- spm_filtered$site[[1]]  # Site numbers as column names
 
-  # Map internal site index i (= dr2mat column names) to structure-anchored
+  # Map internal site index i (= dr2_ijm column names) to structure-anchored
   # pdb_site. The site / pdb_site list-columns are per-row parallel vectors;
   # the first row carries the full ordered mapping.
   site_map <- tibble(
@@ -179,21 +157,21 @@ preprocess_spm <- function(spm) {
     pdb_site = as.integer(spm_filtered$pdb_site[[1]])
   )
 
-  list(energy_data = energy_data, dr2mat = dr2mat, site_map = site_map)
+  list(energy_data = energy_data, dr2_ijm = dr2_ijm, site_map = site_map)
 }
 
 #' Preprocess SPM data for mode-form structural-divergence evaluation
 #'
 #' Mode counterpart of [preprocess_spm()]. Reshapes the per-mutant SPM log into
 #' the arrays the mode evaluator consumes: the same per-mutant energy vector and
-#' a `[mutant x mode]` matrix of per-mode squared displacements (`dr2n`). Modes
+#' a `[mutant x mode]` matrix of per-mode squared displacements (`dr2_njm`). Modes
 #' have no structural anchor, so there is no `pdb_site` map (mode-form output is
 #' predict-only and is not joined to observed site data).
 #'
 #' @param spm SPM tibble from [generate_spm_data()] (must carry the `mode` and
-#'   `dr2n` list-columns).
+#'   `dr2_njm` list-columns).
 #' @return List containing `energy_data` (columns `j`, `m`, `ddg_jm`,
-#'   `ddgact_jm`) and `dr2nmat`, a `[mutant x mode]` numeric matrix whose column
+#'   `ddgact_jm`) and `dr2_njm`, a `[mutant x mode]` numeric matrix whose column
 #'   names are the mode indices.
 #' @family spm
 #' @export
@@ -209,14 +187,14 @@ preprocess_spm_mode <- function(spm) {
     ) %>%
     dplyr::select(j, m, ddg_jm, ddgact_jm)
 
-  # Construct dr2n matrix incrementally to avoid stack issues
+  # Construct the dr2_njm matrix incrementally to avoid stack issues
   n_rows <- nrow(spm_filtered)
   n_cols <- length(spm_filtered$mode[[1]])
-  dr2nmat <- matrix(0, nrow = n_rows, ncol = n_cols)
+  dr2_njm <- matrix(0, nrow = n_rows, ncol = n_cols)
   for (k in 1:n_rows) {
-    dr2nmat[k, ] <- spm_filtered$dr2n[[k]]
+    dr2_njm[k, ] <- spm_filtered$dr2_njm[[k]]
   }
-  colnames(dr2nmat) <- spm_filtered$mode[[1]]  # Mode numbers as column names
+  colnames(dr2_njm) <- spm_filtered$mode[[1]]  # Mode numbers as column names
 
-  list(energy_data = energy_data, dr2nmat = dr2nmat)
+  list(energy_data = energy_data, dr2_njm = dr2_njm)
 }

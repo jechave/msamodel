@@ -4,8 +4,8 @@
 
 #' Calculate log-likelihood of observed data given model parameters (matrix approach)
 #'
-#' @param spm_energies_and_dr2mat Preprocessed data from preprocess_spm
-#'   (must include `site_map`, used to translate `pdb_site` to the internal `i`).
+#' @param spm_pp Preprocessed data from [preprocess_spm()] (must include `site_map`,
+#'   used to translate `pdb_site` to the internal `i`).
 #' @param observed_data Tibble with columns `pdb_site` (PDB residue number) and
 #'   `lrmsd_obs` (observed log structural divergence).
 #' @param a1 Stability selection parameter
@@ -13,21 +13,21 @@
 #' @return Log-likelihood value
 #' @family objective
 #' @export
-calculate_loglik_msa <- function(spm_energies_and_dr2mat, observed_data, a1, a2) {
+calculate_loglik_msa <- function(spm_pp, observed_data, a1, a2) {
 
   # Generate model predictions (keyed by the internal response-site index i)
-  dr2i_msa <- calculate_dr2i_msa(spm_energies_and_dr2mat, a1, a2)  %>%
-    rename(dr2_msa = dr2_i)
+  dr2_i_msa <- calculate_dr2_i_msa(spm_pp, a1, a2)  %>%
+    rename(dr2_i_msa = dr2_i)
 
-  predictions <- dr2i_msa %>%
+  predictions <- dr2_i_msa %>%
     mutate(
-      lrmsd_msa = log(sqrt(dr2_msa)),
+      lrmsd_msa = log(sqrt(dr2_i_msa)),
     ) %>%
     dplyr::select(i, lrmsd_msa)
 
   # Translate user-supplied pdb_site to the internal index i via the model's
   # site_map. pdb_site is the structure-anchored key; i is model-internal.
-  site_map <- spm_energies_and_dr2mat$site_map
+  site_map <- spm_pp$site_map
   observations <- observed_data %>%
     dplyr::select(pdb_site, lrmsd_obs)
 

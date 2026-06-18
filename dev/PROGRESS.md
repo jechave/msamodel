@@ -23,31 +23,31 @@ v0.3b bullet.
   not a dir.
 
 **Rename:**
-- [ ] 1. `R/spm.R` — delete `delta_structure_dr2`; call `penm::delta_structure_dr2i`
-  directly; vars/cols `dr2`→`dr2_ijm`, `dr2n`→`dr2_njm`; fields `dr2mat`→`dr2_ijm`,
-  `dr2nmat`→`dr2_njm`; leave `delta_structure_dr` (raw displacement)
-- [ ] 2. `R/model.R` — rename fns `calculate_dr2i_msa`→`calculate_dr2_i_msa`,
-  `calculate_dr2n_msa`→`calculate_dr2_n_msa`; field access; param `spm_pp`
-- [ ] 3. `R/objective.R` — `dr2_msa`→`dr2_i_msa`; field/var
-- [ ] 4. `R/msa_bayesian_workflow.R` + `msa_bayesian_analysis.R` — field, param
-  `spm_pp`, fn call-site renames
-- [ ] 5. `R/msamodel-package.R` — `globalVariables` list
-- [ ] 6. `R/data-doc.R` — `\item{dr2}`→`dr2_ijm`, `\item{dr2n}`→`dr2_njm`
-- [ ] 7. `R/site_properties.R` — roxygen xref `calculate_dr2i_msa()`→`calculate_dr2_i_msa()`
-- [ ] 8. Tests — symbol refs only (incl. renaming refs in test-profile-invariance.R;
-  snapshot VALUES untouched)
-- [ ] 9. `data-raw/prepare_znb_data.R` + deliberate `znb_spm` regen
+- [x] 1. `R/spm.R` — deleted `delta_structure_dr2`; call `penm::delta_structure_dr2i`
+  directly; vars `dr2`→`dr2_i`, `dr2n`→`dr2_n`; cols `dr2_ijm`/`dr2_njm`; fields
+  `dr2mat`→`dr2_ijm`, `dr2nmat`→`dr2_njm`; left `delta_structure_dr`
+- [x] 2. `R/model.R` — renamed fns `calculate_dr2_i_msa`/`calculate_dr2_n_msa`; field
+  access `$dr2_ijm`/`$dr2_njm`; param `spm_pp`
+- [x] 3. `R/objective.R` — `dr2_msa`→`dr2_i_msa`; field/var; param `spm_pp`
+- [x] 4. `R/msa_bayesian_workflow.R` + `msa_bayesian_analysis.R` — param `spm_pp`, fn
+  call-site renames (perl, verified no old tokens)
+- [x] 5. `R/msamodel-package.R` — `globalVariables` updated (reconcile w/ check())
+- [x] 6. `R/data-doc.R` — `dr2_ijm`/`dr2_njm` + added missing `mode`/`dr2_njm` items
+- [x] 7. `R/site_properties.R` — roxygen xref → `calculate_dr2_i_msa()`
+- [x] 8. Tests — symbol refs renamed (perl); profile-invariance snapshot VALUES untouched
+- [x] 9. `data-raw/prepare_znb_data.R` — orig `dr2`→`dr2_ijm` map in validation;
+  regen ran, Validation OK vs tmp_src (tol 1e-8); znb_spm now `dr2_ijm`/`dr2_njm`
 - [ ] 10. Vignettes (`*.Rmd.orig` → re-knit → preview)
-- [ ] 11. `man/` via `document()`
+- [x] 11. `man/` via `document()` — NAMESPACE exports renamed fns, old .Rd deleted
 - [ ] 12. `DESCRIPTION` version + `NEWS.md` entry
 
 **Verify:**
-- [ ] V1. `test(filter='profile-invariance')` reproduces Step-0 snapshots (THE gate;
-  re-run after step 9 regen too)
-- [ ] V2. `document()` clean
-- [ ] V3. `install()` + full `test()` pass
-- [ ] V4. `znb_spm` regen = names-only, numbers identical
-- [ ] V5. No dangling old names (grep)
+- [x] V1. `test(filter='profile-invariance')` reproduces Step-0 snapshots — PASS 3, no
+  "Adding" (gate held across BOTH code rename AND fixture regen)
+- [x] V2. `document()` clean
+- [x] V3. `install()`+`test()` — full suite PASS 62/0F
+- [x] V4. `znb_spm` regen = names-only (Validation OK vs tmp_src tol 1e-8)
+- [ ] V5. No dangling old names (grep) — partial: R/ + tests + man/ clean; vignettes pending
 - [ ] V6. Vignettes re-knit + preview OK
 - [ ] V7. `check()` at v0.1 baseline (0E/1W/2N)
 

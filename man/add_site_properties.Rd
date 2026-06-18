@@ -8,7 +8,7 @@ add_site_properties(site_data, wt, pdb_site_active)
 }
 \arguments{
 \item{site_data}{Site-specific data keyed by the internal site index `i`
-(e.g. the output of `calculate_dr2i_msa()`)}
+(e.g. the output of `calculate_dr2_i_msa()`)}
 
 \item{wt}{Wild type protein structure with ENM}
 

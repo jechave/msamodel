@@ -26,12 +26,12 @@ run_msa_bayesian_analysis <- function(spm,
                                      fix_a2 = NULL) {
   # Preprocess data
   message("Preprocessing data...")
-  spm_energies_and_dr2mat <- preprocess_spm(spm)
+  spm_pp <- preprocess_spm(spm)
 
   # Run MCMC
   message("Running MCMC...")
   parameter_samples <- run_mcmc_msa(
-    spm_energies_and_dr2mat = spm_energies_and_dr2mat,
+    spm_pp = spm_pp,
     observed_data = observed_data,
     n_iter = n_mcmc_iter,
     burn_in = n_burnin,
@@ -48,7 +48,7 @@ run_msa_bayesian_analysis <- function(spm,
   # Calculate predictions
   message("Calculating prediction samples...")
   prediction_samples <- calculate_prediction_samples(
-    spm_energies_and_dr2mat = spm_energies_and_dr2mat,
+    spm_pp = spm_pp,
     parameter_samples = parameter_samples
   )
 

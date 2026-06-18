@@ -34,8 +34,10 @@ Tibble with one row per mutant `(j, m)` (`m = 0` is the wild type),
   carrying all measured effects of that mutation: scalar energy changes
   (`ddg_dv_jm`, `ddg_tds_jm`, `ddgact_dv_jm`, `ddgact_tds_jm`) and list-columns
   `site` / `pdb_site` (the site index <-> PDB-residue map), `dr` (displacement
-  vector), `dr2` (per-site squared displacement), `mode` (the normal-mode index
-  `1:nmodes`), and `dr2n` (per-mode squared contribution to `dr`).
+  vector), `dr2_ijm` (per-site squared displacement; each cell a `(dr2_i)` vector
+  over response sites `i` for that mutant `j,m`), `mode` (the normal-mode index
+  `1:nmodes`), and `dr2_njm` (per-mode squared contribution to `dr`; each cell a
+  `(dr2_n)` vector over response modes `n`).
 }
 \description{
 A memory-efficient approach to generating and analyzing protein mutations.

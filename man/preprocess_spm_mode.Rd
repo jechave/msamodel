@@ -8,17 +8,17 @@ preprocess_spm_mode(spm)
 }
 \arguments{
 \item{spm}{SPM tibble from [generate_spm_data()] (must carry the `mode` and
-`dr2n` list-columns).}
+`dr2_njm` list-columns).}
 }
 \value{
 List containing `energy_data` (columns `j`, `m`, `ddg_jm`,
-  `ddgact_jm`) and `dr2nmat`, a `[mutant x mode]` numeric matrix whose column
+  `ddgact_jm`) and `dr2_njm`, a `[mutant x mode]` numeric matrix whose column
   names are the mode indices.
 }
 \description{
 Mode counterpart of [preprocess_spm()]. Reshapes the per-mutant SPM log into
 the arrays the mode evaluator consumes: the same per-mutant energy vector and
-a `[mutant x mode]` matrix of per-mode squared displacements (`dr2n`). Modes
+a `[mutant x mode]` matrix of per-mode squared displacements (`dr2_njm`). Modes
 have no structural anchor, so there is no `pdb_site` map (mode-form output is
 predict-only and is not joined to observed site data).
 }

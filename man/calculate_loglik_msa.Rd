@@ -7,11 +7,11 @@ Pluggable criteria a fitter optimizes (currently the log-likelihood; future
 criteria such as RMSE or robust objectives belong here)
 Calculate log-likelihood of observed data given model parameters (matrix approach)}
 \usage{
-calculate_loglik_msa(spm_energies_and_dr2mat, observed_data, a1, a2)
+calculate_loglik_msa(spm_pp, observed_data, a1, a2)
 }
 \arguments{
-\item{spm_energies_and_dr2mat}{Preprocessed data from preprocess_spm
-(must include `site_map`, used to translate `pdb_site` to the internal `i`).}
+\item{spm_pp}{Preprocessed data from [preprocess_spm()] (must include `site_map`,
+used to translate `pdb_site` to the internal `i`).}
 
 \item{observed_data}{Tibble with columns `pdb_site` (PDB residue number) and
 `lrmsd_obs` (observed log structural divergence).}

@@ -17,7 +17,11 @@ A tibble with 2508 rows (228 sites times 11 states, mutation index
   \item{site}{List column: vector of internal site indices.}
   \item{pdb_site}{List column: vector of PDB residue numbers.}
   \item{dr}{List column: Cartesian displacement vector (length 3 * n_sites).}
-  \item{dr2}{List column: squared displacement per site (length n_sites).}
+  \item{dr2_ijm}{List column: per-site squared displacement; each cell a
+    \code{(dr2_i)} vector over response sites (length n_sites) for that mutant.}
+  \item{mode}{List column: normal-mode index (1:nmodes).}
+  \item{dr2_njm}{List column: per-mode squared contribution to \code{dr}; each
+    cell a \code{(dr2_n)} vector over response modes (length nmodes).}
 }
 }
 \usage{

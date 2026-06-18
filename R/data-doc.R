@@ -52,7 +52,11 @@ NULL
 #'   \item{site}{List column: vector of internal site indices.}
 #'   \item{pdb_site}{List column: vector of PDB residue numbers.}
 #'   \item{dr}{List column: Cartesian displacement vector (length 3 * n_sites).}
-#'   \item{dr2}{List column: squared displacement per site (length n_sites).}
+#'   \item{dr2_ijm}{List column: per-site squared displacement; each cell a
+#'     \code{(dr2_i)} vector over response sites (length n_sites) for that mutant.}
+#'   \item{mode}{List column: normal-mode index (1:nmodes).}
+#'   \item{dr2_njm}{List column: per-mode squared contribution to \code{dr}; each
+#'     cell a \code{(dr2_n)} vector over response modes (length nmodes).}
 #' }
 #' @details Generated (not copied) by \code{generate_spm_data(znb_wt,
 #'   n_mutations = 10, model = "lfenm", sigma = 0.3, min_sd = 2, seed = 1024)} and

@@ -2,7 +2,7 @@
 
 #' Run MCMC using Metropolis-Hastings algorithm (matrix-based version)
 #'
-#' @param spm_energies_and_dr2mat Preprocessed data from preprocess_spm
+#' @param spm_pp Preprocessed data from preprocess_spm
 #' @param observed_data Tibble with columns `pdb_site` and `lrmsd_obs`
 #'   (`pdb_site` is mapped to the internal index by \code{calculate_loglik_msa})
 #' @param n_iter Number of MCMC iterations
@@ -14,7 +14,7 @@
 #' @return MCMC samples tibble with sample_id, a1, and a2 columns
 #' @family fitting
 #' @export
-run_mcmc_msa <- function(spm_energies_and_dr2mat,
+run_mcmc_msa <- function(spm_pp,
                          observed_data,
                          n_iter = 10000,
                          burn_in = 2000,
@@ -46,7 +46,7 @@ run_mcmc_msa <- function(spm_energies_and_dr2mat,
   current_a2 <- 2^current_log2_a2_plus1 - 1
 
   # Initial log posterior
-  current_log_lik <- calculate_loglik_msa(spm_energies_and_dr2mat, normalized_observed_data,
+  current_log_lik <- calculate_loglik_msa(spm_pp, normalized_observed_data,
                                           current_a1, current_a2)
   current_log_post <- current_log_lik +
     (if (!is.null(fix_a1)) 0 else dunif(current_a1, a1_min, a1_max, log = TRUE)) +
@@ -79,7 +79,7 @@ run_mcmc_msa <- function(spm_energies_and_dr2mat,
     if ((!is.null(fix_a1) || (proposed_a1 >= a1_min && proposed_a1 <= a1_max)) &&
         (!is.null(fix_a2) || (proposed_log2_a2_plus1 >= log2_a2_plus1_min &&
                               proposed_log2_a2_plus1 <= log2_a2_plus1_max))) {
-      proposed_log_lik <- calculate_loglik_msa(spm_energies_and_dr2mat, normalized_observed_data,
+      proposed_log_lik <- calculate_loglik_msa(spm_pp, normalized_observed_data,
                                                proposed_a1, proposed_a2)
       proposed_log_post <- proposed_log_lik +
         (if (!is.null(fix_a1)) 0 else dunif(proposed_a1, a1_min, a1_max, log = TRUE)) +
@@ -112,13 +112,13 @@ run_mcmc_msa <- function(spm_energies_and_dr2mat,
 
 #' Calculate lrmsd predictions for MSA, MS, MA, and MM models
 #'
-#' @param spm_energies_and_dr2mat Preprocessed data from preprocess_spm
+#' @param spm_pp Preprocessed data from preprocess_spm
 #' @param parameter_samples MCMC samples tibble with sample_id, a1, a2 columns
 #' @return Tibble with per-sample lrmsd predictions in wide format, with both the
 #'   internal response-site index `i` and the structure-anchored `pdb_site`.
 #' @family fitting
 #' @export
-calculate_prediction_samples <- function(spm_energies_and_dr2mat, parameter_samples) {
+calculate_prediction_samples <- function(spm_pp, parameter_samples) {
   # Generate the long format predictions
   long_predictions <- map_dfr(seq_len(nrow(parameter_samples)), function(j) {
     if (j %% 100 == 0) message("Processing sample ", j, "/", nrow(parameter_samples))
@@ -130,7 +130,7 @@ calculate_prediction_samples <- function(spm_energies_and_dr2mat, parameter_samp
     a2_param <- sample_row$a2
 
     # MSA model (full model)
-    msa <- calculate_dr2i_msa(spm_energies_and_dr2mat, a1_param, a2_param) %>%
+    msa <- calculate_dr2_i_msa(spm_pp, a1_param, a2_param) %>%
       mutate(
         lrmsd = log(sqrt(dr2_i)),
         sample_id = sample_id,
@@ -139,7 +139,7 @@ calculate_prediction_samples <- function(spm_energies_and_dr2mat, parameter_samp
       select(i, lrmsd, sample_id, model)
 
     # MS model (a2 = 0)
-    ms <- calculate_dr2i_msa(spm_energies_and_dr2mat, a1_param, 0) %>%
+    ms <- calculate_dr2_i_msa(spm_pp, a1_param, 0) %>%
       mutate(
         lrmsd = log(sqrt(dr2_i)),
         sample_id = sample_id,
@@ -148,7 +148,7 @@ calculate_prediction_samples <- function(spm_energies_and_dr2mat, parameter_samp
       select(i, lrmsd, sample_id, model)
 
     # MA model (a1 = 0)
-    ma <- calculate_dr2i_msa(spm_energies_and_dr2mat, 0, a2_param) %>%
+    ma <- calculate_dr2_i_msa(spm_pp, 0, a2_param) %>%
       mutate(
         lrmsd = log(sqrt(dr2_i)),
         sample_id = sample_id,
@@ -157,7 +157,7 @@ calculate_prediction_samples <- function(spm_energies_and_dr2mat, parameter_samp
       select(i, lrmsd, sample_id, model)
 
     # MM model (a1 = 0, a2 = 0)
-    mm <- calculate_dr2i_msa(spm_energies_and_dr2mat, 0, 0) %>%
+    mm <- calculate_dr2_i_msa(spm_pp, 0, 0) %>%
       mutate(
         lrmsd = log(sqrt(dr2_i)),
         sample_id = sample_id,
@@ -179,7 +179,7 @@ calculate_prediction_samples <- function(spm_energies_and_dr2mat, parameter_samp
 
   # Attach the structure-anchored pdb_site alongside the internal index i.
   wide_predictions <- wide_predictions %>%
-    left_join(spm_energies_and_dr2mat$site_map, by = "i") %>%
+    left_join(spm_pp$site_map, by = "i") %>%
     select(sample_id, i, pdb_site, everything())
 
   return(wide_predictions)

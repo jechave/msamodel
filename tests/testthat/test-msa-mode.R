@@ -1,18 +1,18 @@
-# Mode-form structural divergence (v0.3a): preprocess_spm_mode + calculate_dr2n_msa.
+# Mode-form structural divergence (v0.3a): preprocess_spm_mode + calculate_dr2_n_msa.
 # Predict-only path (no fit), parallel to the site path in test-msa-evaluate.R.
 
-test_that("preprocess_spm_mode returns energy_data and a [mutant x mode] dr2nmat", {
+test_that("preprocess_spm_mode returns energy_data and a [mutant x mode] dr2_njm", {
   pp <- preprocess_spm_mode(znb_spm)
-  expect_named(pp, c("energy_data", "dr2nmat"))
+  expect_named(pp, c("energy_data", "dr2_njm"))
   expect_named(pp$energy_data, c("j", "m", "ddg_jm", "ddgact_jm"))
   # 228 sites x 10 mutations (m > 0 rows) = 2280 rows; 678 modes (= 3*228 - 6).
-  expect_equal(dim(pp$dr2nmat), c(2280L, 678L))
-  expect_equal(as.integer(colnames(pp$dr2nmat)), 1:678)
+  expect_equal(dim(pp$dr2_njm), c(2280L, 678L))
+  expect_equal(as.integer(colnames(pp$dr2_njm)), 1:678)
 })
 
-test_that("calculate_dr2n_msa returns one finite, positive dr2_n per mode", {
+test_that("calculate_dr2_n_msa returns one finite, positive dr2_n per mode", {
   pp <- preprocess_spm_mode(znb_spm)
-  d <- calculate_dr2n_msa(pp, a1 = 2, a2 = 5)
+  d <- calculate_dr2_n_msa(pp, a1 = 2, a2 = 5)
   expect_named(d, c("n", "dr2_n"))
   expect_equal(nrow(d), 678L)
   expect_equal(d$n, 1:678)
@@ -28,13 +28,13 @@ test_that("per-mutant site and mode divergence agree (basis invariance)", {
   # if dr2/dr2n were ever computed from different displacements or mis-stored.
   rows <- which(znb_spm$m > 0)[c(1, 500, 2000)]
   for (r in rows) {
-    expect_equal(sum(znb_spm$dr2[[r]]), sum(znb_spm$dr2n[[r]]), tolerance = 1e-8)
+    expect_equal(sum(znb_spm$dr2_ijm[[r]]), sum(znb_spm$dr2_njm[[r]]), tolerance = 1e-8)
   }
 })
 
 test_that("dr2_n reweighting collapses the mutant axis with the same weights as the site form", {
   # Independent-route check: build the same fixation weights by hand and apply
-  # colSums(dr2nmat * w). Confirms calculate_dr2n_msa uses the axis-agnostic
+  # colSums(dr2_njm * w). Confirms calculate_dr2_n_msa uses the axis-agnostic
   # mutant-axis weights, not a mode-specific scheme. Energies come straight from
   # the SPM, NOT from preprocess output, so this is not circular with Step 2.
   a1 <- 2; a2 <- 5
@@ -45,8 +45,8 @@ test_that("dr2_n reweighting collapses the mutant axis with the same weights as 
   ddgact_jm <- filt$ddgact_dv_jm + filt$ddgact_tds_jm
   pfix <- pmin(exp(-a1 * ddg_jm), 1) * pmin(exp(-a2 * ddgact_jm), 1)
   w <- pfix / sum(pfix)
-  expected <- colSums(pp$dr2nmat * w)
+  expected <- colSums(pp$dr2_njm * w)
 
-  d <- calculate_dr2n_msa(pp, a1, a2)
+  d <- calculate_dr2_n_msa(pp, a1, a2)
   expect_equal(unname(d$dr2_n), unname(expected))
 })

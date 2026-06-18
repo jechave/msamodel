@@ -7,13 +7,15 @@
 preprocess_spm(spm)
 }
 \arguments{
-\item{spm}{SPM tibble with columns j, m, ddg_dv_jm, ddg_tds_jm, ddgact_dv_jm, ddgact_tds_jm, and list-columns site, pdb_site and dr2}
+\item{spm}{SPM tibble with columns j, m, ddg_dv_jm, ddg_tds_jm, ddgact_dv_jm, ddgact_tds_jm, and list-columns site, pdb_site and dr2_ijm}
 }
 \value{
-List containing energy_data, dr2mat, and site_map. `site_map` is a
-  tibble with columns `i` (the internal response-site index, matching the
-  `dr2mat` column names) and `pdb_site` (the structure-anchored PDB residue
-  number), used to translate user-supplied `pdb_site` keys to internal `i`.
+List containing energy_data, dr2_ijm, and site_map. `dr2_ijm` is the
+  `[mutant x site]` matrix of per-site squared displacements (rows = mutants
+  `j,m`, cols = response site `i`). `site_map` is a tibble with columns `i` (the
+  internal response-site index, matching the `dr2_ijm` column names) and
+  `pdb_site` (the structure-anchored PDB residue number), used to translate
+  user-supplied `pdb_site` keys to internal `i`.
 }
 \description{
 Preprocess SPM data for matrix-based Bayesian analysis

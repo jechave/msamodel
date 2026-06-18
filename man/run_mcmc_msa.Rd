@@ -6,7 +6,7 @@
 Run MCMC using Metropolis-Hastings algorithm (matrix-based version)}
 \usage{
 run_mcmc_msa(
-  spm_energies_and_dr2mat,
+  spm_pp,
   observed_data,
   n_iter = 10000,
   burn_in = 2000,
@@ -17,7 +17,7 @@ run_mcmc_msa(
 )
 }
 \arguments{
-\item{spm_energies_and_dr2mat}{Preprocessed data from preprocess_spm}
+\item{spm_pp}{Preprocessed data from preprocess_spm}
 
 \item{observed_data}{Tibble with columns `pdb_site` and `lrmsd_obs`
 (`pdb_site` is mapped to the internal index by \code{calculate_loglik_msa})}
