@@ -7,6 +7,34 @@ those two don't keep.
 
 One short entry per working session.
 
+### 2026-06-18 — v0.3b STARTED: dr2* naming convention decided + profile guard locked
+
+Long design discussion settled the `dr2*` naming mess. **Decision:** msamodel adopts
+one convention for every `dr2`-family name it *creates* — `dr2_<indices>` (one
+underscore, then free indices `i`/`n`,`j`,`m` joined; reductions drop the averaged
+letter). penm is the only internally-consistent codebase but uses no-underscore
+(`dr2i`), and msamodel's transform/source layers (`l`/`n`, `_msa`/`_obs`) make
+penm's run-together form ambiguous (`nlrmsdi_msa`) — so we diverge deliberately. Key
+rule: **the convention governs names msamodel CREATES, not what it CALLS** —
+`penm::delta_structure_dr2i/n` are called directly by their own names, NO wrappers
+(rejected pass-through adapters as indirection-without-behavior). Local
+`delta_structure_dr2` is a verified-bit-identical penm duplicate → deleted. Exported
+fns normalized too: `calculate_dr2i_msa`→`calculate_dr2_i_msa`,
+`calculate_dr2n_msa`→`calculate_dr2_n_msa` (breaking; GitHub-only/solo/pre-1.0).
+`_msa`/`_obs` source labels stay (not index sigs). Profile cols `dr2_i`/`dr2_n`
+already correct.
+
+Per project rule (fix-plan-first), updated `dev/plan.md` v0.3b bullet BEFORE coding.
+dev/plan.md quantity table (line ~163) already used `dr2_ijm`/`dr2_njm` — consistent.
+
+**Step 0 done (guard locked before any rename):** added
+`tests/testthat/test-profile-invariance.R` snapshotting the `dr2_i`/`dr2_n` profiles
++ loglik at (a1=2,a2=5) via `expect_snapshot_value(style="serialize")` — verified
+json2 is NOT lossless (~3e-15) so used serialize. Recorded
+`_snaps/profile-invariance.md` from CURRENT pre-rename code; stable on re-run (PASS
+3, no "Adding"). This is the numeric net: any rename that moves a profile value will
+fail. Committing the guard before touching names.
+
 ### 2026-06-18 — SESSION END: reorg + roadmap committed & pushed; next = v0.3b
 
 Committed & pushed both pieces of this session to `main`:

@@ -100,13 +100,26 @@ per-version detail is written when each version starts.
     untouched. Adds the `dr2n-analysis` topic vignette (predict-only `a1`/`a2`
     sweep now; a fitting section is added there later when alignment-derived
     `dr2_n` + a mode fit exist).
-  - **v0.3b — consistency tidy.** Rename the SPM `dr2` column → `dr2i` (match
-    `dr2n` and the `calculate_dr2i_msa`/penm convention); replace the local
-    `delta_structure_dr2` helper with `penm::delta_structure_dr2i` (penm exports
-    it, verified same math — both axes then delegate to penm symmetrically,
-    removing a redundant local reimplementation). Touches `R/spm.R`, `R/data-doc.R`
-    (the `\item{dr2}`), and needs a **deliberate `znb_spm` fixture regen**
-    (`data-raw/prepare_znb_data.R` + drift test `test-spm-generate.R`).
+  - **v0.3b — `dr2*` naming convention (decided 2026-06-18).** Adopt one msamodel
+    convention for every `dr2`-family name msamodel *creates*: `dr2_<indices>` —
+    one underscore, then the free indices (response `i`/`n`, then `j`, then `m`),
+    letters joined; reductions drop the averaged-out letter. So the per-mutant
+    arrays `dr2`→`dr2_ijm`, `dr2n`→`dr2_njm`; matrix fields `dr2mat`→`dr2_ijm`,
+    `dr2nmat`→`dr2_njm`; the profile cols `dr2_i`/`dr2_n` are already correct.
+    Transform prefixes (`l`/`n`) and source labels (`_msa`/`_obs`) are kept with the
+    index still underscore-set (`dr2_i_msa`, `nlrmsd_i_msa`). **The convention
+    governs names msamodel creates, NOT what it calls:** `penm::delta_structure_dr2i`
+    /`dr2n` are called directly by their own (no-underscore) names — no wrappers.
+    The local `delta_structure_dr2` is **deleted** as a verbatim penm duplicate
+    (verified bit-identical) and `generate_spm_data` calls `penm::delta_structure_dr2i`
+    directly. Exported fns also normalized: `calculate_dr2i_msa`→`calculate_dr2_i_msa`,
+    `calculate_dr2n_msa`→`calculate_dr2_n_msa` (breaking; GitHub-only/solo/pre-1.0).
+    A `test-profile-invariance.R` snapshot is captured from the CURRENT code BEFORE
+    renaming, to prove no profile value moves. Touches `R/spm.R`, `R/model.R`,
+    `R/objective.R`, the bayesian files, `R/data-doc.R`, `R/site_properties.R`,
+    `R/msamodel-package.R`, tests, vignettes; needs a **deliberate `znb_spm` fixture
+    regen** (`data-raw/prepare_znb_data.R` + drift test `test-spm-generate.R`).
+    Convention recorded in CLAUDE.md + memory.
   - **v0.3c+ — TBD (defined step-by-step at execution time).** Candidate
     directions, order NOT pinned: observed `dr2i`/`dr2n` profiles from a set of
     homologous structures + an alignment; fitting the model to `dr2n`; joint
