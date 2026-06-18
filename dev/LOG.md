@@ -34,6 +34,24 @@ One short entry per working session.
   exported (use `penm:::get_mode`, as the archive did). Memory written:
   `project-penm-mutscan-tiers`, `project-msamodel-v03-mode-axis`.
 
+### 2026-06-18 — vignette preview tooling + .Rbuildignore fix (post-v0.3a)
+
+- **Problem:** rendering a committed `vignettes/<name>.Rmd` to HTML in place
+  DESTROYS its figures — `html_vignette` uses pandoc `--self-contained`, which
+  base64-embeds the figures then deletes the `<name>_files/` dir the shipped
+  `.Rmd` references. Hit during the v0.3a commit (figures vanished, nearly
+  committed missing).
+- **Fix:** `dev/preview-vignette.R` — renders a COPY of the `.Rmd` + `_files/`
+  in a temp dir and copies only the self-contained `.html` back to
+  `vignettes/<name>.html` (git-ignored). The repo's `vignettes/` is never
+  written to. Verified: figures present & `git status` clean before and after.
+  Usage `Rscript dev/preview-vignette.R <name>`. Documented in CLAUDE.md.
+- **Also fixed a latent v0.3a bug:** `.Rbuildignore` had a filename-specific
+  `^vignettes/msamodel-intro\.Rmd\.orig$`, so the new `dr2n-analysis.Rmd.orig`
+  would have SHIPPED in the build tarball. Generalized to
+  `^vignettes/.*\.Rmd\.orig$` (ignores all `.orig` sources; rendered `.Rmd`
+  still ships). Verified both `.orig` ignored, both `.Rmd` not.
+
 ### 2026-06-18 — v0.3a implemented (steps 1-8 + verification)
 
 - `generate_spm_data()` now emits `mode` + `dr2n` SPM list-columns

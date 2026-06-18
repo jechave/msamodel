@@ -7,5 +7,5 @@
 ^\.DS_Store$
 ^LICENSE\.md$
 ^tmp_src$
-^vignettes/msamodel-intro\.Rmd\.orig$
+^vignettes/.*\.Rmd\.orig$
 ^CLAUDE\.md$
