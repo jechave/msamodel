@@ -38,9 +38,10 @@ per file) still apply when migration continues — see CLAUDE.md.
 
 ## Roadmap (versioned)
 
-Ordering reflects difficulty and intent: API cleanup first, then the motion/mode
-arm (reuses existing machinery), then the harder tree route. Scope is rough on
-purpose; per-version detail is written when each version starts.
+Ordering reflects difficulty and intent: API cleanup first, then the complete
+site+mode structure-divergence suite (v0.3, reuses existing machinery), then the
+motion arm (v0.4), then the harder tree route (v0.5). Scope is rough on purpose;
+per-version detail is written when each version starts.
 
 - **v0.1 — SHIPPED.** Compute structure-divergence profiles (structure × site) +
   Bayesian (MCMC) fit + site-level decomposition + a1/a2 grid. 18 exports. History
@@ -73,17 +74,16 @@ purpose; per-version detail is written when each version starts.
     re-ran `preprocess_spm` internally, violating reshape-once. A grid sweep is
     a 3-line `map_dfr` over `calculate_dr2i_msa(pp, a1, a2)` in user code.
 
-- **v0.3 — motion/mode via the SPM-mean route (region D).** Extend the SPM to carry
-  the extra per-mutant divergence columns (`dr2_njm`, `dh_ijm`, `dh_njm`, `nh_njm`)
-  and add the reweighting + evaluation paths. Reuses the v0.1 precompute-and-reweight
-  machinery (see findings). Sliced into small steps, each changing one variable
-  (response axis OR quantity), per the `dr2_njm`-first ladder. Read the rest of
-  `tmp_src/archive/` (incl. `tmp_src/archive/R_backup/model_rates.R`)
-  line-by-line before the motion steps, and decide then whether rates land here or
-  later.
+- **v0.3 — site + mode structural-divergence suite (region D, structure only).**
+  Deliver a tidy, complete suite for **site- and mode-dependent structural
+  divergence — model AND observed profiles, predict AND fit** — before motion.
+  Reuses the v0.1 precompute-and-reweight machinery (see findings). Sliced into
+  small steps, each changing one variable (response axis OR model-vs-observed OR
+  predict-vs-fit), defined step-by-step at execution time (the two-tier rule —
+  each step tends to surface polish, e.g. the `dr2→dr2i` rename that became v0.3b).
 
-  - **v0.3a — mode-form structural divergence (`dr2_njm` only).** IN FLIGHT
-    (started 2026-06-18). The first and smallest slice: introduces the **mode
+  - **v0.3a — mode-form structural divergence (`dr2_njm` only).** SHIPPED
+    2026-06-18. The first and smallest slice: introduces the **mode
     response axis** (mode index `n`, no `pdb_site` anchor) using a quantity
     already trusted (`dr2`); no new physical quantity, no motion. Locked design:
     (1) uses the existing **slow per-mutant loop**, not penm's fast `smrs`/`amrs`
@@ -100,11 +100,28 @@ purpose; per-version detail is written when each version starts.
     untouched. Adds the `dr2n-analysis` topic vignette (predict-only `a1`/`a2`
     sweep now; a fitting section is added there later when alignment-derived
     `dr2_n` + a mode fit exist).
-  - **v0.3b+ — motion arm (`dh_ijm`, then `dh_njm` + `nh_njm`).** Each adds the new
-    *quantity* `dh`/`nh` via the same slow loop + reweighting. These exist ONLY in
-    penm's slow `mrs` tier (no fast path) — see memory `project-penm-mutscan-tiers`.
+  - **v0.3b — consistency tidy.** Rename the SPM `dr2` column → `dr2i` (match
+    `dr2n` and the `calculate_dr2i_msa`/penm convention); replace the local
+    `delta_structure_dr2` helper with `penm::delta_structure_dr2i` (penm exports
+    it, verified same math — both axes then delegate to penm symmetrically,
+    removing a redundant local reimplementation). Touches `R/spm.R`, `R/data-doc.R`
+    (the `\item{dr2}`), and needs a **deliberate `znb_spm` fixture regen**
+    (`data-raw/prepare_znb_data.R` + drift test `test-spm-generate.R`).
+  - **v0.3c+ — TBD (defined step-by-step at execution time).** Candidate
+    directions, order NOT pinned: observed `dr2i`/`dr2n` profiles from a set of
+    homologous structures + an alignment; fitting the model to `dr2n`; joint
+    `dr2i`+`dr2n` fit. The goal is the complete predict-and-fit, site-and-mode
+    suite before motion.
 
-- **v0.4 — tree / trajectory route (region C).** Migrate `someday_maybe/tree/`; fix
+- **v0.4 — motion arm (`dh_ijm`, then `dh_njm` + `nh_njm`).** Each adds the new
+  *quantity* `dh`/`nh` via the same slow loop + reweighting. These exist ONLY in
+  penm's slow `mrs` tier (no fast path) — see memory `project-penm-mutscan-tiers`.
+  Promoted to its own version (out of v0.3) because motion has additional issues
+  warranting the space. Read the rest of `tmp_src/archive/` (incl.
+  `tmp_src/archive/R_backup/model_rates.R`) line-by-line before the motion steps,
+  and decide then whether rates land here or later.
+
+- **v0.5 — tree / trajectory route (region C).** Migrate `someday_maybe/tree/`; fix
   the `p_act`→`p_ma` bug; swap `akima`→`interp`; reconcile with the SPM-mean route.
   Genuinely harder — no clean precomputation (see findings).
 
@@ -136,7 +153,7 @@ quantities × {site `i`, mode `n`}, plus `nh_n`. v0.1 implements exactly ONE cel
 
 Also in `tmp_src/archive/`, characterized but not yet read line-by-line:
 `tmp_src/archive/R_backup/model_rates.R` (evolutionary-rate prediction) and the
-`motion/` / `structure/` / mode-analysis backup files. (Read at v0.3 start.)
+`motion/` / `structure/` / mode-analysis backup files. (Read at v0.4 start.)
 
 ### Precomputation property — RESOLVED: it generalizes for the SPM-mean route
 
@@ -173,7 +190,8 @@ Tree lineages are *sequential* substitutions; each fixation depends on accumulat
 state, so the weights do not factorize per-mutant. That is exactly why the tree
 code interpolates the likelihood over an a1/a2 grid (`akima::interp`) instead of
 reweighting a fixed matrix. The clean precomputation is unavailable for the tree —
-this is why v0.4 (tree) is harder than v0.3 (motion/mode).
+this is why v0.5 (tree) is harder than the SPM-mean route (v0.3 structure + v0.4
+motion/mode).
 
 ### Other survey facts
 
