@@ -7,6 +7,39 @@ those two don't keep.
 
 One short entry per working session.
 
+### 2026-06-18 — SESSION END / NEXT-SESSION AGENDA
+
+**Pick up here next session.** Open topic the user wants to discuss (NOT yet
+decided — do not implement, discuss first):
+
+- **Revisit the "don't rename files when migrating" rule** (CLAUDE.md migration
+  rule + [[no file renames]] memory). The rule's original purpose was
+  traceability: keep migrated files matching `tmp_src/` filenames 1:1. But this
+  session exposed two cracks: (a) the migration ALREADY routinely moves functions
+  into files that don't match their `tmp_src` origin, so strict file-to-file
+  correspondence is already broken; (b) it produced a genuine mis-housing —
+  `preprocess_spm` / `preprocess_spm_mode` (general SPM reshaping, `@family spm`)
+  and `calculate_dr2*_msa` (per-point prediction, `@family evaluation`) sit in
+  `R/msa_bayesian_data_preparation.R` / live under `msa_bayesian_*` names, even
+  though they are NOT Bayesian-specific. The `@family` roxygen tags already
+  encode the *real* grouping (spm / evaluation / fitting / decomposition /
+  setup / datasets), independent of filenames.
+- **The proposal to weigh:** shift the mental model from "migrate whole FILES
+  (keep names)" to "migrate FUNCTIONS into well-named, function-grouped files"
+  (e.g. a neutral `spm_preprocess.R`, a pipeline-neutral evaluation file, leaving
+  `msa_bayesian_*` for genuinely-MCMC code). Trade-off: lose easy
+  file-to-tmp_src diffing (mitigated now by `dev/find-source.sh`, which finds a
+  source regardless of filename) vs. gain a layout that reflects architecture.
+- Decide: keep the rule, retire it, or replace it with "group by @family /
+  function role; filenames need not match tmp_src." If retired, a follow-up
+  reorg task (pure moves + document() + tests) would realign existing files.
+
+**State at session end:** working tree clean, in sync with origin/main
+(`a0dba7e`). Tests 59 pass. v0.3a mode code (`calculate_dr2n_msa`,
+`preprocess_spm_mode`) is STAYING — user confirmed the dr2n-analysis vignette
+HTML looks correct, so no further verification/revert. The migration guardrails
+(unhide archive, find-source.sh, provenance rules) are in place.
+
 ### 2026-06-18 — PROCESS FIX: unhide archive + migration-discipline guardrails
 
 After a serious failure (see below), added guardrails so it can't recur.
