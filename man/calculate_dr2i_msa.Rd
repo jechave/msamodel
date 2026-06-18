@@ -25,6 +25,7 @@ Calculate dr2_i for a single selection parameter point using matrix operations
 }
 \seealso{
 Other evaluation:
+\code{\link[=calculate_dr2n_msa]{calculate_dr2n_msa()}},
 \code{\link[=calculate_loglik_msa]{calculate_loglik_msa()}}
 }
 \concept{evaluation}

@@ -55,7 +55,12 @@ delta_structure_dr2 <- function(wt, mut) {
 #' @param min_sd Minimum sequence distance
 #' @param pdb_site_active Active site residue numbers (optional)
 #' @param seed Random seed for reproducibility
-#' @return Tibble with mutation data and calculated metrics
+#' @return Tibble with one row per mutant `(j, m)` (`m = 0` is the wild type),
+#'   carrying all measured effects of that mutation: scalar energy changes
+#'   (`ddg_dv_jm`, `ddg_tds_jm`, `ddgact_dv_jm`, `ddgact_tds_jm`) and list-columns
+#'   `site` / `pdb_site` (the site index <-> PDB-residue map), `dr` (displacement
+#'   vector), `dr2` (per-site squared displacement), `mode` (the normal-mode index
+#'   `1:nmodes`), and `dr2n` (per-mode squared contribution to `dr`).
 #' @family spm
 #' @export
 generate_spm_data <- function(wt, n_mutations = 10,
@@ -102,6 +107,10 @@ generate_spm_data <- function(wt, n_mutations = 10,
       dr <- delta_structure_dr(wt, mut)
       dr2 <- delta_structure_dr2(wt, mut)
 
+      # Mode-form structural divergence: per-normal-mode contribution to dr.
+      # Same per-mutant call shape as dr2; another reduction of the same mutant.
+      dr2n <- penm::delta_structure_dr2n(wt, mut)
+
       # Create row and add to results
       row <- tibble(
         j = j,
@@ -113,7 +122,9 @@ generate_spm_data <- function(wt, n_mutations = 10,
         site = list(site_vector),
         pdb_site = list(pdb_site_vector),
         dr = list(dr),
-        dr2 = list(dr2)
+        dr2 = list(dr2),
+        mode = list(seq_along(dr2n)),
+        dr2n = list(dr2n)
       )
 
       results <- bind_rows(results, row)

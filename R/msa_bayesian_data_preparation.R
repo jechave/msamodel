@@ -41,3 +41,42 @@ preprocess_spm <- function(spm) {
 
   list(energy_data = energy_data, dr2mat = dr2mat, site_map = site_map)
 }
+
+#' Preprocess SPM data for mode-form structural-divergence evaluation
+#'
+#' Mode counterpart of [preprocess_spm()]. Reshapes the per-mutant SPM log into
+#' the arrays the mode evaluator consumes: the same per-mutant energy vector and
+#' a `[mutant x mode]` matrix of per-mode squared displacements (`dr2n`). Modes
+#' have no structural anchor, so there is no `pdb_site` map (mode-form output is
+#' predict-only and is not joined to observed site data).
+#'
+#' @param spm SPM tibble from [generate_spm_data()] (must carry the `mode` and
+#'   `dr2n` list-columns).
+#' @return List containing `energy_data` (columns `j`, `m`, `ddg_jm`,
+#'   `ddgact_jm`) and `dr2nmat`, a `[mutant x mode]` numeric matrix whose column
+#'   names are the mode indices.
+#' @family spm
+#' @export
+preprocess_spm_mode <- function(spm) {
+  # Filter out no-mutation cases (m = 0) to align outputs
+  spm_filtered <- spm %>% filter(m > 0)
+
+  # Extract energy data (identical to preprocess_spm: weights are axis-agnostic)
+  energy_data <- spm_filtered %>%
+    mutate(
+      ddg_jm = ddg_dv_jm + ddg_tds_jm,
+      ddgact_jm = ddgact_dv_jm + ddgact_tds_jm
+    ) %>%
+    dplyr::select(j, m, ddg_jm, ddgact_jm)
+
+  # Construct dr2n matrix incrementally to avoid stack issues
+  n_rows <- nrow(spm_filtered)
+  n_cols <- length(spm_filtered$mode[[1]])
+  dr2nmat <- matrix(0, nrow = n_rows, ncol = n_cols)
+  for (k in 1:n_rows) {
+    dr2nmat[k, ] <- spm_filtered$dr2n[[k]]
+  }
+  colnames(dr2nmat) <- spm_filtered$mode[[1]]  # Mode numbers as column names
+
+  list(energy_data = energy_data, dr2nmat = dr2nmat)
+}

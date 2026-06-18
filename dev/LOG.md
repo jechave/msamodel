@@ -7,7 +7,65 @@ those two don't keep.
 
 One short entry per working session.
 
-### 2026-06-11 (latest) — vignette: switch to the `.Rmd.orig` precompute pattern
+### 2026-06-18 — v0.3a started: mode-form structural divergence (`dr2_njm`)
+
+- Split the roadmap's large v0.3 into slices; **v0.3a** is the first/smallest:
+  add the mode-form of `dr2` only (`dr2_njm` / `dr2_n`), introducing the mode
+  response axis with no new quantity and no motion. Predict-only.
+- Design forks resolved in conversation before planning (the substance of the
+  session): (1) keep the **slow per-mutant loop**, not penm's fast `smrs`
+  (the `C·F` matrix batch) or `amrs` (analytical) — the loop is the general
+  engine that survives into motion (v0.3b) and trees (v0.4) and is the
+  benchmark; `dr2n` is just one more cheap reduction of the same `dr`.
+  (2) **Raw SPM stays one "all-effects" object** — `dr2n` is another SPM
+  column next to energies + `dr2`; the user's framing: energy changes are
+  mutation effects too, and all effects of one mutation share the `(j,m)` key.
+  (3) **Site/mode separation lives at the preprocess/evaluate layer**, which is
+  a reshape-for-purpose step, not in the raw object: new `preprocess_spm_mode()`
+  + `calculate_dr2n_msa()`; a mode analysis never touches `dr2mat`/`site_map`.
+  (4) **Predict-only** — no fit (no observed mode data), v0.1 site fit untouched.
+- Vignette: new **`dr2n-analysis`** topic vignette (best practice = vignettes by
+  task, not feature accumulation; intro stays the narrow on-ramp). v0.3a content
+  = predict-only `a1`/`a2` sweep of the `dr2_n` profile; a fitting section is
+  added there later when alignment-derived `dr2_n` + a mode fit exist.
+- Verified pre-planning (penm local source at `../penm`):
+  `delta_structure_dr2n(wt,mut)` returns 678 finite per-mode values on `znb_wt`
+  (678 = 3·228−6), same call shape as `delta_structure_dr2`; `get_mode` is NOT
+  exported (use `penm:::get_mode`, as the archive did). Memory written:
+  `project-penm-mutscan-tiers`, `project-msamodel-v03-mode-axis`.
+
+### 2026-06-18 — v0.3a implemented (steps 1-8 + verification)
+
+- `generate_spm_data()` now emits `mode` + `dr2n` SPM list-columns
+  (`dr2n <- penm::delta_structure_dr2n(wt, mut)` per mutant; `mode <-
+  seq_along(dr2n)`). Added `preprocess_spm_mode()` (builds `dr2nmat`, no
+  `pdb_site` map) and `calculate_dr2n_msa()` (predict-only; identical
+  mutant-axis reweighting). `get_mode` stays `penm:::` (not exported). Exports
+  14 → 16.
+- Regenerated `znb_spm`. The one-time `tmp_src` validation now compares only
+  shared columns (`znb_spm[names(orig)]`) — the migrated SPM legitimately has
+  extra columns the 2021 original lacks; shared columns still match at 1e-8.
+- Tests: added `mode == penm:::get_mode(znb_wt)` guard to test-spm-generate;
+  new `test-msa-mode.R` (shape; a **Parseval** site/mode total-equality check —
+  basis invariance, a real invariant not a recomputation; and an
+  independent-route reweighting check). Suite 45 → 59 pass.
+- New `dr2n-analysis` vignette (predict-only `a1`/`a2` sweep of the per-mode
+  profile; consistency check shows site_total == mode_total). NOTE: knitting
+  required `devtools::install()` first — the vignette's `library(msamodel)`
+  loads the INSTALLED package, which lacked the new functions until installed.
+  (Same will apply to any future vignette using new code: install, then knit.)
+- Generalized `.githooks/pre-commit` to guard every `vignettes/*.Rmd.orig`
+  pair, not just the intro.
+- DESCRIPTION → `0.2.0.9000`; NEWS development section added.
+- `check()` = 0E/1W/2N (baseline). **Finding (not acted on):** the data-size
+  NOTE grew — `znb_spm` 12.5 → 23.6 MB, because `dr2n` (678 modes/row) is ~3x
+  wider than `dr2` (228 sites/row). Each future v0.3 quantity adds another wide
+  column to the same fixture, so fixture-size management (e.g. dropping the
+  redundant `dr` raw-vector column, or shipping a smaller example) is worth a
+  deliberate decision before v0.3b. Not fixed here — out of v0.3a scope.
+- v0.3a COMPLETE; NOT committed (awaiting user review).
+
+### 2026-06-11 — vignette: switch to the `.Rmd.orig` precompute pattern
 
 - **Why:** the intro vignette had drifted and violated "fail loud". Heavy compute
   lived in a *separate* `vignettes/precompute.R` → `vignette_cache.rds`; the `.Rmd`

@@ -24,6 +24,7 @@ Preprocess SPM data for matrix-based Bayesian analysis
 }
 \seealso{
 Other spm:
-\code{\link[=generate_spm_data]{generate_spm_data()}}
+\code{\link[=generate_spm_data]{generate_spm_data()}},
+\code{\link[=preprocess_spm_mode]{preprocess_spm_mode()}}
 }
 \concept{spm}

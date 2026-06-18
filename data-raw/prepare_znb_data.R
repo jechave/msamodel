@@ -83,13 +83,20 @@ znb_spm <- generate_spm_data(
 orig_rds <- here("tmp_src", "data", "spm", paste0(pdb_chain, "_spm.rds"))
 if (file.exists(orig_rds)) {
   orig <- readRDS(orig_rds)
-  cmp <- all.equal(znb_spm, orig, tolerance = 1e-8)
+  # v0.3a: znb_spm now carries mode-form columns (`mode`, `dr2n`) the 2021
+  # original lacks. Compare only the columns the original has (a subset of
+  # ours) -- the migration-correctness question is "do the SHARED columns
+  # match", which is what this one-time check is for. Drift of the new columns
+  # is guarded permanently by tests/testthat/test-spm-generate.R.
+  shared <- names(orig)
+  stopifnot(all(shared %in% names(znb_spm)))
+  cmp <- all.equal(znb_spm[shared], orig, tolerance = 1e-8)
   if (!isTRUE(cmp)) {
-    message("VALIDATION FAILED -- generated SPM differs from tmp_src original:")
+    message("VALIDATION FAILED -- generated SPM differs from tmp_src original (shared columns):")
     print(cmp)
     stop("Generated znb_spm does not match tmp_src/", pdb_chain, "_spm.rds")
   }
-  message("Validation OK: generated znb_spm matches tmp_src original (tol 1e-8).")
+  message("Validation OK: generated znb_spm matches tmp_src original on shared columns (tol 1e-8).")
 } else {
   message("NOTE: tmp_src original not found; skipping one-time validation.")
 }

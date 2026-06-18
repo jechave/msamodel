@@ -1,3 +1,25 @@
+# msamodel (development version)
+
+## New features (v0.3a — mode-form structural divergence)
+
+* **Mode-form structural divergence (`dr2_n`).** The first slice of the
+  motion/mode arm: structural divergence is now also predicted **per normal
+  mode**, not only per site. `generate_spm_data()` carries two new SPM
+  list-columns, `mode` and `dr2n` (per-mode squared contribution to the mutant
+  displacement), computed in the same per-mutant scan. Two new exported
+  functions, parallel to the site path:
+  * `preprocess_spm_mode()` — reshapes the scan into a `[mutant x mode]` matrix
+    (`dr2nmat`); mode counterpart of `preprocess_spm()`.
+  * `calculate_dr2n_msa()` — selection-weighted mean `dr2_n` per mode; mode
+    counterpart of `calculate_dr2i_msa()`.
+
+  The mode arm is **predict-only** (there is no observed mode profile to fit), so
+  it has no log-likelihood counterpart and the site fit is unchanged. New
+  `dr2n-analysis` vignette walks through it.
+
+* The embedded `znb_spm` dataset was regenerated to include the `mode` / `dr2n`
+  columns. (Its other columns are unchanged.)
+
 # msamodel 0.2.0
 
 API cleanup release — no new model capability. These are **breaking** changes

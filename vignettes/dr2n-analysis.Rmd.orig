@@ -1,0 +1,170 @@
+---
+title: "Mode analysis of structural divergence (dr2n)"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Mode analysis of structural divergence (dr2n)}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+<!--
+SOURCE OF TRUTH. This `.Rmd.orig` is the editable vignette; every code chunk runs
+for real. The shipped `dr2n-analysis.Rmd` is PRE-RENDERED from this file.
+Regenerate it after editing this file or after any change to the package code the
+vignette exercises:
+
+  Rscript -e 'knitr::knit("vignettes/dr2n-analysis.Rmd.orig", output = "vignettes/dr2n-analysis.Rmd")'
+
+then commit both this file, the rendered `dr2n-analysis.Rmd`, and its figures.
+Pattern: https://ropensci.org/technotes/2019/12/08/precompute-vignettes/
+-->
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 4.2,
+  dpi = 96,
+  fig.path = "dr2n-analysis_files/figure-html/"
+)
+
+# Every computation chunk runs for real when this file is knit. This vignette is
+# predict-only (no MCMC), so it renders fast. ggplot2 is a Suggested dependency;
+# if absent, computation still runs and only the plotting chunks are skipped.
+has_ggplot <- requireNamespace("ggplot2", quietly = TRUE)
+
+# Seed kept for a stable committed render (no stochastic step here, but harmless).
+set.seed(1024)
+```
+
+```{r libs, include = FALSE}
+suppressMessages({
+  library(msamodel)
+  library(dplyr)
+})
+if (has_ggplot) {
+  suppressMessages(library(ggplot2))
+  theme_set(theme_minimal(base_size = 12))
+}
+```
+
+## Site form vs. mode form
+
+The [introduction vignette](msamodel-intro.html) predicts structural divergence
+**per site**: `calculate_dr2i_msa()` returns `dr2_i`, the selection-weighted mean
+squared displacement of each residue. This vignette predicts the same divergence
+**per normal mode**.
+
+A single mutation displaces the structure by a vector `dr`. The site form sums
+`dr` per residue (`dr2_i`); the mode form projects `dr` onto the elastic-network
+normal modes and squares each contribution (`dr2_n = (mode n component of dr)^2`).
+The two are the same displacement in two bases, so for any single mutant the
+totals agree: `sum_i dr2_i == sum_n dr2_n`. Low-index modes are the soft,
+collective motions of the protein; the mode profile shows **which motions** carry
+the predicted divergence, where the site profile shows **which residues** do.
+
+Everything here is **predict-only** — there is (yet) no observed mode profile to
+fit against, so the mode arm has no likelihood/fit counterpart. (When functions to
+derive `dr2_n` from structural alignments and to fit them are added, a fitting
+section will be added to *this* vignette.)
+
+## Preprocessing for the mode axis
+
+We use the worked example `1znb_A` (zinc beta-lactamase), shipped as `znb_spm`.
+`preprocess_spm_mode()` is the mode counterpart of `preprocess_spm()`: it reshapes
+the per-mutant scan into the `[mutant x mode]` matrix the mode evaluator reweights.
+There is no `pdb_site` map — modes are not anchored to residues.
+
+```{r preprocess}
+data("znb_spm")
+pp_mode <- preprocess_spm_mode(znb_spm)   # list: energy_data, dr2nmat
+dim(pp_mode$dr2nmat)                       # mutants x modes
+```
+
+## The mode-divergence profile at given (a1, a2)
+
+For any `(a1, a2)`, `calculate_dr2n_msa()` returns the selection-weighted mean
+`dr2_n` per mode. The reweighting is identical to the site form (the fixation
+weights live only on the mutant axis); only the response axis differs.
+
+```{r profile-code}
+a1 <- 2; a2 <- 500
+prof_mode <- calculate_dr2n_msa(pp_mode, a1, a2)
+head(prof_mode)
+```
+
+```{r profile-plot, echo = FALSE, eval = has_ggplot}
+ggplot(prof_mode, aes(n, dr2_n)) +
+  geom_line(colour = "grey40") +
+  geom_point(size = 0.7, colour = "grey20") +
+  labs(
+    title = sprintf("Mode-divergence profile (a1 = %g, a2 = %g)", a1, a2),
+    subtitle = "Low mode indices are the soft, collective motions",
+    x = "Normal-mode index n", y = expression(dr2[n])
+  )
+```
+
+The lowest-index (softest) modes dominate: most of the predicted structural
+divergence is carried by a handful of collective motions.
+
+## How the mode profile depends on a1 and a2
+
+As in the site form, stability selection (`a1`, with `a2 = 0`) and activity
+selection (`a2`, with `a1 = 0`) reshape the profile differently. We vary one
+parameter at a time and overlay the resulting whole mode profiles — the same
+`map_dfr` sweep pattern the intro vignette uses for the site profile.
+
+```{r sweep-code}
+# Stability sweep: vary a1, hold a2 = 0
+a1_values <- c(0, 1, 2, 4, 8)
+sweep_a1 <- purrr::map_dfr(a1_values, function(a1)
+  calculate_dr2n_msa(pp_mode, a1, 0) |> mutate(a1 = a1))
+
+# Activity sweep: vary a2, hold a1 = 0
+a2_values <- c(0, 31, 127, 511, 2047)
+sweep_a2 <- purrr::map_dfr(a2_values, function(a2)
+  calculate_dr2n_msa(pp_mode, 0, a2) |> mutate(a2 = a2))
+```
+
+The soft modes carry most of the signal, so we focus the plots on the lowest
+modes where the dependence is visible.
+
+```{r sweep-a1, echo = FALSE, eval = has_ggplot}
+ggplot(filter(sweep_a1, n <= 40),
+       aes(n, dr2_n, colour = factor(a1), group = a1)) +
+  geom_line(alpha = 0.85) +
+  scale_colour_viridis_d(end = 0.9) +
+  labs(title = "Stability sweep (a2 = 0)", x = "Normal-mode index n",
+       y = expression(dr2[n]), colour = "a1")
+```
+
+```{r sweep-a2, echo = FALSE, eval = has_ggplot}
+ggplot(filter(sweep_a2, n <= 40),
+       aes(n, dr2_n, colour = factor(a2), group = a2)) +
+  geom_line(alpha = 0.85) +
+  scale_colour_viridis_d(option = "C", end = 0.9) +
+  labs(title = "Activity sweep (a1 = 0)", x = "Normal-mode index n",
+       y = expression(dr2[n]), colour = "a2")
+```
+
+Increasing `a1` suppresses divergence across the soft modes (stability selection
+damps the collective motions); increasing `a2` reshapes the soft-mode divergence
+according to selection on activity.
+
+## Consistency with the site form
+
+For a single mutant the site and mode descriptions of the displacement carry the
+same total (basis invariance). This holds per mutant in the scan:
+
+```{r consistency}
+r <- which(znb_spm$m > 0)[1]
+c(site_total = sum(znb_spm$dr2[[r]]),
+  mode_total = sum(znb_spm$dr2n[[r]]))
+```
+
+## Session info
+
+```{r session, echo = FALSE}
+sessionInfo()
+```

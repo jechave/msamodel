@@ -30,7 +30,12 @@ generate_spm_data(
 \item{seed}{Random seed for reproducibility}
 }
 \value{
-Tibble with mutation data and calculated metrics
+Tibble with one row per mutant `(j, m)` (`m = 0` is the wild type),
+  carrying all measured effects of that mutation: scalar energy changes
+  (`ddg_dv_jm`, `ddg_tds_jm`, `ddgact_dv_jm`, `ddgact_tds_jm`) and list-columns
+  `site` / `pdb_site` (the site index <-> PDB-residue map), `dr` (displacement
+  vector), `dr2` (per-site squared displacement), `mode` (the normal-mode index
+  `1:nmodes`), and `dr2n` (per-mode squared contribution to `dr`).
 }
 \description{
 A memory-efficient approach to generating and analyzing protein mutations.
@@ -40,6 +45,7 @@ only stores the results.
 }
 \seealso{
 Other spm:
-\code{\link[=preprocess_spm]{preprocess_spm()}}
+\code{\link[=preprocess_spm]{preprocess_spm()}},
+\code{\link[=preprocess_spm_mode]{preprocess_spm_mode()}}
 }
 \concept{spm}

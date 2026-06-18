@@ -76,9 +76,33 @@ purpose; per-version detail is written when each version starts.
 - **v0.3 — motion/mode via the SPM-mean route (region D).** Extend the SPM to carry
   the extra per-mutant divergence columns (`dr2_njm`, `dh_ijm`, `dh_njm`, `nh_njm`)
   and add the reweighting + evaluation paths. Reuses the v0.1 precompute-and-reweight
-  machinery (see findings). Read the rest of `tmp_src/.archive/` (incl.
-  `tmp_src/.archive/R_backup/model_rates.R`) line-by-line at the *start* of this
-  version, and decide then whether rates land here or later.
+  machinery (see findings). Sliced into small steps, each changing one variable
+  (response axis OR quantity), per the `dr2_njm`-first ladder. Read the rest of
+  `tmp_src/.archive/` (incl. `tmp_src/.archive/R_backup/model_rates.R`)
+  line-by-line before the motion steps, and decide then whether rates land here or
+  later.
+
+  - **v0.3a — mode-form structural divergence (`dr2_njm` only).** IN FLIGHT
+    (started 2026-06-18). The first and smallest slice: introduces the **mode
+    response axis** (mode index `n`, no `pdb_site` anchor) using a quantity
+    already trusted (`dr2`); no new physical quantity, no motion. Locked design:
+    (1) uses the existing **slow per-mutant loop**, not penm's fast `smrs`/`amrs`
+    — the loop is the general engine that composes to motion + trees and is the
+    optimization benchmark; `dr2n` is one more cheap reduction of the same
+    displacement. (2) **Raw SPM = one "all-effects" object**: `dr2n` is added as
+    another SPM list-column alongside energies + `dr2` (a mutation is one event
+    with many measured consequences, sharing the `(j,m)` key). (3) **Separation at
+    the preprocess/evaluate layer, not the raw object**: a `preprocess_spm_mode()`
+    pivots `dr2n` into a `[mutant × mode]` matrix and `calculate_dr2n_msa()`
+    reweights it (identical weights — they live only on the mutant axis); a
+    mode-only analysis never touches `dr2mat`/`site_map`. (4) **Predict-only** —
+    not fit to data (no observed mode profile), so the v0.1 site fit/contract is
+    untouched. Adds the `dr2n-analysis` topic vignette (predict-only `a1`/`a2`
+    sweep now; a fitting section is added there later when alignment-derived
+    `dr2_n` + a mode fit exist).
+  - **v0.3b+ — motion arm (`dh_ijm`, then `dh_njm` + `nh_njm`).** Each adds the new
+    *quantity* `dh`/`nh` via the same slow loop + reweighting. These exist ONLY in
+    penm's slow `mrs` tier (no fast path) — see memory `project-penm-mutscan-tiers`.
 
 - **v0.4 — tree / trajectory route (region C).** Migrate `someday_maybe/tree/`; fix
   the `p_act`→`p_ma` bug; swap `akima`→`interp`; reconcile with the SPM-mean route.

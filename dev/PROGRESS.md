@@ -8,37 +8,33 @@ Tick items as substeps finish, and add a one-line dated entry to `dev/LOG.md`.
 
 ---
 
-## Current version: v0.2 — API improvements
+## Current version: v0.3a — mode-form structural divergence (`dr2_njm`)
 
-Started 2026-06-11. No new model capability; four breaking API changes, exports
-18 → 14. `tmp_src/` untouched. Detailed plan: the four decisions are recorded in
-the `dev/plan.md` v0.2 bullet.
+Started 2026-06-18. First/smallest slice of v0.3. Adds the mode response axis
+using `dr2` (no new quantity, no motion); predict-only. Detailed plan: the
+approved v0.3a plan (raw=all-effects SPM, per-purpose preprocess, slow loop).
+Design decisions recorded in the `dev/plan.md` v0.3a bullet + memory
+`project-msamodel-v03-mode-axis` / `project-penm-mutscan-tiers`.
 
-- [x] Step 0 — plan docs (plan.md v0.2 bullet + precompute wording, this
-      checklist, LOG entry)
-- [x] Step 1 — rename `shap_*` → `phi_*` (R/msa_decomposition.R columns +
-      validation + `starts_with`; test-decomposition; vignette labels/prose;
-      roxygen prose in workflow; DESCRIPTION; CLAUDE.md note)
-- [x] Step 2 — structure input = bio3d pdb object (dropped `load_protein`; added
-      `inherits(pdb,"pdb")` check to `setup_enm`; callers use `bio3d::read.pdb`)
-- [x] Step 3 — active-site input = integer vector (dropped `get_active_site`;
-      inlined `pdb_site_active` in data-raw/tests/vignette; kept `znb_dataset`
-      as illustrative; moved bio3d→Suggests, dropped stringr import)
-- [x] Step 4 — drop grid API (deleted `R/msa_a1a2grid_workflow.R` +
-      `test-a1a2grid.R`; removed grid assertion in test-contract; replaced
-      vignette grid section with a map_dfr scan; reworded `site_properties.R`)
-- [x] Step 5 — `document()` (14 exports) + `test()` (45 pass) + mmCIF verified
-      (read.cif→setup_enm OK) + reran `precompute.R` (cache now `phi_*`) +
-      `check()` = 0E/1W/2N (= v0.1 baseline) + DESCRIPTION 0.2.0 + NEWS.md
+- [x] Step 0 — plan docs (plan.md v0.3a bullet, this checklist, LOG entry)
+- [x] Step 1 — `generate_spm_data.R`: add `dr2n` + `mode` SPM list-columns;
+      update `@return`
+- [x] Step 2 — `msa_bayesian_data_preparation.R`: add `preprocess_spm_mode()`
+      (builds `dr2nmat`, no `pdb_site` map)
+- [x] Step 3 — `msa_model_evaluation.R`: add `calculate_dr2n_msa()` (predict-only,
+      no loglik counterpart)
+- [x] Step 4 — `msamodel-package.R` globalVariables + `document()` (14 → 16
+      exports; `get_mode` stays `:::`, not imported)
+- [x] Step 5 — regenerate `znb_spm` fixture; relax the one-time `tmp_src`
+      validation to shared columns
+- [x] Step 6 — tests: `mode == penm:::get_mode` assertion in test-spm-generate;
+      new `test-msa-mode.R` (shape + Parseval site/mode cross-check)
+- [x] Step 7 — new `dr2n-analysis` vignette (`.Rmd.orig` + knit); generalize
+      `.githooks/pre-commit` to all `*.Rmd.orig` pairs
+- [x] Step 8 — DESCRIPTION dev version bump + `NEWS.md` bullet
+- [x] Final — `test()` (59 pass) + `check()` at baseline (0E/1W/2N) + spot-check
+      prints `v0.3a OK`; site path loglik `-184.3241923285` unchanged
 
-**v0.2 COMPLETE — committed + pushed (`9f8338a`) 2026-06-11.** No version in
-flight. Next on the roadmap: **v0.3 — motion/mode arm (region D, `.archive/`)**.
-Per `dev/plan.md`, v0.3 starts by reading the rest of `.archive/` (incl.
-`model_rates.R`) line-by-line in plan mode, then writing its detailed plan and
-rewriting this checklist from it. This file is dormant until then.
-
-**Post-v0.2 follow-up (2026-06-11):** reworked the intro vignette to the rOpenSci
-`.Rmd.orig` precompute pattern (one source of truth, shown code == executed code),
-removing the `precompute.R` + `vignette_cache.rds` mechanism that had drifted and
-silently skipped figures. `check()` still at baseline. Details in `dev/LOG.md`.
-Not a v0.2 substep — a correctness fix to already-shipped work.
+**v0.3a COMPLETE 2026-06-18** (not yet committed). `check()` 0E/1W/2N = baseline;
+the data-size NOTE grew (znb_spm 12.5→23.6 MB from the wide `dr2n` column) but is
+the same pre-existing finding, not new. NOT committed — awaiting user review.

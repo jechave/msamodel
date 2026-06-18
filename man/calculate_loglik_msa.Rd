@@ -25,6 +25,7 @@ Calculate log-likelihood of observed data given model parameters (matrix approac
 }
 \seealso{
 Other evaluation:
-\code{\link[=calculate_dr2i_msa]{calculate_dr2i_msa()}}
+\code{\link[=calculate_dr2i_msa]{calculate_dr2i_msa()}},
+\code{\link[=calculate_dr2n_msa]{calculate_dr2n_msa()}}
 }
 \concept{evaluation}

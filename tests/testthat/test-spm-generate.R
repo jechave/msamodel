@@ -39,6 +39,13 @@ test_that("generate_spm_data reproduces the embedded SPM fixture", {
   expect_equal(spm, znb_spm, tolerance = 1e-8)
 })
 
+test_that("SPM mode column equals penm's mode index (guards the seq_along choice)", {
+  # generate_spm_data stores `mode` as seq_along(dr2n) for speed; this confirms
+  # that vector is exactly penm:::get_mode(wt), i.e. the mode-axis labels are
+  # the real normal-mode indices, not an off-by-one stand-in.
+  expect_equal(znb_spm$mode[[1]], penm:::get_mode(znb_wt))
+})
+
 test_that("add_site_properties returns the expected site-property columns", {
   sd0 <- tibble::tibble(i = preprocess_spm(znb_spm)$site_map$i)
   props <- add_site_properties(sd0, znb_wt, PDB_SITE_ACTIVE)

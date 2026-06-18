@@ -1,7 +1,8 @@
 *.html
 *.R
 *.knit.md
-# Generic _files/ dirs from ad-hoc renders are ignored, but the pre-rendered
-# intro vignette's figures (knit from msamodel-intro.Rmd.orig) must ship.
+# Generic _files/ dirs from ad-hoc renders are ignored, but the figures of
+# pre-rendered vignettes (knit from a *.Rmd.orig) must ship.
 *_files/
 !msamodel-intro_files/
+!dr2n-analysis_files/
