@@ -79,8 +79,8 @@ hidden-dirs-included) as the canonical check.
 
 ## Migration rules (apply whenever migration continues)
 
-This is a migration, not a refactor — stay close to the source. When copying a file
-from `tmp_src/R/` into `R/`:
+This is a migration, not a refactor — stay close to the source. When copying a
+function from `tmp_src/R/` into `R/`:
 
 1. Remove `library(...)` calls (top-level and inline). All package usage goes
    through `Imports:` + `@importFrom` (or `pkg::fn()`).
@@ -100,8 +100,15 @@ from `tmp_src/R/` into `R/`:
    detailed plan (e.g. the tree route's `p_act`→`p_ma` bug, the `akima`→`interp`
    swap; see `dev/plan.md` findings).
 
-No file renames are folded into migration copies (renaming is a later deliberate
-refactor, decided when files are actually rearranged).
+**Organize `R/` files by function family/role, not by source filename**
+(decided 2026-06-18, retiring the earlier "keep `tmp_src` filenames" rule). A
+migrated function goes in the `R/` file for its `@family` (spm / model /
+objective / fitting / decomposition / setup), regardless of which `tmp_src/` file
+it came from; functions with no `tmp_src` source go in the matching family file
+too. Traceability to the source is provided by `dev/find-source.sh` (content
+search), **not** by filename. This does **not** loosen the provenance HARD RULES
+below, nor migration rule 2 — function *names* and *signatures* still don't change
+in a copy; only file placement and grouping do.
 
 ### Provenance & verification discipline (HARD RULES — a 2026-06-18 failure)
 

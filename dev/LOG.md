@@ -7,6 +7,50 @@ those two don't keep.
 
 One short entry per working session.
 
+### 2026-06-18 — File-rename rule RETIRED; R/ reorganized by @family; evaluation split
+
+**Decision (with user): retire the "keep `tmp_src` filenames" migration rule.**
+New rule — organize `R/` files by function `@family`/role, not by source filename;
+sourceless functions go in the matching family file; `dev/find-source.sh` (content
+search) provides traceability instead of filenames. Updated CLAUDE.md (migration
+rules), dev/plan.md (resolved decisions), and the `feedback-no-renames` memory
+(now states the *opposite* of its old self). Provenance HARD RULES and the
+no-function-rename rule are untouched — only *file placement* is freed.
+
+**Naming fix (with user): `@family evaluation` was misleading** ("evaluation" reads
+as *assessing*; these are the model's *forward* computation). Split into:
+- `@family model` — `calculate_dr2i_msa` / `calculate_dr2n_msa`: the pfix model's
+  forward map (predicted divergence profile at given `(a1,a2)`). NOT `prediction`
+  — that word is taken by the fit-level `calculate_prediction_*` (posterior/ML
+  profile).
+- `@family objective` — `calculate_loglik_msa`: one fitting *criterion* (future
+  RMSE/robust/other-likelihoods join here). Single-member family for now, by
+  design.
+
+**Reorg (pure moves + tag edits, no logic change):**
+- `R/spm.R` ← `generate_spm_data` + `delta_structure_*` (`@noRd`) + `preprocess_spm`
+  + `preprocess_spm_mode` (consolidates old `generate_spm_data.R` +
+  `msa_bayesian_data_preparation.R`, both deleted).
+- `R/model.R` ← `calculate_dr2i_msa`, `calculate_dr2n_msa`.
+- `R/objective.R` ← `calculate_loglik_msa`. (Old `msa_model_evaluation.R` deleted.)
+- `msa_bayesian_workflow.R` / `msa_bayesian_analysis.R` kept (genuinely MCMC,
+  `@family fitting`).
+- **Boundary recorded so it isn't re-litigated:** `spm` = per-mutant *raw*
+  divergence (the data); `model` = pfix-weighted *profile* (the forward map).
+
+**Verification (all green):** baseline captured first (16 exports, 23 man pages,
+59 tests pass). After: `document()` → NAMESPACE unchanged, man/ file set unchanged
+(only the 6 moved pages' content changed: provenance line + the evaluation trio's
+`\concept`/`\seealso` retag `model`/`objective` + first-function title-header
+text). `test()` 59 pass / 0 fail (= baseline). `check()` 0 errors / 1 warning /
+2 notes (= accepted v0.1 baseline, no new diagnostics). `grep @family evaluation
+R/` = 0. `find-source.sh 'preprocess_spm'` and `'calculate_dr2i_msa'` still resolve
+to `tmp_src/` despite the new filenames — proves the rule-change premise.
+**Visual vignette regression:** installed the refactored tree, re-knit both
+`.Rmd.orig`; the only diff was the `sessionInfo()` version banner
+(`0.2.0` → `0.2.0.9000`, a precompute artifact) — zero numerical/figure change, so
+reverted the version churn. Previews in `dev/preview/` for eyeballing.
+
 ### 2026-06-18 — SESSION END / NEXT-SESSION AGENDA
 
 **Pick up here next session.** Open topic the user wants to discuss (NOT yet

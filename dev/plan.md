@@ -189,9 +189,13 @@ this is why v0.4 (tree) is harder than v0.3 (motion/mode).
 
 - Target path: `/Users/julianechave/Library/Mobile Documents/com~apple~CloudDocs/lab/Rpackages/msamodel/`.
 - Git: local-only, no remote; direct pushes to `main` are intended (solo repo).
-- No file renames folded into migration copies (renaming is a later deliberate
-  refactor). No public function name changes except deliberate, recorded API
-  changes (e.g. the v0.2 `phi_*` rename, the v0.1 `observed_data` = {pdb_site,
-  lrmsd_obs} contract).
+- Organize `R/` files by function family/role, not by source filename (decided
+  2026-06-18, retiring the earlier "keep `tmp_src` filenames" rule). A migrated
+  function lands in the `R/` file for its `@family` (spm / model / objective /
+  fitting / decomposition / setup); filenames need not match `tmp_src`, and
+  sourceless functions go in the matching family file. `dev/find-source.sh`
+  (content search) provides traceability, not filenames. No public function name
+  changes except deliberate, recorded API changes (e.g. the v0.2 `phi_*` rename,
+  the v0.1 `observed_data` = {pdb_site, lrmsd_obs} contract).
 - Embedded `znb_*` fixture is frozen and *generated* (not copied) by
   `data-raw/prepare_znb_data.R`; drift caught by `test-spm-generate.R`.
