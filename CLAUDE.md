@@ -161,6 +161,30 @@ provenance, motivates these. They are not optional.
 one-line dated entry to `dev/LOG.md`. Do this as the substep finishes — tied to
 *finishing*, not to ending a session.
 
+### Definition of Done (run this reconciliation pass before declaring any plan/substep done)
+
+Verifying the *deliverable* (tests pass, NAMESPACE clean) is not enough — a change
+also has **satellite state** that describes the codebase and silently goes stale.
+A plan's own verification section never covers this, so it drifts and only surfaces
+later ("get ready for exit" keeps finding it). After the deliverable is verified,
+run this pass against the **whole project**, not just the files you edited:
+
+1. **Stale cross-references.** If you renamed/moved/deleted a file, function, or
+   version label, grep for the OLD name across `R/`, `tests/`, `dev/`, `man/`,
+   `vignettes/*.orig`, `DESCRIPTION`, and memory — fix every dangling reference.
+   (E.g. after the R/ reorg, `dev/PROGRESS.md` still named the deleted files.)
+2. **`dev/PROGRESS.md`** reflects reality — ticked to match what's done; set
+   **dormant** if no version is in flight; never describing a superseded state.
+3. **`dev/LOG.md`** has an entry for what just happened (and, at session end, the
+   commit hashes + the next step).
+4. **Memory** (`MEMORY.md` + files): no entry now contradicts the change; the
+   "next session" pointer is current; new non-obvious decisions are recorded.
+5. **Git:** intended changes committed, nothing stray staged, pushed to `main`
+   (solo repo), `git status` clean — unless the user asked you to hold off.
+
+If any item turns up work, it is **part of this task, not a later cleanup** — do it
+now. Only report done once this pass is clean.
+
 ## Development commands
 
 ```bash
