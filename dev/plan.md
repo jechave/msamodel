@@ -78,7 +78,7 @@ purpose; per-version detail is written when each version starts.
   and add the reweighting + evaluation paths. Reuses the v0.1 precompute-and-reweight
   machinery (see findings). Sliced into small steps, each changing one variable
   (response axis OR quantity), per the `dr2_njm`-first ladder. Read the rest of
-  `tmp_src/.archive/` (incl. `tmp_src/.archive/R_backup/model_rates.R`)
+  `tmp_src/archive/` (incl. `tmp_src/archive/R_backup/model_rates.R`)
   line-by-line before the motion steps, and decide then whether rates land here or
   later.
 
@@ -125,7 +125,7 @@ purpose; per-version detail is written when each version starts.
 
 ### The model's full divergence grid (most of it not yet migrated)
 
-The original model (in `tmp_src/.archive/`) computed a **2×2 grid** of divergence
+The original model (in `tmp_src/archive/`) computed a **2×2 grid** of divergence
 quantities × {site `i`, mode `n`}, plus `nh_n`. v0.1 implements exactly ONE cell.
 
 | quantity | site form | mode form | penm fn | in v0.1? |
@@ -134,8 +134,8 @@ quantities × {site `i`, mode `n`}, plus `nh_n`. v0.1 implements exactly ONE cel
 | motion/fluctuation divergence `dh` | `dh_ijm` | `dh_njm` | `delta_motion_dhi` / `dhn` | **NO** |
 | mode fluctuation `nh` | — | `nh_njm` | `delta_motion_nhn` | **NO** |
 
-Also in `tmp_src/.archive/`, characterized but not yet read line-by-line:
-`tmp_src/.archive/R_backup/model_rates.R` (evolutionary-rate prediction) and the
+Also in `tmp_src/archive/`, characterized but not yet read line-by-line:
+`tmp_src/archive/R_backup/model_rates.R` (evolutionary-rate prediction) and the
 `motion/` / `structure/` / mode-analysis backup files. (Read at v0.3 start.)
 
 ### Precomputation property — RESOLVED: it generalizes for the SPM-mean route

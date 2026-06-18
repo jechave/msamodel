@@ -69,6 +69,14 @@ made so the migration cannot touch the original — the live path is intentional
 snapshot, so it goes stale: re-copy deliberately if the live source changes.
 **Treat `tmp_src/` as read-only** — copy *out of* it, never edit *in* it.
 
+Much unmigrated code lives in **`tmp_src/archive/`** (the model's motion/mode arm,
+rates, etc.). This was previously `tmp_src/.archive/` (hidden) — renamed
+2026-06-18 because the dot-prefix made `grep -r` silently skip its ~18 `.R` files,
+which once caused a false "no source exists" conclusion. **Always search all of
+`tmp_src/` — including any hidden dirs — before concluding a function has no
+migration source.** Use `dev/find-source.sh '<pattern>'` (greps `tmp_src/`
+hidden-dirs-included) as the canonical check.
+
 ## Migration rules (apply whenever migration continues)
 
 This is a migration, not a refactor — stay close to the source. When copying a file
@@ -94,6 +102,33 @@ from `tmp_src/R/` into `R/`:
 
 No file renames are folded into migration copies (renaming is a later deliberate
 refactor, decided when files are actually rearranged).
+
+### Provenance & verification discipline (HARD RULES — a 2026-06-18 failure)
+
+A bad "migration" of the mode functions, followed by repeatedly asserting false
+provenance, motivates these. They are not optional.
+
+- **Migration sources are ONLY `tmp_src/`** (incl. `tmp_src/archive/` and any
+  other hidden dirs). Before claiming any function or logic is "new" /
+  "package-native" / "written from scratch", you MUST search for it:
+  `dev/find-source.sh '<fn name>'` **and** `dev/find-source.sh '<core formula>'`.
+  A zero-hit search on the *name* is not proof of no source — names get changed
+  in migration; the **math** does not. Search the formula.
+- **penm is a DEPENDENCY, never a migration source.** Call `penm::fn()`. Never
+  copy or "migrate" code out of penm — not the installed library, not the local
+  `../penm` source. Reading penm to check a *signature you are calling* is fine;
+  reading it to source/justify package code is not. If a computation seems to
+  need penm internals, that means a `penm::` call, not a copy.
+- **Migration = restructure + VERIFY, not clone-and-rename.** When migrating a
+  property the user has NOT already refactored, do not assume that axis-swapping
+  an existing function (e.g. site → mode) is equivalent. Reproduce the OLD
+  (archive) version's numbers and assert equality — machine precision for
+  deterministic code, seeded for stochastic — **before** trusting the new form.
+  "Looks structurally identical" is not verification; run the comparison.
+- **Provenance honesty.** Never state where code came from ("I wrote it" / "it's
+  migrated from X" / "no source exists") unless you have *just* searched/read to
+  confirm it. These are factual claims, governed by the same rule as
+  "verified"/"fixed": no claim without a check.
 
 ## House conventions
 

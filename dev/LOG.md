@@ -7,6 +7,35 @@ those two don't keep.
 
 One short entry per working session.
 
+### 2026-06-18 — PROCESS FIX: unhide archive + migration-discipline guardrails
+
+After a serious failure (see below), added guardrails so it can't recur.
+
+- **The failure:** Claude "migrated" the v0.3a mode functions poorly and then
+  asserted false provenance repeatedly — claimed `calculate_dr2n_msa` was
+  "package-native, no tmp_src source" when the source
+  (`calculate_diff_mode_msa.R`) was sitting in `tmp_src/.archive/`. Root causes:
+  (1) `.archive/` is a HIDDEN dir, so `grep -r tmp_src/` silently skipped its 18
+  `.R` files and returned 0 hits → false "no source" conclusion; (2) confused
+  penm (a dependency to CALL) with a migration source — even read penm internals
+  to reason about provenance; (3) cloned the user's already-refactored `dr2_i`
+  function, swapped `i`→`n`, and shipped it WITHOUT verifying against the
+  archive's `dr2_n` — skipping the refactor-and-check the user would have done.
+- **Fix 1 — unhid the archive:** `mv tmp_src/.archive tmp_src/archive`. Now
+  `grep -rln dr2_njm tmp_src/` returns 3 files (was 0). Pure local rename
+  (tmp_src is git-ignored + Rbuildignored). Updated all `.archive` refs in
+  plan.md/LOG.md.
+- **Fix 2 — `dev/find-source.sh`:** mechanical "does this have a migration
+  source?" check; greps all of tmp_src/ incl. hidden dirs. Run before claiming
+  any code is new.
+- **Fix 3 — CLAUDE.md migration rules + memory:** migration sources are ONLY
+  tmp_src/; penm is a dependency never a source; migration = restructure + VERIFY
+  (reproduce old numbers), not clone-and-rename; never state provenance unchecked.
+- **penm access:** kept (rule-only guardrail, no hard block) — user's call.
+- **STILL OPEN (not done here):** the v0.3a mode functions on `main` remain
+  UNVERIFIED against the archive. Verifying / re-migrating them, and deciding
+  whether to revert the v0.3a commit, are separate user-directed follow-ups.
+
 ### 2026-06-18 — v0.3a started: mode-form structural divergence (`dr2_njm`)
 
 - Split the roadmap's large v0.3 into slices; **v0.3a** is the first/smallest:
@@ -241,8 +270,10 @@ One short entry per working session.
   (A) deferred R/ model code [assessment 3-file bundle, allotment, protein decomp,
   viz]; (B) `Rmd/` paper analyses [figure library, AlphaFold2 validation,
   sequence-vs-structure divergence — new feature signals]; (C) `someday_maybe/tree/`
-  trajectory route; (D) **`.archive/` — the model's MOTION/MODE arm**, which the
+  trajectory route; (D) **`archive/` — the model's MOTION/MODE arm**, which the
   user wants for future projects and which was buried/never analyzed.
+  *(2026-06-18: this dir was renamed `.archive/`→`archive/` — unhidden so
+  `grep -r` finds it; path updated here to stay valid.)*
 - **KEY FINDING (durable, now in plan.md): the precomputation property generalizes
   for the SPM-mean route but NOT the tree.** The model is a 2×2 grid {structure
   dr2, motion dh} × {site i, mode n} (+ nh_n); v0.1 implements only structure×site.
@@ -255,7 +286,7 @@ One short entry per working session.
   v0.3=motion/mode (D), v0.4=tree (C).
 - **Roadmap set (user decisions):** v0.2 = API-only (phi rename, PDB path input,
   pdb_site-vector active sites, grid keep/demote/drop); v0.3 = motion/mode (D),
-  read rest of `.archive/` incl. model_rates.R at its start; v0.4 = tree (C);
+  read rest of `archive/` incl. model_rates.R at its start; v0.4 = tree (C);
   later/unordered = assessment+allotment+protein-decomp, viz/figure-lib, AF2,
   sequence divergence. No v0.2 code written yet.
 
