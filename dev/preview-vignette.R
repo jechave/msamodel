@@ -9,9 +9,10 @@
 #
 # This script sidesteps that: it copies the already-knit `<name>.Rmd` and its
 # `<name>_files/` figures into a throwaway temp dir, renders there, and copies
-# only the resulting self-contained `.html` back to `vignettes/` (where it is
-# git-ignored). The real `vignettes/<name>.Rmd` and `<name>_files/` are never
-# written to, so the figures the package ships are safe.
+# only the resulting self-contained `.html` to `dev/preview/` (a scratch dir,
+# outside the package source). The real `vignettes/<name>.Rmd` and
+# `<name>_files/` are never written to, so the figures the package ships are
+# safe, and `vignettes/` holds only files that actually ship.
 #
 # It does NOT knit the .Rmd.orig -> .Rmd (that is the separate, deliberate
 # precompute step). Run knit first if you changed the .orig; then preview.
@@ -20,7 +21,7 @@
 #   Rscript dev/preview-vignette.R dr2n-analysis
 #   Rscript dev/preview-vignette.R              # previews every vignettes/*.Rmd
 #
-# Output: vignettes/<name>.html  (git-ignored; for local viewing only).
+# Output: dev/preview/<name>.html  (git-ignored; for local viewing only).
 
 args <- commandArgs(trailingOnly = TRUE)
 
@@ -28,6 +29,12 @@ vig_dir <- "vignettes"
 if (!dir.exists(vig_dir)) {
   stop("Run this from the package root (no ", vig_dir, "/ directory here).")
 }
+
+# Scratch output dir for previews (git-ignored; .Rbuildignore already excludes
+# all of dev/). Kept out of vignettes/ so the source dir holds only files that
+# ship.
+preview_dir <- file.path("dev", "preview")
+dir.create(preview_dir, showWarnings = FALSE, recursive = TRUE)
 
 # Resolve which vignettes to preview.
 if (length(args) >= 1) {
@@ -61,8 +68,9 @@ preview_one <- function(name) {
     quiet = TRUE
   )
 
-  # Self-contained HTML -> copy back next to the source vignette (git-ignored).
-  dest <- file.path(vig_dir, paste0(name, ".html"))
+  # Self-contained HTML -> scratch dir under dev/ (NOT vignettes/, which holds
+  # only files that ship).
+  dest <- file.path(preview_dir, paste0(name, ".html"))
   file.copy(out_html, dest, overwrite = TRUE)
   message("Preview written: ", dest,
           "  (repo vignettes/", name, "_files/ untouched)")

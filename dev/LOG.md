@@ -46,6 +46,8 @@ One short entry per working session.
   `vignettes/<name>.html` (git-ignored). The repo's `vignettes/` is never
   written to. Verified: figures present & `git status` clean before and after.
   Usage `Rscript dev/preview-vignette.R <name>`. Documented in CLAUDE.md.
+  (Output goes to `dev/preview/<name>.html`, a git-ignored scratch dir — NOT
+  `vignettes/`, which should hold only files that ship.)
 - **Also fixed a latent v0.3a bug:** `.Rbuildignore` had a filename-specific
   `^vignettes/msamodel-intro\.Rmd\.orig$`, so the new `dr2n-analysis.Rmd.orig`
   would have SHIPPED in the build tarball. Generalized to

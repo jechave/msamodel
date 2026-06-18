@@ -137,7 +137,7 @@ Rscript -e "devtools::check()"
 Rscript -e "devtools::install()"
 
 # Preview a pre-rendered vignette as standalone HTML, WITHOUT touching the repo
-Rscript dev/preview-vignette.R dr2n-analysis   # -> vignettes/<name>.html (git-ignored)
+Rscript dev/preview-vignette.R dr2n-analysis   # -> dev/preview/<name>.html (git-ignored)
 ```
 
 **Vignettes use the `.Rmd.orig` precompute pattern.** Workflow when changing a
