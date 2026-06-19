@@ -7,6 +7,31 @@ those two don't keep.
 
 One short entry per working session.
 
+### 2026-06-19 — BUGFIX: site decomposition was the wrong formula (Shapley → sequential)
+
+User caught that the migrated `phi_*` site decomposition shipped the **wrong
+formula**. `tmp_src` has two decompositions of `lrmsd_msa`: the symmetric
+**Shapley** form (`tmp_src/R/msa_decomposition.R`, `methods.md:101-103`) and the
+**sequential/additive** M0→MM→MS→MSA form (`methods.md:106-111`,
+`shared_data_preparation.R:48-51`, the paper-analysis one literally named `phi_*`).
+The migration copied Shapley and then renamed its columns `shap_*`→`phi_*` —
+attaching the `phi_*` name to the wrong math. Both telescope to `lrmsd_msa`, so a
+sum check passes either way → bug invisible, survived migration + rename + a memory
+that recorded the Shapley formula as "what it actually is."
+
+Fix: `R/msa_decomposition.R` now computes `phi_mut=lrmsd_mm`,
+`phi_stab=lrmsd_ms-lrmsd_mm`, `phi_act=lrmsd_msa-lrmsd_ms`. Per user, `lrmsd_ma`
+kept as a required input (unused by sequential) reserved for a future `method`
+flag (sequential vs shapley); MA still computed in `calculate_prediction_samples`.
+Added a value-pinning test (sample-1-site-1: seq stab=.1/act=.3 vs Shapley
+.15/.25) that fails under the old formula. Updated roxygen+man, NEWS, and the
+`decomposition-not-shapley` memory. Full suite 68/0F; `check()` at v0.1 baseline.
+
+Vignette `msamodel-intro` (§5 formulas+prose) re-edited & re-knit (LaTeX now
+sequential, Shapley "average of marginal effect" prose dropped); preview at
+`dev/preview/msamodel-intro.html`. **Vignette HELD from commit pending user HTML
+approval** (commit gate); code committed separately.
+
 ### 2026-06-18 — VERSIONING FIX: retire the lettered sub-version scheme
 
 The "v0.3a / v0.3b / v0.3c" lettered sub-version scheme was a mistake and is

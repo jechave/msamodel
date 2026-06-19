@@ -8,7 +8,9 @@ calculate_msa_decomposition(data)
 }
 \arguments{
 \item{data}{Data frame with columns i, lrmsd_mm, lrmsd_ms, lrmsd_ma, lrmsd_msa
-(and optionally pdb_site, which is carried through if present)}
+(and optionally pdb_site, which is carried through if present). `lrmsd_ma` is
+not used by the sequential formula but is required for forward-compatibility
+with a future `method` switch to the Shapley variant (which needs it).}
 }
 \value{
 Data frame with the site key(s) (i, and pdb_site if present) and the
@@ -17,8 +19,15 @@ Data frame with the site key(s) (i, and pdb_site if present) and the
 \description{
 Splits the per-site log structural divergence into mutation, stability-
 selection, and activity-selection components (phi_mut, phi_stab, phi_act).
-(Earlier versions called these `shap_*` / a "Shapley" decomposition; that was
-a misnomer and the columns were renamed to `phi_*` in v0.2.)
+This is the **sequential / additive** decomposition along the model
+progression M0 -> MM -> MS -> MSA: each term is the incremental divergence
+added by turning on the next selection pressure. The terms telescope, so
+phi_mut + phi_stab + phi_act = lrmsd_msa.
+}
+\details{
+(A different, symmetric "Shapley" decomposition of the same four variants also
+exists; an earlier version of this function computed that one by mistake. The
+sequential form here is the one used for the paper analysis.)
 }
 \seealso{
 Other decomposition:

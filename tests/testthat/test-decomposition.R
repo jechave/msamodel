@@ -33,6 +33,27 @@ test_that("decomposition works without pdb_site (optional-branch, absent)", {
   expect_equal(nrow(dsum), 9L)
 })
 
+test_that("phi_* are the sequential (M0->MM->MS->MSA) decomposition, not Shapley", {
+  d <- new_pred_samples(with_pdb_site = FALSE)
+  res <- calculate_msa_decomposition(d)
+
+  # Sequential formula: phi_mut = mm, phi_stab = ms - mm, phi_act = msa - ms.
+  # These differ from the symmetric Shapley formula (which would give
+  # phi_stab = 0.5*(ms-mm + msa-ma), phi_act = 0.5*(ma-mm + msa-ms)); the
+  # assertions below FAIL under Shapley, so they actually pin the right form.
+  expect_equal(res$phi_mut,  d$lrmsd_mm)
+  expect_equal(res$phi_stab, d$lrmsd_ms - d$lrmsd_mm)
+  expect_equal(res$phi_act,  d$lrmsd_msa - d$lrmsd_ms)
+
+  # Concrete values for sample 1, site 1 (mm=.1, ms=.2, ma=.3, msa=.5):
+  # sequential -> stab=.1, act=.3 ; Shapley would give stab=.15, act=.25.
+  expect_equal(res$phi_stab[1], 0.1)
+  expect_equal(res$phi_act[1], 0.3)
+
+  # Telescoping: the three terms sum to the full predicted divergence.
+  expect_equal(res$phi_mut + res$phi_stab + res$phi_act, d$lrmsd_msa)
+})
+
 test_that("decomposition carries pdb_site through (optional-branch, present)", {
   ds <- calculate_decomposition_samples(new_pred_samples(with_pdb_site = TRUE))
   expect_contains(names(ds), "pdb_site")

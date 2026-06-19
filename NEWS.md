@@ -49,11 +49,18 @@ GitHub-only package.
 
 ## Breaking changes
 
-* **Decomposition columns renamed `shap_*` → `phi_*`** (`phi_mut`, `phi_stab`,
-  `phi_act`). "Shapley" was a misnomer; these are the φ components from the
-  paper. Affects `calculate_msa_decomposition()`,
+* **Site-level decomposition corrected and renamed `shap_*` → `phi_*`**
+  (`phi_mut`, `phi_stab`, `phi_act`). The columns now hold the **sequential /
+  additive** decomposition along the model progression M0 → MM → MS → MSA
+  (`phi_mut = lrmsd_mm`, `phi_stab = lrmsd_ms − lrmsd_mm`,
+  `phi_act = lrmsd_msa − lrmsd_ms`), the φ components used for the paper analysis.
+  The earlier code computed a different, symmetric "Shapley" formula by mistake;
+  both telescope to `lrmsd_msa`, so the values shipped under `shap_*`/`phi_*` in
+  prior dev snapshots were wrong. Affects `calculate_msa_decomposition()`,
   `calculate_decomposition_samples()`, `calculate_decomposition_summary()`, and
   the `decomposition_summary` returned by `run_msa_bayesian_analysis()`.
+  (`lrmsd_ma` is still a required input, reserved for a future `method` switch to
+  the Shapley variant.)
 
 * **Structure input is now a bio3d pdb object.** `load_protein()` (which took a
   `pdb_chain` ID + a `data_dir`) is **removed**. Read the structure yourself and
