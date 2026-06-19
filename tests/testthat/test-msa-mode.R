@@ -32,6 +32,23 @@ test_that("per-mutant site and mode divergence agree (basis invariance)", {
   }
 })
 
+test_that("calculate_lrmsd_n_nested_models builds the four variants at the right (a1,a2)", {
+  pp <- preprocess_spm_mode(znb_spm)
+  a1 <- 2; a2 <- 5
+  nested <- calculate_lrmsd_n_nested_models(pp, a1, a2)
+
+  # Mode form: keyed by n, NO pdb_site (modes are not anchored to residues).
+  expect_named(nested, c("n", "lrmsd_n_mm", "lrmsd_n_ms", "lrmsd_n_ma", "lrmsd_n_msa"))
+  expect_equal(nrow(nested), 678L)
+
+  # Each variant = log(sqrt(dr2_n)) of calculate_dr2_n_msa at its (a1,a2) point.
+  # Independent route (recompute the forward map directly), not circular.
+  expect_equal(nested$lrmsd_n_mm,  log(sqrt(calculate_dr2_n_msa(pp, 0,  0 )$dr2_n)))
+  expect_equal(nested$lrmsd_n_ms,  log(sqrt(calculate_dr2_n_msa(pp, a1, 0 )$dr2_n)))
+  expect_equal(nested$lrmsd_n_ma,  log(sqrt(calculate_dr2_n_msa(pp, 0,  a2)$dr2_n)))
+  expect_equal(nested$lrmsd_n_msa, log(sqrt(calculate_dr2_n_msa(pp, a1, a2)$dr2_n)))
+})
+
 test_that("dr2_n reweighting collapses the mutant axis with the same weights as the site form", {
   # Independent-route check: build the same fixation weights by hand and apply
   # colSums(dr2_njm * w). Confirms calculate_dr2_n_msa uses the axis-agnostic

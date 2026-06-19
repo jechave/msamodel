@@ -61,29 +61,79 @@ dim(pp_mode$dr2_njm)                       # mutants x modes
 ## The mode-divergence profile at given (a1, a2)
 
 For any `(a1, a2)`, `calculate_dr2_n_msa()` returns the selection-weighted mean
-`dr2_n` per mode. The reweighting is identical to the site form (the fixation
-weights live only on the mutant axis); only the response axis differs.
+`dr2_n` per mode. The per-mode divergence is `lrmsd_n = log(sqrt(dr2_n))`, the
+mode analogue of the site form's `lrmsd`.
 
 
 ```r
 a1 <- 2; a2 <- 500
-prof_mode <- calculate_dr2_n_msa(pp_mode, a1, a2)
+prof_mode <- calculate_dr2_n_msa(pp_mode, a1, a2) |>
+  mutate(lrmsd_n = log(sqrt(dr2_n)))
 head(prof_mode)
-#> # A tibble: 6 × 2
-#>       n   dr2_n
-#>   <int>   <dbl>
-#> 1     1 0.00297
-#> 2     2 0.00291
-#> 3     3 0.00684
-#> 4     4 0.00435
-#> 5     5 0.00353
-#> 6     6 0.00247
+#> # A tibble: 6 × 3
+#>       n   dr2_n lrmsd_n
+#>   <int>   <dbl>   <dbl>
+#> 1     1 0.00297   -2.91
+#> 2     2 0.00291   -2.92
+#> 3     3 0.00684   -2.49
+#> 4     4 0.00435   -2.72
+#> 5     5 0.00353   -2.82
+#> 6     6 0.00247   -3.00
 ```
 
 ![plot of chunk profile-plot](dr2n-analysis_files/figure-html/profile-plot-1.png)
 
-The lowest-index (softest) modes dominate: most of the predicted structural
-divergence is carried by a handful of collective motions.
+The lowest-index (softest) modes carry the most divergence: a handful of
+collective motions account for most of the predicted structural change.
+
+## Nested models and decomposition
+
+As in the site form, the mode profile at a chosen `(a1, a2)` splits into additive
+mutation, stability-selection, and activity-selection contributions, built from
+four **nested model variants** (each `calculate_dr2_n_msa()` at a particular
+parameter point):
+
+| Variant | a1 (stability) | a2 (activity) | meaning |
+|:--|:--|:--|:--|
+| **MM** | 0 | 0 | mutation only — no selection |
+| **MS** | a1 | 0 | mutation + stability selection |
+| **MA** | 0 | a2 | mutation + activity selection |
+| **MSA** | a1 | a2 | full model — both selections |
+
+`calculate_lrmsd_n_nested_models()` returns all four `lrmsd_n` profiles at once —
+the mode counterpart of `calculate_lrmsd_i_nested_models()`:
+
+
+```r
+nested <- calculate_lrmsd_n_nested_models(pp_mode, a1, a2)   # a1 = 2, a2 = 500
+```
+
+![plot of chunk nested-profiles](dr2n-analysis_files/figure-html/nested-profiles-1.png)
+
+The **sequential** decomposition adds one selection pressure at a time along
+M0 → MM → MS → MSA; each $\phi$ term is the incremental divergence contributed by
+the next pressure:
+
+$$
+\phi_{\text{mut}}  = \text{lrmsd}_{\text{mm}}, \qquad
+\phi_{\text{stab}} = \text{lrmsd}_{\text{ms}} - \text{lrmsd}_{\text{mm}}, \qquad
+\phi_{\text{act}}  = \text{lrmsd}_{\text{msa}} - \text{lrmsd}_{\text{ms}}
+$$
+
+By construction these sum to the full prediction. `calculate_msa_decomposition()`
+is axis-agnostic — the same pure function used for the site form — so we apply it
+to the four `lrmsd_n` vectors:
+
+
+```r
+phi <- dplyr::bind_cols(
+  nested,
+  calculate_msa_decomposition(nested$lrmsd_n_mm, nested$lrmsd_n_ms,
+                              nested$lrmsd_n_ma, nested$lrmsd_n_msa)
+)
+```
+
+![plot of chunk decomp-plot](dr2n-analysis_files/figure-html/decomp-plot-1.png)
 
 ## How the mode profile depends on a1 and a2
 
@@ -97,16 +147,13 @@ parameter at a time and overlay the resulting whole mode profiles — the same
 # Stability sweep: vary a1, hold a2 = 0
 a1_values <- c(0, 1, 2, 4, 8)
 sweep_a1 <- purrr::map_dfr(a1_values, function(a1)
-  calculate_dr2_n_msa(pp_mode, a1, 0) |> mutate(a1 = a1))
+  calculate_dr2_n_msa(pp_mode, a1, 0) |> mutate(lrmsd_n = log(sqrt(dr2_n)), a1 = a1))
 
 # Activity sweep: vary a2, hold a1 = 0
 a2_values <- c(0, 31, 127, 511, 2047)
 sweep_a2 <- purrr::map_dfr(a2_values, function(a2)
-  calculate_dr2_n_msa(pp_mode, 0, a2) |> mutate(a2 = a2))
+  calculate_dr2_n_msa(pp_mode, 0, a2) |> mutate(lrmsd_n = log(sqrt(dr2_n)), a2 = a2))
 ```
-
-The soft modes carry most of the signal, so we focus the plots on the lowest
-modes where the dependence is visible.
 
 ![plot of chunk sweep-a1](dr2n-analysis_files/figure-html/sweep-a1-1.png)
 
@@ -115,20 +162,6 @@ modes where the dependence is visible.
 Increasing `a1` suppresses divergence across the soft modes (stability selection
 damps the collective motions); increasing `a2` reshapes the soft-mode divergence
 according to selection on activity.
-
-## Consistency with the site form
-
-For a single mutant the site and mode descriptions of the displacement carry the
-same total (basis invariance). This holds per mutant in the scan:
-
-
-```r
-r <- which(znb_spm$m > 0)[1]
-c(site_total = sum(znb_spm$dr2_ijm[[r]]),
-  mode_total = sum(znb_spm$dr2_njm[[r]]))
-#> site_total mode_total 
-#>  0.3255187  0.3255187
-```
 
 ## Session info
 
@@ -149,16 +182,17 @@ c(site_total = sum(znb_spm$dr2_ijm[[r]]),
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] ggplot2_4.0.1       dplyr_1.1.4         msamodel_0.2.0.9000
+#> [1] ggplot2_4.0.1       dplyr_1.1.4         msamodel_0.3.0.9000
 #> 
 #> loaded via a namespace (and not attached):
-#>  [1] Rcpp_1.1.0         knitr_1.43         magrittr_2.0.4     tidyselect_1.2.1  
-#>  [5] viridisLite_0.4.2  lattice_0.22-5     R6_2.6.1           rlang_1.1.6       
-#>  [9] highr_0.11         jefuns_0.1.0       tools_4.2.1        parallel_4.2.1    
-#> [13] grid_4.2.1         gtable_0.3.6       xfun_0.41          cli_3.6.5         
-#> [17] withr_3.0.2        bio3d_2.4-5        tibble_3.3.0       lifecycle_1.0.4   
-#> [21] S7_0.2.1           Matrix_1.5-4.1     tidyr_1.3.1        purrr_1.2.0       
-#> [25] RColorBrewer_1.1-3 farver_2.1.2       vctrs_0.6.5        glue_1.8.0        
-#> [29] evaluate_0.24.0    labeling_0.4.3     compiler_4.2.1     pillar_1.11.1     
-#> [33] generics_0.1.4     scales_1.4.0       penm_0.2.0.9000    pkgconfig_2.0.3
+#>  [1] Rcpp_1.1.0         pillar_1.11.1      compiler_4.2.1     RColorBrewer_1.1-3
+#>  [5] highr_0.11         tools_4.2.1        jefuns_0.1.0       evaluate_0.24.0   
+#>  [9] lifecycle_1.0.4    tibble_3.3.0       gtable_0.3.6       lattice_0.22-5    
+#> [13] viridisLite_0.4.2  pkgconfig_2.0.3    rlang_1.1.6        Matrix_1.5-4.1    
+#> [17] cli_3.6.5          rstudioapi_0.16.0  parallel_4.2.1     xfun_0.41         
+#> [21] withr_3.0.2        knitr_1.43         generics_0.1.4     vctrs_0.6.5       
+#> [25] grid_4.2.1         tidyselect_1.2.1   glue_1.8.0         R6_2.6.1          
+#> [29] farver_2.1.2       purrr_1.2.0        tidyr_1.3.1        magrittr_2.0.4    
+#> [33] scales_1.4.0       bio3d_2.4-5        labeling_0.4.3     S7_0.2.1          
+#> [37] penm_0.2.0.9000
 ```

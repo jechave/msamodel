@@ -38,6 +38,7 @@ fixed-(a1, a2) analysis use it. Feed the four columns to
 \seealso{
 Other model:
 \code{\link[=calculate_dr2_i_msa]{calculate_dr2_i_msa()}},
-\code{\link[=calculate_dr2_n_msa]{calculate_dr2_n_msa()}}
+\code{\link[=calculate_dr2_n_msa]{calculate_dr2_n_msa()}},
+\code{\link[=calculate_lrmsd_n_nested_models]{calculate_lrmsd_n_nested_models()}}
 }
 \concept{model}

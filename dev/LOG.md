@@ -7,6 +7,25 @@ those two don't keep.
 
 One short entry per working session.
 
+### 2026-06-19 — Mode nested-models fn + dr2n vignette parity with intro
+
+Brought the `dr2n-analysis` vignette to parity with the intro vignette's site §3.
+- New `calculate_lrmsd_n_nested_models(spm_pp, a1, a2)` in `R/model.R` — mode
+  counterpart of `calculate_lrmsd_i_nested_models`: returns `n` + `lrmsd_n_mm/ms/
+  ma/msa`, NO `pdb_site` (modes aren't residue-anchored). The pure
+  `calculate_msa_decomposition` is reused unchanged on the four `lrmsd_n` vectors
+  (the payoff of the axis-agnostic refactor). Globals get `lrmsd_n_*` + `n`. New
+  test in `test-msa-mode.R` pins the recipe (independent route). Suite 83/0F,
+  check() at v0.1 baseline.
+- Vignette restructured to mirror the intro flow: profile → **nested models +
+  decomposition (new)** → sweeps (moved after decomposition). y axes show
+  `lrmsd_n = log(sqrt(dr2_n))` everywhere (computed inline; `calculate_dr2_n_msa`
+  unchanged); all plots show ALL modes (removed the `n<=40` sweep filter).
+  Removed the "Consistency with the site form" section (per user). Four-model plot
+  uses the site model colours; mode decomposition plot uses **free_y** panels
+  (user: shared scale hid the small stab/act components) + paper component colours.
+- User reviewed `dev/preview/dr2n-analysis.html` and approved.
+
 ### 2026-06-19 — REFACTOR: pure-vector decomposition + nested-models fn + `_i_` rename
 
 Triggered by a vignette request (decompose the profile at fixed `(a1,a2)=(2,500)`).

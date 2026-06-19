@@ -96,3 +96,40 @@ calculate_lrmsd_i_nested_models <- function(spm_pp, a1, a2) {
     left_join(spm_pp$site_map, by = "i") %>%
     select(i, pdb_site, everything())
 }
+
+#' Per-mode lrmsd profiles for the four nested MSA model variants
+#'
+#' Mode counterpart of [calculate_lrmsd_i_nested_models()]. Evaluates the mode
+#' forward map [calculate_dr2_n_msa()] at the four nested selection-parameter
+#' points and returns their per-mode lrmsd profiles, where
+#' `lrmsd = log(sqrt(dr2_n))`:
+#'
+#' | variant | (a1, a2) | meaning |
+#' |---------|----------|---------|
+#' | MM  | (0, 0)   | mutation only -- no selection |
+#' | MS  | (a1, 0)  | mutation + stability selection |
+#' | MA  | (0, a2)  | mutation + activity selection |
+#' | MSA | (a1, a2) | full model -- both selections |
+#'
+#' Single source of truth for the mode four-variant recipe. Feed the four columns
+#' to [calculate_msa_decomposition()] for the phi decomposition. Modes are not
+#' anchored to residues, so there is no `pdb_site` (unlike the site form).
+#'
+#' @param spm_pp Output from [preprocess_spm_mode()] (energy_data + `dr2_njm`).
+#' @param a1 Stability selection parameter value.
+#' @param a2 Activity selection parameter value.
+#' @return Tibble with `n` (mode index) and the four nested-model lrmsd columns
+#'   `lrmsd_n_mm`, `lrmsd_n_ms`, `lrmsd_n_ma`, `lrmsd_n_msa`.
+#' @family model
+#' @export
+calculate_lrmsd_n_nested_models <- function(spm_pp, a1, a2) {
+  lrmsd <- function(p1, p2) log(sqrt(calculate_dr2_n_msa(spm_pp, p1, p2)$dr2_n))
+
+  tibble(
+    n           = as.integer(colnames(spm_pp$dr2_njm)),
+    lrmsd_n_mm  = lrmsd(0,  0),
+    lrmsd_n_ms  = lrmsd(a1, 0),
+    lrmsd_n_ma  = lrmsd(0,  a2),
+    lrmsd_n_msa = lrmsd(a1, a2)
+  )
+}

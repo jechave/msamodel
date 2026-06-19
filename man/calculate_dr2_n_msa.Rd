@@ -28,6 +28,7 @@ fit, so this has no log-likelihood counterpart.
 \seealso{
 Other model:
 \code{\link[=calculate_dr2_i_msa]{calculate_dr2_i_msa()}},
-\code{\link[=calculate_lrmsd_i_nested_models]{calculate_lrmsd_i_nested_models()}}
+\code{\link[=calculate_lrmsd_i_nested_models]{calculate_lrmsd_i_nested_models()}},
+\code{\link[=calculate_lrmsd_n_nested_models]{calculate_lrmsd_n_nested_models()}}
 }
 \concept{model}
