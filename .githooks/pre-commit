@@ -18,6 +18,33 @@ staged() {
 }
 
 blocked=0
+
+# --- Gate 1: vignettes/ require explicit user HTML approval ------------------
+# The user previews dev/preview/<name>.html themselves and must approve before
+# any vignettes/ change is committed. Re-knitting / passing tests / the model
+# eyeballing a preview do NOT count. This hook makes that mechanical: a commit
+# touching vignettes/ is blocked unless VIGNETTE_APPROVED=1 is set, which the
+# user sets (or tells the model to set) ONLY after approving the rendered HTML.
+#   Approved commit:   VIGNETTE_APPROVED=1 git commit ...
+# (Violated 2026-06-18 — committed re-knit vignettes the user never saw.)
+if git diff --cached --name-only | grep -q '^vignettes/'; then
+  if [ "$VIGNETTE_APPROVED" != "1" ]; then
+    blocked=1
+    cat >&2 <<'EOF'
+✖ Commit blocked: it touches vignettes/ but no user HTML approval is recorded.
+
+  The user previews the rendered HTML (dev/preview/<name>.html) and approves it
+  BEFORE vignettes/ is committed. Re-knitting, "tests pass", or the model looking
+  at a preview do NOT satisfy this.
+
+  Regenerate every affected preview, have the USER open and approve it, then:
+
+      VIGNETTE_APPROVED=1 git commit ...
+
+  Genuine non-vignette-content edit (e.g. fixing this hook)? bypass: git commit --no-verify
+EOF
+  fi
+fi
 for orig in $(git diff --cached --name-only | grep '^vignettes/.*\.Rmd\.orig$'); do
   rendered=$(printf '%s' "$orig" | sed 's/\.orig$//')
   name=$(basename "$rendered" .Rmd)
