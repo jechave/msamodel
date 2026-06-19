@@ -2,7 +2,7 @@
 % Please edit documentation in R/msa_bayesian_analysis.R
 \name{calculate_prediction_samples}
 \alias{calculate_prediction_samples}
-\title{Calculate lrmsd predictions for MSA, MS, MA, and MM models}
+\title{Calculate lrmsd predictions for the four nested models, per posterior sample}
 \usage{
 calculate_prediction_samples(spm_pp, parameter_samples)
 }
@@ -12,11 +12,15 @@ calculate_prediction_samples(spm_pp, parameter_samples)
 \item{parameter_samples}{MCMC samples tibble with sample_id, a1, a2 columns}
 }
 \value{
-Tibble with per-sample lrmsd predictions in wide format, with both the
-  internal response-site index `i` and the structure-anchored `pdb_site`.
+Tibble with per-sample lrmsd predictions in wide format
+  (`sample_id`, `i`, `pdb_site`, `lrmsd_i_mm`, `lrmsd_i_ms`, `lrmsd_i_ma`,
+  `lrmsd_i_msa`), with both the internal response-site index `i` and the
+  structure-anchored `pdb_site`.
 }
 \description{
-Calculate lrmsd predictions for MSA, MS, MA, and MM models
+For each MCMC sample, evaluates the four nested-model lrmsd profiles via the
+single-source-of-truth [calculate_lrmsd_i_nested_models()] at that sample's
+(a1, a2), and stacks the results.
 }
 \seealso{
 Other fitting:

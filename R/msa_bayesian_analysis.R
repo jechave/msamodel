@@ -110,79 +110,29 @@ run_mcmc_msa <- function(spm_pp,
 
 
 
-#' Calculate lrmsd predictions for MSA, MS, MA, and MM models
+#' Calculate lrmsd predictions for the four nested models, per posterior sample
+#'
+#' For each MCMC sample, evaluates the four nested-model lrmsd profiles via the
+#' single-source-of-truth [calculate_lrmsd_i_nested_models()] at that sample's
+#' (a1, a2), and stacks the results.
 #'
 #' @param spm_pp Preprocessed data from preprocess_spm
 #' @param parameter_samples MCMC samples tibble with sample_id, a1, a2 columns
-#' @return Tibble with per-sample lrmsd predictions in wide format, with both the
-#'   internal response-site index `i` and the structure-anchored `pdb_site`.
+#' @return Tibble with per-sample lrmsd predictions in wide format
+#'   (`sample_id`, `i`, `pdb_site`, `lrmsd_i_mm`, `lrmsd_i_ms`, `lrmsd_i_ma`,
+#'   `lrmsd_i_msa`), with both the internal response-site index `i` and the
+#'   structure-anchored `pdb_site`.
 #' @family fitting
 #' @export
 calculate_prediction_samples <- function(spm_pp, parameter_samples) {
-  # Generate the long format predictions
-  long_predictions <- map_dfr(seq_len(nrow(parameter_samples)), function(j) {
+  map_dfr(seq_len(nrow(parameter_samples)), function(j) {
     if (j %% 100 == 0) message("Processing sample ", j, "/", nrow(parameter_samples))
     sample_row <- parameter_samples[j, ]
 
-    # Extract parameters
-    sample_id <- sample_row$sample_id
-    a1_param <- sample_row$a1
-    a2_param <- sample_row$a2
-
-    # MSA model (full model)
-    msa <- calculate_dr2_i_msa(spm_pp, a1_param, a2_param) %>%
-      mutate(
-        lrmsd = log(sqrt(dr2_i)),
-        sample_id = sample_id,
-        model = "msa"
-      ) %>%
-      select(i, lrmsd, sample_id, model)
-
-    # MS model (a2 = 0)
-    ms <- calculate_dr2_i_msa(spm_pp, a1_param, 0) %>%
-      mutate(
-        lrmsd = log(sqrt(dr2_i)),
-        sample_id = sample_id,
-        model = "ms"
-      ) %>%
-      select(i, lrmsd, sample_id, model)
-
-    # MA model (a1 = 0)
-    ma <- calculate_dr2_i_msa(spm_pp, 0, a2_param) %>%
-      mutate(
-        lrmsd = log(sqrt(dr2_i)),
-        sample_id = sample_id,
-        model = "ma"
-      ) %>%
-      select(i, lrmsd, sample_id, model)
-
-    # MM model (a1 = 0, a2 = 0)
-    mm <- calculate_dr2_i_msa(spm_pp, 0, 0) %>%
-      mutate(
-        lrmsd = log(sqrt(dr2_i)),
-        sample_id = sample_id,
-        model = "mm"
-      ) %>%
-      select(i, lrmsd, sample_id, model)
-
-    bind_rows(msa, ms, ma, mm)
+    calculate_lrmsd_i_nested_models(spm_pp, sample_row$a1, sample_row$a2) %>%
+      mutate(sample_id = sample_row$sample_id) %>%
+      select(sample_id, i, pdb_site, everything())
   })
-
-  # Pivot to wide format
-  wide_predictions <- long_predictions %>%
-    pivot_wider(
-      id_cols = c(sample_id, i),
-      names_from = model,
-      values_from = lrmsd,
-      names_glue = "lrmsd_{model}"
-    )
-
-  # Attach the structure-anchored pdb_site alongside the internal index i.
-  wide_predictions <- wide_predictions %>%
-    left_join(spm_pp$site_map, by = "i") %>%
-    select(sample_id, i, pdb_site, everything())
-
-  return(wide_predictions)
 }
 
 

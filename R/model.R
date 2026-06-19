@@ -57,3 +57,42 @@ calculate_dr2_n_msa <- function(spm_pp, a1, a2) {
 
   tibble(n = as.integer(colnames(dr2_njm)), dr2_n = dr2_n)
 }
+
+#' Per-site lrmsd profiles for the four nested MSA model variants
+#'
+#' Evaluates the forward map [calculate_dr2_i_msa()] at the four nested
+#' selection-parameter points and returns their per-site lrmsd profiles, where
+#' `lrmsd = log(sqrt(dr2_i))`:
+#'
+#' | variant | (a1, a2) | meaning |
+#' |---------|----------|---------|
+#' | MM  | (0, 0)   | mutation only -- no selection |
+#' | MS  | (a1, 0)  | mutation + stability selection |
+#' | MA  | (0, a2)  | mutation + activity selection |
+#' | MSA | (a1, a2) | full model -- both selections |
+#'
+#' This is the single source of truth for the four-variant recipe: both the
+#' MCMC path ([calculate_prediction_samples()], per posterior sample) and the
+#' fixed-(a1, a2) analysis use it. Feed the four columns to
+#' [calculate_msa_decomposition()] for the phi decomposition.
+#'
+#' @param spm_pp Output from [preprocess_spm()] (energy_data + `dr2_ijm` + site_map).
+#' @param a1 Stability selection parameter value.
+#' @param a2 Activity selection parameter value.
+#' @return Tibble with `i`, `pdb_site`, and the four nested-model lrmsd columns
+#'   `lrmsd_i_mm`, `lrmsd_i_ms`, `lrmsd_i_ma`, `lrmsd_i_msa`.
+#' @family model
+#' @export
+calculate_lrmsd_i_nested_models <- function(spm_pp, a1, a2) {
+  lrmsd <- function(p1, p2) log(sqrt(calculate_dr2_i_msa(spm_pp, p1, p2)$dr2_i))
+
+  tibble(
+    i           = as.integer(colnames(spm_pp$dr2_ijm)),
+    lrmsd_i_mm  = lrmsd(0,  0),
+    lrmsd_i_ms  = lrmsd(a1, 0),
+    lrmsd_i_ma  = lrmsd(0,  a2),
+    lrmsd_i_msa = lrmsd(a1, a2)
+  ) %>%
+    left_join(spm_pp$site_map, by = "i") %>%
+    select(i, pdb_site, everything())
+}

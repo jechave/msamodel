@@ -2,6 +2,14 @@
 
 ## New features
 
+* **`calculate_lrmsd_i_nested_models()`** — new exported function returning the
+  per-site lrmsd profiles of the four nested model variants (MM/MS/MA/MSA) at a
+  given `(a1, a2)`, in one tibble (`i`, `pdb_site`, `lrmsd_i_mm`, `lrmsd_i_ms`,
+  `lrmsd_i_ma`, `lrmsd_i_msa`). It is the single source of truth for the
+  four-variant recipe: `calculate_prediction_samples()` (the MCMC path) now calls
+  it per posterior sample instead of inlining the recipe, and a fixed-`(a1, a2)`
+  decomposition (e.g. in the intro vignette) uses it directly.
+
 * **Mode-form structural divergence.** Structural divergence is now also predicted
   **per normal mode**, not only per site (the first slice of the motion/mode arm).
   `generate_spm_data()` carries two new SPM list-columns, `mode` and `dr2_njm`
@@ -61,6 +69,22 @@ GitHub-only package.
   the `decomposition_summary` returned by `run_msa_bayesian_analysis()`.
   (`lrmsd_ma` is still a required input, reserved for a future `method` switch to
   the Shapley variant.)
+
+* **`calculate_msa_decomposition()` is now a pure vector function.** It takes the
+  four nested-model lrmsd *vectors* — `calculate_msa_decomposition(mm, ms, ma, msa)`
+  — and returns a named list of the three phi vectors, instead of taking a tibble
+  with hard-coded column names. The decomposition is context-free math, so the same
+  function serves the site (`i`) and future mode (`n`) axes unchanged; the caller
+  supplies whichever four columns it holds. The MCMC plumbing
+  (`calculate_decomposition_samples()`) keeps its tibble interface and calls the
+  vector function internally.
+
+* **Nested-model lrmsd columns renamed `lrmsd_*` → `lrmsd_i_*`.** The four
+  nested-model profiles are now `lrmsd_i_mm`, `lrmsd_i_ms`, `lrmsd_i_ma`,
+  `lrmsd_i_msa` (parallel to `dr2_i`/`dr2_n`, leaving room for the mode arm's
+  `lrmsd_n_*`). Affects the columns of `calculate_prediction_samples()`, the
+  `variable` *values* in `prediction_summary` (e.g. `"lrmsd_i_msa"`), and the
+  required input columns of `calculate_decomposition_samples()`.
 
 * **Structure input is now a bio3d pdb object.** `load_protein()` (which took a
   `pdb_chain` ID + a `data_dir`) is **removed**. Read the structure yourself and

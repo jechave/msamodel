@@ -7,6 +7,37 @@ those two don't keep.
 
 One short entry per working session.
 
+### 2026-06-19 — REFACTOR: pure-vector decomposition + nested-models fn + `_i_` rename
+
+Triggered by a vignette request (decompose the profile at fixed `(a1,a2)=(2,500)`).
+Surfaced that `calculate_msa_decomposition` was coupled to hard-coded column names.
+Per user's design principle (see [[pure-functions-over-param-flexibility]]): make
+the math a **pure 4-vector function** rather than adding an axis/key argument
+(false flexibility). Changes:
+
+- `calculate_msa_decomposition(mm, ms, ma, msa)` → returns a named list of the
+  three phi vectors. Context-free (no tibble/columns/axis); serves site `i` and
+  future mode `n` unchanged. `ma` kept as 4th arg (unused by sequential, reserved
+  for Shapley). `calculate_decomposition_samples` keeps its tibble interface and
+  calls the vector fn on its columns; `_summary` unchanged.
+- New `calculate_lrmsd_i_nested_models(spm_pp, a1, a2)` in `R/model.R` — single
+  source of truth for the four-variant lrmsd recipe (MM/MS/MA/MSA). Refactored
+  `calculate_prediction_samples` to call it per posterior sample (verified
+  numerically identical to the old four-block+pivot version — equivalence check,
+  bit-for-bit as plain data.frames).
+- Full rename `lrmsd_mm/ms/ma/msa` → `lrmsd_i_mm/...` everywhere (prediction_samples
+  cols, objective.R `lrmsd_i_msa`/`nlrmsd_i_msa`, prediction_summary `variable`
+  values, package globals, tests). Parallels `dr2_i`/`dr2_n`; leaves room for the
+  mode arm's `lrmsd_n_*`.
+- Tests: new pure-vector unit test, nested-models recipe test; updated fixtures to
+  `lrmsd_i_*`. Full suite 77/0F. `check()` at v0.1 baseline (0E/1W/2N).
+- Vignette: new §3 "Decomposing the profile at given (a1,a2)" (fixed-(a1,a2),
+  before fitting) with a four-model line plot + the decomposition plot; §3-6
+  renumbered. Paper component colours applied to both decomposition plots
+  (mut #FF8C00 / stab #0000CD / act #C41E3A, from tmp_src shap_decomposition
+  chunks); four-model plot MM=orange/MS=blue/MA=green #1B9E77/MSA=red. **Vignette
+  HELD from commit pending user HTML approval** (commit gate).
+
 ### 2026-06-19 — BUGFIX: site decomposition was the wrong formula (Shapley → sequential)
 
 User caught that the migrated `phi_*` site decomposition shipped the **wrong

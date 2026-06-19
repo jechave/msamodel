@@ -19,7 +19,8 @@ NULL
 utils::globalVariables(c(
   "a1", "a2", "dactive", "ddg_dv_jm", "ddg_jm", "ddg_tds_jm", "ddgact_dv_jm",
   "ddgact_jm", "ddgact_tds_jm", "dr2_i", "dr2_i_msa", "dr2_ijm", "dr2_n", "dr2_njm",
-  "i", "j", "lower", "lrmsd", "lrmsd_ma", "lrmsd_mm", "lrmsd_ms", "lrmsd_msa",
-  "lrmsd_obs", "m", "mode", "model", "parameter", "pdb_site", "sample_id",
+  "i", "j", "lower", "lrmsd", "lrmsd_i_ma", "lrmsd_i_mm", "lrmsd_i_ms", "lrmsd_i_msa",
+  "lrmsd_obs", "m", "mode", "model", "parameter", "pdb_site",
+  "phi_act", "phi_mut", "phi_stab", "sample_id",
   "upper", "value", "variable"
 ))

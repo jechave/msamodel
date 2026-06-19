@@ -7,13 +7,17 @@
 calculate_decomposition_samples(data)
 }
 \arguments{
-\item{data}{Data frame with columns sample_id, i, lrmsd_mm, lrmsd_ms, lrmsd_ma, lrmsd_msa}
+\item{data}{Data frame with columns sample_id, i, lrmsd_i_mm, lrmsd_i_ms,
+lrmsd_i_ma, lrmsd_i_msa (and optionally pdb_site, carried through if present)}
 }
 \value{
-Data frame with only sample_id, i, and the phi decomposition columns
+Data frame with sample_id, i (and pdb_site if present), and the phi
+  decomposition columns (phi_mut, phi_stab, phi_act)
 }
 \description{
-Calculate the MSA phi decomposition for multiple samples
+Per-row (per sample x site) sequential phi decomposition, built by splicing the
+pure [calculate_msa_decomposition()] over the four nested-model columns. The
+formula is row-wise, so no per-sample grouping is needed.
 }
 \seealso{
 Other decomposition:

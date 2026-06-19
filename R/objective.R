@@ -21,9 +21,9 @@ calculate_loglik_msa <- function(spm_pp, observed_data, a1, a2) {
 
   predictions <- dr2_i_msa %>%
     mutate(
-      lrmsd_msa = log(sqrt(dr2_i_msa)),
+      lrmsd_i_msa = log(sqrt(dr2_i_msa)),
     ) %>%
-    dplyr::select(i, lrmsd_msa)
+    dplyr::select(i, lrmsd_i_msa)
 
   # Translate user-supplied pdb_site to the internal index i via the model's
   # site_map. pdb_site is the structure-anchored key; i is model-internal.
@@ -46,11 +46,11 @@ calculate_loglik_msa <- function(spm_pp, observed_data, a1, a2) {
     inner_join(predictions, by = "i") %>%
     mutate(
       nlrmsd_obs = lrmsd_obs - mean(lrmsd_obs),
-      nlrmsd_msa = lrmsd_msa - mean(lrmsd_msa)
+      nlrmsd_i_msa = lrmsd_i_msa - mean(lrmsd_i_msa)
     )
 
   # Calculate residuals
-  residuals <- comparison$nlrmsd_obs - comparison$nlrmsd_msa
+  residuals <- comparison$nlrmsd_obs - comparison$nlrmsd_i_msa
 
   # Estimate sigma from residuals
   sigma <- sd(residuals)

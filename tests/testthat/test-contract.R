@@ -31,11 +31,11 @@ test_that("pdb_site contract gives the same loglik as a manual i-keyed join", {
 
   obs_i <- dplyr::inner_join(znb_profile, pp$site_map, by = "pdb_site")
   pred <- calculate_dr2_i_msa(pp, a1, a2)
-  pred$lrmsd_msa <- log(sqrt(pred$dr2_i))
+  pred$lrmsd_i_msa <- log(sqrt(pred$dr2_i))
   cmp <- dplyr::inner_join(obs_i[, c("i", "lrmsd_obs")],
-                           pred[, c("i", "lrmsd_msa")], by = "i")
+                           pred[, c("i", "lrmsd_i_msa")], by = "i")
   res <- (cmp$lrmsd_obs - mean(cmp$lrmsd_obs)) -
-         (cmp$lrmsd_msa - mean(cmp$lrmsd_msa))
+         (cmp$lrmsd_i_msa - mean(cmp$lrmsd_i_msa))
   ll_manual <- sum(stats::dnorm(res, 0, stats::sd(res), log = TRUE))
 
   expect_equal(ll_contract, ll_manual)
