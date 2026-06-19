@@ -12,26 +12,31 @@ Tick items as substeps finish, and add a one-line dated entry to `dev/LOG.md`.
 
 ## DORMANT — no work item in progress
 
-**`dr2*` naming convention — DONE 2026-06-18** (a work item of the 0.3.0 cycle).
-All steps + verification done:
-- Adopted msamodel convention `dr2_<indices>` for every `dr2`-family name msamodel
-  *creates*: SPM list-cols `dr2_ijm`/`dr2_njm`; matrix fields likewise; exported
-  `calculate_dr2_i_msa` / `calculate_dr2_n_msa`; objective col `dr2_i_msa`; param
-  `spm_pp`.
-- Deleted duplicate local `delta_structure_dr2`; `generate_spm_data` calls
-  `penm::delta_structure_dr2i` directly (penm names NOT renamed/wrapped).
-- `znb_spm` regenerated (Validation OK vs tmp_src, tol 1e-8; data unchanged).
-- **Profile-invariance gate** (`test-profile-invariance.R`, captured pre-rename)
-  reproduces bit-for-bit across BOTH the code rename AND the fixture regen — no
-  numeric value moved.
-- Convention recorded in CLAUDE.md, dev/plan.md, memory.
-- `check()` at v0.1 baseline (0E/1W/2N). Full suite 62/0F.
-- `NEWS.md` is the single `# (development version)` entry (mode arm + naming),
-  grouped by change type; `DESCRIPTION` `0.3.0.9000` (semver, no letters).
+**Recently completed (0.3.0 cycle, 2026-06-19 — newest first; full detail in
+`dev/LOG.md`):**
+- **Mode nested-models + dr2n vignette parity** (`b8c0424`). New
+  `calculate_lrmsd_n_nested_models()` (mode counterpart of the site one; `n` +
+  `lrmsd_n_mm/ms/ma/msa`, no `pdb_site`). `dr2n-analysis` vignette restructured to
+  mirror the intro (profile → nested+decomposition → sweeps), y = `lrmsd_n`, all
+  modes, Consistency section removed, mode decomposition uses `free_y`.
+- **Pure-vector decomposition + nested-models fn + `lrmsd_i_*` rename** (`65e7b9f`,
+  `eeabb17`). `calculate_msa_decomposition(mm,ms,ma,msa)` is now a pure 4-vector
+  function (was tibble-with-fixed-columns); new
+  `calculate_lrmsd_i_nested_models()`; nested-model cols renamed
+  `lrmsd_*`→`lrmsd_i_*`. Intro vignette got a new §3 (nested models +
+  decomposition at fixed (a1,a2)) with paper component colours.
+- **Decomposition formula bugfix** (`2d12997`, `c7c0403`). `phi_*` was the wrong
+  (Shapley) formula; corrected to the sequential M0→MM→MS→MSA form. See
+  [[decomposition-not-shapley]].
+- **`dr2*` naming convention — DONE 2026-06-18** (`dr2_<indices>`; details in
+  [[dr2-naming-convention]] and earlier LOG entries).
+
+Suite 83/0F; `check()` at v0.1 baseline (0E/1W/2N); `DESCRIPTION` `0.3.0.9000`.
 
 **Next work item — defined step-by-step at execution time:** either the remaining
 0.3.0 work (observed `dr2_i`/`dr2_n` profiles from homologous structures +
 alignment; fit `dr2_n`; joint fit) OR the **0.4 motion arm** (`dh_ijm` → `dh_njm` +
-`nh_njm`). See `dev/plan.md` + the `project_next_session` memory. **When the next
-item starts:** enter plan mode, read the touched code, write the detailed plan, then
-rewrite this checklist from it.
+`nh_njm`). The site/mode predict side is now complete and symmetric (forward map,
+nested models, decomposition for both `i` and `n`). See `dev/plan.md` + the
+`project_next_session` memory. **When the next item starts:** enter plan mode, read
+the touched code, write the detailed plan, then rewrite this checklist from it.
