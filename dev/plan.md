@@ -78,52 +78,50 @@ per-version detail is written when each version starts.
   Deliver a tidy, complete suite for **site- and mode-dependent structural
   divergence — model AND observed profiles, predict AND fit** — before motion.
   Reuses the v0.1 precompute-and-reweight machinery (see findings). Sliced into
-  small steps, each changing one variable (response axis OR model-vs-observed OR
-  predict-vs-fit), defined step-by-step at execution time (the two-tier rule —
-  each step tends to surface polish, e.g. the `dr2→dr2i` rename that became v0.3b).
+  small work items, each changing one variable (response axis OR model-vs-observed
+  OR predict-vs-fit), defined step-by-step at execution time (the two-tier rule —
+  each item tends to surface polish, e.g. the `dr2*` naming-convention cleanup that
+  the mode arm forced). **These are work items within the 0.3.0 cycle, NOT package
+  versions** — the package version is plain semver in `DESCRIPTION` (`0.3.0.9000`
+  dev → `0.3.0` on release); the work is named, not sub-versioned.
 
-  - **v0.3a — mode-form structural divergence (`dr2_njm` only).** SHIPPED
-    2026-06-18. The first and smallest slice: introduces the **mode
-    response axis** (mode index `n`, no `pdb_site` anchor) using a quantity
-    already trusted (`dr2`); no new physical quantity, no motion. Locked design:
+  - **Mode-form structural divergence (`dr2_njm`).** DONE 2026-06-18. The first and
+    smallest slice: introduces the **mode response axis** (mode index `n`, no
+    `pdb_site` anchor) using an already-trusted quantity; no new physical quantity,
+    no motion. Locked design:
     (1) uses the existing **slow per-mutant loop**, not penm's fast `smrs`/`amrs`
     — the loop is the general engine that composes to motion + trees and is the
-    optimization benchmark; `dr2n` is one more cheap reduction of the same
-    displacement. (2) **Raw SPM = one "all-effects" object**: `dr2n` is added as
-    another SPM list-column alongside energies + `dr2` (a mutation is one event
-    with many measured consequences, sharing the `(j,m)` key). (3) **Separation at
-    the preprocess/evaluate layer, not the raw object**: a `preprocess_spm_mode()`
-    pivots `dr2n` into a `[mutant × mode]` matrix and `calculate_dr2n_msa()`
-    reweights it (identical weights — they live only on the mutant axis); a
-    mode-only analysis never touches `dr2mat`/`site_map`. (4) **Predict-only** —
-    not fit to data (no observed mode profile), so the v0.1 site fit/contract is
-    untouched. Adds the `dr2n-analysis` topic vignette (predict-only `a1`/`a2`
-    sweep now; a fitting section is added there later when alignment-derived
-    `dr2_n` + a mode fit exist).
-  - **v0.3b — `dr2*` naming convention (decided 2026-06-18).** Adopt one msamodel
+    optimization benchmark; the per-mode reduction is one more cheap reduction of
+    the same displacement. (2) **Raw SPM = one "all-effects" object**: the per-mode
+    array is added as another SPM list-column alongside energies + the per-site
+    array (a mutation is one event with many measured consequences, sharing the
+    `(j,m)` key). (3) **Separation at the preprocess/evaluate layer, not the raw
+    object**: `preprocess_spm_mode()` pivots it into a `[mutant × mode]` matrix and
+    `calculate_dr2_n_msa()` reweights it (identical weights — they live only on the
+    mutant axis); a mode-only analysis never touches the site matrix/`site_map`.
+    (4) **Predict-only** — not fit to data (no observed mode profile), so the v0.1
+    site fit/contract is untouched. Adds the `dr2n-analysis` topic vignette
+    (predict-only `a1`/`a2` sweep now; a fitting section is added later when
+    alignment-derived `dr2_n` + a mode fit exist).
+  - **`dr2*` naming convention.** DONE (decided 2026-06-18). Adopt one msamodel
     convention for every `dr2`-family name msamodel *creates*: `dr2_<indices>` —
     one underscore, then the free indices (response `i`/`n`, then `j`, then `m`),
     letters joined; reductions drop the averaged-out letter. So the per-mutant
-    arrays `dr2`→`dr2_ijm`, `dr2n`→`dr2_njm`; matrix fields `dr2mat`→`dr2_ijm`,
-    `dr2nmat`→`dr2_njm`; the profile cols `dr2_i`/`dr2_n` are already correct.
-    Transform prefixes (`l`/`n`) and source labels (`_msa`/`_obs`) are kept with the
-    index still underscore-set (`dr2_i_msa`, `nlrmsd_i_msa`). **The convention
-    governs names msamodel creates, NOT what it calls:** `penm::delta_structure_dr2i`
-    /`dr2n` are called directly by their own (no-underscore) names — no wrappers.
-    The local `delta_structure_dr2` is **deleted** as a verbatim penm duplicate
-    (verified bit-identical) and `generate_spm_data` calls `penm::delta_structure_dr2i`
-    directly. Exported fns also normalized: `calculate_dr2i_msa`→`calculate_dr2_i_msa`,
-    `calculate_dr2n_msa`→`calculate_dr2_n_msa` (breaking; GitHub-only/solo/pre-1.0).
-    A `test-profile-invariance.R` snapshot is captured from the CURRENT code BEFORE
-    renaming, to prove no profile value moves. Touches `R/spm.R`, `R/model.R`,
-    `R/objective.R`, the bayesian files, `R/data-doc.R`, `R/site_properties.R`,
-    `R/msamodel-package.R`, tests, vignettes; needs a **deliberate `znb_spm` fixture
-    regen** (`data-raw/prepare_znb_data.R` + drift test `test-spm-generate.R`).
-    Convention recorded in CLAUDE.md + memory.
-  - **v0.3c+ — TBD (defined step-by-step at execution time).** Candidate
-    directions, order NOT pinned: observed `dr2i`/`dr2n` profiles from a set of
-    homologous structures + an alignment; fitting the model to `dr2n`; joint
-    `dr2i`+`dr2n` fit. The goal is the complete predict-and-fit, site-and-mode
+    arrays are `dr2_ijm`/`dr2_njm`; matrix fields `dr2_ijm`/`dr2_njm`; the profile
+    cols `dr2_i`/`dr2_n`. Transform prefixes (`l`/`n`) and source labels
+    (`_msa`/`_obs`) are kept with the index still underscore-set (`dr2_i_msa`,
+    `nlrmsd_i_msa`). **The convention governs names msamodel creates, NOT what it
+    calls:** `penm::delta_structure_dr2i`/`dr2n` are called directly by their own
+    (no-underscore) names — no wrappers. The local `delta_structure_dr2` was
+    **deleted** as a verbatim penm duplicate (verified bit-identical);
+    `generate_spm_data` calls `penm::delta_structure_dr2i` directly. Exported fns
+    normalized: `calculate_dr2_i_msa` / `calculate_dr2_n_msa` (breaking; GitHub-only
+    /solo/pre-1.0). A `test-profile-invariance.R` snapshot proved no profile value
+    moved. Convention recorded in CLAUDE.md + memory.
+  - **Observed profiles + fit — PENDING (defined step-by-step at execution time).**
+    Candidate directions, order NOT pinned: observed `dr2_i`/`dr2_n` profiles from a
+    set of homologous structures + an alignment; fitting the model to `dr2_n`; joint
+    `dr2_i`+`dr2_n` fit. The goal is the complete predict-and-fit, site-and-mode
     suite before motion.
 
 - **v0.4 — motion arm (`dh_ijm`, then `dh_njm` + `nh_njm`).** Each adds the new

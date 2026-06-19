@@ -7,6 +7,29 @@ those two don't keep.
 
 One short entry per working session.
 
+### 2026-06-18 — VERSIONING FIX: retire the lettered sub-version scheme
+
+The "v0.3a / v0.3b / v0.3c" lettered sub-version scheme was a mistake and is
+retired. **Versions are plain semver in `DESCRIPTION`** (`MAJOR.MINOR.PATCH`,
+`.9000` while in development); a version is a *release*, not a work step. **Work is
+named, not sub-versioned** — the roadmap lists whole versions and describes each
+release's work as named bullets (no letters, no "phase N"). v0.1/v0.2/v0.4/v0.5
+were already lettered-free; only 0.3 had drifted.
+
+Worst damage (the letters leaking into `DESCRIPTION`/`NEWS`, the package's version
+namespace) was already fixed earlier this session: `DESCRIPTION` is `0.3.0.9000`
+and `NEWS.md` is one `# (development version)` entry grouped by change type. This
+pass cleaned the rest: `dev/plan.md` (v0.3 block reworded to named work items),
+`dev/PROGRESS.md` (letters removed + "version in flight" vocabulary → "work item"),
+`CLAUDE.md` (convention dated, not labelled), one stray `NEWS.md` line, and memory.
+
+**This LOG is append-only history — the 24 older `v0.3a/b` mentions below are left
+intact** (they were accurate with the label used at the time). Not rewriting git
+history either: the pushed commits whose messages say "v0.3b" stay as-is
+(rewording them needs force-push). Root cause for the record: I adopted a
+non-standard versioning scheme the user floated without questioning it, and should
+have flagged it as non-standard up front.
+
 ### 2026-06-18 — v0.3b SHIPPED: dr2* naming convention applied package-wide
 
 Executed the rename below in full. Order: locked the profile-invariance guard

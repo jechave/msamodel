@@ -1,49 +1,45 @@
 # msamodel (development version)
 
-## Breaking changes (v0.3b — `dr2*` naming convention)
+## New features
+
+* **Mode-form structural divergence.** Structural divergence is now also predicted
+  **per normal mode**, not only per site (the first slice of the motion/mode arm).
+  `generate_spm_data()` carries two new SPM list-columns, `mode` and `dr2_njm`
+  (per-mode squared contribution to the mutant displacement), computed in the same
+  per-mutant scan. Two new exported functions, parallel to the site path:
+  * `preprocess_spm_mode()` — reshapes the scan into a `[mutant x mode]` matrix
+    (`dr2_njm`); mode counterpart of `preprocess_spm()`.
+  * `calculate_dr2_n_msa()` — selection-weighted mean `dr2_n` per mode; mode
+    counterpart of `calculate_dr2_i_msa()`.
+
+  The mode arm is **predict-only** (there is no observed mode profile to fit), so
+  it has no log-likelihood counterpart and the site fit is unchanged. New
+  `dr2n-analysis` vignette walks through it.
+
+## Breaking changes
 
 * **`dr2`-family names now follow one index-signature convention:**
   `dr2_<indices>` — one underscore, then the free indices the object spans
   (response `i`/`n`, then mutated site `j`, then mutation `m`), letters joined; a
   reduction over an axis drops its letter. Concretely:
-  * SPM list-columns `dr2` → **`dr2_ijm`**, `dr2n` → **`dr2_njm`** (each cell a
-    per-mutant `(dr2_i)` / `(dr2_n)` vector). Affects `generate_spm_data()` output
+  * SPM list-columns are `dr2_ijm` (per site) and `dr2_njm` (per mode); each cell a
+    per-mutant `(dr2_i)` / `(dr2_n)` vector. Affects `generate_spm_data()` output
     and the embedded `znb_spm`.
-  * `preprocess_spm()` / `preprocess_spm_mode()` matrix fields `dr2mat` /
-    `dr2nmat` → **`dr2_ijm`** / **`dr2_njm`**.
-  * Exported `calculate_dr2i_msa()` → **`calculate_dr2_i_msa()`**,
-    `calculate_dr2n_msa()` → **`calculate_dr2_n_msa()`**. The profile columns they
-    return (`dr2_i`, `dr2_n`) were already convention-correct and are unchanged.
-  * Preprocess-bundle parameter `spm_energies_and_dr2mat` → **`spm_pp`**.
+  * `preprocess_spm()` / `preprocess_spm_mode()` return the matrices in fields
+    `dr2_ijm` / `dr2_njm`.
+  * Exported `calculate_dr2_i_msa()` and `calculate_dr2_n_msa()` (the no-underscore
+    `calculate_dr2i_msa()` / `calculate_dr2n_msa()` are gone). The profile columns
+    they return (`dr2_i`, `dr2_n`) are unchanged.
+  * Preprocess-bundle parameter renamed to `spm_pp`.
 
 * **The local `delta_structure_dr2()` helper was removed.** It duplicated
   `penm::delta_structure_dr2i()` (verified bit-identical); `generate_spm_data()`
   now calls penm directly. penm's own (no-underscore) names are unchanged — the
   convention governs names msamodel *creates*, not what it calls.
 
-* `znb_spm` was regenerated with the new column names (data unchanged, verified
-  against the migration source to 1e-8; profile values bit-for-bit unchanged).
-
-## New features (v0.3a — mode-form structural divergence)
-
-* **Mode-form structural divergence (`dr2_n`).** The first slice of the
-  motion/mode arm: structural divergence is now also predicted **per normal
-  mode**, not only per site. `generate_spm_data()` carries two new SPM
-  list-columns, `mode` and `dr2_njm` (per-mode squared contribution to the mutant
-  displacement; renamed from `dr2n` in v0.3b), computed in the same per-mutant
-  scan. Two new exported functions, parallel to the site path:
-  * `preprocess_spm_mode()` — reshapes the scan into a `[mutant x mode]` matrix
-    (`dr2_njm`); mode counterpart of `preprocess_spm()`.
-  * `calculate_dr2_n_msa()` — selection-weighted mean `dr2_n` per mode; mode
-    counterpart of `calculate_dr2_i_msa()`. (Both renamed from the no-underscore
-    form in v0.3b.)
-
-  The mode arm is **predict-only** (there is no observed mode profile to fit), so
-  it has no log-likelihood counterpart and the site fit is unchanged. New
-  `dr2n-analysis` vignette walks through it.
-
-* The embedded `znb_spm` dataset was regenerated to include the `mode` /
-  `dr2_njm` columns. (Its other columns are unchanged.)
+* The embedded `znb_spm` dataset was regenerated for the new `mode` / `dr2_njm`
+  columns and the `dr2_ijm` rename (data unchanged, verified against the migration
+  source to 1e-8; profile values bit-for-bit unchanged).
 
 # msamodel 0.2.0
 
@@ -81,9 +77,8 @@ GitHub-only package.
 
 * **The a1/a2 grid API is removed.** `define_selection_grid()` and
   `calculate_dr2i_msa_a1a2grid()` are gone. A systematic 2-D scan is a short
-  `purrr::map_dfr()` over `calculate_dr2_i_msa(pp, a1, a2)` (renamed from
-  `calculate_dr2i_msa()` in v0.3b) reusing a single `preprocess_spm()` result (see
-  the intro vignette, "Systematic 2-D scans").
+  `purrr::map_dfr()` over the per-point divergence calculator reusing a single
+  `preprocess_spm()` result (see the intro vignette, "Systematic 2-D scans").
 
 ## Internal
 

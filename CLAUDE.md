@@ -140,7 +140,7 @@ provenance, motivates these. They are not optional.
 ## House conventions
 
 - **Naming:** `snake_case`, following the source.
-- **`dr2`-family index-signature convention (decided 2026-06-18, v0.3b).** Every
+- **`dr2`-family index-signature convention (decided 2026-06-18).** Every
   `dr2`-family name msamodel *creates* is `dr2_<indices>`: one underscore between
   `dr2` and the index block, then exactly the free indices the object spans in its
   representation, letters joined, in order **response index (`i` site / `n` mode),
