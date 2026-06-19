@@ -362,19 +362,19 @@ ggplot(cmp_long, aes(dactive, nlrmsd, colour = source)) +
 
 The fit also splits each site's full predicted divergence (`lrmsd_msa`) into
 three additive contributions — a mutation term, a stability-selection term, and
-an activity-selection term — built from the four model variants of section 4.
-Each selection term is the *average* of its marginal effect measured two ways:
-added on its own to the mutation-only model, and added last to the other
-single-selection model. Writing $\phi$ for the contributions,
+an activity-selection term — built from the model variants of section 4. The
+split is *sequential*: starting from the mutation-only model, each term is the
+incremental divergence added by turning on the next selection pressure along the
+progression M0 → MM → MS → MSA. Writing $\phi$ for the contributions,
 
 $$
 \phi_{\text{mut}}  = \text{lrmsd}_{\text{mm}}
 $$
 $$
-\phi_{\text{stab}} = \tfrac{1}{2}\bigl[(\text{lrmsd}_{\text{ms}} - \text{lrmsd}_{\text{mm}}) + (\text{lrmsd}_{\text{msa}} - \text{lrmsd}_{\text{ma}})\bigr]
+\phi_{\text{stab}} = \text{lrmsd}_{\text{ms}} - \text{lrmsd}_{\text{mm}}
 $$
 $$
-\phi_{\text{act}}  = \tfrac{1}{2}\bigl[(\text{lrmsd}_{\text{ma}} - \text{lrmsd}_{\text{mm}}) + (\text{lrmsd}_{\text{msa}} - \text{lrmsd}_{\text{ms}})\bigr]
+\phi_{\text{act}}  = \text{lrmsd}_{\text{msa}} - \text{lrmsd}_{\text{ms}}
 $$
 
 By construction these sum to the full prediction,

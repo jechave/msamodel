@@ -275,19 +275,19 @@ active site:
 
 The fit also splits each site's full predicted divergence (`lrmsd_msa`) into
 three additive contributions — a mutation term, a stability-selection term, and
-an activity-selection term — built from the four model variants of section 4.
-Each selection term is the *average* of its marginal effect measured two ways:
-added on its own to the mutation-only model, and added last to the other
-single-selection model. Writing $\phi$ for the contributions,
+an activity-selection term — built from the model variants of section 4. The
+split is *sequential*: starting from the mutation-only model, each term is the
+incremental divergence added by turning on the next selection pressure along the
+progression M0 → MM → MS → MSA. Writing $\phi$ for the contributions,
 
 $$
 \phi_{\text{mut}}  = \text{lrmsd}_{\text{mm}}
 $$
 $$
-\phi_{\text{stab}} = \tfrac{1}{2}\bigl[(\text{lrmsd}_{\text{ms}} - \text{lrmsd}_{\text{mm}}) + (\text{lrmsd}_{\text{msa}} - \text{lrmsd}_{\text{ma}})\bigr]
+\phi_{\text{stab}} = \text{lrmsd}_{\text{ms}} - \text{lrmsd}_{\text{mm}}
 $$
 $$
-\phi_{\text{act}}  = \tfrac{1}{2}\bigl[(\text{lrmsd}_{\text{ma}} - \text{lrmsd}_{\text{mm}}) + (\text{lrmsd}_{\text{msa}} - \text{lrmsd}_{\text{ms}})\bigr]
+\phi_{\text{act}}  = \text{lrmsd}_{\text{msa}} - \text{lrmsd}_{\text{ms}}
 $$
 
 By construction these sum to the full prediction,
@@ -320,17 +320,17 @@ pressure *reduces* divergence at that site relative to the mutation-only model.
 #> 
 #> other attached packages:
 #> [1] ggplot2_4.0.1       tidyr_1.3.1         dplyr_1.1.4        
-#> [4] msamodel_0.2.0.9000
+#> [4] msamodel_0.3.0.9000
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] Rcpp_1.1.0         pillar_1.11.1      compiler_4.2.1     RColorBrewer_1.1-3
 #>  [5] highr_0.11         tools_4.2.1        jefuns_0.1.0       viridisLite_0.4.2 
-#>  [9] evaluate_0.24.0    lifecycle_1.0.4    tibble_3.3.0       gtable_0.3.6      
-#> [13] nlme_3.1-164       lattice_0.22-5     mgcv_1.9-1         pkgconfig_2.0.3   
-#> [17] rlang_1.1.6        Matrix_1.5-4.1     cli_3.6.5          parallel_4.2.1    
-#> [21] xfun_0.41          withr_3.0.2        knitr_1.43         generics_0.1.4    
-#> [25] vctrs_0.6.5        grid_4.2.1         tidyselect_1.2.1   glue_1.8.0        
-#> [29] R6_2.6.1           farver_2.1.2       purrr_1.2.0        magrittr_2.0.4    
-#> [33] scales_1.4.0       splines_4.2.1      bio3d_2.4-5        labeling_0.4.3    
-#> [37] S7_0.2.1           penm_0.2.0.9000
+#>  [9] nlme_3.1-164       evaluate_0.24.0    lifecycle_1.0.4    tibble_3.3.0      
+#> [13] gtable_0.3.6       lattice_0.22-5     mgcv_1.9-1         pkgconfig_2.0.3   
+#> [17] rlang_1.1.6        Matrix_1.5-4.1     cli_3.6.5          rstudioapi_0.16.0 
+#> [21] parallel_4.2.1     xfun_0.41          withr_3.0.2        knitr_1.43        
+#> [25] generics_0.1.4     vctrs_0.6.5        grid_4.2.1         tidyselect_1.2.1  
+#> [29] glue_1.8.0         R6_2.6.1           farver_2.1.2       purrr_1.2.0       
+#> [33] magrittr_2.0.4     splines_4.2.1      scales_1.4.0       bio3d_2.4-5       
+#> [37] labeling_0.4.3     S7_0.2.1           penm_0.2.0.9000
 ```
