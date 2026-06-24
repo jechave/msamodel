@@ -7,6 +7,48 @@ those two don't keep.
 
 One short entry per working session.
 
+### 2026-06-24 — Slice 2: ML fit arm (`fit_msa_ml`) + MCMC-vs-ML vignette section
+
+Second of the three 0.3.0 fit slices. Added a maximum-likelihood **point**
+estimator parallel to the MCMC, then a vignette section comparing the two arms and
+the observed profile.
+
+- **`R/fitting.R` — `fit_msa_ml()`** (new file, `@family fitting`). Maximises the
+  slice-1-corrected `calculate_loglik_msa` over the *same* coords as the MCMC
+  (`a1`, `b = log2(a2+1)`) and box bounds. L-BFGS-B, deterministic coarse grid-max
+  start (25×25), `optimHess` covariance at the optimum, delta-method `se_a2`,
+  **fail-loud** on a singular / non-PD Hessian (no silent NA SEs). Returns a list
+  (a1, a2, logLik, sigma_hat, cov, se_a1, se_a2, convergence, par_fit). Added
+  `optim`/`optimHess` to `@importFrom stats` and two NSE globals
+  (`nlrmsd_obs`, `nlrmsd_i_msa`).
+- **Provenance** (find-source.sh, name + formula): NO `tmp_src` source for
+  ML-fitting `(a1,a2)` — source project fit only by MCMC / grid; the lone `optim`
+  (`archive/R_backup/model_rates.R`) is the unmigrated rate arm, a different object.
+  ⇒ new code, not a migration. Recorded in `dev/plan.md` §v0.3 (B).
+- **Cross-checks on znb.** optim optimum (logLik −138.546) ≥ 81×81 grid max
+  (−138.632), same basin → refines off-grid. ML point (0.458, 42.30) lies inside
+  the seeded (seed 2024, 4000/1000) MCMC posterior, near its mean; ML SEs
+  (0.122, 10.19) ≈ posterior sd (0.131, 11.3).
+- **Tests** `test-fit-ml.R` (33 assertions): list shape, grid agreement,
+  MCMC-mode proximity, frozen regression, cov/SE shape, fail-loud paths, pdb_site
+  contract parity. Suite 116/0F (+33); `check()` at v0.1 baseline (0E/1W/2N).
+- **Vignette `msamodel-intro` §5.2.** Compares MCMC fit, ML fit, observed profile.
+  *Design correction after user review:* the §5.1 MCMC profile is the posterior
+  *predictive mean* (per-site prediction averaged over the posterior); pairing that
+  against an ML *point* prediction conflates the estimate difference with the Jensen
+  gap. So §5.2 predicts BOTH arms at a single `(a1,a2)` — posterior mean for MCMC,
+  point estimate for ML — making the only difference the estimate. Adds a param
+  table (both R²=0.605), a 3-line profile overlay, a by-method faceted scatter, and
+  a **direct MCMC-vs-ML scatter** (method-vs-method R² = 0.9999 → arms agree
+  site-for-site; Jensen gap negligible on znb). User approved the rendered HTML;
+  committed under `VIGNETTE_APPROVED=1`.
+- **Knit-cwd footgun:** first knit from repo root dumped figures to a stray
+  root-level `msamodel-intro_files/` (relative `fig.path` resolved against cwd).
+  Re-knit with `setwd("vignettes")` so figures land in `vignettes/…`; removed the
+  stray dir. The shipped `.Rmd` had correct refs; only the PNG location was wrong.
+- Committed `aa868a3`, pushed `b7251be..aa868a3`. **Next:** slice 3 — `lrmsd_n`
+  (mode) fit on seeded synthetic observed data (plan it when it starts).
+
 ### 2026-06-24 — Architecture decisions + start σ correctness fix (slice 1)
 
 Planning session, then began the first of three 0.3.0 *fit* slices.
