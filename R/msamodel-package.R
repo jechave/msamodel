@@ -7,7 +7,7 @@
 #' @importFrom tibble as_tibble tibble
 #' @importFrom purrr discard map_dfr possibly
 #' @importFrom rlang sym !!
-#' @importFrom stats cor dnorm dunif fitted loess median predict qnorm quantile residuals rnorm runif sd var
+#' @importFrom stats cor dnorm dunif fitted loess median optim optimHess predict qnorm quantile residuals rnorm runif sd var
 #' @importFrom penm set_enm get_site get_pdb_site get_mutant_site get_dactive get_cn get_msf_site ddg_dv ddg_tds ddgact_dv ddgact_tds
 #' @importFrom magrittr %>%
 ## usethis namespace: end
@@ -21,7 +21,8 @@ utils::globalVariables(c(
   "ddgact_jm", "ddgact_tds_jm", "dr2_i", "dr2_i_msa", "dr2_ijm", "dr2_n", "dr2_njm",
   "i", "j", "lower", "lrmsd", "lrmsd_i_ma", "lrmsd_i_mm", "lrmsd_i_ms", "lrmsd_i_msa",
   "lrmsd_n_ma", "lrmsd_n_mm", "lrmsd_n_ms", "lrmsd_n_msa",
-  "lrmsd_obs", "m", "mode", "model", "n", "parameter", "pdb_site",
+  "lrmsd_obs", "m", "mode", "model", "n", "nlrmsd_i_msa", "nlrmsd_obs",
+  "parameter", "pdb_site",
   "phi_act", "phi_mut", "phi_stab", "sample_id",
   "upper", "value", "variable"
 ))

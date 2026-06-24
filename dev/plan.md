@@ -145,6 +145,15 @@ per-version detail is written when each version starts.
          NO S3 interface yet, NO `method=` flag, a **separate function** from the
          MCMC (the two differ in *kind* — point+covariance vs posterior sample). A
          shared S3 convention over both arms is a deliberate *later* pass.
+         `fit_msa_ml()` optimises `(a1, log2(a2+1))` by L-BFGS-B (same coords/bounds
+         as the MCMC), returns a **list** (point estimate + logLik + `sigma_hat` +
+         `optimHess` covariance + delta-method SEs), fail-loud on a singular Hessian.
+         The intro vignette gains a §5.2 comparing MCMC fit, ML fit, and the observed
+         profile (overlay + faceted scatter + (a1,a2,R²) table). **Provenance
+         (checked 2026-06-24):** NO `tmp_src` source for ML-fitting the selection
+         parameters — the source project fit `(a1,a2)` only by MCMC or grid search;
+         the lone `optim` hit (`archive/R_backup/model_rates.R`) is the unmigrated
+         rate-model arm, a different object. So this is new code, not a migration.
       3. **`lrmsd_n` (mode) fit** — bootstrapped on **synthetic** observed data until
          the patterns package exists: fit site model to real znb `lrmsd_i`, draw
          `(a1,a2)`, compute `lrmsd_n`, add **seeded** Gaussian noise. Ship a frozen,

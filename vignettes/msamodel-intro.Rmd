@@ -321,6 +321,93 @@ active site:
 
 ![plot of chunk fit-vs-dactive](msamodel-intro_files/figure-html/fit-vs-dactive-1.png)
 
+### Maximum-likelihood fit, and a comparison of methods
+
+The MCMC above samples the posterior of `(a1, a2)`. For a fast **point** estimate,
+`fit_msa_ml()` maximises the *same* likelihood
+([`calculate_loglik_msa()`]) over the same coordinates (`a1` and
+`log2(a2 + 1)`), returning the estimate plus an asymptotic covariance from the
+Hessian at the optimum. It is much faster than MCMC — useful for large proteins or
+path simulations — but gives no posterior sample. Here we check the two arms agree.
+
+
+```r
+ml <- fit_msa_ml(pp, znb_profile)   # pp from section 1; znb_profile is the target
+```
+
+To compare the two arms on equal footing, we build **both** profiles the same way:
+the MSA prediction from the single-source-of-truth forward map, evaluated at a single
+`(a1, a2)` — the **posterior mean** for the MCMC arm and the **point estimate** for
+ML — then mean-centered. (This differs from the §5.1 profile above, which is the
+posterior *predictive* mean: the per-site prediction averaged over the whole
+posterior. Predicting at the posterior-mean parameters instead keeps the only
+difference between the two arms the estimate of `(a1, a2)`, not how the profile is
+summarised.)
+
+
+```r
+mcmc_par <- fit$parameter_summary
+get <- function(p, col) mcmc_par[[col]][mcmc_par$parameter == p]
+mcmc_a1 <- get("a1", "mean"); mcmc_a2 <- get("a2", "mean")
+
+# MCMC profile at the posterior-mean (a1, a2) -- same recipe as ML below.
+mcmc_msa <- calculate_lrmsd_i_nested_models(pp, mcmc_a1, mcmc_a2) |>
+  transmute(pdb_site, lrmsd_mcmc = lrmsd_i_msa)
+
+# ML profile at the point estimate.
+ml_msa <- calculate_lrmsd_i_nested_models(pp, ml$a1, ml$a2) |>
+  transmute(pdb_site, lrmsd_ml = lrmsd_i_msa)
+
+cmp_ml <- cmp |>
+  inner_join(mcmc_msa, by = "pdb_site") |>
+  inner_join(ml_msa,   by = "pdb_site") |>
+  mutate(
+    nlrmsd_mcmc = lrmsd_mcmc - mean(lrmsd_mcmc),
+    nlrmsd_ml   = lrmsd_ml   - mean(lrmsd_ml)
+  )
+
+r2_mcmc <- r2(cmp_ml$nlrmsd_obs, cmp_ml$nlrmsd_mcmc)
+r2_ml   <- r2(cmp_ml$nlrmsd_obs, cmp_ml$nlrmsd_ml)
+```
+
+The two arms land on essentially the same `(a1, a2)`, with comparable uncertainty
+(MCMC posterior sd vs ML asymptotic standard error), and explain the observed
+profile equally well:
+
+
+
+Table: MCMC vs ML estimates of the selection parameters (both profiles predicted at a single (a1, a2); uncertainty is the MCMC posterior sd / the ML asymptotic standard error)
+
+|method                |    a1| a1 (sd/se)|     a2| a2 (sd/se)|    R²|
+|:---------------------|-----:|----------:|------:|----------:|-----:|
+|MCMC (posterior mean) | 0.455|      0.123| 44.378|      8.711| 0.605|
+|ML (point estimate)   | 0.458|      0.122| 42.302|     10.187| 0.605|
+
+
+
+Observed, MCMC-fitted and ML-fitted profiles along the chain (all mean-centered):
+
+
+
+![plot of chunk method-profile](msamodel-intro_files/figure-html/method-profile-1.png)
+
+Fitted vs observed, one panel per fit method:
+
+![plot of chunk method-scatter](msamodel-intro_files/figure-html/method-scatter-1.png)
+
+Finally, the two fitted profiles directly against each other. Points on the dashed
+1:1 line mean the methods agree site-for-site; the R² here measures
+**method-vs-method** agreement, not fit to data:
+
+
+```r
+r2_methods <- r2(cmp_ml$nlrmsd_mcmc, cmp_ml$nlrmsd_ml)
+r2_methods
+#> [1] 0.9998732
+```
+
+![plot of chunk mcmc-vs-ml](msamodel-intro_files/figure-html/mcmc-vs-ml-1.png)
+
 ## 6. Site-level decomposition of the fitted profile
 
 Section 3 decomposed the profile at a *chosen* `(a1, a2)`. The fit applies the

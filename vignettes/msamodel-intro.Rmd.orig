@@ -443,6 +443,135 @@ ggplot(cmp_long, aes(dactive, nlrmsd, colour = source)) +
   theme(legend.position = "top")
 ```
 
+### Maximum-likelihood fit, and a comparison of methods
+
+The MCMC above samples the posterior of `(a1, a2)`. For a fast **point** estimate,
+`fit_msa_ml()` maximises the *same* likelihood
+([`calculate_loglik_msa()`]) over the same coordinates (`a1` and
+`log2(a2 + 1)`), returning the estimate plus an asymptotic covariance from the
+Hessian at the optimum. It is much faster than MCMC — useful for large proteins or
+path simulations — but gives no posterior sample. Here we check the two arms agree.
+
+```{r ml-fit}
+ml <- fit_msa_ml(pp, znb_profile)   # pp from section 1; znb_profile is the target
+```
+
+To compare the two arms on equal footing, we build **both** profiles the same way:
+the MSA prediction from the single-source-of-truth forward map, evaluated at a single
+`(a1, a2)` — the **posterior mean** for the MCMC arm and the **point estimate** for
+ML — then mean-centered. (This differs from the §5.1 profile above, which is the
+posterior *predictive* mean: the per-site prediction averaged over the whole
+posterior. Predicting at the posterior-mean parameters instead keeps the only
+difference between the two arms the estimate of `(a1, a2)`, not how the profile is
+summarised.)
+
+```{r ml-prep}
+mcmc_par <- fit$parameter_summary
+get <- function(p, col) mcmc_par[[col]][mcmc_par$parameter == p]
+mcmc_a1 <- get("a1", "mean"); mcmc_a2 <- get("a2", "mean")
+
+# MCMC profile at the posterior-mean (a1, a2) -- same recipe as ML below.
+mcmc_msa <- calculate_lrmsd_i_nested_models(pp, mcmc_a1, mcmc_a2) |>
+  transmute(pdb_site, lrmsd_mcmc = lrmsd_i_msa)
+
+# ML profile at the point estimate.
+ml_msa <- calculate_lrmsd_i_nested_models(pp, ml$a1, ml$a2) |>
+  transmute(pdb_site, lrmsd_ml = lrmsd_i_msa)
+
+cmp_ml <- cmp |>
+  inner_join(mcmc_msa, by = "pdb_site") |>
+  inner_join(ml_msa,   by = "pdb_site") |>
+  mutate(
+    nlrmsd_mcmc = lrmsd_mcmc - mean(lrmsd_mcmc),
+    nlrmsd_ml   = lrmsd_ml   - mean(lrmsd_ml)
+  )
+
+r2_mcmc <- r2(cmp_ml$nlrmsd_obs, cmp_ml$nlrmsd_mcmc)
+r2_ml   <- r2(cmp_ml$nlrmsd_obs, cmp_ml$nlrmsd_ml)
+```
+
+The two arms land on essentially the same `(a1, a2)`, with comparable uncertainty
+(MCMC posterior sd vs ML asymptotic standard error), and explain the observed
+profile equally well:
+
+```{r method-table, echo = FALSE}
+method_tbl <- tibble::tibble(
+  method = c("MCMC (posterior mean)", "ML (point estimate)"),
+  a1     = c(mcmc_a1, ml$a1),
+  a1_unc = c(get("a1", "sd"), ml$se_a1),
+  a2     = c(mcmc_a2, ml$a2),
+  a2_unc = c(get("a2", "sd"), ml$se_a2),
+  R2     = c(r2_mcmc, r2_ml)
+)
+knitr::kable(method_tbl, digits = 3,
+             col.names = c("method", "a1", "a1 (sd/se)", "a2", "a2 (sd/se)", "R²"),
+             caption = "MCMC vs ML estimates of the selection parameters (both profiles predicted at a single (a1, a2); uncertainty is the MCMC posterior sd / the ML asymptotic standard error)")
+```
+
+Observed, MCMC-fitted and ML-fitted profiles along the chain (all mean-centered):
+
+```{r method-long, include = FALSE}
+methods_long <- cmp_ml |>
+  tidyr::pivot_longer(c(nlrmsd_obs, nlrmsd_mcmc, nlrmsd_ml),
+                      names_to = "source", values_to = "nlrmsd") |>
+  mutate(source = dplyr::recode(source,
+                                nlrmsd_obs  = "observed",
+                                nlrmsd_mcmc = "fitted (MCMC)",
+                                nlrmsd_ml   = "fitted (ML)"))
+method_cols <- c("observed" = "grey25",
+                 "fitted (MCMC)" = "firebrick",
+                 "fitted (ML)" = "steelblue")
+```
+
+```{r method-profile, echo = FALSE, eval = has_ggplot}
+ggplot(methods_long, aes(pdb_site, nlrmsd, colour = source)) +
+  geom_line(alpha = 0.8) +
+  scale_colour_manual(values = method_cols) +
+  labs(title = "Observed vs. MCMC- and ML-fitted divergence profiles",
+       x = "Residue (PDB numbering)", y = "nlrmsd (mean-centered)", colour = NULL) +
+  theme(legend.position = "top")
+```
+
+Fitted vs observed, one panel per fit method:
+
+```{r method-scatter, echo = FALSE, eval = has_ggplot}
+scatter_df <- dplyr::bind_rows(
+  dplyr::transmute(cmp_ml, method = "MCMC", nlrmsd_obs, nlrmsd_fit = nlrmsd_mcmc),
+  dplyr::transmute(cmp_ml, method = "ML",   nlrmsd_obs, nlrmsd_fit = nlrmsd_ml)
+)
+r2_labels <- tibble::tibble(
+  method = c("MCMC", "ML"),
+  label  = sprintf("R^2 == %.3f", c(r2_mcmc, r2_ml))
+)
+ggplot(scatter_df, aes(nlrmsd_obs, nlrmsd_fit)) +
+  geom_abline(slope = 1, intercept = 0, colour = "grey70", linetype = 2) +
+  geom_point(alpha = 0.5, colour = "steelblue") +
+  geom_text(data = r2_labels, aes(x = -Inf, y = Inf, label = label),
+            parse = TRUE, hjust = -0.15, vjust = 1.4, inherit.aes = FALSE) +
+  facet_wrap(~ method) +
+  labs(title = "Fitted vs. observed by method (mean-centered)",
+       x = "observed nlrmsd", y = "fitted nlrmsd")
+```
+
+Finally, the two fitted profiles directly against each other. Points on the dashed
+1:1 line mean the methods agree site-for-site; the R² here measures
+**method-vs-method** agreement, not fit to data:
+
+```{r mcmc-vs-ml-r2}
+r2_methods <- r2(cmp_ml$nlrmsd_mcmc, cmp_ml$nlrmsd_ml)
+r2_methods
+```
+
+```{r mcmc-vs-ml, echo = FALSE, eval = has_ggplot}
+ggplot(cmp_ml, aes(nlrmsd_mcmc, nlrmsd_ml)) +
+  geom_abline(slope = 1, intercept = 0, colour = "grey70", linetype = 2) +
+  geom_point(alpha = 0.5, colour = "darkorchid") +
+  annotate("text", x = -Inf, y = Inf, hjust = -0.15, vjust = 1.4,
+           label = sprintf("R^2 == %.4f", r2_methods), parse = TRUE) +
+  labs(title = "MCMC- vs. ML-fitted profile (mean-centered)",
+       x = "MCMC nlrmsd", y = "ML nlrmsd")
+```
+
 ## 6. Site-level decomposition of the fitted profile
 
 Section 3 decomposed the profile at a *chosen* `(a1, a2)`. The fit applies the
