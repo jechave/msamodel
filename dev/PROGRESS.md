@@ -10,7 +10,29 @@ Tick items as substeps finish, and add a one-line dated entry to `dev/LOG.md`.
 
 ---
 
-## DORMANT — no work item in progress
+## IN FLIGHT — Slice 1: σ correctness fix in the MSA likelihood
+
+`calculate_loglik_msa` profiles σ out but used `sd(residuals)` (divisor `n−1`); the
+profiled-Gaussian MLE is `sqrt(mean(residuals^2))` (divisor `n`). Correctness fix.
+Verified 2026-06-24: argmax `(a1,a2)` unchanged (= least-squares); only σ-derived
+quantities move. First of three 0.3.0 fit slices (see `dev/plan.md` §v0.3 (B)).
+
+- [x] Verify the math (profile MLE = `sqrt(mean(r²))`; argmax-invariance vs divisor)
+- [x] Apply one-line fix in `R/objective.R:56`
+- [x] Deterministic OLD-vs-NEW grid check on znb — argmax `(a1,a2)` IDENTICAL (0.5,31);
+      logLik shift is a constant +0.00111 across the whole surface (Spearman cor = 1)
+- [x] Seeded MCMC OLD-vs-NEW on znb — posterior **bit-identical** (samples identical,
+      max summary diff = 0). Constant logLik shift ⇒ acceptance ratio unchanged.
+- [x] Posterior did NOT move ⇒ no PAUSE needed; nothing downstream stale
+- [x] Updated 3 tests that froze the *absolute* logLik value (now corrected, not
+      drift): `test-msa-evaluate.R` literal → −184.3230779142; `test-contract.R`
+      manual route `sd`→`sqrt(mean(res^2))`; `profile-invariance` snapshot accepted
+- [x] `devtools::test()` green (83/0F); `devtools::check()` at v0.1 baseline (0E/1W/2N)
+- [ ] Commit slice 1 on its own (after user review), before starting the ML arm
+
+---
+
+## (was DORMANT)
 
 **Recently completed (0.3.0 cycle, 2026-06-19 — newest first; full detail in
 `dev/LOG.md`):**

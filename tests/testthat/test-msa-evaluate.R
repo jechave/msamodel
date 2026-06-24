@@ -27,8 +27,10 @@ test_that("calculate_lrmsd_i_nested_models builds the four variants at the right
 test_that("calculate_loglik_msa matches a frozen reference value", {
   # Frozen literal: captured once from the current implementation. NOT recomputed
   # here -- this catches a real change in the likelihood math or the pdb_site->i
-  # join, not a re-derivation.
+  # join, not a re-derivation. (Updated 2026-06-24 when sigma was corrected from
+  # sd(residuals) to the profile MLE sqrt(mean(residuals^2)); the value shifted by
+  # a constant ~+0.0011 and the (a1,a2) argmax is unchanged.)
   pp <- preprocess_spm(znb_spm)
   ll <- calculate_loglik_msa(pp, znb_profile, a1 = 2, a2 = 5)
-  expect_equal(ll, -184.3241923285, tolerance = 1e-6)
+  expect_equal(ll, -184.3230779142, tolerance = 1e-6)
 })

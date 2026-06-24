@@ -52,8 +52,12 @@ calculate_loglik_msa <- function(spm_pp, observed_data, a1, a2) {
   # Calculate residuals
   residuals <- comparison$nlrmsd_obs - comparison$nlrmsd_i_msa
 
-  # Estimate sigma from residuals
-  sigma <- sd(residuals)
+  # Estimate sigma from residuals. sigma is profiled out at each (a1, a2): the
+  # value below is the closed-form ML estimate for r_i ~ N(0, sigma^2), namely
+  # sqrt(mean(r^2)) (divisor n). (Previously sd(residuals), divisor n-1, which is
+  # not the profile MLE; the (a1, a2) argmax is unchanged but sigma-derived
+  # quantities — logLik, SEs, posterior width — were slightly off.)
+  sigma <- sqrt(mean(residuals^2))
 
   # Calculate log-likelihood using residuals
   log_lik <- sum(dnorm(residuals, 0, sigma, log = TRUE))

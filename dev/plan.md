@@ -118,11 +118,39 @@ per-version detail is written when each version starts.
     normalized: `calculate_dr2_i_msa` / `calculate_dr2_n_msa` (breaking; GitHub-only
     /solo/pre-1.0). A `test-profile-invariance.R` snapshot proved no profile value
     moved. Convention recorded in CLAUDE.md + memory.
-  - **Observed profiles + fit — PENDING (defined step-by-step at execution time).**
-    Candidate directions, order NOT pinned: observed `dr2_i`/`dr2_n` profiles from a
-    set of homologous structures + an alignment; fitting the model to `dr2_n`; joint
-    `dr2_i`+`dr2_n` fit. The goal is the complete predict-and-fit, site-and-mode
-    suite before motion.
+  - **Observed profiles + fit — SPLIT (decided 2026-06-24).** The earlier single
+    "observed profiles + fit" bullet conflated two *different scientific objects*;
+    they are now separated:
+    - **(A) Computing OBSERVED `dr2_i`/`dr2_n` from a set of homologous structures +
+      an alignment is OUT OF SCOPE for `msamodel`.** That is empirical *measurement*
+      (inputs: a set of PDBs + an MSA; heavy deps — bio3d→Imports, alignment/
+      superposition; different failure modes), a different object from the
+      mechanistic model. It belongs in a **separate "protein-evolution-patterns"
+      package** (sequence / structure / motion levels), which will serve other
+      models too. `msamodel` keeps its clean contract: **observed data enters as a
+      vector** (`pdb_site`/`i`/`n` + `lrmsd_obs`). The EC2024 pipeline and the user's
+      earlier empirical-model project already kept this as a separate upstream stage;
+      there is no homolog/alignment code in `tmp_src` to migrate.
+    - **(B) FITTING the model to an observed profile stays in `msamodel`** (reuses
+      the fit machinery; needs only the observed *vector*). Current ordering of the
+      remaining 0.3.0 fit work (each slice planned in detail only when it starts):
+      1. **σ correctness fix** — `calculate_loglik_msa` used `sd(residuals)`
+         (divisor `n−1`); the profiled-Gaussian MLE is `sqrt(mean(residuals^2))`
+         (divisor `n`). Verified 2026-06-24: argmax `(a1,a2)` is *unchanged* (= the
+         min-SSR / least-squares solution); only σ-derived quantities (logLik, SEs,
+         posterior width) move. A math-correctness fix, not tuning.
+      2. **ML `lrmsd_i` fit arm** — `optim`-based point estimator over the
+         (now-exact) shared likelihood, for speed (large proteins, path sims) and to
+         move toward `lm`/`gam`-style R conventions. Agile scope: **estimator only**,
+         NO S3 interface yet, NO `method=` flag, a **separate function** from the
+         MCMC (the two differ in *kind* — point+covariance vs posterior sample). A
+         shared S3 convention over both arms is a deliberate *later* pass.
+      3. **`lrmsd_n` (mode) fit** — bootstrapped on **synthetic** observed data until
+         the patterns package exists: fit site model to real znb `lrmsd_i`, draw
+         `(a1,a2)`, compute `lrmsd_n`, add **seeded** Gaussian noise. Ship a frozen,
+         clearly-named synthetic fixture; mark synthetic on the *data* (roxygen
+         `@source` + vignette note), not via a runtime `warning()`. Mode-arm tests
+         are regression/snapshot drift-guards.
 
 - **v0.4 — motion arm (`dh_ijm`, then `dh_njm` + `nh_njm`).** Each adds the new
   *quantity* `dh`/`nh` via the same slow loop + reweighting. These exist ONLY in

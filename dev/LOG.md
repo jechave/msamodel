@@ -7,6 +7,57 @@ those two don't keep.
 
 One short entry per working session.
 
+### 2026-06-24 — Architecture decisions + start σ correctness fix (slice 1)
+
+Planning session, then began the first of three 0.3.0 *fit* slices.
+
+Decisions recorded (in `dev/plan.md` §v0.3, split the old "observed profiles + fit"
+bullet):
+- **Observed-pattern computation (lrmsd from homologs + alignment) is OUT of
+  `msamodel`** → a future separate "protein-evolution-patterns" package (seq /
+  structure / motion), serving other models too. `msamodel` keeps "observed data =
+  a vector". No homolog/alignment source exists in `tmp_src` to migrate; the EC2024
+  pipeline and the user's earlier empirical-model project kept it as a separate
+  upstream stage. (I wrongly claimed "no source" early in the session from a
+  name-only `.R` grep — corrected after the user noted `.Rmd`/other-project code; it
+  doesn't change the architecture conclusion.)
+- **New ML fit arm wanted**, agile scope: estimator only (no S3, no `method=` flag,
+  separate fn from MCMC). Speed + `lm`/`gam`-style direction. Shared S3 convention
+  deferred to a later pass.
+- **`lrmsd_n` fit** will bootstrap on **seeded synthetic** observed data until the
+  patterns package exists; mark synthetic on the data, not via runtime warning.
+- Slice order: **σ fix → ML `lrmsd_i` → `lrmsd_n` synthetic fit.** Each slice
+  planned in detail only when it starts (two-tier rule).
+
+Slice 1 (σ fix) — in flight:
+- **The bug:** `calculate_loglik_msa` (`R/objective.R:56`) profiles σ out but used
+  `sd(residuals)` (divisor `n−1`); the profiled-Gaussian MLE is
+  `sqrt(mean(residuals^2))` (divisor `n`). Wrong constant in the likelihood the MCMC
+  has been sampling.
+- **Math verified (not asserted):** numeric maximiser of `sum dnorm(r,0,σ,log=T)`
+  matches `sqrt(mean(r²))` (not `sd(r)`); and argmax over θ is identical for SSR,
+  loglik-n, loglik-(n−1) — so the **`(a1,a2)` point estimate is unchanged**; only
+  σ-derived quantities (logLik, SEs, posterior width) move.
+- **Verified outcome (real znb data):**
+  - Deterministic grid check (a1×a2): OLD/NEW argmax IDENTICAL (0.5, 31); logLik
+    change is a **constant +0.00111 shift** across the whole surface (Spearman cor
+    = 1) — because σ profiled out makes loglik = const − (n/2)log(σ̂²), and the
+    n vs n−1 divisor is an (a1,a2)-independent constant.
+  - Seeded MCMC OLD vs NEW (seed 2024, 4000/1000): posterior **bit-identical** —
+    `a1`/`a2` samples `identical`, max summary diff = 0. A constant logLik shift
+    leaves the Metropolis acceptance ratio (differences only) unchanged, so the
+    posterior cannot move. ⇒ no PAUSE, nothing downstream stale.
+  - Blast radius was NOT zero on tests (my earlier prediction was wrong): 3 tests
+    froze the *absolute* logLik value and moved by the constant +0.0011. Updated as
+    corrected-expected (not drift): `test-msa-evaluate.R` literal → −184.3230779142;
+    `test-contract.R` manual route `sd(res)`→`sqrt(mean(res^2))` (keeps it a true
+    independent route); `profile-invariance` snapshot accepted. Suite 83/0F;
+    check() at v0.1 baseline (0E/1W/2N). Intro vignette unaffected (no MCMC, no
+    posterior numbers printed) — commit-gate not triggered.
+- Files touched: `R/objective.R`, `tests/testthat/{test-msa-evaluate,test-contract}.R`,
+  `tests/testthat/_snaps/profile-invariance.md`, plus `dev/{plan,PROGRESS,LOG}.md`.
+- NOT committed yet — awaiting user review (commit slice 1 alone, then ML arm).
+
 ### 2026-06-19 — Mode nested-models fn + dr2n vignette parity with intro
 
 Brought the `dr2n-analysis` vignette to parity with the intro vignette's site §3.

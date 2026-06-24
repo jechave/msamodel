@@ -36,7 +36,7 @@ test_that("pdb_site contract gives the same loglik as a manual i-keyed join", {
                            pred[, c("i", "lrmsd_i_msa")], by = "i")
   res <- (cmp$lrmsd_obs - mean(cmp$lrmsd_obs)) -
          (cmp$lrmsd_i_msa - mean(cmp$lrmsd_i_msa))
-  ll_manual <- sum(stats::dnorm(res, 0, stats::sd(res), log = TRUE))
+  ll_manual <- sum(stats::dnorm(res, 0, sqrt(mean(res^2)), log = TRUE))
 
   expect_equal(ll_contract, ll_manual)
 })
