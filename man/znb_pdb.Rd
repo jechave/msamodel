@@ -22,6 +22,7 @@ The bio3d structure object for the example protein, as read from
 Other datasets:
 \code{\link{znb_dataset}},
 \code{\link{znb_profile}},
+\code{\link{znb_profile_n}},
 \code{\link{znb_spm}},
 \code{\link{znb_wt}}
 }

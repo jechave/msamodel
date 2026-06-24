@@ -22,6 +22,7 @@ Other fitting:
 \code{\link[=calculate_prediction_samples]{calculate_prediction_samples()}},
 \code{\link[=fit_lrmsd_i_msa_mcmc]{fit_lrmsd_i_msa_mcmc()}},
 \code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}},
+\code{\link[=fit_lrmsd_n_msa_ml]{fit_lrmsd_n_msa_ml()}},
 \code{\link[=run_msa_bayesian_analysis]{run_msa_bayesian_analysis()}}
 }
 \concept{fitting}

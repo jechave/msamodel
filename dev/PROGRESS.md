@@ -10,12 +10,20 @@ Tick items as substeps finish, and add a one-line dated entry to `dev/LOG.md`.
 
 ---
 
-## IN FLIGHT — Slice 3 (mode fit), split into 3a (fit-side naming) + 3b (mode arm)
+## DORMANT — no work item in flight
 
-Full detail: `/Users/julianechave/.claude/plans/start-slice-3-wild-treehouse.md`.
-Naming scheme settled: fit fns are `fit_<quantity>_<axis>_<model>_<method>` (model
-`msa` last, method last); objective has NO method token (shared). The data ARG stays
-`observed_data` (a table, not a vector); the lrmsd COLUMN gets the axis token.
+Slice 3 (mode fit) is **complete** — 3a (`e00f0ef`) + 3b. The site/mode predict side
+and all three 0.3.0 fit slices are done. Next candidate: **0.4 motion arm** (`dh_ijm` →
+`dh_njm` + `nh_njm`) OR the deferred **shared-S3 unify** pass over the fit arms. **When
+the next item starts:** enter plan mode, read the touched code, write the detailed plan,
+then rewrite this checklist from it.
+
+Naming scheme settled this slice: fit fns are `fit_<quantity>_<axis>_<model>_<method>`
+(model `msa` last, method last); objective has NO method token (shared by both fitters);
+the data ARG stays `observed_data` (a table, not a vector); the lrmsd COLUMN gets the
+axis token.
+
+### Slice 3 — DONE (3a fit-side naming + 3b mode arm)
 
 ### 3a — fit-side naming (function renames + lrmsd column rename)
 - [x] Function renames: `fit_msa_ml`→`fit_lrmsd_i_msa_ml`,
@@ -32,15 +40,15 @@ Naming scheme settled: fit fns are `fit_<quantity>_<axis>_<model>_<method>` (mod
   frozen drift-guards cover "output unchanged". Suite 116→110/0F; ~51s faster
   (161.7s→110.7s).
 - [x] `devtools::check()` — v0.1 baseline (0E/1W/2N), re-run after the test removal.
-- [ ] Knit intro vignette (`setwd("vignettes")`) + preview → **USER HTML approval** → commit 3a.
+- [x] Knit intro vignette (`setwd("vignettes")`) + preview → USER HTML approved → committed `e00f0ef`, pushed `0d0fc26..e00f0ef`.
 
-### 3b — mode fit arm (after 3a commits)
-- [ ] Provenance re-check (find-source.sh, name + formula).
-- [ ] `calculate_loglik_lrmsd_n_msa` + `fit_lrmsd_n_msa_ml` (arg `observed_data`, column `lrmsd_n_obs`).
-- [ ] Synthetic `znb_profile_n` fixture (truth = site ML fit; seed 2025, sd 0.30); data-doc `@source` synthetic; NSE globals.
-- [ ] `test-fit-ml-mode.R` (capture-then-freeze + fixture determinism).
-- [ ] dr2n-analysis vignette fit section (HTML-gated).
-- [ ] document/test/check; satellite (LOG/plan/memory).
+### 3b — mode fit arm
+- [x] Provenance re-check (find-source.sh, name + formula) — no `tmp_src` source ⇒ new code.
+- [x] `calculate_loglik_lrmsd_n_msa` + `fit_lrmsd_n_msa_ml` (arg `observed_data`, column `lrmsd_n_obs`, fail-loud n-coverage).
+- [x] Synthetic `znb_profile_n` fixture (truth = site ML fit; seed 2025, sd 0.30); data-doc `@source` synthetic; NSE globals. Only that `.rda` added.
+- [x] `test-fit-ml-mode.R` (29 assertions: frozen + fixture determinism 1e-12). Recovers truth (0.458,42.30)→(0.449,40.82).
+- [x] dr2n-analysis vignette fit section + SYNTHETIC callout → USER HTML approved.
+- [x] document/test (139/0F) / check (0E/1W/2N); satellite (LOG/plan/memory).
 
 **Recently completed (0.3.0 fit work, 2026-06-24 — newest first; full detail in
 `dev/LOG.md`):**

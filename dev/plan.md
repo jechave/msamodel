@@ -170,6 +170,12 @@ per-version detail is written when each version starts.
          with `i`→`n`. The synthetic truth `(a1,a2)` is the **deterministic site ML
          point estimate** (`fit_lrmsd_i_msa_ml` on real `znb_profile`), a
          specialization of "draw" (no MCMC seed coupling); seed 2025, sd 0.30.
+         **DONE 2026-06-24** (3a `e00f0ef` + 3b): `calculate_loglik_lrmsd_n_msa` +
+         `fit_lrmsd_n_msa_ml` (new code, provenance-checked — no `tmp_src` source),
+         synthetic `znb_profile_n` fixture, `test-fit-ml-mode.R` (29 drift-guards incl.
+         fixture-determinism), dr2n-analysis vignette fit section. The mode fit recovers
+         the synthetic truth `(0.458,42.30) → (0.449,40.82)`. **This completes the 0.3.0
+         fit work** (all three slices) and the site+mode structural suite.
 
 - **v0.4 — motion arm (`dh_ijm`, then `dh_njm` + `nh_njm`).** Each adds the new
   *quantity* `dh`/`nh` via the same slow loop + reweighting. These exist ONLY in

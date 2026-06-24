@@ -7,6 +7,52 @@ those two don't keep.
 
 One short entry per working session.
 
+### 2026-06-24 — Slice 3b: mode fit arm (`fit_lrmsd_n_msa_ml`) on synthetic `znb_profile_n`
+
+Second half of slice 3, against the 3a-renamed names. The mode arm gains a fit (it was
+predict-only); fit on a SEEDED SYNTHETIC observed mode profile until the
+protein-evolution-patterns package exists.
+
+- **Provenance (re-checked, find-source.sh name + formula):** NO `tmp_src` source for a
+  mode loglik / mode selection-parameter fit / synthetic-mode-obs. The only
+  `sum(dnorm(...,log))` hits are the already-migrated SITE likelihood
+  (`msa_model_evaluation.R:65`) and the tree route (v0.5). ⇒ **new code**, structurally
+  mirroring the migrated site likelihood, not a migration.
+- **`R/objective.R`** — `calculate_loglik_lrmsd_n_msa(spm_pp_mode, observed_data, a1, a2)`:
+  mode mirror of the site loglik minus `site_map`/`pdb_site` (key `n` is the model index
+  directly); fail-loud `n`-coverage guard ("mode index(es) not present in the model");
+  mean-centers both; profiled σ `sqrt(mean(r^2))`. Arg kept `observed_data` (a table),
+  column `lrmsd_n_obs`.
+- **`R/fitting.R`** — `fit_lrmsd_n_msa_ml(spm_pp_mode, observed_data, ...)`: identical
+  scaffold to `fit_lrmsd_i_msa_ml` (L-BFGS-B on `(a1, log2(a2+1))`, grid-max start,
+  `optimHess` cov, delta-method `se_a2`, singular-Hessian fail-loud); `nll` calls the
+  mode loglik; `sigma_hat` block joins on `n`. Same 9-field list. No mode MCMC (no
+  Bayesian mode counterpart).
+- **`data-raw/prepare_znb_data.R`** — new `znb_profile_n` section: truth `(a1,a2)` =
+  deterministic site ML fit on the **real** `znb_profile` (`fit_lrmsd_i_msa_ml`),
+  evaluate the mode forward map there, add **seeded** Gaussian noise
+  (`SYN_PROFILE_N_SEED=2025`, `SYN_PROFILE_N_NOISE_SD=0.30`). Recovery sanity-message in
+  the script. Regenerated standalone → only `data/znb_profile_n.rda` added; frozen
+  `.rda`s untouched. (Deviation from plan prose "draw (a1,a2)": the ML **point** estimate
+  is the deterministic specialization — no MCMC seed coupling.)
+- **Marked synthetic on the DATA** (`R/data-doc.R` `"znb_profile_n"`): bold `@source`
+  SYNTHETIC + Details (site ML fit → mode map → seeded noise). No runtime warning. NSE
+  globals added (`lrmsd_n_obs`, `nlrmsd_n_obs`, `nlrmsd_n_msa`, `lrmsd_n_true`).
+- **`tests/testthat/test-fit-ml-mode.R`** (29 assertions): list shape; grid agreement vs
+  independent `calculate_loglik_lrmsd_n_msa` max; **frozen** regression (a1=0.449221,
+  a2=40.819573, logLik=−155.553290, sigma_hat=0.304371, se_a1=0.057756, se_a2=6.313771);
+  fail-loud (box/init + unknown mode index); mean-centering invariance; **fixture
+  determinism** (re-derive `znb_profile_n` from recipe, tol 1e-12). Cross-checks that
+  reassure: σ̂≈0.304 ≈ the synthetic noise sd 0.30; the mode fit **recovers the truth**
+  `(0.458, 42.30) → (0.449, 40.82)`, conv 0.
+- **Vignette `dr2n-analysis`** gains a fit section (was predict-only): bold SYNTHETIC
+  callout, the fit, a truth-vs-fitted recovery table, observed-vs-fitted profile +
+  scatter (R²). User reviewed `dev/preview/dr2n-analysis.html` and approved.
+- **Verified:** `document()` (2 new exports + `znb_profile_n.Rd`); `test()`
+  110→**139/0F**; `check()` v0.1 baseline (0E/1W/2N), both vignettes rebuild OK.
+- Slice 3 complete (3a `e00f0ef` + 3b). **Next:** 0.4 motion arm (`dh_ijm` → `dh_njm` +
+  `nh_njm`) OR the deferred shared-S3 unify pass over both fit arms.
+
 ### 2026-06-24 — Slice 3a: fit-side naming (function + column rename), no behavior change
 
 First half of slice 3 (the mode fit). Before adding the mode arm, brought the fit side

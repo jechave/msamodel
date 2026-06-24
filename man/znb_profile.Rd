@@ -36,6 +36,7 @@ The fit is keyed by \code{pdb_site}: the package maps it internally to
 Other datasets:
 \code{\link{znb_dataset}},
 \code{\link{znb_pdb}},
+\code{\link{znb_profile_n}},
 \code{\link{znb_spm}},
 \code{\link{znb_wt}}
 }

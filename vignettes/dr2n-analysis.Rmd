@@ -163,6 +163,81 @@ Increasing `a1` suppresses divergence across the soft modes (stability selection
 damps the collective motions); increasing `a2` reshapes the soft-mode divergence
 according to selection on activity.
 
+## Fitting the mode profile (on synthetic data)
+
+> **The observed mode profile here is SYNTHETIC, not empirical.** No measured
+> per-mode divergence profile exists yet — computing observed `dr2_n` from
+> homologous structures and an alignment is out of scope for `msamodel` (it belongs
+> to a future protein-evolution-patterns package). The fixture `znb_profile_n` is a
+> stand-in: the site model is fit to the *real* `znb_profile` to get a realistic
+> `(a1, a2)`, the mode forward map is evaluated there, and seeded Gaussian noise is
+> added (see `?znb_profile_n`). This section exercises the mode fit end-to-end; it
+> is **not** an empirical result.
+
+The mode fit mirrors the site fit exactly. `fit_lrmsd_n_msa_ml()` maximises the
+mode-form profiled Gaussian log-likelihood ([`calculate_loglik_lrmsd_n_msa()`]) over
+the same `(a1, log2(a2 + 1))` coordinates, returning a point estimate plus an
+asymptotic covariance. The target is `znb_profile_n` (columns `n`, `lrmsd_n_obs`),
+keyed by the mode index `n` (modes are not structure-anchored, so there is no
+`pdb_site`).
+
+
+```r
+ml_n <- fit_lrmsd_n_msa_ml(pp_mode, znb_profile_n)
+c(a1 = ml_n$a1, a2 = ml_n$a2)
+#>         a1         a2 
+#>  0.4492209 40.8195734
+```
+
+Because the synthetic profile was built at a known `(a1, a2)` — the site fit to the
+real `znb_profile` — we can check the mode fit recovers it. (This recovery is only
+meaningful for synthetic data, where the truth is known.)
+
+
+```r
+truth <- fit_lrmsd_i_msa_ml(preprocess_spm(znb_spm), znb_profile)
+recovery <- tibble::tibble(
+  parameter = c("a1", "a2"),
+  truth     = c(truth$a1, truth$a2),
+  fitted    = c(ml_n$a1, ml_n$a2),
+  se        = c(ml_n$se_a1, ml_n$se_a2)
+)
+```
+
+
+
+Table: Mode fit recovers the (synthetic) truth (a1, a2); se is the ML asymptotic standard error
+
+|parameter |  truth| fitted|    se|
+|:---------|------:|------:|-----:|
+|a1        |  0.458|  0.449| 0.058|
+|a2        | 42.302| 40.820| 6.314|
+
+
+
+Observed (synthetic) vs. fitted mode profile, mean-centered as the likelihood
+compares them:
+
+
+```r
+fitted_n <- calculate_dr2_n_msa(pp_mode, ml_n$a1, ml_n$a2) |>
+  transmute(n, lrmsd_n_fit = log(sqrt(dr2_n)))
+
+cmp_n <- znb_profile_n |>
+  inner_join(fitted_n, by = "n") |>
+  mutate(
+    nlrmsd_n_obs = lrmsd_n_obs - mean(lrmsd_n_obs),
+    nlrmsd_n_fit = lrmsd_n_fit - mean(lrmsd_n_fit)
+  )
+
+r2_n <- 1 - sum((cmp_n$nlrmsd_n_obs - cmp_n$nlrmsd_n_fit)^2) /
+            sum((cmp_n$nlrmsd_n_obs - mean(cmp_n$nlrmsd_n_obs))^2)
+```
+
+![plot of chunk mode-fit-profile](dr2n-analysis_files/figure-html/mode-fit-profile-1.png)
+
+![plot of chunk mode-fit-scatter](dr2n-analysis_files/figure-html/mode-fit-scatter-1.png)
+
 ## Session info
 
 

@@ -28,4 +28,8 @@ Profiled Gaussian log-likelihood for the site-form (`lrmsd_i`) profile. Shared
 objective of both fitters — [fit_lrmsd_i_msa_ml()] maximises it,
 [fit_lrmsd_i_msa_mcmc()] samples it — so it carries no method token.
 }
+\seealso{
+Other objective:
+\code{\link[=calculate_loglik_lrmsd_n_msa]{calculate_loglik_lrmsd_n_msa()}}
+}
 \concept{objective}

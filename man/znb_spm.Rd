@@ -45,6 +45,7 @@ Other datasets:
 \code{\link{znb_dataset}},
 \code{\link{znb_pdb}},
 \code{\link{znb_profile}},
+\code{\link{znb_profile_n}},
 \code{\link{znb_wt}}
 }
 \concept{datasets}

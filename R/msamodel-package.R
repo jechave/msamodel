@@ -21,7 +21,8 @@ utils::globalVariables(c(
   "ddgact_jm", "ddgact_tds_jm", "dr2_i", "dr2_i_msa", "dr2_ijm", "dr2_n", "dr2_njm",
   "i", "j", "lower", "lrmsd", "lrmsd_i_ma", "lrmsd_i_mm", "lrmsd_i_ms", "lrmsd_i_msa",
   "lrmsd_n_ma", "lrmsd_n_mm", "lrmsd_n_ms", "lrmsd_n_msa",
-  "lrmsd_i_obs", "m", "mode", "model", "n", "nlrmsd_i_msa", "nlrmsd_i_obs",
+  "lrmsd_i_obs", "lrmsd_n_obs", "lrmsd_n_true", "m", "mode", "model", "n",
+  "nlrmsd_i_msa", "nlrmsd_i_obs", "nlrmsd_n_msa", "nlrmsd_n_obs",
   "parameter", "pdb_site",
   "phi_act", "phi_mut", "phi_stab", "sample_id",
   "upper", "value", "variable"
