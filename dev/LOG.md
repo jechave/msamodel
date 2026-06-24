@@ -7,6 +7,45 @@ those two don't keep.
 
 One short entry per working session.
 
+### 2026-06-24 — Slice 3a: fit-side naming (function + column rename), no behavior change
+
+First half of slice 3 (the mode fit). Before adding the mode arm, brought the fit side
+up to the predict side's naming convention — the precursor that lets 3b mirror cleanly
+instead of inventing `_mode`.
+
+- **Naming scheme settled** (best practice = parallel to predict side, model `msa`
+  last, omit inapplicable slots): fit fns are
+  `fit_<quantity>_<axis>_<model>_<method>`; the objective carries NO method token
+  (shared by both fitters). The data ARGUMENT stays `observed_data` (it is a *table*
+  `{pdb_site, lrmsd_i_obs}`, not a vector — a vector name would lie); the lrmsd COLUMN
+  gets the axis token.
+- **Function renames** (R/, 6 test files, intro vignette): `fit_msa_ml` →
+  `fit_lrmsd_i_msa_ml`; `run_mcmc_msa` → `fit_lrmsd_i_msa_mcmc` (it IS the MCMC fitter,
+  `@family fitting`); `calculate_loglik_msa` → `calculate_loglik_lrmsd_i_msa`.
+  `run_msa_bayesian_analysis` (workflow wrapper) name + `observed_data` arg +
+  return-list key kept.
+- **Column rename** `lrmsd_obs` → `lrmsd_i_obs`, derived `nlrmsd_obs` → `nlrmsd_i_obs`
+  (R/, tests, data-doc `@format`, `globalVariables`, intro vignette). A data/fixture
+  change: regenerated `data/znb_profile.rda` from its CSV recipe (verbatim transmute,
+  `compress="xz"`) — **only that one `.rda` changed**; the SPM drift guard
+  (`test-spm-generate.R`, doesn't reference `znb_profile`) untripped.
+- **Removed** the test `ML estimate sits at the seeded MCMC posterior mode`
+  (`test-fit-ml.R`, 4000/1000 MCMC) at the user's call — it was a *scientific-
+  consistency* assertion (ML point inside the MCMC posterior), not a regression guard;
+  the frozen drift-guards already cover "output unchanged". The single biggest cost in
+  the suite: **162s → 111s** test, and removed the slow MCMC from `check()`.
+- **Verified:** `document()` (new `.Rd`, old 3 deleted, NAMESPACE updated);
+  `test()` 116→**110/0F**, frozen values (ML fit literals, loglik, snapshots)
+  unchanged ⇒ confirms pure rename; `check()` re-run after removal at **v0.1 baseline
+  (0E/1W/2N)**, vignette rebuilds OK. Intro vignette re-knit (`setwd("vignettes")`,
+  no stray root fig dir), user reviewed `dev/preview/msamodel-intro.html` and approved.
+- **Provenance:** rename only — no new functions, no `tmp_src` source question. (The
+  3b mode fit, which IS new code, re-checks provenance when it starts.)
+- Satellite: `dev/plan.md` §v0.3 (B) step 3 annotated with the 3a/3b split + the
+  ML-point-truth deviation; `dev/PROGRESS.md` rewritten as the in-flight slice-3
+  checklist. **Next:** slice 3b — mode loglik + `fit_lrmsd_n_msa_ml` on the seeded
+  synthetic `znb_profile_n` fixture.
+
 ### 2026-06-24 — Slice 2: ML fit arm (`fit_msa_ml`) + MCMC-vs-ML vignette section
 
 Second of the three 0.3.0 fit slices. Added a maximum-likelihood **point**

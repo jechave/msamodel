@@ -19,7 +19,7 @@ run_msa_bayesian_analysis(
 \item{spm}{SPM data}
 
 \item{observed_data}{Observed data with columns `pdb_site` (PDB residue number)
-and `lrmsd_obs` (observed log structural divergence). `pdb_site` is the
+and `lrmsd_i_obs` (observed log structural divergence). `pdb_site` is the
 structure-anchored site key; the package maps it to the internal response-site
 index. Site-keyed elements of the returned list carry both `i` and `pdb_site`.}
 
@@ -48,7 +48,7 @@ Other fitting:
 \code{\link[=calculate_parameter_summary]{calculate_parameter_summary()}},
 \code{\link[=calculate_prediction_samples]{calculate_prediction_samples()}},
 \code{\link[=calculate_prediction_summary]{calculate_prediction_summary()}},
-\code{\link[=fit_msa_ml]{fit_msa_ml()}},
-\code{\link[=run_mcmc_msa]{run_mcmc_msa()}}
+\code{\link[=fit_lrmsd_i_msa_mcmc]{fit_lrmsd_i_msa_mcmc()}},
+\code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}}
 }
 \concept{fitting}

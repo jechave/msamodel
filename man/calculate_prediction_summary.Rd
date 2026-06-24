@@ -20,8 +20,8 @@ Summarize lrmsd predictions across samples in long format
 Other fitting:
 \code{\link[=calculate_parameter_summary]{calculate_parameter_summary()}},
 \code{\link[=calculate_prediction_samples]{calculate_prediction_samples()}},
-\code{\link[=fit_msa_ml]{fit_msa_ml()}},
-\code{\link[=run_mcmc_msa]{run_mcmc_msa()}},
+\code{\link[=fit_lrmsd_i_msa_mcmc]{fit_lrmsd_i_msa_mcmc()}},
+\code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}},
 \code{\link[=run_msa_bayesian_analysis]{run_msa_bayesian_analysis()}}
 }
 \concept{fitting}

@@ -2,7 +2,7 @@
 #'
 #' @param spm SPM data
 #' @param observed_data Observed data with columns `pdb_site` (PDB residue number)
-#'   and `lrmsd_obs` (observed log structural divergence). `pdb_site` is the
+#'   and `lrmsd_i_obs` (observed log structural divergence). `pdb_site` is the
 #'   structure-anchored site key; the package maps it to the internal response-site
 #'   index. Site-keyed elements of the returned list carry both `i` and `pdb_site`.
 #' @param n_mcmc_iter Number of MCMC iterations
@@ -30,7 +30,7 @@ run_msa_bayesian_analysis <- function(spm,
 
   # Run MCMC
   message("Running MCMC...")
-  parameter_samples <- run_mcmc_msa(
+  parameter_samples <- fit_lrmsd_i_msa_mcmc(
     spm_pp = spm_pp,
     observed_data = observed_data,
     n_iter = n_mcmc_iter,

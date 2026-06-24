@@ -19,8 +19,8 @@ Compute summary statistics for MCMC parameter samples
 Other fitting:
 \code{\link[=calculate_prediction_samples]{calculate_prediction_samples()}},
 \code{\link[=calculate_prediction_summary]{calculate_prediction_summary()}},
-\code{\link[=fit_msa_ml]{fit_msa_ml()}},
-\code{\link[=run_mcmc_msa]{run_mcmc_msa()}},
+\code{\link[=fit_lrmsd_i_msa_mcmc]{fit_lrmsd_i_msa_mcmc()}},
+\code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}},
 \code{\link[=run_msa_bayesian_analysis]{run_msa_bayesian_analysis()}}
 }
 \concept{fitting}

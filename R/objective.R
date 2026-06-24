@@ -2,18 +2,22 @@
 #' Pluggable criteria a fitter optimizes (currently the log-likelihood; future
 #' criteria such as RMSE or robust objectives belong here)
 
-#' Calculate log-likelihood of observed data given model parameters (matrix approach)
+#' Log-likelihood of the observed lrmsd_i profile given model parameters (site form)
+#'
+#' Profiled Gaussian log-likelihood for the site-form (`lrmsd_i`) profile. Shared
+#' objective of both fitters — [fit_lrmsd_i_msa_ml()] maximises it,
+#' [fit_lrmsd_i_msa_mcmc()] samples it — so it carries no method token.
 #'
 #' @param spm_pp Preprocessed data from [preprocess_spm()] (must include `site_map`,
 #'   used to translate `pdb_site` to the internal `i`).
 #' @param observed_data Tibble with columns `pdb_site` (PDB residue number) and
-#'   `lrmsd_obs` (observed log structural divergence).
+#'   `lrmsd_i_obs` (observed log structural divergence).
 #' @param a1 Stability selection parameter
 #' @param a2 Activity selection parameter
 #' @return Log-likelihood value
 #' @family objective
 #' @export
-calculate_loglik_msa <- function(spm_pp, observed_data, a1, a2) {
+calculate_loglik_lrmsd_i_msa <- function(spm_pp, observed_data, a1, a2) {
 
   # Generate model predictions (keyed by the internal response-site index i)
   dr2_i_msa <- calculate_dr2_i_msa(spm_pp, a1, a2)  %>%
@@ -29,7 +33,7 @@ calculate_loglik_msa <- function(spm_pp, observed_data, a1, a2) {
   # site_map. pdb_site is the structure-anchored key; i is model-internal.
   site_map <- spm_pp$site_map
   observations <- observed_data %>%
-    dplyr::select(pdb_site, lrmsd_obs)
+    dplyr::select(pdb_site, lrmsd_i_obs)
 
   unknown <- setdiff(observations$pdb_site, site_map$pdb_site)
   if (length(unknown) > 0) {
@@ -39,18 +43,18 @@ calculate_loglik_msa <- function(spm_pp, observed_data, a1, a2) {
 
   observations <- observations %>%
     inner_join(site_map, by = "pdb_site") %>%
-    dplyr::select(i, lrmsd_obs)
+    dplyr::select(i, lrmsd_i_obs)
 
   # Match predictions with observations
   comparison <- observations %>%
     inner_join(predictions, by = "i") %>%
     mutate(
-      nlrmsd_obs = lrmsd_obs - mean(lrmsd_obs),
+      nlrmsd_i_obs = lrmsd_i_obs - mean(lrmsd_i_obs),
       nlrmsd_i_msa = lrmsd_i_msa - mean(lrmsd_i_msa)
     )
 
   # Calculate residuals
-  residuals <- comparison$nlrmsd_obs - comparison$nlrmsd_i_msa
+  residuals <- comparison$nlrmsd_i_obs - comparison$nlrmsd_i_msa
 
   # Estimate sigma from residuals. sigma is profiled out at each (a1, a2): the
   # value below is the closed-form ML estimate for r_i ~ N(0, sigma^2), namely

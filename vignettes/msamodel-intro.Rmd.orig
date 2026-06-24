@@ -343,7 +343,7 @@ profiles are `lrmsd_i_mm`, `lrmsd_i_ms`, `lrmsd_i_ma`, `lrmsd_i_msa`; MSA is the
 full model, and the other three feed the decomposition of section 6.
 
 Given an observed divergence profile (`observed_data` with columns `pdb_site`
-and `lrmsd_obs` — here `znb_profile`), `run_msa_bayesian_analysis()` estimates
+and `lrmsd_i_obs` — here `znb_profile`), `run_msa_bayesian_analysis()` estimates
 `a1, a2` by MCMC and returns posterior summaries, per-site predictions for the
 four model variants, and the site-level decomposition of section 6. We use
 a short chain here so the vignette renders quickly; use more iterations in
@@ -379,19 +379,19 @@ cmp <- znb_profile |>
   inner_join(fit_msa, by = "pdb_site") |>
   left_join(select(site_props, pdb_site, dactive, lrmsf), by = "pdb_site") |>
   mutate(
-    nlrmsd_obs = lrmsd_obs - mean(lrmsd_obs),
+    nlrmsd_i_obs = lrmsd_i_obs - mean(lrmsd_i_obs),
     nlrmsd_fit = lrmsd_fit - mean(lrmsd_fit)
   )
 
-r2_fit <- r2(cmp$nlrmsd_obs, cmp$nlrmsd_fit)
+r2_fit <- r2(cmp$nlrmsd_i_obs, cmp$nlrmsd_fit)
 ```
 
 ```{r fit-long, include = FALSE}
 cmp_long <- cmp |>
-  tidyr::pivot_longer(c(nlrmsd_obs, nlrmsd_fit),
+  tidyr::pivot_longer(c(nlrmsd_i_obs, nlrmsd_fit),
                       names_to = "source", values_to = "nlrmsd") |>
   mutate(source = dplyr::recode(source,
-                                nlrmsd_obs = "observed",
+                                nlrmsd_i_obs = "observed",
                                 nlrmsd_fit = "fitted (MSA)"))
 ```
 
@@ -411,7 +411,7 @@ ggplot(cmp_long, aes(pdb_site, nlrmsd, colour = source)) +
 Fitted vs observed as a scatter (the gof view):
 
 ```{r fit-scatter, echo = FALSE, eval = has_ggplot}
-ggplot(cmp, aes(nlrmsd_obs, nlrmsd_fit)) +
+ggplot(cmp, aes(nlrmsd_i_obs, nlrmsd_fit)) +
   geom_abline(slope = 1, intercept = 0, colour = "grey70", linetype = 2) +
   geom_point(alpha = 0.5, colour = "steelblue") +
   annotate("text", x = -Inf, y = Inf, hjust = -0.15, vjust = 1.4,
@@ -446,14 +446,14 @@ ggplot(cmp_long, aes(dactive, nlrmsd, colour = source)) +
 ### Maximum-likelihood fit, and a comparison of methods
 
 The MCMC above samples the posterior of `(a1, a2)`. For a fast **point** estimate,
-`fit_msa_ml()` maximises the *same* likelihood
-([`calculate_loglik_msa()`]) over the same coordinates (`a1` and
+`fit_lrmsd_i_msa_ml()` maximises the *same* likelihood
+([`calculate_loglik_lrmsd_i_msa()`]) over the same coordinates (`a1` and
 `log2(a2 + 1)`), returning the estimate plus an asymptotic covariance from the
 Hessian at the optimum. It is much faster than MCMC — useful for large proteins or
 path simulations — but gives no posterior sample. Here we check the two arms agree.
 
 ```{r ml-fit}
-ml <- fit_msa_ml(pp, znb_profile)   # pp from section 1; znb_profile is the target
+ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)   # pp from section 1; znb_profile is the target
 ```
 
 To compare the two arms on equal footing, we build **both** profiles the same way:
@@ -486,8 +486,8 @@ cmp_ml <- cmp |>
     nlrmsd_ml   = lrmsd_ml   - mean(lrmsd_ml)
   )
 
-r2_mcmc <- r2(cmp_ml$nlrmsd_obs, cmp_ml$nlrmsd_mcmc)
-r2_ml   <- r2(cmp_ml$nlrmsd_obs, cmp_ml$nlrmsd_ml)
+r2_mcmc <- r2(cmp_ml$nlrmsd_i_obs, cmp_ml$nlrmsd_mcmc)
+r2_ml   <- r2(cmp_ml$nlrmsd_i_obs, cmp_ml$nlrmsd_ml)
 ```
 
 The two arms land on essentially the same `(a1, a2)`, with comparable uncertainty
@@ -512,10 +512,10 @@ Observed, MCMC-fitted and ML-fitted profiles along the chain (all mean-centered)
 
 ```{r method-long, include = FALSE}
 methods_long <- cmp_ml |>
-  tidyr::pivot_longer(c(nlrmsd_obs, nlrmsd_mcmc, nlrmsd_ml),
+  tidyr::pivot_longer(c(nlrmsd_i_obs, nlrmsd_mcmc, nlrmsd_ml),
                       names_to = "source", values_to = "nlrmsd") |>
   mutate(source = dplyr::recode(source,
-                                nlrmsd_obs  = "observed",
+                                nlrmsd_i_obs = "observed",
                                 nlrmsd_mcmc = "fitted (MCMC)",
                                 nlrmsd_ml   = "fitted (ML)"))
 method_cols <- c("observed" = "grey25",
@@ -536,14 +536,14 @@ Fitted vs observed, one panel per fit method:
 
 ```{r method-scatter, echo = FALSE, eval = has_ggplot}
 scatter_df <- dplyr::bind_rows(
-  dplyr::transmute(cmp_ml, method = "MCMC", nlrmsd_obs, nlrmsd_fit = nlrmsd_mcmc),
-  dplyr::transmute(cmp_ml, method = "ML",   nlrmsd_obs, nlrmsd_fit = nlrmsd_ml)
+  dplyr::transmute(cmp_ml, method = "MCMC", nlrmsd_i_obs, nlrmsd_fit = nlrmsd_mcmc),
+  dplyr::transmute(cmp_ml, method = "ML",   nlrmsd_i_obs, nlrmsd_fit = nlrmsd_ml)
 )
 r2_labels <- tibble::tibble(
   method = c("MCMC", "ML"),
   label  = sprintf("R^2 == %.3f", c(r2_mcmc, r2_ml))
 )
-ggplot(scatter_df, aes(nlrmsd_obs, nlrmsd_fit)) +
+ggplot(scatter_df, aes(nlrmsd_i_obs, nlrmsd_fit)) +
   geom_abline(slope = 1, intercept = 0, colour = "grey70", linetype = 2) +
   geom_point(alpha = 0.5, colour = "steelblue") +
   geom_text(data = r2_labels, aes(x = -Inf, y = Inf, label = label),

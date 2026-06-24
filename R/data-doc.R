@@ -75,7 +75,7 @@ NULL
 #' @format A tibble with 225 rows and 2 columns:
 #' \describe{
 #'   \item{pdb_site}{Integer PDB residue number (the structure-anchored site key).}
-#'   \item{lrmsd_obs}{Observed log structural divergence (log RMSD).}
+#'   \item{lrmsd_i_obs}{Observed log structural divergence (log RMSD).}
 #' }
 #' @details The fit is keyed by \code{pdb_site}: the package maps it internally to
 #'   its response-site index. Other per-site descriptors (e.g. distance to the

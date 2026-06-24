@@ -1,4 +1,4 @@
-# The observed_data site-key contract: users supply {pdb_site, lrmsd_obs}; the
+# The observed_data site-key contract: users supply {pdb_site, lrmsd_i_obs}; the
 # package maps pdb_site -> internal index i.
 
 test_that("unknown pdb_site in observed_data is an error, not a silent drop", {
@@ -6,7 +6,7 @@ test_that("unknown pdb_site in observed_data is an error, not a silent drop", {
   bad <- znb_profile
   bad$pdb_site[1] <- 999999L
   expect_error(
-    calculate_loglik_msa(pp, bad, a1 = 2, a2 = 5),
+    calculate_loglik_lrmsd_i_msa(pp, bad, a1 = 2, a2 = 5),
     "not present in the model"
   )
 })
@@ -16,7 +16,7 @@ test_that("partial site coverage gives a single finite loglik", {
   # intersection and must still produce one finite value (no NA).
   pp <- preprocess_spm(znb_spm)
   expect_lt(nrow(znb_profile), nrow(pp$site_map))   # genuinely a subset
-  ll <- calculate_loglik_msa(pp, znb_profile, a1 = 2, a2 = 5)
+  ll <- calculate_loglik_lrmsd_i_msa(pp, znb_profile, a1 = 2, a2 = 5)
   expect_length(ll, 1L)
   expect_true(is.finite(ll))
 })
@@ -27,14 +27,14 @@ test_that("pdb_site contract gives the same loglik as a manual i-keyed join", {
   pp <- preprocess_spm(znb_spm)
   a1 <- 2; a2 <- 5
 
-  ll_contract <- calculate_loglik_msa(pp, znb_profile, a1, a2)
+  ll_contract <- calculate_loglik_lrmsd_i_msa(pp, znb_profile, a1, a2)
 
   obs_i <- dplyr::inner_join(znb_profile, pp$site_map, by = "pdb_site")
   pred <- calculate_dr2_i_msa(pp, a1, a2)
   pred$lrmsd_i_msa <- log(sqrt(pred$dr2_i))
-  cmp <- dplyr::inner_join(obs_i[, c("i", "lrmsd_obs")],
+  cmp <- dplyr::inner_join(obs_i[, c("i", "lrmsd_i_obs")],
                            pred[, c("i", "lrmsd_i_msa")], by = "i")
-  res <- (cmp$lrmsd_obs - mean(cmp$lrmsd_obs)) -
+  res <- (cmp$lrmsd_i_obs - mean(cmp$lrmsd_i_obs)) -
          (cmp$lrmsd_i_msa - mean(cmp$lrmsd_i_msa))
   ll_manual <- sum(stats::dnorm(res, 0, sqrt(mean(res^2)), log = TRUE))
 

@@ -159,7 +159,17 @@ per-version detail is written when each version starts.
          `(a1,a2)`, compute `lrmsd_n`, add **seeded** Gaussian noise. Ship a frozen,
          clearly-named synthetic fixture; mark synthetic on the *data* (roxygen
          `@source` + vignette note), not via a runtime `warning()`. Mode-arm tests
-         are regression/snapshot drift-guards.
+         are regression/snapshot drift-guards. **Split at execution into 3a + 3b
+         (2026-06-24):** 3a first renames the fit side to the
+         `fit_<quantity>_<axis>_<model>_<method>` scheme (`fit_msa_ml`→
+         `fit_lrmsd_i_msa_ml`, `run_mcmc_msa`→`fit_lrmsd_i_msa_mcmc`,
+         `calculate_loglik_msa`→`calculate_loglik_lrmsd_i_msa`; objective carries NO
+         method token — shared by both fitters) and renames the observed COLUMN
+         `lrmsd_obs`→`lrmsd_i_obs` (regenerating `znb_profile`); the data ARGUMENT
+         stays `observed_data` (it is a table, not a vector). The mode arm (3b) mirrors
+         with `i`→`n`. The synthetic truth `(a1,a2)` is the **deterministic site ML
+         point estimate** (`fit_lrmsd_i_msa_ml` on real `znb_profile`), a
+         specialization of "draw" (no MCMC seed coupling); seed 2025, sd 0.30.
 
 - **v0.4 — motion arm (`dh_ijm`, then `dh_njm` + `nh_njm`).** Each adds the new
   *quantity* `dh`/`nh` via the same slow loop + reweighting. These exist ONLY in

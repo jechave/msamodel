@@ -57,7 +57,7 @@ znb_profile <- readr::read_csv(
   here("data-raw", "raw", "profiles_1znb_A.csv"),
   col_types = readr::cols(pdb_site = readr::col_integer(), .default = readr::col_guess())
 ) %>%
-  dplyr::transmute(pdb_site, lrmsd_obs = lrmsd)
+  dplyr::transmute(pdb_site, lrmsd_i_obs = lrmsd)
 
 # --- 5. active-site residues -----------------------------------------------
 # 1znb_A active-site residues (PDB numbering), from the vendored CSV

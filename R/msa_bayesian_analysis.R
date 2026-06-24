@@ -1,10 +1,14 @@
 #' Functions to fit the MSA model using Bayesian inference
 
-#' Run MCMC using Metropolis-Hastings algorithm (matrix-based version)
+#' Maximum-likelihood fit of the lrmsd_i MSA model by MCMC (Metropolis-Hastings)
+#'
+#' Bayesian (posterior-sampling) fitter for the site-form (`lrmsd_i`) profile.
+#' Point-estimate counterpart: [fit_lrmsd_i_msa_ml()]. Shares the same objective
+#' [calculate_loglik_lrmsd_i_msa()].
 #'
 #' @param spm_pp Preprocessed data from preprocess_spm
-#' @param observed_data Tibble with columns `pdb_site` and `lrmsd_obs`
-#'   (`pdb_site` is mapped to the internal index by \code{calculate_loglik_msa})
+#' @param observed_data Tibble with columns `pdb_site` and `lrmsd_i_obs`
+#'   (`pdb_site` is mapped to the internal index by \code{calculate_loglik_lrmsd_i_msa})
 #' @param n_iter Number of MCMC iterations
 #' @param burn_in Number of burn-in iterations to discard
 #' @param fix_a1 Optional fixed value for a1
@@ -14,7 +18,7 @@
 #' @return MCMC samples tibble with sample_id, a1, and a2 columns
 #' @family fitting
 #' @export
-run_mcmc_msa <- function(spm_pp,
+fit_lrmsd_i_msa_mcmc <- function(spm_pp,
                          observed_data,
                          n_iter = 10000,
                          burn_in = 2000,
@@ -32,7 +36,7 @@ run_mcmc_msa <- function(spm_pp,
 
   # Create normalized version of observed data (without modifying input)
   normalized_observed_data <- observed_data %>%
-    mutate(nlrmsd_obs = lrmsd_obs - mean(lrmsd_obs))
+    mutate(nlrmsd_i_obs = lrmsd_i_obs - mean(lrmsd_i_obs))
 
   # Initialize parameters
   a1_min <- a1_prior_range[1]
@@ -46,7 +50,7 @@ run_mcmc_msa <- function(spm_pp,
   current_a2 <- 2^current_log2_a2_plus1 - 1
 
   # Initial log posterior
-  current_log_lik <- calculate_loglik_msa(spm_pp, normalized_observed_data,
+  current_log_lik <- calculate_loglik_lrmsd_i_msa(spm_pp, normalized_observed_data,
                                           current_a1, current_a2)
   current_log_post <- current_log_lik +
     (if (!is.null(fix_a1)) 0 else dunif(current_a1, a1_min, a1_max, log = TRUE)) +
@@ -79,7 +83,7 @@ run_mcmc_msa <- function(spm_pp,
     if ((!is.null(fix_a1) || (proposed_a1 >= a1_min && proposed_a1 <= a1_max)) &&
         (!is.null(fix_a2) || (proposed_log2_a2_plus1 >= log2_a2_plus1_min &&
                               proposed_log2_a2_plus1 <= log2_a2_plus1_max))) {
-      proposed_log_lik <- calculate_loglik_msa(spm_pp, normalized_observed_data,
+      proposed_log_lik <- calculate_loglik_lrmsd_i_msa(spm_pp, normalized_observed_data,
                                                proposed_a1, proposed_a2)
       proposed_log_post <- proposed_log_lik +
         (if (!is.null(fix_a1)) 0 else dunif(proposed_a1, a1_min, a1_max, log = TRUE)) +

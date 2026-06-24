@@ -1,13 +1,14 @@
 #' MSA model fitting — maximum-likelihood point estimation
 #' Point-estimate counterpart of the MCMC fit (R/msa_bayesian_analysis.R). Shares
-#' the same profiled Gaussian log-likelihood (calculate_loglik_msa) and the same
-#' (a1, log2(a2+1)) coordinates / box bounds, so the two arms are directly
+#' the same profiled Gaussian log-likelihood (calculate_loglik_lrmsd_i_msa) and the
+#' same (a1, log2(a2+1)) coordinates / box bounds, so the two arms are directly
 #' comparable.
 
-#' Maximum-likelihood point estimate of the MSA selection parameters
+#' Maximum-likelihood point fit of the lrmsd_i MSA model
 #'
-#' Point-estimation counterpart of [run_mcmc_msa()]: maximises the same profiled
-#' Gaussian log-likelihood ([calculate_loglik_msa()]) over `(a1, a2)` by numerical
+#' Point-estimation counterpart of [fit_lrmsd_i_msa_mcmc()]: maximises the same
+#' profiled Gaussian log-likelihood ([calculate_loglik_lrmsd_i_msa()]) over `(a1, a2)`
+#' by numerical
 #' optimisation, returning a point estimate plus an asymptotic covariance from the
 #' Hessian at the optimum. Much faster than MCMC; intended for large proteins and
 #' path simulations. This is **not** a Bayesian fit and returns no posterior sample.
@@ -19,8 +20,8 @@
 #' (`da2/db = 2^b * ln 2`).
 #'
 #' @param spm_pp Preprocessed data from [preprocess_spm()] (must include `site_map`).
-#' @param observed_data Tibble with columns `pdb_site` and `lrmsd_obs` (the fit
-#'   target), as documented for [calculate_loglik_msa()].
+#' @param observed_data Tibble with columns `pdb_site` and `lrmsd_i_obs` (the fit
+#'   target), as documented for [calculate_loglik_lrmsd_i_msa()].
 #' @param a1_range Length-2 `[min, max]` box bound for `a1`.
 #' @param log2_a2_plus1_range Length-2 `[min, max]` box bound for `log2(a2 + 1)`.
 #' @param init Optional length-2 numeric start `c(a1, log2(a2+1))`. When `NULL`
@@ -38,23 +39,23 @@
 #'     \item{convergence}{`optim` convergence code (0 = success).}
 #'     \item{par_fit}{The fitted coordinates `c(a1, b)` with `b = log2(a2+1)`.}
 #'   }
-#' @seealso [run_mcmc_msa()] (the Bayesian counterpart), [calculate_loglik_msa()]
-#'   (the shared objective).
+#' @seealso [fit_lrmsd_i_msa_mcmc()] (the Bayesian counterpart),
+#'   [calculate_loglik_lrmsd_i_msa()] (the shared objective).
 #' @family fitting
 #' @export
 #' @examples
 #' \dontrun{
 #' pp <- preprocess_spm(znb_spm)
-#' ml <- fit_msa_ml(pp, znb_profile)
+#' ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
 #' c(a1 = ml$a1, a2 = ml$a2)
 #' }
-fit_msa_ml <- function(spm_pp,
+fit_lrmsd_i_msa_ml <- function(spm_pp,
                        observed_data,
                        a1_range = c(0, 10),
                        log2_a2_plus1_range = c(0, 13),
                        init = NULL,
                        grid_n = 25) {
-  # Validate box bounds (same contract as run_mcmc_msa) -- fail loud.
+  # Validate box bounds (same contract as fit_lrmsd_i_msa_mcmc) -- fail loud.
   if (length(a1_range) != 2 || a1_range[1] >= a1_range[2]) {
     stop("a1_range must be a vector of length 2 with min < max")
   }
@@ -67,10 +68,10 @@ fit_msa_ml <- function(spm_pp,
   upper <- c(a1_range[2], log2_a2_plus1_range[2])
 
   # Negative profiled log-likelihood in (a1, b) coordinates, b = log2(a2 + 1).
-  # calculate_loglik_msa already mean-centers both profiles, so this IS the
+  # calculate_loglik_lrmsd_i_msa already mean-centers both profiles, so this IS the
   # MCMC's likelihood (no separate centering here).
   nll <- function(theta) {
-    -calculate_loglik_msa(spm_pp, observed_data,
+    -calculate_loglik_lrmsd_i_msa(spm_pp, observed_data,
                           a1 = theta[1], a2 = 2^theta[2] - 1)
   }
 
@@ -116,16 +117,16 @@ fit_msa_ml <- function(spm_pp,
     mutate(lrmsd_i_msa = log(sqrt(dr2_i))) %>%
     dplyr::select(i, lrmsd_i_msa)
   obs <- observed_data %>%
-    dplyr::select(pdb_site, lrmsd_obs) %>%
+    dplyr::select(pdb_site, lrmsd_i_obs) %>%
     inner_join(spm_pp$site_map, by = "pdb_site") %>%
-    dplyr::select(i, lrmsd_obs)
+    dplyr::select(i, lrmsd_i_obs)
   cmp <- obs %>%
     inner_join(pred, by = "i") %>%
     mutate(
-      nlrmsd_obs   = lrmsd_obs - mean(lrmsd_obs),
+      nlrmsd_i_obs = lrmsd_i_obs - mean(lrmsd_i_obs),
       nlrmsd_i_msa = lrmsd_i_msa - mean(lrmsd_i_msa)
     )
-  residuals <- cmp$nlrmsd_obs - cmp$nlrmsd_i_msa
+  residuals <- cmp$nlrmsd_i_obs - cmp$nlrmsd_i_msa
   sigma_hat <- sqrt(mean(residuals^2))
 
   list(

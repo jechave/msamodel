@@ -10,13 +10,37 @@ Tick items as substeps finish, and add a one-line dated entry to `dev/LOG.md`.
 
 ---
 
-## DORMANT — no work item in flight
+## IN FLIGHT — Slice 3 (mode fit), split into 3a (fit-side naming) + 3b (mode arm)
 
-The site/mode **predict** side and the first two **fit** slices of 0.3.0 are done.
-Next candidate work item: **slice 3 — `lrmsd_n` (mode) fit on seeded synthetic
-observed data** (see `dev/plan.md` §v0.3 (B) step 3), OR the **0.4 motion arm**.
-**When the next item starts:** enter plan mode, read the touched code, write the
-detailed plan, then rewrite this checklist from it.
+Full detail: `/Users/julianechave/.claude/plans/start-slice-3-wild-treehouse.md`.
+Naming scheme settled: fit fns are `fit_<quantity>_<axis>_<model>_<method>` (model
+`msa` last, method last); objective has NO method token (shared). The data ARG stays
+`observed_data` (a table, not a vector); the lrmsd COLUMN gets the axis token.
+
+### 3a — fit-side naming (function renames + lrmsd column rename)
+- [x] Function renames: `fit_msa_ml`→`fit_lrmsd_i_msa_ml`,
+  `run_mcmc_msa`→`fit_lrmsd_i_msa_mcmc`, `calculate_loglik_msa`→
+  `calculate_loglik_lrmsd_i_msa` (R/, 6 test files, intro vignette). Arg
+  `observed_data` kept; `run_msa_bayesian_analysis` name + arg + return-key kept.
+- [x] Column rename `lrmsd_obs`→`lrmsd_i_obs`, derived `nlrmsd_obs`→`nlrmsd_i_obs`
+  (R/, tests, data-doc, globals, vignette); `znb_profile.rda` regenerated (only that
+  `.rda` changed).
+- [x] `devtools::document()` (new `.Rd`, old 3 deleted, NAMESPACE updated).
+- [x] `devtools::test()` — frozen values unchanged (pure rename verified).
+- [x] Removed the scientific-consistency test `ML estimate sits at the seeded MCMC
+  posterior mode` (test-fit-ml.R, 4000/1000 MCMC) — not a regression guard; the
+  frozen drift-guards cover "output unchanged". Suite 116→110/0F; ~51s faster
+  (161.7s→110.7s).
+- [x] `devtools::check()` — v0.1 baseline (0E/1W/2N), re-run after the test removal.
+- [ ] Knit intro vignette (`setwd("vignettes")`) + preview → **USER HTML approval** → commit 3a.
+
+### 3b — mode fit arm (after 3a commits)
+- [ ] Provenance re-check (find-source.sh, name + formula).
+- [ ] `calculate_loglik_lrmsd_n_msa` + `fit_lrmsd_n_msa_ml` (arg `observed_data`, column `lrmsd_n_obs`).
+- [ ] Synthetic `znb_profile_n` fixture (truth = site ML fit; seed 2025, sd 0.30); data-doc `@source` synthetic; NSE globals.
+- [ ] `test-fit-ml-mode.R` (capture-then-freeze + fixture determinism).
+- [ ] dr2n-analysis vignette fit section (HTML-gated).
+- [ ] document/test/check; satellite (LOG/plan/memory).
 
 **Recently completed (0.3.0 fit work, 2026-06-24 — newest first; full detail in
 `dev/LOG.md`):**
