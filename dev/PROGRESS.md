@@ -35,10 +35,22 @@ optimizer coordinate is returned; `cov` kept (log2(a2+1)-scale, documented).
 - [x] Commit gate: user reviewed HTML, approved
 - [x] Satellite pass; LOG entry; memory (scale convention + next-session)
 
-**NEXT loop (separate, plan-mode item): vignette redesign / split.** The intro
-vignette has overgrown into a site-branch deep-dive; the prediction sections are
-crowded now that there are 3 methods. Rethink what vignettes exist (true intro vs
-fitting/methods vs site/mode), split, and restructure. Plan at execution time.
+**NEXT SESSION — START HERE (user-set priority, 2026-06-25):**
+1. **Rethink the workflow for agile.** This session exposed real friction: full
+   `test()`/`check()` re-run every micro-slice; `check()` re-runs tests AND re-knits
+   vignettes; standalone `testthat::test_file()` (no `load_all`) errors and silently
+   rewrites snapshots. Define the agile cadence: targeted `devtools::test(filter=)`
+   while iterating; ONE full `test()` before commit; `check()` only at milestones,
+   not per slice. Fix plan.md's per-slice verification wording (it wrongly says
+   `check()` every slice).
+2. **Audit the test suite for bloat.** Suspect many unnecessary / slow / redundant
+   tests (the suite is ~690s, much of it recomputing deterministic ENM work that
+   could be a fixture; plus possible tautological / low-value tests). Decide what to
+   cut, cache, or keep.
+
+**THEN (deferred):** vignette redesign / split — the intro overgrew into a
+site-branch deep-dive; prediction sections crowded with 3 methods. Rethink what
+vignettes exist, split, restructure. Plan at execution time.
 
 ---
 

@@ -41,9 +41,17 @@ default and the MCMC. Provenance checked (find-source.sh: no `tmp_src` source �
   to a 3-method comparison (MCMC/ML/AGQ) + a banded-profile plot; user reviewed the
   rendered HTML and approved. `test()` / `check()` at baseline.
 - **Scope notes:** ML stays the default; AGQ is the assumption-free control (and the path
-  for a future non-Gaussian protein / the expensive tree). MCMC untouched. **Next loop
-  (separate): vignette redesign/split** — the intro has overgrown into a site-branch
-  deep-dive and the prediction sections are crowded with 3 methods.
+  for a future non-Gaussian protein / the expensive tree). MCMC untouched.
+- **Committed `00ea45a`** (after the par_fit cleanup `b490943`); pushed to `main`. Full
+  suite verified green **177/0F** (= prior 173 + 4 net AGQ assertions). NOTE: several mid-
+  session "test failures" were artifacts of running `testthat::test_file()` standalone
+  (no `devtools::load_all()`), which also silently pruned a snapshot file — that spurious
+  snapshot deletion was reverted before commit; always run via `devtools::test()`.
+- **NEXT SESSION (user-set):** (1) **rethink the workflow for agile** — the per-slice
+  full `test()`/`check()` cadence caused heavy friction; codify targeted-while-iterating
+  + one full `test()` pre-commit + `check()` at milestones only; fix plan.md's "check()
+  every slice" wording. (2) **audit the test suite for bloat** (slow ENM recompute that
+  could be a fixture; redundant/low-value tests). THEN the deferred vignette redesign.
 
 ### 2026-06-25 — Remove the `par_fit`/`b` leak from the ML fitters (pre-AGQ cleanup)
 
