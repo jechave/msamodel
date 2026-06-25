@@ -192,3 +192,75 @@ calculate_lrmsd_n_nested_models <- function(spm_pp, a1, a2) {
     lrmsd_n_msa = lrmsd(a1, a2)
   )
 }
+
+#' Predicted lrmsd_i profile with posterior credible bands from an AGQ fit
+#'
+#' Propagates the `(a1, a2)` posterior of an adaptive Gauss-Hermite quadrature fit
+#' ([fit_lrmsd_i_msa_agq()]) to the predicted per-site divergence profile, returning
+#' a posterior mean and a central credible interval at every residue. For each
+#' quadrature node the full-model profile `lrmsd_i_msa` is evaluated with
+#' [calculate_lrmsd_i_nested_models()]; the per-site posterior is then those node
+#' values weighted by their (normalized) posterior masses `exp(log_weight)`.
+#' Everything -- mean and band -- comes from the same quadrature, making no Gaussian
+#' assumption (consistent with the fit's parameter summaries). Deterministic.
+#'
+#' The band is read off the node masses as weighted quantiles, so its tails are only
+#' as fine as the node grid. To sharpen the band (especially at high `level`, e.g.
+#' 0.99), refit [fit_lrmsd_i_msa_agq()] with a larger `n_nodes`; on the bundled
+#' `znb_profile` the band is already stable at the default.
+#'
+#' @param object An `"msa_agq"` fit, the output of [fit_lrmsd_i_msa_agq()].
+#' @param spm_pp Preprocessed data from [preprocess_spm()] (the same used for the fit).
+#' @param level Credible-interval coverage (default 0.95).
+#' @return A tibble with one row per residue: `i`, `pdb_site`, the posterior summary
+#'   of the full-model profile (`lrmsd_i_msa_mean`, `lrmsd_i_msa_lower`,
+#'   `lrmsd_i_msa_upper`), and their mean-centred counterparts (`nlrmsd_i_msa_mean`,
+#'   `nlrmsd_i_msa_lower`, `nlrmsd_i_msa_upper`).
+#' @seealso [fit_lrmsd_i_msa_agq()] (produces the posterior);
+#'   [calculate_lrmsd_i_nested_models()] (evaluated at each node).
+#' @family model
+#' @examples
+#' \dontrun{
+#' pp  <- preprocess_spm(znb_spm)
+#' agq <- fit_lrmsd_i_msa_agq(pp, znb_profile)
+#' head(predict_lrmsd_i_agq(agq, pp))
+#' }
+#' @export
+predict_lrmsd_i_agq <- function(object, spm_pp, level = 0.95) {
+  if (!inherits(object, "msa_agq")) {
+    stop("object must be an 'msa_agq' fit (from fit_lrmsd_i_msa_agq)")
+  }
+  if (length(level) != 1 || level <= 0 || level >= 1) {
+    stop("level must be a single number in (0, 1)")
+  }
+  nodes <- object$nodes
+  w <- exp(nodes$log_weight)
+  w <- w / sum(w)
+  alpha <- (1 - level) / 2
+
+  # lrmsd_i_msa at every node: [site x node] matrix, sites carried from node 1.
+  first <- calculate_lrmsd_i_nested_models(spm_pp, nodes$a1[1], nodes$a2[1])
+  P <- vapply(seq_len(nrow(nodes)), function(k)
+    calculate_lrmsd_i_nested_models(spm_pp, nodes$a1[k], nodes$a2[k])$lrmsd_i_msa,
+    numeric(nrow(first)))
+
+  mean_i  <- as.numeric(P %*% w)
+  lower_i <- apply(P, 1L, function(row) weighted_quantile(row, w, alpha))
+  upper_i <- apply(P, 1L, function(row) weighted_quantile(row, w, 1 - alpha))
+
+  out <- tibble(
+    i = first$i, pdb_site = first$pdb_site,
+    lrmsd_i_msa_mean = mean_i,
+    lrmsd_i_msa_lower = lower_i,
+    lrmsd_i_msa_upper = upper_i
+  )
+  # Mean-centre by a single shift (the mean profile's mean) so the band stays a band,
+  # for comparison with mean-centred observed profiles.
+  shift <- mean(out$lrmsd_i_msa_mean)
+  out %>%
+    mutate(
+      nlrmsd_i_msa_mean  = lrmsd_i_msa_mean  - shift,
+      nlrmsd_i_msa_lower = lrmsd_i_msa_lower - shift,
+      nlrmsd_i_msa_upper = lrmsd_i_msa_upper - shift
+    )
+}

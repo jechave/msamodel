@@ -10,34 +10,35 @@ Tick items as substeps finish, and add a one-line dated entry to `dev/LOG.md`.
 
 ---
 
-## DONE this session — `par_fit`/`b` leak removed from the ML fitters
+## DORMANT — AGQ inference loop 1 done (next: vignette redesign)
 
-Cleanup done first (before the AGQ loop) so AGQ builds on a clean fit layer.
+Two items shipped this cycle. Detail in `dev/LOG.md`; decisions in `dev/plan.md`
+"Inference rework".
 
-- [x] `par_fit` field dropped from both `fit_lrmsd_i_msa_ml` / `fit_lrmsd_n_msa_ml`
-      return lists (now 8 fields; no bare `b` returned)
-- [x] Roxygen `@return` `par_fit` item removed; `@details` `(a1, b)` wording → `(a1, log2(a2+1))`
-- [x] Tests: dropped `par_fit` from named-shape; deleted circular `b == log2(a2+1)`
-      assertions (tautologies); grid-basin check uses `log2(a2+1)` directly
-- [x] `document()` (only the 2 `.Rd` changed, NAMESPACE unchanged)
-- [x] `test()` 137/0F (was 139; −2 = the deleted tautologies); frozen values unchanged
-- [x] `check()` at v0.1 baseline (0E/1W/2N)
-- [x] Satellite pass; LOG entry
-- [ ] Commit gate: user reviews, then commit
+### par_fit/b leak cleanup — DONE (committed `b490943`)
+Removed the dead `par_fit = c(a1, b)` field from both ML fitters so no internal
+optimizer coordinate is returned; `cov` kept (log2(a2+1)-scale, documented).
 
-## NEXT — AGQ inference, loop 1: site profile with bands
+### AGQ inference loop 1 — DONE
+- [x] Provenance check (find-source.sh: no `tmp_src` source ⇒ new code)
+- [x] `fit_lrmsd_i_msa_agq()` — adaptive Gauss–Hermite quadrature, Laplace-referenced
+      to the ML fit; `"msa_agq"` object {a1,a2,sd,ci,nodes(a1,a2,log_weight),n_nodes,
+      laplace(mu,cov),log_evidence}; deterministic; default `n_nodes=7`
+- [x] `predict_lrmsd_i_agq()` — node-propagated credible band (all-quadrature, no
+      Gaussian assumption, no seed); coarseness documented, NOT warned (option 1)
+- [x] Sanity vs 61-grid ground truth (moments match; converge 3→5→7)
+- [x] Roxygen + `document()`; scale convention (compute on t=log2(a2+1), report
+      natural a2; cov on t) documented
+- [x] `test-fit-agq.R` (40 assertions incl. change-of-measure check, frozen values)
+- [x] intro vignette §5.2: AGQ added to the 3-method comparison + a banded-profile plot
+- [x] `test()` / `check()` at baseline
+- [x] Commit gate: user reviewed HTML, approved
+- [x] Satellite pass; LOG entry; memory (scale convention + next-session)
 
-(Goal + decisions: `dev/plan.md` "Inference rework". Detailed plan written at
-execution time, not here.)
-
-- [ ] Provenance check (find-source.sh, name + Gauss–Hermite formula)
-- [ ] `fit_lrmsd_i_msa_agq()` returning a posterior object
-- [ ] Predict `lrmsd_i` profile with credible-interval bands
-- [ ] Sanity vs dense-grid ground truth on `znb_profile`
-- [ ] Roxygen + `document()`
-- [ ] `test-fit-agq.R`
-- [ ] `test()` / `check()` at baseline; satellite pass
-- [ ] Commit gate: user sees profile-with-bands before commit
+**NEXT loop (separate, plan-mode item): vignette redesign / split.** The intro
+vignette has overgrown into a site-branch deep-dive; the prediction sections are
+crowded now that there are 3 methods. Rethink what vignettes exist (true intro vs
+fitting/methods vs site/mode), split, and restructure. Plan at execution time.
 
 ---
 

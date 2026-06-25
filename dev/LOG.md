@@ -7,6 +7,44 @@ those two don't keep.
 
 One short entry per working session.
 
+### 2026-06-25 — AGQ inference loop 1: deterministic posterior + banded profile
+
+First piece of the inference rework (`dev/plan.md` "Inference rework"). A deterministic
+Bayesian fit by **adaptive Gauss–Hermite quadrature**, an alternative/control to the ML
+default and the MCMC. Provenance checked (find-source.sh: no `tmp_src` source ⇒ new code).
+
+- **`fit_lrmsd_i_msa_agq()`** (`R/fitting.R`) — Laplace-referenced AGQ. Reuses
+  `fit_lrmsd_i_msa_ml()` for the reference (`mu`, `cov` on the `(a1, log2(a2+1))` scale),
+  places `n_nodes × n_nodes` Gauss–Hermite nodes (Golub–Welsch helper `gauss_hermite()`),
+  evaluates the shared likelihood, forms node masses via the correct change of measure
+  (`logW = log(w_GH) + |z|² + (ll − max ll)` — the `+|z|²` *divides out* the Gaussian
+  reference; the scratch version that multiplied collapsed the variance). Returns an
+  `"msa_agq"` object: `a1, a2, sd_a1, sd_a2, ci_a1, ci_a2, nodes(a1,a2,log_weight),
+  n_nodes, laplace(mu,cov), log_evidence`. Deterministic (`identical(fit,fit)`).
+- **Scale convention adopted** (Stan/TMB/INLA/posterior, not invented): compute on the
+  unconstrained `t = log2(a2+1)`, report on natural `a2`, transform at the boundary. Node
+  table is all-natural (`a1,a2,log_weight`); `log_weight` is an invariant *mass* (not a
+  density), so it sits with physical params with no Jacobian. The only `t`-scale object is
+  `laplace$cov` (dimnamed `c("a1","log2_a2_plus1")`), like glm `vcov`/TMB `cov.fixed`.
+  No bare `b` anywhere user-facing.
+- **`predict_lrmsd_i_agq()`** (`R/model.R`) — propagates the posterior to a per-site
+  `lrmsd_i` profile with a credible band, **node-propagated** (weighted quantiles of the
+  same quadrature nodes — all-quadrature, no Gaussian assumption, deterministic, no seed).
+  Considered but DROPPED a Laplace-sample band (would have made AGQ collapse to ML, and
+  mixed Gaussian + non-Gaussian approximations — the user rightly rejected this). Band
+  coarseness at high `level` is **documented, not warned** (a fixed n_nodes threshold was
+  rejected as bullshit; "refit with larger n_nodes" is the documented remedy). Default
+  `n_nodes` set to **7** (band measured flat from 5→15; 7 is margin).
+- **Verify:** AGQ moments match an independent 61-grid normalization (E[a2] err ~0.002;
+  sd within 3% — the change-of-measure check); converge 3→5→7. `test-fit-agq.R` (40
+  assertions, frozen values at n_nodes=7, all deterministic). intro vignette §5.2 extended
+  to a 3-method comparison (MCMC/ML/AGQ) + a banded-profile plot; user reviewed the
+  rendered HTML and approved. `test()` / `check()` at baseline.
+- **Scope notes:** ML stays the default; AGQ is the assumption-free control (and the path
+  for a future non-Gaussian protein / the expensive tree). MCMC untouched. **Next loop
+  (separate): vignette redesign/split** — the intro has overgrown into a site-branch
+  deep-dive and the prediction sections are crowded with 3 methods.
+
 ### 2026-06-25 — Remove the `par_fit`/`b` leak from the ML fitters (pre-AGQ cleanup)
 
 First of a sequenced pair: a contained cleanup done *before* the AGQ inference loop so

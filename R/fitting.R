@@ -274,3 +274,155 @@ fit_lrmsd_n_msa_ml <- function(spm_pp_mode,
     convergence = opt$convergence
   )
 }
+
+# Gauss-Hermite nodes and weights (physicists' convention, weight e^{-x^2}) via
+# Golub-Welsch: eigen-decomposition of the symmetric Jacobi matrix. Returns nodes
+# `x` and weights `w` with sum(w) = sqrt(pi). Small n; built directly.
+#' @noRd
+gauss_hermite <- function(n) {
+  if (n < 1L) stop("n must be a positive integer")
+  if (n == 1L) return(list(x = 0, w = sqrt(pi)))
+  i <- 1:(n - 1)
+  a <- sqrt(i / 2)
+  J <- matrix(0, n, n)
+  J[cbind(i, i + 1)] <- a
+  J[cbind(i + 1, i)] <- a
+  e <- eigen(J, symmetric = TRUE)
+  x <- e$values
+  w <- sqrt(pi) * e$vectors[1, ]^2
+  o <- order(x)
+  list(x = x[o], w = w[o])
+}
+
+# Weighted quantiles via midpoint cumulative weight, sorted interpolation. Small
+# node sets, so this simple form is enough.
+#' @noRd
+weighted_quantile <- function(x, w, probs) {
+  o  <- order(x)
+  xo <- x[o]; wo <- w[o] / sum(w)
+  cw <- cumsum(wo) - 0.5 * wo
+  stats::approx(cw, xo, xout = probs, rule = 2)$y
+}
+
+#' Posterior fit of the lrmsd_i MSA model by adaptive Gauss-Hermite quadrature
+#'
+#' Deterministic Bayesian counterpart of [fit_lrmsd_i_msa_mcmc()]: approximates the
+#' posterior of the selection strengths `(a1, a2)` by adaptive Gauss-Hermite
+#' quadrature, under the same prior (uniform in `(a1, log2(a2 + 1))`) and the same
+#' likelihood ([calculate_loglik_lrmsd_i_msa()]). The quadrature is *referenced* to
+#' the Laplace (Gaussian) approximation that [fit_lrmsd_i_msa_ml()] already computes:
+#' nodes are placed at that Gaussian's optimal locations, so a handful of
+#' likelihood evaluations reproduce the posterior. For the bundled `znb_profile` the
+#' posterior is near-Gaussian in `(a1, log2(a2 + 1))`, and even a 5x5 grid (25
+#' evaluations) matches a dense reference posterior essentially exactly -- far cheaper
+#' than the Markov chain, with no seed, burn-in, or autocorrelation.
+#'
+#' The quadrature is built on the unconstrained scale `t = log2(a2 + 1)` (where the
+#' prior is flat and the posterior is near-Gaussian) and results are reported on the
+#' natural scale `a2`, transformed at the boundary -- the standard
+#' constrained/unconstrained convention. Node weights are stored as **unnormalized
+#' log masses** (`log_weight`); a probability mass is reparameterization-invariant,
+#' so the node table is reported entirely on the natural `(a1, a2)` scale and any
+#' posterior expectation is the plain weighted sum
+#' `sum(exp(log_weight) * g(a1, a2)) / sum(exp(log_weight))`. The only quantity kept
+#' on the `t` scale is the Laplace covariance (see `laplace$cov`).
+#'
+#' @param spm_pp Preprocessed data from [preprocess_spm()] (must include `site_map`).
+#' @param observed_data Tibble with columns `pdb_site` and `lrmsd_i_obs` (the fit
+#'   target), as documented for [calculate_loglik_lrmsd_i_msa()].
+#' @param n_nodes Number of Gauss-Hermite nodes per axis (the quadrature uses an
+#'   `n_nodes` x `n_nodes` tensor grid). Default 7 (49 evaluations); the posterior
+#'   moments are already accurate at 5, the extra nodes give the credible band margin.
+#' @param a1_range,log2_a2_plus1_range,init,grid_n Passed to [fit_lrmsd_i_msa_ml()]
+#'   to obtain the Laplace reference (box bounds, optional start, grid-max start size).
+#' @return A list of class `"msa_agq"` with the posterior summary and the quadrature:
+#'   \describe{
+#'     \item{a1, a2}{Posterior means of the stability (`a1`) and activity (`a2`)
+#'       selection strengths, natural scale (the paper's `aS`, `aA`).}
+#'     \item{sd_a1, sd_a2}{Posterior standard deviations, natural scale.}
+#'     \item{ci_a1, ci_a2}{Length-2 95% credible intervals, natural scale.}
+#'     \item{nodes}{Tibble `a1, a2, log_weight` -- the quadrature nodes on the natural
+#'       scale and their unnormalized log posterior masses. The propagation primitive.}
+#'     \item{n_nodes}{Nodes per axis.}
+#'     \item{laplace}{`list(mu, cov)`, the Gaussian reference used to place nodes, on
+#'       the `(a1, log2(a2 + 1))` scale (`cov` carries matching `dimnames`).}
+#'     \item{log_evidence}{Log marginal likelihood from the quadrature.}
+#'   }
+#' @seealso [fit_lrmsd_i_msa_mcmc()] (the sampling counterpart),
+#'   [fit_lrmsd_i_msa_ml()] (the Laplace reference / point estimate),
+#'   [predict_lrmsd_i_agq()] (propagate the posterior to a banded profile).
+#' @family fitting
+#' @export
+#' @examples
+#' \dontrun{
+#' pp  <- preprocess_spm(znb_spm)
+#' agq <- fit_lrmsd_i_msa_agq(pp, znb_profile)
+#' c(a1 = agq$a1, a2 = agq$a2)
+#' }
+fit_lrmsd_i_msa_agq <- function(spm_pp,
+                                observed_data,
+                                n_nodes = 7,
+                                a1_range = c(0, 10),
+                                log2_a2_plus1_range = c(0, 13),
+                                init = NULL,
+                                grid_n = 25) {
+  if (length(n_nodes) != 1 || n_nodes < 1 || n_nodes != round(n_nodes)) {
+    stop("n_nodes must be a single positive integer")
+  }
+
+  # Laplace reference: reuse the ML fitter's optimum + covariance. mu and cov are on
+  # the t = (a1, log2(a2 + 1)) scale (cov already documented as such by the ML fit).
+  ml <- fit_lrmsd_i_msa_ml(spm_pp, observed_data,
+                           a1_range = a1_range,
+                           log2_a2_plus1_range = log2_a2_plus1_range,
+                           init = init, grid_n = grid_n)
+  mu <- c(a1 = ml$a1, log2_a2_plus1 = log2(ml$a2 + 1))
+  S  <- ml$cov
+  dimnames(S) <- list(c("a1", "log2_a2_plus1"), c("a1", "log2_a2_plus1"))
+  L  <- chol(S)  # S = t(L) %*% L
+
+  # Tensor Gauss-Hermite grid, mapped to N(mu, S): y = mu + sqrt(2) * t(L) %*% z.
+  gh <- gauss_hermite(n_nodes)
+  Z  <- as.matrix(expand.grid(z1 = gh$x, z2 = gh$x))
+  Wq <- as.vector(t(outer(gh$w, gh$w)))                 # tensor GH weights
+  Y  <- t(mu + sqrt(2) * t(L) %*% t(Z))                 # nodes in (a1, log2_a2_plus1)
+  a1_nodes <- Y[, 1]
+  a2_nodes <- 2^Y[, 2] - 1
+
+  # Log-likelihood at each node.
+  ll <- vapply(seq_len(nrow(Y)), function(k)
+    calculate_loglik_lrmsd_i_msa(spm_pp, observed_data, a1_nodes[k], a2_nodes[k]),
+    numeric(1))
+
+  # Change of measure: the GH rule integrates against e^{-|z|^2}, so divide that
+  # reference out (the + rowSums(Z^2) term) to recover the flat-measure posterior
+  # mass. logW are unnormalized log masses; normalize via the max-shift.
+  z2   <- rowSums(Z^2)
+  logW <- log(Wq) + z2 + (ll - max(ll))
+  log_norm   <- max(logW) + log(sum(exp(logW - max(logW))))
+  log_weight <- logW - log_norm                         # sum(exp(log_weight)) = 1
+  w <- exp(log_weight)
+
+  # Posterior moments on the natural scale (mass is reparameterization-invariant).
+  m_a1 <- sum(a1_nodes * w); m_a2 <- sum(a2_nodes * w)
+  sd_a1 <- sqrt(sum((a1_nodes - m_a1)^2 * w))
+  sd_a2 <- sqrt(sum((a2_nodes - m_a2)^2 * w))
+  ci_a1 <- weighted_quantile(a1_nodes, w, c(0.025, 0.975))
+  ci_a2 <- weighted_quantile(a2_nodes, w, c(0.025, 0.975))
+
+  # Log marginal likelihood (evidence): integral of exp(ll) over the flat measure.
+  # det Jacobian of the affine map is sqrt(2)^d * det(L) = sqrt(2)^d * sqrt(det(S)).
+  d <- 2
+  log_det_jac  <- d * log(sqrt(2)) + 0.5 * log(det(S))
+  log_evidence <- max(logW) + log(sum(exp(logW - max(logW)))) + log_det_jac
+
+  structure(list(
+    a1 = m_a1, a2 = m_a2,
+    sd_a1 = sd_a1, sd_a2 = sd_a2,
+    ci_a1 = unname(ci_a1), ci_a2 = unname(ci_a2),
+    nodes = tibble(a1 = a1_nodes, a2 = a2_nodes, log_weight = log_weight),
+    n_nodes = as.integer(n_nodes),
+    laplace = list(mu = mu, cov = S),
+    log_evidence = log_evidence
+  ), class = "msa_agq")
+}

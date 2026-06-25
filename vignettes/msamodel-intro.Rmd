@@ -335,7 +335,23 @@ path simulations — but gives no posterior sample. Here we check the two arms a
 ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)   # pp from section 1; znb_profile is the target
 ```
 
-To compare the two arms on equal footing, we build **both** profiles the same way:
+A third option estimates the **posterior** like the MCMC, but *deterministically*:
+`fit_lrmsd_i_msa_agq()` approximates it by adaptive Gauss–Hermite quadrature, placing a
+handful of nodes at the locations the Laplace (Gaussian) approximation suggests. For this
+protein the posterior is near-Gaussian in `(a1, log2(a2 + 1))`, so a 5×5 grid (25
+likelihood evaluations) reproduces the posterior essentially exactly — no chain, no seed,
+no burn-in. It reports posterior means, standard deviations, and credible intervals on the
+natural `(a1, a2)` scale:
+
+
+```r
+agq <- fit_lrmsd_i_msa_agq(pp, znb_profile)
+c(a1 = agq$a1, a2 = agq$a2)
+#>         a1         a2 
+#>  0.4706557 42.6931072
+```
+
+To compare the arms on equal footing, we build **all three** profiles the same way:
 the MSA prediction from the single-source-of-truth forward map, evaluated at a single
 `(a1, a2)` — the **posterior mean** for the MCMC arm and the **point estimate** for
 ML — then mean-centered. (This differs from the §5.1 profile above, which is the
@@ -358,16 +374,23 @@ mcmc_msa <- calculate_lrmsd_i_nested_models(pp, mcmc_a1, mcmc_a2) |>
 ml_msa <- calculate_lrmsd_i_nested_models(pp, ml$a1, ml$a2) |>
   transmute(pdb_site, lrmsd_ml = lrmsd_i_msa)
 
+# AGQ profile at the posterior mean (a1, a2).
+agq_msa <- calculate_lrmsd_i_nested_models(pp, agq$a1, agq$a2) |>
+  transmute(pdb_site, lrmsd_agq = lrmsd_i_msa)
+
 cmp_ml <- cmp |>
   inner_join(mcmc_msa, by = "pdb_site") |>
   inner_join(ml_msa,   by = "pdb_site") |>
+  inner_join(agq_msa,  by = "pdb_site") |>
   mutate(
     nlrmsd_mcmc = lrmsd_mcmc - mean(lrmsd_mcmc),
-    nlrmsd_ml   = lrmsd_ml   - mean(lrmsd_ml)
+    nlrmsd_ml   = lrmsd_ml   - mean(lrmsd_ml),
+    nlrmsd_agq  = lrmsd_agq  - mean(lrmsd_agq)
   )
 
 r2_mcmc <- r2(cmp_ml$nlrmsd_i_obs, cmp_ml$nlrmsd_mcmc)
 r2_ml   <- r2(cmp_ml$nlrmsd_i_obs, cmp_ml$nlrmsd_ml)
+r2_agq  <- r2(cmp_ml$nlrmsd_i_obs, cmp_ml$nlrmsd_agq)
 ```
 
 The two arms land on essentially the same `(a1, a2)`, with comparable uncertainty
@@ -376,14 +399,18 @@ profile equally well:
 
 
 
-Table: MCMC vs ML estimates of the selection parameters (both profiles predicted at a single (a1, a2); uncertainty is the MCMC posterior sd / the ML asymptotic standard error)
+Table: MCMC, ML and AGQ estimates of the selection parameters (all profiles predicted at a single (a1, a2); uncertainty is the MCMC/AGQ posterior sd or the ML asymptotic standard error)
 
 |method                |    a1| a1 (sd/se)|     a2| a2 (sd/se)|    R²|
 |:---------------------|-----:|----------:|------:|----------:|-----:|
 |MCMC (posterior mean) | 0.455|      0.123| 44.378|      8.711| 0.605|
 |ML (point estimate)   | 0.458|      0.122| 42.302|     10.187| 0.605|
+|AGQ (posterior mean)  | 0.471|      0.125| 42.693|     10.558| 0.605|
 
 
+
+The AGQ posterior mean and standard deviation match the MCMC's — at 25 deterministic
+likelihood evaluations instead of thousands of Markov-chain steps.
 
 Observed, MCMC-fitted and ML-fitted profiles along the chain (all mean-centered):
 
@@ -395,18 +422,26 @@ Fitted vs observed, one panel per fit method:
 
 ![plot of chunk method-scatter](msamodel-intro_files/figure-html/method-scatter-1.png)
 
-Finally, the two fitted profiles directly against each other. Points on the dashed
-1:1 line mean the methods agree site-for-site; the R² here measures
-**method-vs-method** agreement, not fit to data:
+Finally, the deterministic AGQ posterior directly against the MCMC posterior. Points
+on the dashed 1:1 line mean the methods agree site-for-site; the R² here measures
+**method-vs-method** agreement, not fit to data — AGQ recovers the sampled posterior at
+a tiny fraction of the cost:
 
 
 ```r
-r2_methods <- r2(cmp_ml$nlrmsd_mcmc, cmp_ml$nlrmsd_ml)
+r2_methods <- r2(cmp_ml$nlrmsd_mcmc, cmp_ml$nlrmsd_agq)
 r2_methods
-#> [1] 0.9998732
+#> [1] 0.9998621
 ```
 
-![plot of chunk mcmc-vs-ml](msamodel-intro_files/figure-html/mcmc-vs-ml-1.png)
+![plot of chunk agq-vs-mcmc](msamodel-intro_files/figure-html/agq-vs-mcmc-1.png)
+
+Because AGQ carries the whole `(a1, a2)` posterior, it also propagates that uncertainty
+to the **predicted profile**: `predict_lrmsd_i_agq()` returns, per residue, the posterior
+mean and a credible band (the model prediction integrated over the posterior). Here the
+95% band is shown against the observed profile (all mean-centered):
+
+![plot of chunk agq-band](msamodel-intro_files/figure-html/agq-band-1.png)
 
 ## 6. Site-level decomposition of the fitted profile
 

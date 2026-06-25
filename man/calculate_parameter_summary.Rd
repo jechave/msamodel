@@ -33,6 +33,7 @@ calculate_parameter_summary(post)
 Other fitting:
 \code{\link[=calculate_prediction_samples]{calculate_prediction_samples()}},
 \code{\link[=calculate_prediction_summary]{calculate_prediction_summary()}},
+\code{\link[=fit_lrmsd_i_msa_agq]{fit_lrmsd_i_msa_agq()}},
 \code{\link[=fit_lrmsd_i_msa_mcmc]{fit_lrmsd_i_msa_mcmc()}},
 \code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}},
 \code{\link[=fit_lrmsd_n_msa_ml]{fit_lrmsd_n_msa_ml()}},
