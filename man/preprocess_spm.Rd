@@ -2,25 +2,40 @@
 % Please edit documentation in R/spm.R
 \name{preprocess_spm}
 \alias{preprocess_spm}
-\title{Preprocess SPM data for matrix-based Bayesian analysis}
+\title{Reshape a mutation scan into model-ready arrays (site form)}
 \usage{
 preprocess_spm(spm)
 }
 \arguments{
-\item{spm}{SPM tibble with columns j, m, ddg_dv_jm, ddg_tds_jm, ddgact_dv_jm, ddgact_tds_jm, and list-columns site, pdb_site and dr2_ijm}
+\item{spm}{A single-point-mutation scan, as returned by \code{\link[=generate_spm_data]{generate_spm_data()}}
+(with the energy columns and the \code{site}, \code{pdb_site}, and \code{dr2_ijm}
+list-columns).}
 }
 \value{
-List containing energy_data, dr2_ijm, and site_map. `dr2_ijm` is the
-  `[mutant x site]` matrix of per-site squared displacements (rows = mutants
-  `j,m`, cols = response site `i`). `site_map` is a tibble with columns `i` (the
-  internal response-site index, matching the `dr2_ijm` column names) and
-  `pdb_site` (the structure-anchored PDB residue number), used to translate
-  user-supplied `pdb_site` keys to internal `i`.
+A list with three elements: \code{energy_data} (a tibble of per-mutant
+stability and activity energy changes), \code{dr2_ijm} (the mutant-by-site matrix
+of per-site squared displacements; columns are sites), and \code{site_map} (a
+tibble mapping the site index \code{i} to its PDB residue number \code{pdb_site}).
 }
 \description{
-Preprocess SPM data for matrix-based Bayesian analysis
+Converts the raw single-point-mutation scan into the compact arrays the
+site-form prediction and fitting functions expect. It combines the energy
+columns into per-mutant stability and activity changes, stacks the per-site
+squared displacements into a mutant-by-site matrix, and builds the map between
+the internal site index and the PDB residue number. Wild-type rows are dropped.
+Run this once and reuse the result across many \verb{(a1, a2)} evaluations.
+}
+\examples{
+\dontrun{
+pp <- preprocess_spm(znb_spm)
+dim(pp$dr2_ijm)
+}
 }
 \seealso{
+\code{\link[=generate_spm_data]{generate_spm_data()}} (produces the input); \code{\link[=calculate_dr2_i_msa]{calculate_dr2_i_msa()}}
+and \code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}} (consume the output); \code{\link[=preprocess_spm_mode]{preprocess_spm_mode()}} for
+the mode form.
+
 Other spm:
 \code{\link[=generate_spm_data]{generate_spm_data()}},
 \code{\link[=preprocess_spm_mode]{preprocess_spm_mode()}}

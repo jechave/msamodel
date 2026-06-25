@@ -4,7 +4,7 @@
 \alias{msamodel-data}
 \title{Embedded datasets for the example protein 1znb_A}
 \description{
-The `znb_*` datasets provide a complete, self-contained example (zinc
+The \verb{znb_*} datasets provide a complete, self-contained example (zinc
 beta-lactamase, PDB chain 1znb_A) for the MSA-model workflow. They are built by
 \code{data-raw/prepare_znb_data.R}.
 }

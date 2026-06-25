@@ -2,33 +2,44 @@
 % Please edit documentation in R/objective.R
 \name{calculate_loglik_lrmsd_i_msa}
 \alias{calculate_loglik_lrmsd_i_msa}
-\title{MSA fitting objectives
-Pluggable criteria a fitter optimizes (currently the log-likelihood; future
-criteria such as RMSE or robust objectives belong here)
-Log-likelihood of the observed lrmsd_i profile given model parameters (site form)}
+\title{Log-likelihood of an observed per-site divergence profile}
 \usage{
 calculate_loglik_lrmsd_i_msa(spm_pp, observed_data, a1, a2)
 }
 \arguments{
-\item{spm_pp}{Preprocessed data from [preprocess_spm()] (must include `site_map`,
-used to translate `pdb_site` to the internal `i`).}
+\item{spm_pp}{Preprocessed single-point-mutation data, the output of
+\code{\link[=preprocess_spm]{preprocess_spm()}}. Used to predict the divergence profile and to map the
+observed PDB residue numbers to internal site indices.}
 
-\item{observed_data}{Tibble with columns `pdb_site` (PDB residue number) and
-`lrmsd_i_obs` (observed log structural divergence).}
+\item{observed_data}{A tibble of the observed profile, with columns \code{pdb_site}
+(PDB residue number) and \code{lrmsd_i_obs} (observed log structural divergence).}
 
-\item{a1}{Stability selection parameter}
+\item{a1}{Stability selection strength (non-negative).}
 
-\item{a2}{Activity selection parameter}
+\item{a2}{Activity selection strength (non-negative).}
 }
 \value{
-Log-likelihood value
+A single numeric value: the log-likelihood of \code{observed_data} under the
+model at \verb{(a1, a2)}.
 }
 \description{
-Profiled Gaussian log-likelihood for the site-form (`lrmsd_i`) profile. Shared
-objective of both fitters — [fit_lrmsd_i_msa_ml()] maximises it,
-[fit_lrmsd_i_msa_mcmc()] samples it — so it carries no method token.
+Scores how well the model at a given selection strength \verb{(a1, a2)} reproduces
+an observed per-site divergence profile. The model prediction and the
+observations are each mean-centred and compared under a Gaussian noise model
+whose scale is estimated from the residuals (profiled out), giving a single
+log-likelihood value. Both fitters use this same score: \code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}}
+maximises it and \code{\link[=fit_lrmsd_i_msa_mcmc]{fit_lrmsd_i_msa_mcmc()}} samples it.
+}
+\examples{
+\dontrun{
+pp <- preprocess_spm(znb_spm)
+calculate_loglik_lrmsd_i_msa(pp, znb_profile, a1 = 1, a2 = 1)
+}
 }
 \seealso{
+\code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}} and \code{\link[=fit_lrmsd_i_msa_mcmc]{fit_lrmsd_i_msa_mcmc()}}, which optimise and
+sample this score; \code{\link[=calculate_loglik_lrmsd_n_msa]{calculate_loglik_lrmsd_n_msa()}} for the mode form.
+
 Other objective:
 \code{\link[=calculate_loglik_lrmsd_n_msa]{calculate_loglik_lrmsd_n_msa()}}
 }

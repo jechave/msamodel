@@ -2,27 +2,37 @@
 % Please edit documentation in R/spm.R
 \name{preprocess_spm_mode}
 \alias{preprocess_spm_mode}
-\title{Preprocess SPM data for mode-form structural-divergence evaluation}
+\title{Reshape a mutation scan into model-ready arrays (mode form)}
 \usage{
 preprocess_spm_mode(spm)
 }
 \arguments{
-\item{spm}{SPM tibble from [generate_spm_data()] (must carry the `mode` and
-`dr2_njm` list-columns).}
+\item{spm}{A single-point-mutation scan, as returned by \code{\link[=generate_spm_data]{generate_spm_data()}}
+(with the \code{mode} and \code{dr2_njm} list-columns).}
 }
 \value{
-List containing `energy_data` (columns `j`, `m`, `ddg_jm`,
-  `ddgact_jm`) and `dr2_njm`, a `[mutant x mode]` numeric matrix whose column
-  names are the mode indices.
+A list with two elements: \code{energy_data} (a tibble with \code{j}, \code{m},
+\code{ddg_jm}, \code{ddgact_jm}) and \code{dr2_njm} (the mutant-by-mode matrix of per-mode
+squared displacements; columns are mode indices).
 }
 \description{
-Mode counterpart of [preprocess_spm()]. Reshapes the per-mutant SPM log into
-the arrays the mode evaluator consumes: the same per-mutant energy vector and
-a `[mutant x mode]` matrix of per-mode squared displacements (`dr2_njm`). Modes
-have no structural anchor, so there is no `pdb_site` map (mode-form output is
-predict-only and is not joined to observed site data).
+Mode-indexed counterpart of \code{\link[=preprocess_spm]{preprocess_spm()}}: it produces the arrays the
+mode-form prediction and fitting functions expect. The per-mutant energy table
+is the same; the difference is that the squared displacements are stacked into a
+mutant-by-mode matrix rather than mutant-by-site. Because modes are not anchored
+to residues, there is no PDB-residue map.
+}
+\examples{
+\dontrun{
+pp <- preprocess_spm_mode(znb_spm)
+dim(pp$dr2_njm)
+}
 }
 \seealso{
+\code{\link[=generate_spm_data]{generate_spm_data()}} (produces the input); \code{\link[=calculate_dr2_n_msa]{calculate_dr2_n_msa()}}
+and \code{\link[=fit_lrmsd_n_msa_ml]{fit_lrmsd_n_msa_ml()}} (consume the output); \code{\link[=preprocess_spm]{preprocess_spm()}} for the
+site form.
+
 Other spm:
 \code{\link[=generate_spm_data]{generate_spm_data()}},
 \code{\link[=preprocess_spm]{preprocess_spm()}}

@@ -2,40 +2,57 @@
 % Please edit documentation in R/model.R
 \name{calculate_lrmsd_i_nested_models}
 \alias{calculate_lrmsd_i_nested_models}
-\title{Per-site lrmsd profiles for the four nested MSA model variants}
+\title{Per-site divergence profiles under all four model variants (MM, MS, MA, MSA)}
 \usage{
 calculate_lrmsd_i_nested_models(spm_pp, a1, a2)
 }
 \arguments{
-\item{spm_pp}{Output from [preprocess_spm()] (energy_data + `dr2_ijm` + site_map).}
+\item{spm_pp}{Preprocessed single-point-mutation data, the output of
+\code{\link[=preprocess_spm]{preprocess_spm()}}.}
 
-\item{a1}{Stability selection parameter value.}
+\item{a1}{Stability selection strength used for the MS and MSA variants
+(non-negative).}
 
-\item{a2}{Activity selection parameter value.}
+\item{a2}{Activity selection strength used for the MA and MSA variants
+(non-negative).}
 }
 \value{
-Tibble with `i`, `pdb_site`, and the four nested-model lrmsd columns
-  `lrmsd_i_mm`, `lrmsd_i_ms`, `lrmsd_i_ma`, `lrmsd_i_msa`.
+A tibble with one row per site: the site index \code{i}, the PDB residue
+number \code{pdb_site}, and the four divergence profiles \code{lrmsd_i_mm},
+\code{lrmsd_i_ms}, \code{lrmsd_i_ma}, \code{lrmsd_i_msa}.
 }
 \description{
-Evaluates the forward map [calculate_dr2_i_msa()] at the four nested
-selection-parameter points and returns their per-site lrmsd profiles, where
-`lrmsd = log(sqrt(dr2_i))`:
+The MSA model has two selection pressures, stability and activity, each of
+which can be switched on or off. This gives four nested variants, from no
+selection to both, which this function evaluates in one call. For each variant
+it returns the per-site \code{lrmsd} profile -- the log root-mean-square structural
+divergence, \code{lrmsd = log(sqrt(dr2_i))} -- so the four profiles can be compared
+or decomposed.
 }
 \details{
-| variant | (a1, a2) | meaning |
-|---------|----------|---------|
-| MM  | (0, 0)   | mutation only -- no selection |
-| MS  | (a1, 0)  | mutation + stability selection |
-| MA  | (0, a2)  | mutation + activity selection |
-| MSA | (a1, a2) | full model -- both selections |
+The four variants are obtained by turning the two selection strengths on or off:\tabular{lll}{
+   variant \tab (a1, a2) \tab meaning \cr
+   MM \tab (0, 0) \tab mutation only, no selection \cr
+   MS \tab (a1, 0) \tab mutation + stability selection \cr
+   MA \tab (0, a2) \tab mutation + activity selection \cr
+   MSA \tab (a1, a2) \tab full model, both selections \cr
+}
 
-This is the single source of truth for the four-variant recipe: both the
-MCMC path ([calculate_prediction_samples()], per posterior sample) and the
-fixed-(a1, a2) analysis use it. Feed the four columns to
-[calculate_msa_decomposition()] for the phi decomposition.
+
+Pass the four returned columns to \code{\link[=calculate_msa_decomposition]{calculate_msa_decomposition()}} to split the
+divergence into its mutation, stability, and activity contributions.
+}
+\examples{
+\dontrun{
+pp <- preprocess_spm(znb_spm)
+head(calculate_lrmsd_i_nested_models(pp, a1 = 1, a2 = 1))
+}
 }
 \seealso{
+\code{\link[=calculate_dr2_i_msa]{calculate_dr2_i_msa()}} (the single-variant prediction it calls);
+\code{\link[=calculate_msa_decomposition]{calculate_msa_decomposition()}} (splits the four columns into contributions);
+\code{\link[=calculate_lrmsd_n_nested_models]{calculate_lrmsd_n_nested_models()}} (the mode-indexed counterpart).
+
 Other model:
 \code{\link[=calculate_dr2_i_msa]{calculate_dr2_i_msa()}},
 \code{\link[=calculate_dr2_n_msa]{calculate_dr2_n_msa()}},

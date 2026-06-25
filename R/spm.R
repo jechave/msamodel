@@ -1,5 +1,5 @@
-#' Single-point-mutation scans: generation and preprocessing
-#' Functions to generate SPM data and reshape it into model-ready arrays
+# Single-point-mutation scans: generation and preprocessing
+# Functions to generate SPM data and reshape it into model-ready arrays
 
 #' Get displacement vector dr between two structures
 #'
@@ -16,29 +16,40 @@ delta_structure_dr <- function(wt, mut) {
   mut$node$xyz - wt$node$xyz
 }
 
-#' Process protein mutants one by one and calculate only necessary metrics
+#' Generate single-point-mutation (SPM) scan data
 #'
-#' A memory-efficient approach to generating and analyzing protein mutations.
-#' Instead of creating a large tibble with all mutant structures, this function
-#' processes each mutation individually, calculates the required metrics, and
-#' only stores the results.
+#' Runs a single-point-mutation scan over a protein structure: for every site it
+#' generates `n_mutations` mutants and records each mutant's measured effects (the
+#' energy changes and the per-site / per-mode squared displacement profiles),
+#' returning one row per mutant. Mutants are processed one at a time and only the
+#' metrics are kept (never a tibble of full mutant structures), so the scan stays
+#' memory-efficient on large proteins.
 #'
-#' @param wt Wild type protein structure with ENM
-#' @param n_mutations Number of mutations to generate per site
-#' @param model Mutation model to use
-#' @param sigma Mutation strength parameter
-#' @param min_sd Minimum sequence distance
-#' @param pdb_site_active Active site residue numbers (optional)
-#' @param seed Random seed for reproducibility
-#' @return Tibble with one row per mutant `(j, m)` (`m = 0` is the wild type),
+#' @param wt Wild-type protein structure with an elastic network model, as
+#'   returned by [setup_enm()].
+#' @param n_mutations Number of mutant replicates to generate per site.
+#' @param model Name of the mutation model to apply (passed to the ENM machinery).
+#' @param sigma Mutation strength (the perturbation magnitude).
+#' @param min_sd Minimum sequence separation between coupled sites.
+#' @param pdb_site_active Optional integer vector of active-site residue numbers
+#'   (PDB numbering).
+#' @param seed Optional random seed, for a reproducible scan.
+#' @return A tibble with one row per mutant `(j, m)` (`m = 0` is the wild type),
 #'   carrying all measured effects of that mutation: scalar energy changes
 #'   (`ddg_dv_jm`, `ddg_tds_jm`, `ddgact_dv_jm`, `ddgact_tds_jm`) and list-columns
-#'   `site` / `pdb_site` (the site index <-> PDB-residue map), `dr` (displacement
-#'   vector), `dr2_ijm` (per-site squared displacement; each cell a `(dr2_i)` vector
-#'   over response sites `i` for that mutant `j,m`), `mode` (the normal-mode index
-#'   `1:nmodes`), and `dr2_njm` (per-mode squared contribution to `dr`; each cell a
-#'   `(dr2_n)` vector over response modes `n`).
+#'   `site` / `pdb_site` (the site index to PDB-residue map), `dr` (displacement
+#'   vector), `dr2_ijm` (per-site squared displacement; each cell a `dr2_i` vector
+#'   over response sites `i` for that mutant), `mode` (the normal-mode index
+#'   `1:nmodes`), and `dr2_njm` (per-mode squared contribution; each cell a `dr2_n`
+#'   vector over response modes `n`).
+#' @seealso [setup_enm()] (builds the `wt` input); [preprocess_spm()] and
+#'   [preprocess_spm_mode()] (reshape this output for the model).
 #' @family spm
+#' @examples
+#' \dontrun{
+#' spm <- generate_spm_data(znb_wt, n_mutations = 10, seed = 1024)
+#' head(spm[c("j", "m")])
+#' }
 #' @export
 generate_spm_data <- function(wt, n_mutations = 10,
                              model = "lfenm", sigma = 0.3,
@@ -117,16 +128,31 @@ generate_spm_data <- function(wt, n_mutations = 10,
   return(results)
 }
 
-#' Preprocess SPM data for matrix-based Bayesian analysis
+#' Reshape a mutation scan into model-ready arrays (site form)
 #'
-#' @param spm SPM tibble with columns j, m, ddg_dv_jm, ddg_tds_jm, ddgact_dv_jm, ddgact_tds_jm, and list-columns site, pdb_site and dr2_ijm
-#' @return List containing energy_data, dr2_ijm, and site_map. `dr2_ijm` is the
-#'   `[mutant x site]` matrix of per-site squared displacements (rows = mutants
-#'   `j,m`, cols = response site `i`). `site_map` is a tibble with columns `i` (the
-#'   internal response-site index, matching the `dr2_ijm` column names) and
-#'   `pdb_site` (the structure-anchored PDB residue number), used to translate
-#'   user-supplied `pdb_site` keys to internal `i`.
+#' Converts the raw single-point-mutation scan into the compact arrays the
+#' site-form prediction and fitting functions expect. It combines the energy
+#' columns into per-mutant stability and activity changes, stacks the per-site
+#' squared displacements into a mutant-by-site matrix, and builds the map between
+#' the internal site index and the PDB residue number. Wild-type rows are dropped.
+#' Run this once and reuse the result across many `(a1, a2)` evaluations.
+#'
+#' @param spm A single-point-mutation scan, as returned by [generate_spm_data()]
+#'   (with the energy columns and the `site`, `pdb_site`, and `dr2_ijm`
+#'   list-columns).
+#' @return A list with three elements: `energy_data` (a tibble of per-mutant
+#'   stability and activity energy changes), `dr2_ijm` (the mutant-by-site matrix
+#'   of per-site squared displacements; columns are sites), and `site_map` (a
+#'   tibble mapping the site index `i` to its PDB residue number `pdb_site`).
+#' @seealso [generate_spm_data()] (produces the input); [calculate_dr2_i_msa()]
+#'   and [fit_lrmsd_i_msa_ml()] (consume the output); [preprocess_spm_mode()] for
+#'   the mode form.
 #' @family spm
+#' @examples
+#' \dontrun{
+#' pp <- preprocess_spm(znb_spm)
+#' dim(pp$dr2_ijm)
+#' }
 #' @export
 preprocess_spm <- function(spm) {
   # Filter out no-mutation cases (m = 0) to align outputs
@@ -160,20 +186,28 @@ preprocess_spm <- function(spm) {
   list(energy_data = energy_data, dr2_ijm = dr2_ijm, site_map = site_map)
 }
 
-#' Preprocess SPM data for mode-form structural-divergence evaluation
+#' Reshape a mutation scan into model-ready arrays (mode form)
 #'
-#' Mode counterpart of [preprocess_spm()]. Reshapes the per-mutant SPM log into
-#' the arrays the mode evaluator consumes: the same per-mutant energy vector and
-#' a `[mutant x mode]` matrix of per-mode squared displacements (`dr2_njm`). Modes
-#' have no structural anchor, so there is no `pdb_site` map (mode-form output is
-#' predict-only and is not joined to observed site data).
+#' Mode-indexed counterpart of [preprocess_spm()]: it produces the arrays the
+#' mode-form prediction and fitting functions expect. The per-mutant energy table
+#' is the same; the difference is that the squared displacements are stacked into a
+#' mutant-by-mode matrix rather than mutant-by-site. Because modes are not anchored
+#' to residues, there is no PDB-residue map.
 #'
-#' @param spm SPM tibble from [generate_spm_data()] (must carry the `mode` and
-#'   `dr2_njm` list-columns).
-#' @return List containing `energy_data` (columns `j`, `m`, `ddg_jm`,
-#'   `ddgact_jm`) and `dr2_njm`, a `[mutant x mode]` numeric matrix whose column
-#'   names are the mode indices.
+#' @param spm A single-point-mutation scan, as returned by [generate_spm_data()]
+#'   (with the `mode` and `dr2_njm` list-columns).
+#' @return A list with two elements: `energy_data` (a tibble with `j`, `m`,
+#'   `ddg_jm`, `ddgact_jm`) and `dr2_njm` (the mutant-by-mode matrix of per-mode
+#'   squared displacements; columns are mode indices).
+#' @seealso [generate_spm_data()] (produces the input); [calculate_dr2_n_msa()]
+#'   and [fit_lrmsd_n_msa_ml()] (consume the output); [preprocess_spm()] for the
+#'   site form.
 #' @family spm
+#' @examples
+#' \dontrun{
+#' pp <- preprocess_spm_mode(znb_spm)
+#' dim(pp$dr2_njm)
+#' }
 #' @export
 preprocess_spm_mode <- function(spm) {
   # Filter out no-mutation cases (m = 0) to align outputs

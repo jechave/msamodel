@@ -2,7 +2,7 @@
 % Please edit documentation in R/spm.R
 \name{generate_spm_data}
 \alias{generate_spm_data}
-\title{Process protein mutants one by one and calculate only necessary metrics}
+\title{Generate single-point-mutation (SPM) scan data}
 \usage{
 generate_spm_data(
   wt,
@@ -15,37 +15,50 @@ generate_spm_data(
 )
 }
 \arguments{
-\item{wt}{Wild type protein structure with ENM}
+\item{wt}{Wild-type protein structure with an elastic network model, as
+returned by \code{\link[=setup_enm]{setup_enm()}}.}
 
-\item{n_mutations}{Number of mutations to generate per site}
+\item{n_mutations}{Number of mutant replicates to generate per site.}
 
-\item{model}{Mutation model to use}
+\item{model}{Name of the mutation model to apply (passed to the ENM machinery).}
 
-\item{sigma}{Mutation strength parameter}
+\item{sigma}{Mutation strength (the perturbation magnitude).}
 
-\item{min_sd}{Minimum sequence distance}
+\item{min_sd}{Minimum sequence separation between coupled sites.}
 
-\item{pdb_site_active}{Active site residue numbers (optional)}
+\item{pdb_site_active}{Optional integer vector of active-site residue numbers
+(PDB numbering).}
 
-\item{seed}{Random seed for reproducibility}
+\item{seed}{Optional random seed, for a reproducible scan.}
 }
 \value{
-Tibble with one row per mutant `(j, m)` (`m = 0` is the wild type),
-  carrying all measured effects of that mutation: scalar energy changes
-  (`ddg_dv_jm`, `ddg_tds_jm`, `ddgact_dv_jm`, `ddgact_tds_jm`) and list-columns
-  `site` / `pdb_site` (the site index <-> PDB-residue map), `dr` (displacement
-  vector), `dr2_ijm` (per-site squared displacement; each cell a `(dr2_i)` vector
-  over response sites `i` for that mutant `j,m`), `mode` (the normal-mode index
-  `1:nmodes`), and `dr2_njm` (per-mode squared contribution to `dr`; each cell a
-  `(dr2_n)` vector over response modes `n`).
+A tibble with one row per mutant \verb{(j, m)} (\code{m = 0} is the wild type),
+carrying all measured effects of that mutation: scalar energy changes
+(\code{ddg_dv_jm}, \code{ddg_tds_jm}, \code{ddgact_dv_jm}, \code{ddgact_tds_jm}) and list-columns
+\code{site} / \code{pdb_site} (the site index to PDB-residue map), \code{dr} (displacement
+vector), \code{dr2_ijm} (per-site squared displacement; each cell a \code{dr2_i} vector
+over response sites \code{i} for that mutant), \code{mode} (the normal-mode index
+\code{1:nmodes}), and \code{dr2_njm} (per-mode squared contribution; each cell a \code{dr2_n}
+vector over response modes \code{n}).
 }
 \description{
-A memory-efficient approach to generating and analyzing protein mutations.
-Instead of creating a large tibble with all mutant structures, this function
-processes each mutation individually, calculates the required metrics, and
-only stores the results.
+Runs a single-point-mutation scan over a protein structure: for every site it
+generates \code{n_mutations} mutants and records each mutant's measured effects (the
+energy changes and the per-site / per-mode squared displacement profiles),
+returning one row per mutant. Mutants are processed one at a time and only the
+metrics are kept (never a tibble of full mutant structures), so the scan stays
+memory-efficient on large proteins.
+}
+\examples{
+\dontrun{
+spm <- generate_spm_data(znb_wt, n_mutations = 10, seed = 1024)
+head(spm[c("j", "m")])
+}
 }
 \seealso{
+\code{\link[=setup_enm]{setup_enm()}} (builds the \code{wt} input); \code{\link[=preprocess_spm]{preprocess_spm()}} and
+\code{\link[=preprocess_spm_mode]{preprocess_spm_mode()}} (reshape this output for the model).
+
 Other spm:
 \code{\link[=preprocess_spm]{preprocess_spm()}},
 \code{\link[=preprocess_spm_mode]{preprocess_spm_mode()}}

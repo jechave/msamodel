@@ -1,21 +1,33 @@
-#' MSA fitting objectives
-#' Pluggable criteria a fitter optimizes (currently the log-likelihood; future
-#' criteria such as RMSE or robust objectives belong here)
+# MSA fitting objectives
+# Pluggable criteria a fitter optimizes (currently the log-likelihood; future
+# criteria such as RMSE or robust objectives belong here)
 
-#' Log-likelihood of the observed lrmsd_i profile given model parameters (site form)
+#' Log-likelihood of an observed per-site divergence profile
 #'
-#' Profiled Gaussian log-likelihood for the site-form (`lrmsd_i`) profile. Shared
-#' objective of both fitters — [fit_lrmsd_i_msa_ml()] maximises it,
-#' [fit_lrmsd_i_msa_mcmc()] samples it — so it carries no method token.
+#' Scores how well the model at a given selection strength `(a1, a2)` reproduces
+#' an observed per-site divergence profile. The model prediction and the
+#' observations are each mean-centred and compared under a Gaussian noise model
+#' whose scale is estimated from the residuals (profiled out), giving a single
+#' log-likelihood value. Both fitters use this same score: [fit_lrmsd_i_msa_ml()]
+#' maximises it and [fit_lrmsd_i_msa_mcmc()] samples it.
 #'
-#' @param spm_pp Preprocessed data from [preprocess_spm()] (must include `site_map`,
-#'   used to translate `pdb_site` to the internal `i`).
-#' @param observed_data Tibble with columns `pdb_site` (PDB residue number) and
-#'   `lrmsd_i_obs` (observed log structural divergence).
-#' @param a1 Stability selection parameter
-#' @param a2 Activity selection parameter
-#' @return Log-likelihood value
+#' @param spm_pp Preprocessed single-point-mutation data, the output of
+#'   [preprocess_spm()]. Used to predict the divergence profile and to map the
+#'   observed PDB residue numbers to internal site indices.
+#' @param observed_data A tibble of the observed profile, with columns `pdb_site`
+#'   (PDB residue number) and `lrmsd_i_obs` (observed log structural divergence).
+#' @param a1 Stability selection strength (non-negative).
+#' @param a2 Activity selection strength (non-negative).
+#' @return A single numeric value: the log-likelihood of `observed_data` under the
+#'   model at `(a1, a2)`.
+#' @seealso [fit_lrmsd_i_msa_ml()] and [fit_lrmsd_i_msa_mcmc()], which optimise and
+#'   sample this score; [calculate_loglik_lrmsd_n_msa()] for the mode form.
 #' @family objective
+#' @examples
+#' \dontrun{
+#' pp <- preprocess_spm(znb_spm)
+#' calculate_loglik_lrmsd_i_msa(pp, znb_profile, a1 = 1, a2 = 1)
+#' }
 #' @export
 calculate_loglik_lrmsd_i_msa <- function(spm_pp, observed_data, a1, a2) {
 
@@ -69,22 +81,31 @@ calculate_loglik_lrmsd_i_msa <- function(spm_pp, observed_data, a1, a2) {
   return(log_lik)
 }
 
-#' Log-likelihood of the observed lrmsd_n profile given model parameters (mode form)
+#' Log-likelihood of an observed per-mode divergence profile
 #'
-#' Mode counterpart of [calculate_loglik_lrmsd_i_msa()]. Profiled Gaussian
-#' log-likelihood for the mode-form (`lrmsd_n`) profile; shared objective of the mode
-#' fitter [fit_lrmsd_n_msa_ml()], so it carries no method token. Modes are not
-#' structure-anchored, so the response index `n` is the model index directly — there
-#' is no `site_map` / `pdb_site` translation (the only difference from the site form).
+#' Mode-indexed counterpart of [calculate_loglik_lrmsd_i_msa()]: it scores the
+#' model at a given selection strength `(a1, a2)` against an observed divergence
+#' profile, but over the structure's normal modes rather than its residues. As in
+#' the site form, prediction and observations are mean-centred and compared under a
+#' Gaussian noise model whose scale is profiled out. Because modes are not anchored
+#' to residues, the mode index `n` is used directly, with no PDB-residue mapping.
 #'
-#' @param spm_pp_mode Preprocessed data from [preprocess_spm_mode()] (energy_data +
-#'   the `dr2_njm` matrix; no `site_map`).
-#' @param observed_data Tibble with columns `n` (mode index) and `lrmsd_n_obs`
-#'   (observed log structural divergence per mode).
-#' @param a1 Stability selection parameter
-#' @param a2 Activity selection parameter
-#' @return Log-likelihood value
+#' @param spm_pp_mode Preprocessed single-point-mutation data in mode form, the
+#'   output of [preprocess_spm_mode()].
+#' @param observed_data A tibble of the observed mode profile, with columns `n`
+#'   (mode index) and `lrmsd_n_obs` (observed log structural divergence per mode).
+#' @param a1 Stability selection strength (non-negative).
+#' @param a2 Activity selection strength (non-negative).
+#' @return A single numeric value: the log-likelihood of `observed_data` under the
+#'   model at `(a1, a2)`.
+#' @seealso [fit_lrmsd_n_msa_ml()], which maximises this score;
+#'   [calculate_loglik_lrmsd_i_msa()] for the site form.
 #' @family objective
+#' @examples
+#' \dontrun{
+#' pp <- preprocess_spm_mode(znb_spm)
+#' calculate_loglik_lrmsd_n_msa(pp, znb_profile_n, a1 = 1, a2 = 1)
+#' }
 #' @export
 calculate_loglik_lrmsd_n_msa <- function(spm_pp_mode, observed_data, a1, a2) {
 

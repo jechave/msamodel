@@ -2,24 +2,36 @@
 % Please edit documentation in R/msa_decomposition.R
 \name{calculate_decomposition_samples}
 \alias{calculate_decomposition_samples}
-\title{Calculate the MSA phi decomposition for multiple samples}
+\title{Apply the divergence decomposition to every posterior sample}
 \usage{
 calculate_decomposition_samples(data)
 }
 \arguments{
-\item{data}{Data frame with columns sample_id, i, lrmsd_i_mm, lrmsd_i_ms,
-lrmsd_i_ma, lrmsd_i_msa (and optionally pdb_site, carried through if present)}
+\item{data}{A data frame with columns \code{sample_id}, \code{i}, and the four model
+variants \code{lrmsd_i_mm}, \code{lrmsd_i_ms}, \code{lrmsd_i_ma}, \code{lrmsd_i_msa}. A \code{pdb_site}
+column, if present, is carried through.}
 }
 \value{
-Data frame with sample_id, i (and pdb_site if present), and the phi
-  decomposition columns (phi_mut, phi_stab, phi_act)
+A data frame with \code{sample_id}, \code{i} (and \code{pdb_site} if it was present),
+and the three contribution columns \code{phi_mut}, \code{phi_stab}, \code{phi_act}.
 }
 \description{
-Per-row (per sample x site) sequential phi decomposition, built by splicing the
-pure [calculate_msa_decomposition()] over the four nested-model columns. The
-formula is row-wise, so no per-sample grouping is needed.
+Runs \code{\link[=calculate_msa_decomposition]{calculate_msa_decomposition()}} on each row of a table of per-sample,
+per-site divergence profiles, turning the four model-variant columns into the
+three contribution columns (\code{phi_mut}, \code{phi_stab}, \code{phi_act}). The split is
+computed independently for each row, so samples and sites need no grouping.
+}
+\examples{
+\dontrun{
+analysis <- run_msa_bayesian_analysis(znb_spm, znb_profile)
+phi <- calculate_decomposition_samples(analysis$prediction_samples)
+head(phi)
+}
 }
 \seealso{
+\code{\link[=calculate_msa_decomposition]{calculate_msa_decomposition()}} (the per-row split it applies);
+\code{\link[=calculate_decomposition_summary]{calculate_decomposition_summary()}} (summarises the result across samples).
+
 Other decomposition:
 \code{\link[=calculate_decomposition_summary]{calculate_decomposition_summary()}},
 \code{\link[=calculate_msa_decomposition]{calculate_msa_decomposition()}}

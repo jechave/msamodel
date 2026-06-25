@@ -2,20 +2,34 @@
 % Please edit documentation in R/msa_bayesian_analysis.R
 \name{calculate_parameter_summary}
 \alias{calculate_parameter_summary}
-\title{Compute summary statistics for MCMC parameter samples}
+\title{Summarise the posterior of the selection strengths}
 \usage{
 calculate_parameter_summary(parameter_samples)
 }
 \arguments{
-\item{parameter_samples}{MCMC samples tibble with columns a1, a2 (and possibly sample_id)}
+\item{parameter_samples}{A tibble of posterior draws with columns \code{a1} and \code{a2}
+(and optionally \code{sample_id}), as returned by \code{\link[=fit_lrmsd_i_msa_mcmc]{fit_lrmsd_i_msa_mcmc()}}.}
 }
 \value{
-Tibble with mean, sd, median, and 95% CI for each parameter
+A tibble with one row per parameter and columns \code{parameter}, \code{mean},
+\code{sd}, \code{median}, \code{lower}, and \code{upper}.
 }
 \description{
-Compute summary statistics for MCMC parameter samples
+Reduces the posterior draws of the selection strengths to one row per parameter
+(\code{a1}, \code{a2}), reporting the posterior mean, standard deviation, median, and 95\%
+credible interval. A \code{sample_id} column, if present, is ignored.
+}
+\examples{
+\dontrun{
+pp <- preprocess_spm(znb_spm)
+post <- fit_lrmsd_i_msa_mcmc(pp, znb_profile, n_iter = 2000, burn_in = 500)
+calculate_parameter_summary(post)
+}
 }
 \seealso{
+\code{\link[=fit_lrmsd_i_msa_mcmc]{fit_lrmsd_i_msa_mcmc()}} (produces the draws);
+\code{\link[=calculate_prediction_summary]{calculate_prediction_summary()}} (the per-site analogue).
+
 Other fitting:
 \code{\link[=calculate_prediction_samples]{calculate_prediction_samples()}},
 \code{\link[=calculate_prediction_summary]{calculate_prediction_summary()}},

@@ -12,6 +12,7 @@ Description: Implementation of the Mutation-Stability-Activity (MSA) model for
     constraint contributions.
 License: MIT + file LICENSE
 Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
 LazyData: true
 Depends:
     R (>= 3.5)

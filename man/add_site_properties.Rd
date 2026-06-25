@@ -2,31 +2,43 @@
 % Please edit documentation in R/site_properties.R
 \name{add_site_properties}
 \alias{add_site_properties}
-\title{Add distance and other site-specific properties to results}
+\title{Join structural site properties onto a per-site table}
 \usage{
 add_site_properties(site_data, wt, pdb_site_active)
 }
 \arguments{
-\item{site_data}{Site-specific data keyed by the internal site index `i`
-(e.g. the output of `calculate_dr2_i_msa()`)}
+\item{site_data}{A per-site table keyed by the site index \code{i} (for example the
+output of \code{\link[=calculate_dr2_i_msa]{calculate_dr2_i_msa()}}).}
 
-\item{wt}{Wild type protein structure with ENM}
+\item{wt}{Wild-type protein structure with an elastic network model, as
+returned by \code{\link[=setup_enm]{setup_enm()}}.}
 
-\item{pdb_site_active}{Active site residue numbers (integer vector, PDB
-numbering)}
+\item{pdb_site_active}{Integer vector of active-site residue numbers (PDB
+numbering).}
 }
 \value{
-Enhanced tibble with additional site properties:
-        - dactive: Distance to active site
-        - cn: Contact number
-        - msf: Mean square fluctuation
-        - shell: Shell classification (0-7)
+The input table with four columns added: \code{dactive} (distance to the
+nearest active site), \code{cn} (contact number), \code{msf} (mean square fluctuation),
+and \code{shell} (a factor banding \code{dactive} into levels 0-7).
 }
 \description{
-Enhances site-specific data with additional properties such as distance to
-active site, contact number, mean square fluctuation, and shell classification.
+Adds structural descriptors for each site to an existing per-site table, joining
+by the site index. The descriptors are the distance to the nearest active site,
+the contact number, the mean square fluctuation, and a discrete shell (a banding
+of the active-site distance). Useful for relating predicted or observed
+divergence to a site's structural environment.
+}
+\examples{
+\dontrun{
+pp <- preprocess_spm(znb_spm)
+prof <- calculate_dr2_i_msa(pp, a1 = 1, a2 = 1)
+add_site_properties(prof, znb_wt, pdb_site_active = c(99, 101, 103, 162))
+}
 }
 \seealso{
+\code{\link[=setup_enm]{setup_enm()}} (builds the \code{wt} input); \code{\link[=calculate_dr2_i_msa]{calculate_dr2_i_msa()}} (a
+typical source of \code{site_data}).
+
 Other setup:
 \code{\link[=setup_enm]{setup_enm()}}
 }

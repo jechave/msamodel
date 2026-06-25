@@ -6,8 +6,8 @@
 \title{Elastic network model (wild type) for 1znb_A}
 \format{
 A penm ENM object (class \code{prot}): a list with components
-  \code{param}, \code{nodes}, \code{graph}, \code{eij}, \code{kmat},
-  \code{nma}.
+\code{param}, \code{nodes}, \code{graph}, \code{eij}, \code{kmat},
+\code{nma}.
 }
 \source{
 Derived from \code{znb_pdb}. See \code{data-raw/prepare_znb_data.R}.

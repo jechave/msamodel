@@ -2,8 +2,7 @@
 % Please edit documentation in R/msa_bayesian_analysis.R
 \name{fit_lrmsd_i_msa_mcmc}
 \alias{fit_lrmsd_i_msa_mcmc}
-\title{Functions to fit the MSA model using Bayesian inference
-Maximum-likelihood fit of the lrmsd_i MSA model by MCMC (Metropolis-Hastings)}
+\title{Fit the selection strengths to an observed profile by MCMC (Bayesian)}
 \usage{
 fit_lrmsd_i_msa_mcmc(
   spm_pp,
@@ -17,32 +16,49 @@ fit_lrmsd_i_msa_mcmc(
 )
 }
 \arguments{
-\item{spm_pp}{Preprocessed data from preprocess_spm}
+\item{spm_pp}{Preprocessed single-point-mutation data, the output of
+\code{\link[=preprocess_spm]{preprocess_spm()}}.}
 
-\item{observed_data}{Tibble with columns `pdb_site` and `lrmsd_i_obs`
-(`pdb_site` is mapped to the internal index by \code{calculate_loglik_lrmsd_i_msa})}
+\item{observed_data}{A tibble of the observed profile, with columns \code{pdb_site}
+and \code{lrmsd_i_obs}, as for \code{\link[=calculate_loglik_lrmsd_i_msa]{calculate_loglik_lrmsd_i_msa()}}.}
 
-\item{n_iter}{Number of MCMC iterations}
+\item{n_iter}{Number of MCMC iterations to run.}
 
-\item{burn_in}{Number of burn-in iterations to discard}
+\item{burn_in}{Number of initial iterations to discard before collecting samples.}
 
-\item{fix_a1}{Optional fixed value for a1}
+\item{fix_a1}{Optional value at which to hold \code{a1} fixed instead of sampling it.}
 
-\item{fix_a2}{Optional fixed value for a2}
+\item{fix_a2}{Optional value at which to hold \code{a2} fixed instead of sampling it.}
 
-\item{a1_prior_range}{Vector of length 2 giving [min, max] for a1 prior}
+\item{a1_prior_range}{Length-2 \code{c(min, max)} uniform prior range for \code{a1}.}
 
-\item{log2_a2_plus1_prior_range}{Vector of length 2 giving [min, max] for log2(a2 + 1) prior}
+\item{log2_a2_plus1_prior_range}{Length-2 \code{c(min, max)} uniform prior range for
+\code{log2(a2 + 1)} (the coordinate in which activity selection is sampled).}
 }
 \value{
-MCMC samples tibble with sample_id, a1, and a2 columns
+A tibble of posterior draws with one row per retained iteration and
+columns \code{sample_id}, \code{a1}, and \code{a2}.
 }
 \description{
-Bayesian (posterior-sampling) fitter for the site-form (`lrmsd_i`) profile.
-Point-estimate counterpart: [fit_lrmsd_i_msa_ml()]. Shares the same objective
-[calculate_loglik_lrmsd_i_msa()].
+Estimates the two selection strengths \verb{(a1, a2)} from an observed per-site
+divergence profile by sampling their posterior with a Metropolis-Hastings
+Markov chain, under uniform priors over the supplied ranges. This is the
+Bayesian counterpart of the point-estimate fitter \code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}}; both
+use the same likelihood, \code{\link[=calculate_loglik_lrmsd_i_msa]{calculate_loglik_lrmsd_i_msa()}}. Either selection
+strength can be held fixed to fit the other alone.
+}
+\examples{
+\dontrun{
+pp <- preprocess_spm(znb_spm)
+post <- fit_lrmsd_i_msa_mcmc(pp, znb_profile, n_iter = 2000, burn_in = 500)
+colMeans(post[c("a1", "a2")])
+}
 }
 \seealso{
+\code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}} (the point-estimate counterpart);
+\code{\link[=calculate_loglik_lrmsd_i_msa]{calculate_loglik_lrmsd_i_msa()}} (the shared likelihood);
+\code{\link[=run_msa_bayesian_analysis]{run_msa_bayesian_analysis()}} (the end-to-end workflow that wraps this).
+
 Other fitting:
 \code{\link[=calculate_parameter_summary]{calculate_parameter_summary()}},
 \code{\link[=calculate_prediction_samples]{calculate_prediction_samples()}},

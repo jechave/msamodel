@@ -2,32 +2,43 @@
 % Please edit documentation in R/objective.R
 \name{calculate_loglik_lrmsd_n_msa}
 \alias{calculate_loglik_lrmsd_n_msa}
-\title{Log-likelihood of the observed lrmsd_n profile given model parameters (mode form)}
+\title{Log-likelihood of an observed per-mode divergence profile}
 \usage{
 calculate_loglik_lrmsd_n_msa(spm_pp_mode, observed_data, a1, a2)
 }
 \arguments{
-\item{spm_pp_mode}{Preprocessed data from [preprocess_spm_mode()] (energy_data +
-the `dr2_njm` matrix; no `site_map`).}
+\item{spm_pp_mode}{Preprocessed single-point-mutation data in mode form, the
+output of \code{\link[=preprocess_spm_mode]{preprocess_spm_mode()}}.}
 
-\item{observed_data}{Tibble with columns `n` (mode index) and `lrmsd_n_obs`
-(observed log structural divergence per mode).}
+\item{observed_data}{A tibble of the observed mode profile, with columns \code{n}
+(mode index) and \code{lrmsd_n_obs} (observed log structural divergence per mode).}
 
-\item{a1}{Stability selection parameter}
+\item{a1}{Stability selection strength (non-negative).}
 
-\item{a2}{Activity selection parameter}
+\item{a2}{Activity selection strength (non-negative).}
 }
 \value{
-Log-likelihood value
+A single numeric value: the log-likelihood of \code{observed_data} under the
+model at \verb{(a1, a2)}.
 }
 \description{
-Mode counterpart of [calculate_loglik_lrmsd_i_msa()]. Profiled Gaussian
-log-likelihood for the mode-form (`lrmsd_n`) profile; shared objective of the mode
-fitter [fit_lrmsd_n_msa_ml()], so it carries no method token. Modes are not
-structure-anchored, so the response index `n` is the model index directly — there
-is no `site_map` / `pdb_site` translation (the only difference from the site form).
+Mode-indexed counterpart of \code{\link[=calculate_loglik_lrmsd_i_msa]{calculate_loglik_lrmsd_i_msa()}}: it scores the
+model at a given selection strength \verb{(a1, a2)} against an observed divergence
+profile, but over the structure's normal modes rather than its residues. As in
+the site form, prediction and observations are mean-centred and compared under a
+Gaussian noise model whose scale is profiled out. Because modes are not anchored
+to residues, the mode index \code{n} is used directly, with no PDB-residue mapping.
+}
+\examples{
+\dontrun{
+pp <- preprocess_spm_mode(znb_spm)
+calculate_loglik_lrmsd_n_msa(pp, znb_profile_n, a1 = 1, a2 = 1)
+}
 }
 \seealso{
+\code{\link[=fit_lrmsd_n_msa_ml]{fit_lrmsd_n_msa_ml()}}, which maximises this score;
+\code{\link[=calculate_loglik_lrmsd_i_msa]{calculate_loglik_lrmsd_i_msa()}} for the site form.
+
 Other objective:
 \code{\link[=calculate_loglik_lrmsd_i_msa]{calculate_loglik_lrmsd_i_msa()}}
 }

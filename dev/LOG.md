@@ -7,6 +7,40 @@ those two don't keep.
 
 One short entry per working session.
 
+### 2026-06-24 — Man-page documentation overhaul (all 29 pages to 5/5)
+
+Triggered by the user judging `?calculate_lrmsd_i_nested_models` poor. Not one bad
+page — a systemic doc-quality problem with one config root cause. Doc-only change
+(no function names/signatures/behavior touched).
+
+- **ROOT CAUSE:** `DESCRIPTION` had no `Roxygen: list(markdown = TRUE)` — markdown
+  was OFF the whole time, so every `[fn()]` cross-ref shipped as literal text and
+  every `| table |` rendered as a mangled pipe-line. Enabled markdown repo-wide;
+  fixed links + tables on every page at once.
+- **Assessment harness (kept):** `dev/doc_audit.R` — deterministic Half-I checker
+  over `man/*.Rd` (literal brackets, pipe tables, title period/repeat/length,
+  desc==title, undocumented params via live `formals()`, missing return/examples/
+  format, banned-jargon list). Half-II = 3 independent judge subagents over the
+  rendered (`Rd2txt`) pages for the non-mechanical criteria (purpose-not-mechanism
+  title, no dangling definite article, real restatement glossing domain terms, no
+  developer jargon, realistic example). Loop: revise → document → re-audit → re-judge.
+- **Two iterations to converge.** Iter 1 cleared Half-I (29/29). Judges then caught
+  3 real defects: an example pulling `$decomposition_summary` instead of calling the
+  fn; a dangling "the four model variants"; and **`znb_spm` documented as 10 columns
+  when it has 12** (verified `ncol(znb_spm)==12` — genuine pre-existing bug, now 12).
+- **Rewrote 19 weak function pages** to the `fit_*_ml` exemplar standard: purpose-first
+  titles, the four variants named (MM/MS/MA/MSA) where introduced, developer jargon
+  stripped ("single source of truth", "MCMC path", "axis-agnostic", "predict-only",
+  etc. → plain prose or `#` comments), `lrmsd`/`dr2` glossed on first use, `@seealso`
+  + `@examples` added. Title fix: `fit_lrmsd_i_msa_mcmc` was mislabeled
+  "Maximum-likelihood" — it's Bayesian (priors + log-posterior + M-H); corrected.
+- Section-banner roxygen blocks (`#'` → `#`) in model/objective/fitting/spm/
+  bayesian_analysis: were being merged into the next function's `\title{}`; converted
+  to plain comments so each function's real one-line title stands alone.
+- **Verify:** `dev/doc_audit.R` 29/29 at 5/5, 0 blocking; all judges 5/5; user
+  reviewed rendered HTML help and approved; `devtools::test()` 139/0F;
+  `devtools::check()` 0E/1W/2N (accepted baseline, no new doc issues).
+
 ### 2026-06-24 — Slice 3b: mode fit arm (`fit_lrmsd_n_msa_ml`) on synthetic `znb_profile_n`
 
 Second half of slice 3, against the 3a-renamed names. The mode arm gains a fit (it was

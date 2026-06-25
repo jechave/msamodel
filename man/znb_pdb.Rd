@@ -6,7 +6,7 @@
 \title{Raw PDB structure for 1znb_A}
 \format{
 A bio3d \code{pdb} object (a list with components \code{atom},
-  \code{xyz}, \code{helix}, \code{sheet}, \code{calpha}, \code{call}).
+\code{xyz}, \code{helix}, \code{sheet}, \code{calpha}, \code{call}).
 }
 \source{
 RCSB PDB entry 1ZNB, chain A. See \code{data-raw/prepare_znb_data.R}.

@@ -1,22 +1,37 @@
-#' Functions to fit the MSA model using Bayesian inference
+# Functions to fit the MSA model using Bayesian inference
 
-#' Maximum-likelihood fit of the lrmsd_i MSA model by MCMC (Metropolis-Hastings)
+#' Fit the selection strengths to an observed profile by MCMC (Bayesian)
 #'
-#' Bayesian (posterior-sampling) fitter for the site-form (`lrmsd_i`) profile.
-#' Point-estimate counterpart: [fit_lrmsd_i_msa_ml()]. Shares the same objective
-#' [calculate_loglik_lrmsd_i_msa()].
+#' Estimates the two selection strengths `(a1, a2)` from an observed per-site
+#' divergence profile by sampling their posterior with a Metropolis-Hastings
+#' Markov chain, under uniform priors over the supplied ranges. This is the
+#' Bayesian counterpart of the point-estimate fitter [fit_lrmsd_i_msa_ml()]; both
+#' use the same likelihood, [calculate_loglik_lrmsd_i_msa()]. Either selection
+#' strength can be held fixed to fit the other alone.
 #'
-#' @param spm_pp Preprocessed data from preprocess_spm
-#' @param observed_data Tibble with columns `pdb_site` and `lrmsd_i_obs`
-#'   (`pdb_site` is mapped to the internal index by \code{calculate_loglik_lrmsd_i_msa})
-#' @param n_iter Number of MCMC iterations
-#' @param burn_in Number of burn-in iterations to discard
-#' @param fix_a1 Optional fixed value for a1
-#' @param fix_a2 Optional fixed value for a2
-#' @param a1_prior_range Vector of length 2 giving [min, max] for a1 prior
-#' @param log2_a2_plus1_prior_range Vector of length 2 giving [min, max] for log2(a2 + 1) prior
-#' @return MCMC samples tibble with sample_id, a1, and a2 columns
+#' @param spm_pp Preprocessed single-point-mutation data, the output of
+#'   [preprocess_spm()].
+#' @param observed_data A tibble of the observed profile, with columns `pdb_site`
+#'   and `lrmsd_i_obs`, as for [calculate_loglik_lrmsd_i_msa()].
+#' @param n_iter Number of MCMC iterations to run.
+#' @param burn_in Number of initial iterations to discard before collecting samples.
+#' @param fix_a1 Optional value at which to hold `a1` fixed instead of sampling it.
+#' @param fix_a2 Optional value at which to hold `a2` fixed instead of sampling it.
+#' @param a1_prior_range Length-2 `c(min, max)` uniform prior range for `a1`.
+#' @param log2_a2_plus1_prior_range Length-2 `c(min, max)` uniform prior range for
+#'   `log2(a2 + 1)` (the coordinate in which activity selection is sampled).
+#' @return A tibble of posterior draws with one row per retained iteration and
+#'   columns `sample_id`, `a1`, and `a2`.
+#' @seealso [fit_lrmsd_i_msa_ml()] (the point-estimate counterpart);
+#'   [calculate_loglik_lrmsd_i_msa()] (the shared likelihood);
+#'   [run_msa_bayesian_analysis()] (the end-to-end workflow that wraps this).
 #' @family fitting
+#' @examples
+#' \dontrun{
+#' pp <- preprocess_spm(znb_spm)
+#' post <- fit_lrmsd_i_msa_mcmc(pp, znb_profile, n_iter = 2000, burn_in = 500)
+#' colMeans(post[c("a1", "a2")])
+#' }
 #' @export
 fit_lrmsd_i_msa_mcmc <- function(spm_pp,
                          observed_data,
@@ -114,19 +129,33 @@ fit_lrmsd_i_msa_mcmc <- function(spm_pp,
 
 
 
-#' Calculate lrmsd predictions for the four nested models, per posterior sample
+#' Predicted divergence profiles for every posterior sample
 #'
-#' For each MCMC sample, evaluates the four nested-model lrmsd profiles via the
-#' single-source-of-truth [calculate_lrmsd_i_nested_models()] at that sample's
-#' (a1, a2), and stacks the results.
+#' Turns a posterior sample of selection strengths into a posterior sample of
+#' predicted profiles: for each draw of `(a1, a2)` it evaluates the four nested
+#' model variants -- mutation-only, plus-stability, plus-activity, and the full
+#' model -- with [calculate_lrmsd_i_nested_models()] and stacks the per-site
+#' results. Feed the output to [calculate_prediction_summary()] for a summary, or
+#' to [calculate_decomposition_samples()] for the contribution decomposition.
 #'
-#' @param spm_pp Preprocessed data from preprocess_spm
-#' @param parameter_samples MCMC samples tibble with sample_id, a1, a2 columns
-#' @return Tibble with per-sample lrmsd predictions in wide format
-#'   (`sample_id`, `i`, `pdb_site`, `lrmsd_i_mm`, `lrmsd_i_ms`, `lrmsd_i_ma`,
-#'   `lrmsd_i_msa`), with both the internal response-site index `i` and the
-#'   structure-anchored `pdb_site`.
+#' @param spm_pp Preprocessed single-point-mutation data, the output of
+#'   [preprocess_spm()].
+#' @param parameter_samples A tibble of posterior draws with columns `sample_id`,
+#'   `a1`, `a2`, as returned by [fit_lrmsd_i_msa_mcmc()].
+#' @return A tibble with one row per (sample, site): `sample_id`, the site index
+#'   `i`, the PDB residue number `pdb_site`, and the four predicted profiles
+#'   `lrmsd_i_mm`, `lrmsd_i_ms`, `lrmsd_i_ma`, `lrmsd_i_msa`.
+#' @seealso [calculate_lrmsd_i_nested_models()] (evaluated per draw);
+#'   [calculate_prediction_summary()] and [calculate_decomposition_samples()]
+#'   (consume the output).
 #' @family fitting
+#' @examples
+#' \dontrun{
+#' pp <- preprocess_spm(znb_spm)
+#' post <- fit_lrmsd_i_msa_mcmc(pp, znb_profile, n_iter = 2000, burn_in = 500)
+#' preds <- calculate_prediction_samples(pp, post)
+#' head(preds)
+#' }
 #' @export
 calculate_prediction_samples <- function(spm_pp, parameter_samples) {
   map_dfr(seq_len(nrow(parameter_samples)), function(j) {
@@ -142,11 +171,25 @@ calculate_prediction_samples <- function(spm_pp, parameter_samples) {
 
 
 
-#' Compute summary statistics for MCMC parameter samples
+#' Summarise the posterior of the selection strengths
 #'
-#' @param parameter_samples MCMC samples tibble with columns a1, a2 (and possibly sample_id)
-#' @return Tibble with mean, sd, median, and 95% CI for each parameter
+#' Reduces the posterior draws of the selection strengths to one row per parameter
+#' (`a1`, `a2`), reporting the posterior mean, standard deviation, median, and 95%
+#' credible interval. A `sample_id` column, if present, is ignored.
+#'
+#' @param parameter_samples A tibble of posterior draws with columns `a1` and `a2`
+#'   (and optionally `sample_id`), as returned by [fit_lrmsd_i_msa_mcmc()].
+#' @return A tibble with one row per parameter and columns `parameter`, `mean`,
+#'   `sd`, `median`, `lower`, and `upper`.
+#' @seealso [fit_lrmsd_i_msa_mcmc()] (produces the draws);
+#'   [calculate_prediction_summary()] (the per-site analogue).
 #' @family fitting
+#' @examples
+#' \dontrun{
+#' pp <- preprocess_spm(znb_spm)
+#' post <- fit_lrmsd_i_msa_mcmc(pp, znb_profile, n_iter = 2000, burn_in = 500)
+#' calculate_parameter_summary(post)
+#' }
 #' @export
 calculate_parameter_summary <- function(parameter_samples) {
   parameter_samples %>%
@@ -163,12 +206,26 @@ calculate_parameter_summary <- function(parameter_samples) {
     )
 }
 
-#' Summarize lrmsd predictions across samples in long format
+#' Summarise the predicted profiles across posterior samples
 #'
-#' @param prediction_samples Tibble with per-sample predictions in wide format
-#'   (with both `i` and `pdb_site`, as returned by calculate_prediction_samples)
-#' @return A tibble with predictions in long format (i, pdb_site, variable, mean, sd, median, lower, upper)
+#' Reduces the per-sample predicted profiles to a posterior summary, with one row
+#' per site and model variant. For each variant it reports the mean, standard
+#' deviation, median, and 95% credible interval over the samples, keeping both the
+#' site index and the PDB residue number.
+#'
+#' @param prediction_samples A tibble of per-sample predictions in wide form (with
+#'   `i`, `pdb_site`, and the four `lrmsd_i_*` columns), as returned by
+#'   [calculate_prediction_samples()].
+#' @return A long-format tibble with columns `i`, `pdb_site`, `variable` (the model
+#'   variant), and the summary columns `mean`, `sd`, `median`, `lower`, and `upper`.
+#' @seealso [calculate_prediction_samples()] (produces the input);
+#'   [calculate_parameter_summary()] (the parameter analogue).
 #' @family fitting
+#' @examples
+#' \dontrun{
+#' analysis <- run_msa_bayesian_analysis(znb_spm, znb_profile)
+#' head(analysis$prediction_summary)
+#' }
 #' @export
 calculate_prediction_summary <- function(prediction_samples) {
   # Get all lrmsd columns

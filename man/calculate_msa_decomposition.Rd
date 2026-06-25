@@ -2,41 +2,51 @@
 % Please edit documentation in R/msa_decomposition.R
 \name{calculate_msa_decomposition}
 \alias{calculate_msa_decomposition}
-\title{Phi decomposition of an MSA lrmsd profile (pure, axis-agnostic)}
+\title{Split a divergence profile into mutation, stability, and activity contributions}
 \usage{
 calculate_msa_decomposition(mm, ms, ma, msa)
 }
 \arguments{
-\item{mm, ms, ma, msa}{Numeric vectors: the four nested-model lrmsd values
-(mutation-only, +stability, +activity, full). `ma` is not used by the
-sequential formula but is kept as an argument for forward-compatibility with
-a future `method` switch to the Shapley variant (which needs it).}
+\item{mm, ms, ma, msa}{Numeric vectors of equal length giving the divergence under
+the four model variants: mutation-only (\code{mm}), plus-stability (\code{ms}),
+plus-activity (\code{ma}), and the full model (\code{msa}). \code{ma} is accepted but not used
+by the current sequential formula; it is kept so an alternative decomposition
+that needs it can be added later without changing the signature.}
 }
 \value{
-A named list of three numeric vectors: `phi_mut`, `phi_stab`,
-  `phi_act`. Splice into a tibble with
-  `dplyr::mutate(df, !!!calculate_msa_decomposition(mm, ms, ma, msa))`.
+A named list of three numeric vectors -- \code{phi_mut}, \code{phi_stab},
+\code{phi_act} -- one value per input element. Splice into a tibble with
+\code{dplyr::mutate(df, !!!calculate_msa_decomposition(mm, ms, ma, msa))}.
 }
 \description{
-Splits a log structural-divergence profile into mutation, stability-selection,
-and activity-selection components (phi_mut, phi_stab, phi_act). This is the
-**sequential / additive** decomposition along the model progression
-M0 -> MM -> MS -> MSA: each term is the incremental divergence added by turning
-on the next selection pressure. The terms telescope, so
-phi_mut + phi_stab + phi_act = msa.
+Decomposes a structural-divergence profile into the part attributable to
+mutation alone and the parts added by each selection pressure. The split is
+sequential along the model progression no-selection -> stability -> activity:
+\code{phi_mut} is the mutation-only divergence (the MM variant), \code{phi_stab} is the
+extra divergence explained when stability selection is added (MS minus MM), and
+\code{phi_act} is the further change when activity selection is added (MSA minus MS).
+The three contributions sum exactly to the full-model profile.
 }
 \details{
-This is pure math on four vectors: it takes the four nested-model lrmsd values
-and returns the three phi vectors. It knows nothing about sites vs modes,
-column names, or keys, so it serves both the site (`i`) and mode (`n`) axes
-unchanged -- the caller supplies whichever four columns it holds (e.g.
-`lrmsd_i_*` or, later, `lrmsd_n_*`) and attaches the result.
-
-(A different, symmetric "Shapley" decomposition of the same four variants also
-exists; an earlier version computed that one by mistake. The sequential form
-here is the one used for the paper analysis.)
+The inputs are four numeric vectors of equal length -- the divergence under each
+of the four model variants. The function works on the values alone and does not
+care whether they are indexed by site or by mode, so the same call serves both;
+the caller supplies whichever four columns it holds and attaches the result.
+}
+\examples{
+# Sequential split of four toy profiles (two sites):
+calculate_msa_decomposition(
+  mm  = c(0.0, 0.0),
+  ms  = c(0.3, 0.1),
+  ma  = c(0.2, 0.4),
+  msa = c(0.5, 0.6)
+)
 }
 \seealso{
+\code{\link[=calculate_lrmsd_i_nested_models]{calculate_lrmsd_i_nested_models()}} which produces the four input
+profiles; \code{\link[=calculate_decomposition_samples]{calculate_decomposition_samples()}} which applies this across
+posterior samples.
+
 Other decomposition:
 \code{\link[=calculate_decomposition_samples]{calculate_decomposition_samples()}},
 \code{\link[=calculate_decomposition_summary]{calculate_decomposition_summary()}}

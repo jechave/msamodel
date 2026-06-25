@@ -18,21 +18,34 @@ setup_enm(
 structure object directly and does no file I/O, so any source that yields a
 bio3d pdb object works (PDB, AlphaFold-DB, etc.).}
 
-\item{node}{Node type for ENM ("ca" or "sc")}
+\item{node}{Node representation for the network: \code{"ca"} (C-alpha atoms) or
+\code{"sc"} (side-chain centroids).}
 
-\item{model}{ENM model type}
+\item{model}{Name of the elastic network model to build.}
 
-\item{d_max}{Maximum distance cutoff}
+\item{d_max}{Distance cutoff: pairs of nodes closer than this are connected.}
 
-\item{frustrated}{Whether to use frustrated model}
+\item{frustrated}{Whether to use the frustrated form of the model.}
 }
 \value{
-PDB structure with ENM setup
+The input structure augmented with the elastic network model (network,
+Hessian, and normal modes), ready for mutation scans and site properties.
 }
 \description{
-Set up Elastic Network Model (ENM) for a protein structure
+Builds the elastic network model on a bio3d pdb object via \code{\link[penm:set_enm]{penm::set_enm()}},
+returning the structure object augmented with the ENM (network, Hessian, normal
+modes) that the SPM and divergence routines need. The package entry point for
+turning a structure into a modellable object; does no file I/O.
+}
+\examples{
+\dontrun{
+wt <- setup_enm(znb_pdb, node = "ca", model = "ming_wall", d_max = 10.5)
+}
 }
 \seealso{
+\code{\link[=generate_spm_data]{generate_spm_data()}} and \code{\link[=add_site_properties]{add_site_properties()}}, which consume the
+object returned here.
+
 Other setup:
 \code{\link[=add_site_properties]{add_site_properties()}}
 }

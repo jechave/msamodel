@@ -7,13 +7,13 @@
 \format{
 A tibble with 225 rows and 2 columns:
 \describe{
-  \item{pdb_site}{Integer PDB residue number (the structure-anchored site key).}
-  \item{lrmsd_i_obs}{Observed log structural divergence (log RMSD).}
+\item{pdb_site}{Integer PDB residue number (the structure-anchored site key).}
+\item{lrmsd_i_obs}{Observed log structural divergence (log RMSD).}
 }
 }
 \source{
 Echave & Carpentier (2024) dataset, filtered to pdb_chain == "1znb_A".
-  See \code{data-raw/prepare_znb_data.R}.
+See \code{data-raw/prepare_znb_data.R}.
 }
 \usage{
 znb_profile
@@ -25,10 +25,10 @@ protein. This is the template for the \code{observed_data} argument of
 }
 \details{
 The fit is keyed by \code{pdb_site}: the package maps it internally to
-  its response-site index. Other per-site descriptors (e.g. distance to the
-  active site, log RMSF) are intentionally not stored here, as they are
-  recomputable from \code{znb_wt} (see \code{add_site_properties}; log RMSF is
-  \code{log(sqrt(get_msf_site(wt)))}).
+its response-site index. Other per-site descriptors (e.g. distance to the
+active site, log RMSF) are intentionally not stored here, as they are
+recomputable from \code{znb_wt} (see \code{add_site_properties}; log RMSF is
+\code{log(sqrt(get_msf_site(wt)))}).
 }
 \seealso{
 \code{\link{run_msa_bayesian_analysis}}, \code{\link{add_site_properties}}

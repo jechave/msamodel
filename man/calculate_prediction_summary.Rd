@@ -2,21 +2,35 @@
 % Please edit documentation in R/msa_bayesian_analysis.R
 \name{calculate_prediction_summary}
 \alias{calculate_prediction_summary}
-\title{Summarize lrmsd predictions across samples in long format}
+\title{Summarise the predicted profiles across posterior samples}
 \usage{
 calculate_prediction_summary(prediction_samples)
 }
 \arguments{
-\item{prediction_samples}{Tibble with per-sample predictions in wide format
-(with both `i` and `pdb_site`, as returned by calculate_prediction_samples)}
+\item{prediction_samples}{A tibble of per-sample predictions in wide form (with
+\code{i}, \code{pdb_site}, and the four \verb{lrmsd_i_*} columns), as returned by
+\code{\link[=calculate_prediction_samples]{calculate_prediction_samples()}}.}
 }
 \value{
-A tibble with predictions in long format (i, pdb_site, variable, mean, sd, median, lower, upper)
+A long-format tibble with columns \code{i}, \code{pdb_site}, \code{variable} (the model
+variant), and the summary columns \code{mean}, \code{sd}, \code{median}, \code{lower}, and \code{upper}.
 }
 \description{
-Summarize lrmsd predictions across samples in long format
+Reduces the per-sample predicted profiles to a posterior summary, with one row
+per site and model variant. For each variant it reports the mean, standard
+deviation, median, and 95\% credible interval over the samples, keeping both the
+site index and the PDB residue number.
+}
+\examples{
+\dontrun{
+analysis <- run_msa_bayesian_analysis(znb_spm, znb_profile)
+head(analysis$prediction_summary)
+}
 }
 \seealso{
+\code{\link[=calculate_prediction_samples]{calculate_prediction_samples()}} (produces the input);
+\code{\link[=calculate_parameter_summary]{calculate_parameter_summary()}} (the parameter analogue).
+
 Other fitting:
 \code{\link[=calculate_parameter_summary]{calculate_parameter_summary()}},
 \code{\link[=calculate_prediction_samples]{calculate_prediction_samples()}},

@@ -2,29 +2,44 @@
 % Please edit documentation in R/model.R
 \name{calculate_dr2_i_msa}
 \alias{calculate_dr2_i_msa}
-\title{MSA model forward map (divergence calculators at given (a1, a2))
-Functions to compute the model's predicted structural-divergence profiles
-Calculate dr2_i for a single selection parameter point using matrix operations}
+\title{Predicted per-site structural divergence at one selection strength}
 \usage{
 calculate_dr2_i_msa(spm_pp, a1, a2)
 }
 \arguments{
-\item{spm_pp}{Output from [preprocess_spm()] (energy_data + the `dr2_ijm` matrix
-+ site_map).}
+\item{spm_pp}{Preprocessed single-point-mutation data, the output of
+\code{\link[=preprocess_spm]{preprocess_spm()}} (the per-mutant energies and the site divergence matrix).}
 
-\item{a1}{Stability selection parameter value}
+\item{a1}{Stability selection strength (non-negative). \code{0} disables stability
+selection.}
 
-\item{a2}{Activity selection parameter value}
+\item{a2}{Activity selection strength (non-negative). \code{0} disables activity
+selection.}
 }
 \value{
-Tibble with columns i (site number) and dr2_i (weighted average)
+A tibble with one row per site: \code{i} (the site index) and \code{dr2_i} (the
+predicted mean squared displacement at that site).
 }
 \description{
-MSA model forward map (divergence calculators at given (a1, a2))
-Functions to compute the model's predicted structural-divergence profiles
-Calculate dr2_i for a single selection parameter point using matrix operations
+Computes the model's predicted per-site structural divergence \code{dr2_i} (the
+mean squared C-alpha displacement at each site) for a single pair of selection
+strengths \verb{(a1, a2)}. Each single-point mutant is weighted by its fixation
+probability under stability selection (strength \code{a1}) and activity selection
+(strength \code{a2}), and the per-site divergences are averaged over mutants with
+those weights. This is the elementary prediction the nested-model and fitting
+functions call repeatedly at different \verb{(a1, a2)}.
+}
+\examples{
+\dontrun{
+pp <- preprocess_spm(znb_spm)
+# Full model at a representative selection strength:
+head(calculate_dr2_i_msa(pp, a1 = 1, a2 = 1))
+}
 }
 \seealso{
+\code{\link[=calculate_lrmsd_i_nested_models]{calculate_lrmsd_i_nested_models()}} which calls this at the four model
+variants; \code{\link[=calculate_dr2_n_msa]{calculate_dr2_n_msa()}} for the mode-indexed counterpart.
+
 Other model:
 \code{\link[=calculate_dr2_n_msa]{calculate_dr2_n_msa()}},
 \code{\link[=calculate_lrmsd_i_nested_models]{calculate_lrmsd_i_nested_models()}},

@@ -1,8 +1,8 @@
-#' MSA model fitting — maximum-likelihood point estimation
-#' Point-estimate counterpart of the MCMC fit (R/msa_bayesian_analysis.R). Shares
-#' the same profiled Gaussian log-likelihood (calculate_loglik_lrmsd_i_msa) and the
-#' same (a1, log2(a2+1)) coordinates / box bounds, so the two arms are directly
-#' comparable.
+# MSA model fitting — maximum-likelihood point estimation
+# Point-estimate counterpart of the MCMC fit (R/msa_bayesian_analysis.R). Shares
+# the same profiled Gaussian log-likelihood (calculate_loglik_lrmsd_i_msa) and the
+# same (a1, log2(a2+1)) coordinates / box bounds, so the two arms are directly
+# comparable.
 
 #' Maximum-likelihood point fit of the lrmsd_i MSA model
 #'

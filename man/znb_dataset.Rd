@@ -7,15 +7,15 @@
 \format{
 A tibble with 1 row and 4 columns:
 \describe{
-  \item{mcsa_id}{M-CSA entry identifier (character).}
-  \item{pdb_chain}{PDB chain identifier, "1znb_A" (character).}
-  \item{pdb_site_active}{Comma-separated PDB residue numbers of active sites.}
-  \item{site_active}{Comma-separated internal site indices of active sites.}
+\item{mcsa_id}{M-CSA entry identifier (character).}
+\item{pdb_chain}{PDB chain identifier, "1znb_A" (character).}
+\item{pdb_site_active}{Comma-separated PDB residue numbers of active sites.}
+\item{site_active}{Comma-separated internal site indices of active sites.}
 }
 }
 \source{
 Echave & Carpentier (2024) dataset, filtered to pdb_chain == "1znb_A".
-  See \code{data-raw/prepare_znb_data.R}.
+See \code{data-raw/prepare_znb_data.R}.
 }
 \usage{
 znb_dataset

@@ -2,30 +2,44 @@
 % Please edit documentation in R/model.R
 \name{calculate_dr2_n_msa}
 \alias{calculate_dr2_n_msa}
-\title{Calculate dr2_n (mode-form structural divergence) for a selection-parameter point}
+\title{Predicted per-mode structural divergence at one selection strength}
 \usage{
 calculate_dr2_n_msa(spm_pp, a1, a2)
 }
 \arguments{
-\item{spm_pp}{Output from [preprocess_spm_mode()] (energy_data + the `dr2_njm`
+\item{spm_pp}{Preprocessed single-point-mutation data in mode form, the output
+of \code{\link[=preprocess_spm_mode]{preprocess_spm_mode()}} (the per-mutant energies and the mode divergence
 matrix).}
 
-\item{a1}{Stability selection parameter value}
+\item{a1}{Stability selection strength (non-negative). \code{0} disables stability
+selection.}
 
-\item{a2}{Activity selection parameter value}
+\item{a2}{Activity selection strength (non-negative). \code{0} disables activity
+selection.}
 }
 \value{
-Tibble with columns `n` (mode index) and `dr2_n` (weighted average
-  per-mode squared divergence)
+A tibble with one row per mode: \code{n} (the mode index) and \code{dr2_n} (the
+predicted mean squared divergence carried by that mode).
 }
 \description{
-Mode counterpart of [calculate_dr2_i_msa()]. The reweighting is identical --
-the fixation weights live only on the mutant axis, so the same
-`colSums(value_matrix * weights_jm)` collapses the mutant rows whether the
-columns are sites or modes. Predict-only: there is no observed mode profile to
-fit, so this has no log-likelihood counterpart.
+Mode-indexed counterpart of \code{\link[=calculate_dr2_i_msa]{calculate_dr2_i_msa()}}: instead of a divergence
+per residue, it returns the predicted divergence \code{dr2_n} carried by each normal
+mode of the structure. The mutant fixation weights are exactly those of the
+site form (they depend only on the mutant, not on whether the output is indexed
+by site or mode), so the two functions share the same weighting and differ only
+in what the columns represent. This function predicts only; the package ships no
+empirical mode profile to fit against.
+}
+\examples{
+\dontrun{
+pp <- preprocess_spm_mode(znb_spm)
+head(calculate_dr2_n_msa(pp, a1 = 1, a2 = 1))
+}
 }
 \seealso{
+\code{\link[=calculate_dr2_i_msa]{calculate_dr2_i_msa()}} for the residue-indexed form;
+\code{\link[=calculate_lrmsd_n_nested_models]{calculate_lrmsd_n_nested_models()}} which calls this at the four model variants.
+
 Other model:
 \code{\link[=calculate_dr2_i_msa]{calculate_dr2_i_msa()}},
 \code{\link[=calculate_lrmsd_i_nested_models]{calculate_lrmsd_i_nested_models()}},

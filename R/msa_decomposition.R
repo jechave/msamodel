@@ -1,30 +1,38 @@
-#' Phi decomposition of an MSA lrmsd profile (pure, axis-agnostic)
+#' Split a divergence profile into mutation, stability, and activity contributions
 #'
-#' Splits a log structural-divergence profile into mutation, stability-selection,
-#' and activity-selection components (phi_mut, phi_stab, phi_act). This is the
-#' **sequential / additive** decomposition along the model progression
-#' M0 -> MM -> MS -> MSA: each term is the incremental divergence added by turning
-#' on the next selection pressure. The terms telescope, so
-#' phi_mut + phi_stab + phi_act = msa.
+#' Decomposes a structural-divergence profile into the part attributable to
+#' mutation alone and the parts added by each selection pressure. The split is
+#' sequential along the model progression no-selection -> stability -> activity:
+#' `phi_mut` is the mutation-only divergence (the MM variant), `phi_stab` is the
+#' extra divergence explained when stability selection is added (MS minus MM), and
+#' `phi_act` is the further change when activity selection is added (MSA minus MS).
+#' The three contributions sum exactly to the full-model profile.
 #'
-#' This is pure math on four vectors: it takes the four nested-model lrmsd values
-#' and returns the three phi vectors. It knows nothing about sites vs modes,
-#' column names, or keys, so it serves both the site (`i`) and mode (`n`) axes
-#' unchanged -- the caller supplies whichever four columns it holds (e.g.
-#' `lrmsd_i_*` or, later, `lrmsd_n_*`) and attaches the result.
+#' The inputs are four numeric vectors of equal length -- the divergence under each
+#' of the four model variants. The function works on the values alone and does not
+#' care whether they are indexed by site or by mode, so the same call serves both;
+#' the caller supplies whichever four columns it holds and attaches the result.
 #'
-#' (A different, symmetric "Shapley" decomposition of the same four variants also
-#' exists; an earlier version computed that one by mistake. The sequential form
-#' here is the one used for the paper analysis.)
-#'
-#' @param mm,ms,ma,msa Numeric vectors: the four nested-model lrmsd values
-#'   (mutation-only, +stability, +activity, full). `ma` is not used by the
-#'   sequential formula but is kept as an argument for forward-compatibility with
-#'   a future `method` switch to the Shapley variant (which needs it).
-#' @return A named list of three numeric vectors: `phi_mut`, `phi_stab`,
-#'   `phi_act`. Splice into a tibble with
+#' @param mm,ms,ma,msa Numeric vectors of equal length giving the divergence under
+#'   the four model variants: mutation-only (`mm`), plus-stability (`ms`),
+#'   plus-activity (`ma`), and the full model (`msa`). `ma` is accepted but not used
+#'   by the current sequential formula; it is kept so an alternative decomposition
+#'   that needs it can be added later without changing the signature.
+#' @return A named list of three numeric vectors -- `phi_mut`, `phi_stab`,
+#'   `phi_act` -- one value per input element. Splice into a tibble with
 #'   `dplyr::mutate(df, !!!calculate_msa_decomposition(mm, ms, ma, msa))`.
+#' @seealso [calculate_lrmsd_i_nested_models()] which produces the four input
+#'   profiles; [calculate_decomposition_samples()] which applies this across
+#'   posterior samples.
 #' @family decomposition
+#' @examples
+#' # Sequential split of four toy profiles (two sites):
+#' calculate_msa_decomposition(
+#'   mm  = c(0.0, 0.0),
+#'   ms  = c(0.3, 0.1),
+#'   ma  = c(0.2, 0.4),
+#'   msa = c(0.5, 0.6)
+#' )
 #' @export
 calculate_msa_decomposition <- function(mm, ms, ma, msa) {
   # Sequential M0 -> MM -> MS -> MSA decomposition. `ma` is unused here but kept
@@ -36,17 +44,27 @@ calculate_msa_decomposition <- function(mm, ms, ma, msa) {
   )
 }
 
-#' Calculate the MSA phi decomposition for multiple samples
+#' Apply the divergence decomposition to every posterior sample
 #'
-#' Per-row (per sample x site) sequential phi decomposition, built by splicing the
-#' pure [calculate_msa_decomposition()] over the four nested-model columns. The
-#' formula is row-wise, so no per-sample grouping is needed.
+#' Runs [calculate_msa_decomposition()] on each row of a table of per-sample,
+#' per-site divergence profiles, turning the four model-variant columns into the
+#' three contribution columns (`phi_mut`, `phi_stab`, `phi_act`). The split is
+#' computed independently for each row, so samples and sites need no grouping.
 #'
-#' @param data Data frame with columns sample_id, i, lrmsd_i_mm, lrmsd_i_ms,
-#'   lrmsd_i_ma, lrmsd_i_msa (and optionally pdb_site, carried through if present)
-#' @return Data frame with sample_id, i (and pdb_site if present), and the phi
-#'   decomposition columns (phi_mut, phi_stab, phi_act)
+#' @param data A data frame with columns `sample_id`, `i`, and the four model
+#'   variants `lrmsd_i_mm`, `lrmsd_i_ms`, `lrmsd_i_ma`, `lrmsd_i_msa`. A `pdb_site`
+#'   column, if present, is carried through.
+#' @return A data frame with `sample_id`, `i` (and `pdb_site` if it was present),
+#'   and the three contribution columns `phi_mut`, `phi_stab`, `phi_act`.
+#' @seealso [calculate_msa_decomposition()] (the per-row split it applies);
+#'   [calculate_decomposition_summary()] (summarises the result across samples).
 #' @family decomposition
+#' @examples
+#' \dontrun{
+#' analysis <- run_msa_bayesian_analysis(znb_spm, znb_profile)
+#' phi <- calculate_decomposition_samples(analysis$prediction_samples)
+#' head(phi)
+#' }
 #' @export
 calculate_decomposition_samples <- function(data) {
   # Validate input columns
@@ -66,13 +84,28 @@ calculate_decomposition_samples <- function(data) {
   return(result)
 }
 
-#' Summarize the MSA phi decomposition across samples in long format
+#' Summarise the divergence decomposition across posterior samples
 #'
-#' @param decomposition_samples Data frame with sample_id, i, phi_mut, phi_stab,
-#'   phi_act columns (and optionally pdb_site, carried through if present)
-#' @return Data frame with i (and pdb_site if present), component, and summary
-#'   statistics in long format
+#' Reduces the per-sample contributions to a posterior summary, with one row per
+#' site and contribution. For each contribution (`phi_mut`, `phi_stab`,
+#' `phi_act`) it reports the mean, standard deviation, median, and 95% credible
+#' interval over the samples. A `pdb_site` column is carried through when present.
+#'
+#' @param decomposition_samples A data frame with columns `sample_id`, `i`, and the
+#'   three contribution columns `phi_mut`, `phi_stab`, `phi_act` (as returned by
+#'   [calculate_decomposition_samples()]); `pdb_site` is carried through if present.
+#' @return A long-format data frame with `i` (and `pdb_site` if present), a
+#'   `component` column naming the contribution, and the summary columns `mean`,
+#'   `sd`, `median`, `lower`, and `upper`.
+#' @seealso [calculate_decomposition_samples()] (produces the input);
+#'   [run_msa_bayesian_analysis()] (which calls this as its final step).
 #' @family decomposition
+#' @examples
+#' \dontrun{
+#' analysis <- run_msa_bayesian_analysis(znb_spm, znb_profile)
+#' summ <- calculate_decomposition_summary(analysis$decomposition_samples)
+#' head(summ)
+#' }
 #' @export
 calculate_decomposition_summary <- function(decomposition_samples) {
   # Validate input columns

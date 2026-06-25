@@ -1,20 +1,36 @@
-#' Run Bayesian analysis for MSA model, including the phi decomposition
+#' Run the full Bayesian MSA analysis from raw mutation data to decomposition
 #'
-#' @param spm SPM data
-#' @param observed_data Observed data with columns `pdb_site` (PDB residue number)
-#'   and `lrmsd_i_obs` (observed log structural divergence). `pdb_site` is the
-#'   structure-anchored site key; the package maps it to the internal response-site
-#'   index. Site-keyed elements of the returned list carry both `i` and `pdb_site`.
-#' @param n_mcmc_iter Number of MCMC iterations
-#' @param n_burnin Number of burn-in iterations to discard
-#' @param a1_prior_range Vector of length 2 giving [min, max] for a1 prior
-#' @param log2_a2_plus1_prior_range Vector of length 2 giving [min, max] for log2(a2 + 1) prior
-#' @param fix_a1 Optional fixed value for a1
-#' @param fix_a2 Optional fixed value for a2
-#' @return List with MCMC results, including the phi decomposition: observed_data,
-#'   parameter_samples, parameter_summary, prediction_samples, prediction_summary,
-#'   decomposition_samples, decomposition_summary
+#' One call that takes a single-point-mutation scan and an observed divergence
+#' profile through the whole site-form analysis: it preprocesses the scan, samples
+#' the posterior of the selection strengths `(a1, a2)`, predicts the divergence
+#' profiles, summarises both, and splits the divergence into its mutation,
+#' stability, and activity contributions. It is a convenience wrapper over the
+#' individual steps ([preprocess_spm()], [fit_lrmsd_i_msa_mcmc()],
+#' [calculate_prediction_samples()] and the summary/decomposition functions).
+#'
+#' @param spm A single-point-mutation scan, as returned by [generate_spm_data()]
+#'   (e.g. the bundled `znb_spm`).
+#' @param observed_data A tibble of the observed profile, with columns `pdb_site`
+#'   (PDB residue number) and `lrmsd_i_obs` (observed log structural divergence).
+#'   Site-keyed elements of the result carry both `i` and `pdb_site`.
+#' @param n_mcmc_iter Number of MCMC iterations to run.
+#' @param n_burnin Number of initial iterations to discard before collecting samples.
+#' @param a1_prior_range Length-2 `c(min, max)` uniform prior range for `a1`.
+#' @param log2_a2_plus1_prior_range Length-2 `c(min, max)` uniform prior range for
+#'   `log2(a2 + 1)`.
+#' @param fix_a1 Optional value at which to hold `a1` fixed instead of sampling it.
+#' @param fix_a2 Optional value at which to hold `a2` fixed instead of sampling it.
+#' @return A named list with the inputs and every analysis stage: `observed_data`,
+#'   `parameter_samples`, `parameter_summary`, `prediction_samples`,
+#'   `prediction_summary`, `decomposition_samples`, and `decomposition_summary`.
+#' @seealso the wrapped steps [fit_lrmsd_i_msa_mcmc()],
+#'   [calculate_prediction_summary()], [calculate_decomposition_summary()].
 #' @family fitting
+#' @examples
+#' \dontrun{
+#' analysis <- run_msa_bayesian_analysis(znb_spm, znb_profile)
+#' analysis$parameter_summary
+#' }
 #' @export
 run_msa_bayesian_analysis <- function(spm,
                                      observed_data,

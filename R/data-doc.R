@@ -41,7 +41,7 @@ NULL
 #' to the divergence-profile and fitting functions (via \code{preprocess_spm}).
 #'
 #' @format A tibble with 2508 rows (228 sites times 11 states, mutation index
-#'   m = 0..10) and 10 columns:
+#'   m = 0..10) and 12 columns:
 #' \describe{
 #'   \item{j}{Integer index of the mutated (perturbed) site.}
 #'   \item{m}{Integer mutation replicate (0 = wild type).}

@@ -2,27 +2,43 @@
 % Please edit documentation in R/msa_bayesian_analysis.R
 \name{calculate_prediction_samples}
 \alias{calculate_prediction_samples}
-\title{Calculate lrmsd predictions for the four nested models, per posterior sample}
+\title{Predicted divergence profiles for every posterior sample}
 \usage{
 calculate_prediction_samples(spm_pp, parameter_samples)
 }
 \arguments{
-\item{spm_pp}{Preprocessed data from preprocess_spm}
+\item{spm_pp}{Preprocessed single-point-mutation data, the output of
+\code{\link[=preprocess_spm]{preprocess_spm()}}.}
 
-\item{parameter_samples}{MCMC samples tibble with sample_id, a1, a2 columns}
+\item{parameter_samples}{A tibble of posterior draws with columns \code{sample_id},
+\code{a1}, \code{a2}, as returned by \code{\link[=fit_lrmsd_i_msa_mcmc]{fit_lrmsd_i_msa_mcmc()}}.}
 }
 \value{
-Tibble with per-sample lrmsd predictions in wide format
-  (`sample_id`, `i`, `pdb_site`, `lrmsd_i_mm`, `lrmsd_i_ms`, `lrmsd_i_ma`,
-  `lrmsd_i_msa`), with both the internal response-site index `i` and the
-  structure-anchored `pdb_site`.
+A tibble with one row per (sample, site): \code{sample_id}, the site index
+\code{i}, the PDB residue number \code{pdb_site}, and the four predicted profiles
+\code{lrmsd_i_mm}, \code{lrmsd_i_ms}, \code{lrmsd_i_ma}, \code{lrmsd_i_msa}.
 }
 \description{
-For each MCMC sample, evaluates the four nested-model lrmsd profiles via the
-single-source-of-truth [calculate_lrmsd_i_nested_models()] at that sample's
-(a1, a2), and stacks the results.
+Turns a posterior sample of selection strengths into a posterior sample of
+predicted profiles: for each draw of \verb{(a1, a2)} it evaluates the four nested
+model variants -- mutation-only, plus-stability, plus-activity, and the full
+model -- with \code{\link[=calculate_lrmsd_i_nested_models]{calculate_lrmsd_i_nested_models()}} and stacks the per-site
+results. Feed the output to \code{\link[=calculate_prediction_summary]{calculate_prediction_summary()}} for a summary, or
+to \code{\link[=calculate_decomposition_samples]{calculate_decomposition_samples()}} for the contribution decomposition.
+}
+\examples{
+\dontrun{
+pp <- preprocess_spm(znb_spm)
+post <- fit_lrmsd_i_msa_mcmc(pp, znb_profile, n_iter = 2000, burn_in = 500)
+preds <- calculate_prediction_samples(pp, post)
+head(preds)
+}
 }
 \seealso{
+\code{\link[=calculate_lrmsd_i_nested_models]{calculate_lrmsd_i_nested_models()}} (evaluated per draw);
+\code{\link[=calculate_prediction_summary]{calculate_prediction_summary()}} and \code{\link[=calculate_decomposition_samples]{calculate_decomposition_samples()}}
+(consume the output).
+
 Other fitting:
 \code{\link[=calculate_parameter_summary]{calculate_parameter_summary()}},
 \code{\link[=calculate_prediction_summary]{calculate_prediction_summary()}},

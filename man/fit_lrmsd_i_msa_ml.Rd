@@ -2,12 +2,7 @@
 % Please edit documentation in R/fitting.R
 \name{fit_lrmsd_i_msa_ml}
 \alias{fit_lrmsd_i_msa_ml}
-\title{MSA model fitting — maximum-likelihood point estimation
-Point-estimate counterpart of the MCMC fit (R/msa_bayesian_analysis.R). Shares
-the same profiled Gaussian log-likelihood (calculate_loglik_lrmsd_i_msa) and the
-same (a1, log2(a2+1)) coordinates / box bounds, so the two arms are directly
-comparable.
-Maximum-likelihood point fit of the lrmsd_i MSA model}
+\title{Maximum-likelihood point fit of the lrmsd_i MSA model}
 \usage{
 fit_lrmsd_i_msa_ml(
   spm_pp,
@@ -19,48 +14,48 @@ fit_lrmsd_i_msa_ml(
 )
 }
 \arguments{
-\item{spm_pp}{Preprocessed data from [preprocess_spm()] (must include `site_map`).}
+\item{spm_pp}{Preprocessed data from \code{\link[=preprocess_spm]{preprocess_spm()}} (must include \code{site_map}).}
 
-\item{observed_data}{Tibble with columns `pdb_site` and `lrmsd_i_obs` (the fit
-target), as documented for [calculate_loglik_lrmsd_i_msa()].}
+\item{observed_data}{Tibble with columns \code{pdb_site} and \code{lrmsd_i_obs} (the fit
+target), as documented for \code{\link[=calculate_loglik_lrmsd_i_msa]{calculate_loglik_lrmsd_i_msa()}}.}
 
-\item{a1_range}{Length-2 `[min, max]` box bound for `a1`.}
+\item{a1_range}{Length-2 \verb{[min, max]} box bound for \code{a1}.}
 
-\item{log2_a2_plus1_range}{Length-2 `[min, max]` box bound for `log2(a2 + 1)`.}
+\item{log2_a2_plus1_range}{Length-2 \verb{[min, max]} box bound for \code{log2(a2 + 1)}.}
 
-\item{init}{Optional length-2 numeric start `c(a1, log2(a2+1))`. When `NULL`
+\item{init}{Optional length-2 numeric start \code{c(a1, log2(a2+1))}. When \code{NULL}
 (default), a deterministic coarse grid-max of the likelihood over the box is
 used as the start (robust against a bad local start; cheap).}
 
 \item{grid_n}{Number of points per axis for the default grid-max start (ignored
-when `init` is supplied).}
+when \code{init} is supplied).}
 }
 \value{
 A list with the point estimate and asymptotic uncertainty:
-  \describe{
-    \item{a1, a2}{Point estimate (`a2` on the natural scale).}
-    \item{logLik}{Profiled Gaussian log-likelihood at the optimum.}
-    \item{sigma_hat}{Profiled noise scale `sqrt(mean(residuals^2))` at the optimum.}
-    \item{cov}{2×2 covariance matrix on the `(a1, log2(a2+1))` scale.}
-    \item{se_a1, se_a2}{Standard errors; `se_a2` via the delta method.}
-    \item{convergence}{`optim` convergence code (0 = success).}
-    \item{par_fit}{The fitted coordinates `c(a1, b)` with `b = log2(a2+1)`.}
-  }
+\describe{
+\item{a1, a2}{Point estimate (\code{a2} on the natural scale).}
+\item{logLik}{Profiled Gaussian log-likelihood at the optimum.}
+\item{sigma_hat}{Profiled noise scale \code{sqrt(mean(residuals^2))} at the optimum.}
+\item{cov}{2×2 covariance matrix on the \verb{(a1, log2(a2+1))} scale.}
+\item{se_a1, se_a2}{Standard errors; \code{se_a2} via the delta method.}
+\item{convergence}{\code{optim} convergence code (0 = success).}
+\item{par_fit}{The fitted coordinates \code{c(a1, b)} with \code{b = log2(a2+1)}.}
+}
 }
 \description{
-Point-estimation counterpart of [fit_lrmsd_i_msa_mcmc()]: maximises the same
-profiled Gaussian log-likelihood ([calculate_loglik_lrmsd_i_msa()]) over `(a1, a2)`
+Point-estimation counterpart of \code{\link[=fit_lrmsd_i_msa_mcmc]{fit_lrmsd_i_msa_mcmc()}}: maximises the same
+profiled Gaussian log-likelihood (\code{\link[=calculate_loglik_lrmsd_i_msa]{calculate_loglik_lrmsd_i_msa()}}) over \verb{(a1, a2)}
 by numerical
 optimisation, returning a point estimate plus an asymptotic covariance from the
 Hessian at the optimum. Much faster than MCMC; intended for large proteins and
-path simulations. This is **not** a Bayesian fit and returns no posterior sample.
+path simulations. This is \strong{not} a Bayesian fit and returns no posterior sample.
 }
 \details{
-The optimiser works in the same coordinates as the MCMC: `a1` and
-`b = log2(a2 + 1)` (so `a2 = 2^b - 1 >= 0`), on the box `a1_range` ×
-`log2_a2_plus1_range`. The returned covariance `cov` is on the `(a1, b)` scale;
-the standard error of `a2` is obtained by the delta method
-(`da2/db = 2^b * ln 2`).
+The optimiser works in the same coordinates as the MCMC: \code{a1} and
+\code{b = log2(a2 + 1)} (so \code{a2 = 2^b - 1 >= 0}), on the box \code{a1_range} ×
+\code{log2_a2_plus1_range}. The returned covariance \code{cov} is on the \verb{(a1, b)} scale;
+the standard error of \code{a2} is obtained by the delta method
+(\verb{da2/db = 2^b * ln 2}).
 }
 \examples{
 \dontrun{
@@ -70,8 +65,8 @@ c(a1 = ml$a1, a2 = ml$a2)
 }
 }
 \seealso{
-[fit_lrmsd_i_msa_mcmc()] (the Bayesian counterpart),
-  [calculate_loglik_lrmsd_i_msa()] (the shared objective).
+\code{\link[=fit_lrmsd_i_msa_mcmc]{fit_lrmsd_i_msa_mcmc()}} (the Bayesian counterpart),
+\code{\link[=calculate_loglik_lrmsd_i_msa]{calculate_loglik_lrmsd_i_msa()}} (the shared objective).
 
 Other fitting:
 \code{\link[=calculate_parameter_summary]{calculate_parameter_summary()}},

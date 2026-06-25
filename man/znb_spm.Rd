@@ -6,22 +6,22 @@
 \title{Single-point-mutation scan (SPM) for 1znb_A}
 \format{
 A tibble with 2508 rows (228 sites times 11 states, mutation index
-  m = 0..10) and 10 columns:
+m = 0..10) and 12 columns:
 \describe{
-  \item{j}{Integer index of the mutated (perturbed) site.}
-  \item{m}{Integer mutation replicate (0 = wild type).}
-  \item{ddg_dv_jm}{Stability change, energy term.}
-  \item{ddg_tds_jm}{Stability change, entropy (-T*dS) term.}
-  \item{ddgact_dv_jm}{Activity change, energy term.}
-  \item{ddgact_tds_jm}{Activity change, entropy term.}
-  \item{site}{List column: vector of internal site indices.}
-  \item{pdb_site}{List column: vector of PDB residue numbers.}
-  \item{dr}{List column: Cartesian displacement vector (length 3 * n_sites).}
-  \item{dr2_ijm}{List column: per-site squared displacement; each cell a
-    \code{(dr2_i)} vector over response sites (length n_sites) for that mutant.}
-  \item{mode}{List column: normal-mode index (1:nmodes).}
-  \item{dr2_njm}{List column: per-mode squared contribution to \code{dr}; each
-    cell a \code{(dr2_n)} vector over response modes (length nmodes).}
+\item{j}{Integer index of the mutated (perturbed) site.}
+\item{m}{Integer mutation replicate (0 = wild type).}
+\item{ddg_dv_jm}{Stability change, energy term.}
+\item{ddg_tds_jm}{Stability change, entropy (-T*dS) term.}
+\item{ddgact_dv_jm}{Activity change, energy term.}
+\item{ddgact_tds_jm}{Activity change, entropy term.}
+\item{site}{List column: vector of internal site indices.}
+\item{pdb_site}{List column: vector of PDB residue numbers.}
+\item{dr}{List column: Cartesian displacement vector (length 3 * n_sites).}
+\item{dr2_ijm}{List column: per-site squared displacement; each cell a
+\code{(dr2_i)} vector over response sites (length n_sites) for that mutant.}
+\item{mode}{List column: normal-mode index (1:nmodes).}
+\item{dr2_njm}{List column: per-mode squared contribution to \code{dr}; each
+cell a \code{(dr2_n)} vector over response modes (length nmodes).}
 }
 }
 \usage{
@@ -35,8 +35,8 @@ to the divergence-profile and fitting functions (via \code{preprocess_spm}).
 \details{
 Generated (not copied) by \code{generate_spm_data(znb_wt,
   n_mutations = 10, model = "lfenm", sigma = 0.3, min_sd = 2, seed = 1024)} and
-  validated once against the source project's precomputed scan. See
-  \code{data-raw/prepare_znb_data.R}.
+validated once against the source project's precomputed scan. See
+\code{data-raw/prepare_znb_data.R}.
 }
 \seealso{
 \code{\link{generate_spm_data}}, \code{\link{preprocess_spm}}
