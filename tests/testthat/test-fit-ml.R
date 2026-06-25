@@ -8,7 +8,7 @@ test_that("fit_lrmsd_i_msa_ml returns the documented list shape", {
   ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
 
   expect_named(ml, c("a1", "a2", "logLik", "sigma_hat", "cov",
-                     "se_a1", "se_a2", "convergence", "par_fit"))
+                     "se_a1", "se_a2", "convergence"))
   expect_length(ml$a1, 1L)
   expect_length(ml$a2, 1L)
   expect_equal(dim(ml$cov), c(2L, 2L))
@@ -17,8 +17,6 @@ test_that("fit_lrmsd_i_msa_ml returns the documented list shape", {
   expect_true(ml$se_a1 > 0 && ml$se_a2 > 0)
   expect_true(is.finite(ml$logLik))
   expect_equal(ml$convergence, 0L)                # L-BFGS-B converged
-  # b coordinate is consistent with the reported a2
-  expect_equal(ml$par_fit[["b"]], log2(ml$a2 + 1))
 })
 
 test_that("ML estimate maximises the likelihood (independent grid route)", {
@@ -37,9 +35,9 @@ test_that("ML estimate maximises the likelihood (independent grid route)", {
 
   # optim's optimum is no worse than the coarse grid's best.
   expect_gte(ml$logLik, max(ll) - 1e-8)
-  # Same basin: within one grid step of the grid argmax.
+  # Same basin: within one grid step of the grid argmax (b = log2(a2 + 1)).
   expect_lt(abs(ml$a1 - best$a1), a1g[2] - a1g[1])
-  expect_lt(abs(ml$par_fit[["b"]] - best$b), bg[2] - bg[1])
+  expect_lt(abs(log2(ml$a2 + 1) - best$b), bg[2] - bg[1])
 })
 
 test_that("fit_lrmsd_i_msa_ml matches frozen reference values", {

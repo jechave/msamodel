@@ -14,10 +14,10 @@
 #' path simulations. This is **not** a Bayesian fit and returns no posterior sample.
 #'
 #' The optimiser works in the same coordinates as the MCMC: `a1` and
-#' `b = log2(a2 + 1)` (so `a2 = 2^b - 1 >= 0`), on the box `a1_range` ×
-#' `log2_a2_plus1_range`. The returned covariance `cov` is on the `(a1, b)` scale;
-#' the standard error of `a2` is obtained by the delta method
-#' (`da2/db = 2^b * ln 2`).
+#' `log2(a2 + 1)` (so `a2 = 2^(log2(a2+1)) - 1 >= 0`), on the box `a1_range` ×
+#' `log2_a2_plus1_range` — the coordinates in which the prior is uniform. The
+#' returned covariance `cov` is on the `(a1, log2(a2+1))` scale; the standard error
+#' of `a2` is obtained by the delta method (`da2/d(log2(a2+1)) = 2^(log2(a2+1)) * ln 2`).
 #'
 #' @param spm_pp Preprocessed data from [preprocess_spm()] (must include `site_map`).
 #' @param observed_data Tibble with columns `pdb_site` and `lrmsd_i_obs` (the fit
@@ -31,13 +31,13 @@
 #'   when `init` is supplied).
 #' @return A list with the point estimate and asymptotic uncertainty:
 #'   \describe{
-#'     \item{a1, a2}{Point estimate (`a2` on the natural scale).}
+#'     \item{a1, a2}{Point estimate of the stability (`a1`) and activity (`a2`)
+#'       selection strengths, on the natural scale (the paper's `aS`, `aA`).}
 #'     \item{logLik}{Profiled Gaussian log-likelihood at the optimum.}
 #'     \item{sigma_hat}{Profiled noise scale `sqrt(mean(residuals^2))` at the optimum.}
 #'     \item{cov}{2×2 covariance matrix on the `(a1, log2(a2+1))` scale.}
 #'     \item{se_a1, se_a2}{Standard errors; `se_a2` via the delta method.}
 #'     \item{convergence}{`optim` convergence code (0 = success).}
-#'     \item{par_fit}{The fitted coordinates `c(a1, b)` with `b = log2(a2+1)`.}
 #'   }
 #' @seealso [fit_lrmsd_i_msa_mcmc()] (the Bayesian counterpart),
 #'   [calculate_loglik_lrmsd_i_msa()] (the shared objective).
@@ -137,8 +137,7 @@ fit_lrmsd_i_msa_ml <- function(spm_pp,
     cov         = cov,
     se_a1       = unname(se_a1),
     se_a2       = unname(se_a2),
-    convergence = opt$convergence,
-    par_fit     = c(a1 = unname(a1_hat), b = unname(b_hat))
+    convergence = opt$convergence
   )
 }
 
@@ -152,10 +151,10 @@ fit_lrmsd_i_msa_ml <- function(spm_pp,
 #' counterpart.
 #'
 #' The optimiser works in the same coordinates as the site fit: `a1` and
-#' `b = log2(a2 + 1)` (so `a2 = 2^b - 1 >= 0`), on the box `a1_range` ×
-#' `log2_a2_plus1_range`. The returned covariance `cov` is on the `(a1, b)` scale;
-#' the standard error of `a2` is obtained by the delta method
-#' (`da2/db = 2^b * ln 2`).
+#' `log2(a2 + 1)` (so `a2 = 2^(log2(a2+1)) - 1 >= 0`), on the box `a1_range` ×
+#' `log2_a2_plus1_range` — the coordinates in which the prior is uniform. The
+#' returned covariance `cov` is on the `(a1, log2(a2+1))` scale; the standard error
+#' of `a2` is obtained by the delta method (`da2/d(log2(a2+1)) = 2^(log2(a2+1)) * ln 2`).
 #'
 #' @param spm_pp_mode Preprocessed data from [preprocess_spm_mode()] (energy_data +
 #'   the `dr2_njm` matrix; no `site_map`).
@@ -171,13 +170,13 @@ fit_lrmsd_i_msa_ml <- function(spm_pp,
 #' @return A list with the point estimate and asymptotic uncertainty, identical in
 #'   shape to [fit_lrmsd_i_msa_ml()]:
 #'   \describe{
-#'     \item{a1, a2}{Point estimate (`a2` on the natural scale).}
+#'     \item{a1, a2}{Point estimate of the stability (`a1`) and activity (`a2`)
+#'       selection strengths, on the natural scale (the paper's `aS`, `aA`).}
 #'     \item{logLik}{Profiled Gaussian log-likelihood at the optimum.}
 #'     \item{sigma_hat}{Profiled noise scale `sqrt(mean(residuals^2))` at the optimum.}
 #'     \item{cov}{2×2 covariance matrix on the `(a1, log2(a2+1))` scale.}
 #'     \item{se_a1, se_a2}{Standard errors; `se_a2` via the delta method.}
 #'     \item{convergence}{`optim` convergence code (0 = success).}
-#'     \item{par_fit}{The fitted coordinates `c(a1, b)` with `b = log2(a2+1)`.}
 #'   }
 #' @seealso [fit_lrmsd_i_msa_ml()] (the site counterpart),
 #'   [calculate_loglik_lrmsd_n_msa()] (the objective).
@@ -272,7 +271,6 @@ fit_lrmsd_n_msa_ml <- function(spm_pp_mode,
     cov         = cov,
     se_a1       = unname(se_a1),
     se_a2       = unname(se_a2),
-    convergence = opt$convergence,
-    par_fit     = c(a1 = unname(a1_hat), b = unname(b_hat))
+    convergence = opt$convergence
   )
 }

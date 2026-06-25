@@ -35,13 +35,13 @@ when \code{init} is supplied).}
 A list with the point estimate and asymptotic uncertainty, identical in
 shape to \code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}}:
 \describe{
-\item{a1, a2}{Point estimate (\code{a2} on the natural scale).}
+\item{a1, a2}{Point estimate of the stability (\code{a1}) and activity (\code{a2})
+selection strengths, on the natural scale (the paper's \code{aS}, \code{aA}).}
 \item{logLik}{Profiled Gaussian log-likelihood at the optimum.}
 \item{sigma_hat}{Profiled noise scale \code{sqrt(mean(residuals^2))} at the optimum.}
 \item{cov}{2×2 covariance matrix on the \verb{(a1, log2(a2+1))} scale.}
 \item{se_a1, se_a2}{Standard errors; \code{se_a2} via the delta method.}
 \item{convergence}{\code{optim} convergence code (0 = success).}
-\item{par_fit}{The fitted coordinates \code{c(a1, b)} with \code{b = log2(a2+1)}.}
 }
 }
 \description{
@@ -54,10 +54,10 @@ counterpart.
 }
 \details{
 The optimiser works in the same coordinates as the site fit: \code{a1} and
-\code{b = log2(a2 + 1)} (so \code{a2 = 2^b - 1 >= 0}), on the box \code{a1_range} ×
-\code{log2_a2_plus1_range}. The returned covariance \code{cov} is on the \verb{(a1, b)} scale;
-the standard error of \code{a2} is obtained by the delta method
-(\verb{da2/db = 2^b * ln 2}).
+\code{log2(a2 + 1)} (so \code{a2 = 2^(log2(a2+1)) - 1 >= 0}), on the box \code{a1_range} ×
+\code{log2_a2_plus1_range} — the coordinates in which the prior is uniform. The
+returned covariance \code{cov} is on the \verb{(a1, log2(a2+1))} scale; the standard error
+of \code{a2} is obtained by the delta method (\verb{da2/d(log2(a2+1)) = 2^(log2(a2+1)) * ln 2}).
 }
 \examples{
 \dontrun{

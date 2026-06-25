@@ -177,6 +177,42 @@ per-version detail is written when each version starts.
          the synthetic truth `(0.458,42.30) → (0.449,40.82)`. **This completes the 0.3.0
          fit work** (all three slices) and the site+mode structural suite.
 
+- **Inference rework — adaptive quadrature + model/fit/analysis layering** (next, goal
+  decided 2026-06-25; detailed slices planned per-loop in `dev/PROGRESS.md`, agile not
+  waterfall). Two durable decisions:
+  1. **AGQ-primary inference.** The `(a1,a2)` posterior is near-Gaussian in
+     `(a1, log2(a2+1))` (measured on `znb_profile`: skew +0.17/−0.24, cor ≈ 0.06).
+     **Adaptive Gauss–Hermite quadrature referenced to the Laplace approximation**
+     (the ML arm's MAP + `optimHess` covariance, as a *quadrature reference* — change
+     of measure, NOT a prior) reproduces the posterior moments essentially exactly at
+     **~25 deterministic evaluations** (5×5), vs the hand-rolled M-H needing thousands
+     and still off (E[a2] err 2.0 at 2500/500; AGQ 5×5 err 0.013). AGQ becomes the
+     primary fitter; the existing M-H is kept as **legacy/fallback** (and is the only
+     viable shape for the future non-star tree, where the likelihood is expensive AND
+     stochastic → pseudo-marginal, not plain M-H). Free to change: no obligation to
+     reproduce the paper's MCMC draws (agreement within noise suffices). The cheap-now
+     vs expensive-stochastic-later split is *why* inference must not be hard-wired to
+     the likelihood — keep the objective pluggable (`R/objective.R` already is).
+  2. **Three-layer split (model / fit / analysis).** Currently mixed (e.g.
+     prediction/decomposition filed `@family fitting`; `run_msa_bayesian_analysis` does
+     fit+predict+nested+decompose in one call). Separate: **model** = `(a1,a2) →
+     dr2_i/lrmsd_i` (pure, deterministic, exists); **fit** = data → posterior over
+     `(a1,a2)` (its public unit is "fit a *possibly-constrained* model — a1/a2
+     fixed/zeroed — → posterior", reusing the `fix_a1`/`fix_a2` machinery); **analysis**
+     = posterior + any model-fn → value-with-bands. ONE generic uncertainty-propagator
+     (an AGQ posterior propagates by node-weighting, an MCMC posterior by draw-average —
+     same analysis interface, different posterior type), not per-quantity sample
+     machinery. Nested-models and decomposition move to the analysis layer; the
+     decomposition stays a **pure function of predictions** (4 vectors in → 3 phi out),
+     agnostic to whether those came from one shared fit or four separate fits — so the
+     "decompose four separately-fitted models" idea is *architecturally allowed* (caller's
+     choice) without being built now. Analysis stays **a separate layer inside msamodel**
+     (clean seam: calls model only via public fns; posterior is a documented contract),
+     splittable into its own package later if it churns or gains an independent consumer
+     — distinct from the observed-profile "patterns" package (that's a different *input*;
+     this is a different *output of the same fit*). Default band = **posterior credible
+     interval** propagated through the quantity.
+
 - **v0.4 — motion arm (`dh_ijm`, then `dh_njm` + `nh_njm`).** Each adds the new
   *quantity* `dh`/`nh` via the same slow loop + reweighting. These exist ONLY in
   penm's slow `mrs` tier (no fast path) — see memory `project-penm-mutscan-tiers`.

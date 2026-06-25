@@ -7,6 +7,43 @@ those two don't keep.
 
 One short entry per working session.
 
+### 2026-06-25 — Remove the `par_fit`/`b` leak from the ML fitters (pre-AGQ cleanup)
+
+First of a sequenced pair: a contained cleanup done *before* the AGQ inference loop so
+that loop builds on a clean fit layer. Surfaced while scoping the inference rework — the
+user (rightly, angrily) flagged that `b = log2(a2 + 1)` is an internal optimizer/prior
+coordinate with no physical meaning, yet was being handed back to users.
+
+- **Diagnosis (corrected a wrong turn of mine):** `a2` (the paper's `aA`) IS the meaningful
+  activity parameter; there is NO second parameter to name. `log2(a2+1)` is only *the
+  coordinate the prior is uniform in* (and where the posterior is near-Gaussian) — a
+  property of the prior/machinery, not of the model. So my earlier idea to "redefine the
+  activity parameter to the log scale" was wrong. The real defect was narrower: the code
+  *leaked* the coordinate.
+- **Two surfaces, only one a defect.** (a) `par_fit = c(a1, b)` returned field — dead weight
+  (no production consumer; only two *circular* test assertions `par_fit[["b"]] == log2(a2+1)`
+  read it). **Removed.** (b) the argument `log2_a2_plus1_range`/`_prior_range` — KEPT: it is
+  the honest name for the prior support ("uniform in a1 and log2(a2+1)"); renaming to an
+  `a2` scale would misrepresent the (log-uniform-in-a2) prior. Not touched.
+- **`a1`/`a2` vs paper `aS`/`aA`:** kept `a1`/`a2` in code (rename deferred as a separate
+  model-wide breaking item); `@return` docs now *note* the aS/aA correspondence.
+- **Edits:** `R/fitting.R` — dropped the `par_fit` line from both fitter return literals
+  (now 8 fields: a1, a2, logLik, sigma_hat, cov, se_a1, se_a2, convergence); roxygen
+  `@return` `par_fit` item removed; `@details` `(a1, b)` scale wording → `(a1, log2(a2+1))`.
+  `cov` KEPT (it's the asymptotic covariance on the log2(a2+1) scale, already documented as
+  such, and AGQ will reuse it; it's a matrix, not a leaked point coordinate). Internal local
+  `par_fit <- opt$par` and the `(a1, b)` code-comments stay (not user-facing).
+- **Tests:** `test-fit-ml.R` + `test-fit-ml-mode.R` — dropped `par_fit` from the named-shape
+  assertion; **deleted** the circular `b`-consistency assertion per the test-quality rule
+  (it tested an identity true by construction, not the fitter); grid-basin check now uses
+  `log2(ml$a2 + 1)` directly.
+- **Verify:** `document()` rewrote only the 2 `.Rd` (NAMESPACE unchanged); `test()` **137/0F**
+  (was 139; −2 = the two deleted tautologies; frozen values byte-unchanged → pure
+  return-shape removal); `check()` at v0.1 baseline (0E/1W/2N). Satellite grep: no stray
+  `par_fit`/user-facing `b` outside the historical 2026-06-24 LOG entry and internal locals.
+- **Next:** the AGQ loop (`fit_lrmsd_i_msa_agq`) — see `dev/PROGRESS.md` + `dev/plan.md`
+  "Inference rework".
+
 ### 2026-06-24 — Man-page documentation overhaul (all 29 pages to 5/5)
 
 Triggered by the user judging `?calculate_lrmsd_i_nested_models` poor. Not one bad

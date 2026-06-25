@@ -10,18 +10,38 @@ Tick items as substeps finish, and add a one-line dated entry to `dev/LOG.md`.
 
 ---
 
-## DORMANT — no work item in flight
+## DONE this session — `par_fit`/`b` leak removed from the ML fitters
 
-Slice 3 (mode fit) is **complete** — 3a (`e00f0ef`) + 3b. The site/mode predict side
-and all three 0.3.0 fit slices are done. Next candidate: **0.4 motion arm** (`dh_ijm` →
-`dh_njm` + `nh_njm`) OR the deferred **shared-S3 unify** pass over the fit arms. **When
-the next item starts:** enter plan mode, read the touched code, write the detailed plan,
-then rewrite this checklist from it.
+Cleanup done first (before the AGQ loop) so AGQ builds on a clean fit layer.
 
-Naming scheme settled this slice: fit fns are `fit_<quantity>_<axis>_<model>_<method>`
-(model `msa` last, method last); objective has NO method token (shared by both fitters);
-the data ARG stays `observed_data` (a table, not a vector); the lrmsd COLUMN gets the
-axis token.
+- [x] `par_fit` field dropped from both `fit_lrmsd_i_msa_ml` / `fit_lrmsd_n_msa_ml`
+      return lists (now 8 fields; no bare `b` returned)
+- [x] Roxygen `@return` `par_fit` item removed; `@details` `(a1, b)` wording → `(a1, log2(a2+1))`
+- [x] Tests: dropped `par_fit` from named-shape; deleted circular `b == log2(a2+1)`
+      assertions (tautologies); grid-basin check uses `log2(a2+1)` directly
+- [x] `document()` (only the 2 `.Rd` changed, NAMESPACE unchanged)
+- [x] `test()` 137/0F (was 139; −2 = the deleted tautologies); frozen values unchanged
+- [x] `check()` at v0.1 baseline (0E/1W/2N)
+- [x] Satellite pass; LOG entry
+- [ ] Commit gate: user reviews, then commit
+
+## NEXT — AGQ inference, loop 1: site profile with bands
+
+(Goal + decisions: `dev/plan.md` "Inference rework". Detailed plan written at
+execution time, not here.)
+
+- [ ] Provenance check (find-source.sh, name + Gauss–Hermite formula)
+- [ ] `fit_lrmsd_i_msa_agq()` returning a posterior object
+- [ ] Predict `lrmsd_i` profile with credible-interval bands
+- [ ] Sanity vs dense-grid ground truth on `znb_profile`
+- [ ] Roxygen + `document()`
+- [ ] `test-fit-agq.R`
+- [ ] `test()` / `check()` at baseline; satellite pass
+- [ ] Commit gate: user sees profile-with-bands before commit
+
+---
+
+## History — completed work (newest first)
 
 ### Slice 3 — DONE (3a fit-side naming + 3b mode arm)
 
