@@ -27,10 +27,11 @@ Imports:
     rlang
 Suggests:
     bio3d,
-    testthat (>= 3.0.0),
+    testthat (>= 3.1.5),
     knitr,
     rmarkdown,
     ggplot2
 Config/testthat/edition: 3
+Config/testthat/parallel: true
 VignetteBuilder: knitr
 Config/roxygen2/version: 8.0.0
