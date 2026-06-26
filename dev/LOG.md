@@ -1,11 +1,71 @@
 # Log — msamodel migration
 
 Append-only history of what was done and attempted (newest first), including
-dead ends and decisions. The durable roadmap is `dev/plan.md`; `dev/PROGRESS.md`
-is the checklist for the version currently in flight. This file is the history
-those two don't keep.
+dead ends and decisions. The durable roadmap is `dev/plan.md`. The live agenda /
+in-flight slice-list lives in the NOW block directly below — **read it first.**
 
 One short entry per working session.
+
+<!-- NOW -->
+## NOW / next
+
+The current state and what's next. Keep this current as slices finish; it is the
+one place the live state lives (no separate PROGRESS file as of 2026-06-26).
+
+- **In flight:** inference rework (`dev/plan.md` "Inference rework"). AGQ loop 1
+  shipped (`00ea45a`). No slice currently open.
+- **Next agenda (user-set):**
+  1. **Audit the test suite for bloat** — ~690s, much of it recomputing
+     deterministic ENM physics that could be a fixture; plus possible
+     redundant/tautological tests. Decide what to cut, cache, or keep. This is the
+     real speed lever (the 2026-06-26 workflow redesign was cadence clarity, not
+     speed).
+  2. **THEN (deferred): vignette redesign / split** — the intro overgrew into a
+     site-branch deep-dive; prediction sections crowded with 3 methods (MCMC/ML/AGQ).
+     Rethink what vignettes exist, split, restructure. Plan at execution time.
+- **Workflow:** agile cadence now codified — global `~/.claude/CLAUDE.md` (the
+  loop) + project `CLAUDE.md` (slice mechanics). Slice = commit; stop at the commit
+  gate; cheap scratchpad artifact for code slices, full preview only for vignette
+  slices; `check()` at milestones only.
+<!-- /NOW -->
+
+### 2026-06-26 — Workflow redesign for agile + dev-docs cleanup (PROGRESS.md retired)
+
+Acted on the user's next-session priority: the per-slice full `test()`/`check()`
+cadence and the three-file governance had become waterfall-like friction. Researched
+the documented tidyverse loop, measured the three dev docs for overlap, ran the plan
+past an agile-expert subagent, and applied:
+
+- **Agile cadence codified as the written default.** Global `~/.claude/CLAUDE.md`
+  gains an "R package workflow (agile default)" section (load_all inner loop →
+  targeted tests → one full `test()` before commit → `check()` at milestones only;
+  CI owns the matrix; rigor still applies at the gates). Project `CLAUDE.md` gains
+  the repo-specific slice mechanics: **slice = one committable unit (WIP 1)**, the
+  review gate IS the commit, slice-list sketched up front as a disposable map,
+  inner loop autonomous/silent, slice DONE = targeted tests green AND a verification
+  artifact (two separate obligations — artifact never substitutes for a test),
+  artifact sized to the slice (cheap scratchpad table/PNG for code slices, full
+  `dev/preview` render only when the vignette IS the deliverable), commit gate
+  covers code too, mid-slice-wrong → discard + re-slice.
+- **`dev/PROGRESS.md` deleted.** Its history duplicated this LOG near-verbatim and
+  its checklist was a per-substep sync burden. The live state moved to the delimited
+  NOW block at the top of this file (read-first).
+- **Definition of Done loosened** to fire at the commit / work-item milestone, not
+  per substep; inner-loop upkeep is just the NOW block + a one-line LOG entry.
+- **`dev/plan.md` trimmed** to roadmap + durable findings: completed-slice execution
+  detail (seeds, solvers, 3a/3b mechanics, blow-by-blow DONE notes) collapsed to
+  one-line goal+DONE pointers to this LOG; the "check() every slice" wording removed;
+  the char-level dr2 grammar reduced to a pointer (full spec stays in CLAUDE.md +
+  memory).
+- **Honest caveat (from the agile review):** this is cadence clarity, not raw speed
+  — the ~690s suite (deterministic ENM recompute that should be a fixture) is the
+  real lever and is the next agenda item, not touched here.
+- **Scope:** docs/process only — no `.R`, no vignette, no fixture touched, so the
+  vignette HARD RULE is not triggered. User reviewed the diff and approved; committed
+  + pushed to `main`. (The global `~/.claude/CLAUDE.md` cadence section lives outside
+  the repo — saved to disk, not under version control.)
+- **Next:** redesign the test architecture (the test-suite-audit agenda item, now
+  scoped up to a full redesign).
 
 ### 2026-06-25 — AGQ inference loop 1: deterministic posterior + banded profile
 

@@ -5,22 +5,22 @@ rough scope), plus findings that must not be re-discovered. It is deliberately
 high-level and stable — it is edited only when a version's *goal* changes, not when
 an execution detail surfaces.
 
-**Detailed planning is done per-version, at execution time.** When a version
-starts, enter plan mode, read the specific code that version touches, and write the
-executable detail *then* (as a fresh per-version plan, tracked in `dev/PROGRESS.md`
-for the in-flight version). This split is deliberate: the v0.1 plan tried to be both
-the blueprint and the step-by-step script, grew to 575 lines, and had to be amended
-every time execution hit a detail it hadn't anticipated. Deep code exploration
-belongs where it's actionable.
+**Detailed planning is done per work item, at execution time.** When a work item
+starts, enter plan mode, read the specific code it touches, sketch its slice-list
+(a disposable sequence of committable slices), and write a slice's detail when that
+slice starts. This split is deliberate: the v0.1 plan tried to be both the blueprint
+and the step-by-step script, grew to 575 lines, and had to be amended every time
+execution hit a detail it hadn't anticipated. Deep code exploration belongs where
+it's actionable.
 
-- `dev/PROGRESS.md` — checklist for the **version currently in flight** (rewritten
-  from that version's detailed plan when it starts; dormant between versions).
-- `dev/LOG.md` — append-only history (sessions, decisions, dead ends). Holds the
-  v0.1 detail this document no longer carries.
+- `dev/LOG.md` — append-only history (sessions, decisions, dead ends), with the live
+  agenda / in-flight slice-list in the `<!-- NOW -->` block at its top. (The separate
+  `dev/PROGRESS.md` was retired 2026-06-26 — duplicate of LOG + a per-substep sync
+  burden; see `CLAUDE.md` "How planning works here".)
 
-The "record decisions before coding" rule still holds — it now means *write the
-per-version detailed plan before coding* (and touch this roadmap only if the
-version's goal changed).
+The "record decisions before coding" rule still holds — it now means *sketch the
+slice-list before coding* (and touch this roadmap only if the work item's goal
+changed).
 
 ---
 
@@ -85,101 +85,38 @@ per-version detail is written when each version starts.
   versions** — the package version is plain semver in `DESCRIPTION` (`0.3.0.9000`
   dev → `0.3.0` on release); the work is named, not sub-versioned.
 
-  - **Mode-form structural divergence (`dr2_njm`).** DONE 2026-06-18. The first and
-    smallest slice: introduces the **mode response axis** (mode index `n`, no
-    `pdb_site` anchor) using an already-trusted quantity; no new physical quantity,
-    no motion. Locked design:
-    (1) uses the existing **slow per-mutant loop**, not penm's fast `smrs`/`amrs`
-    — the loop is the general engine that composes to motion + trees and is the
-    optimization benchmark; the per-mode reduction is one more cheap reduction of
-    the same displacement. (2) **Raw SPM = one "all-effects" object**: the per-mode
-    array is added as another SPM list-column alongside energies + the per-site
-    array (a mutation is one event with many measured consequences, sharing the
-    `(j,m)` key). (3) **Separation at the preprocess/evaluate layer, not the raw
-    object**: `preprocess_spm_mode()` pivots it into a `[mutant × mode]` matrix and
-    `calculate_dr2_n_msa()` reweights it (identical weights — they live only on the
-    mutant axis); a mode-only analysis never touches the site matrix/`site_map`.
-    (4) **Predict-only** — not fit to data (no observed mode profile), so the v0.1
-    site fit/contract is untouched. Adds the `dr2n-analysis` topic vignette
-    (predict-only `a1`/`a2` sweep now; a fitting section is added later when
-    alignment-derived `dr2_n` + a mode fit exist).
-  - **`dr2*` naming convention.** DONE (decided 2026-06-18). Adopt one msamodel
-    convention for every `dr2`-family name msamodel *creates*: `dr2_<indices>` —
-    one underscore, then the free indices (response `i`/`n`, then `j`, then `m`),
-    letters joined; reductions drop the averaged-out letter. So the per-mutant
-    arrays are `dr2_ijm`/`dr2_njm`; matrix fields `dr2_ijm`/`dr2_njm`; the profile
-    cols `dr2_i`/`dr2_n`. Transform prefixes (`l`/`n`) and source labels
-    (`_msa`/`_obs`) are kept with the index still underscore-set (`dr2_i_msa`,
-    `nlrmsd_i_msa`). **The convention governs names msamodel creates, NOT what it
-    calls:** `penm::delta_structure_dr2i`/`dr2n` are called directly by their own
-    (no-underscore) names — no wrappers. The local `delta_structure_dr2` was
-    **deleted** as a verbatim penm duplicate (verified bit-identical);
-    `generate_spm_data` calls `penm::delta_structure_dr2i` directly. Exported fns
-    normalized: `calculate_dr2_i_msa` / `calculate_dr2_n_msa` (breaking; GitHub-only
-    /solo/pre-1.0). A `test-profile-invariance.R` snapshot proved no profile value
-    moved. Convention recorded in CLAUDE.md + memory.
-  - **Observed profiles + fit — SPLIT (decided 2026-06-24).** The earlier single
-    "observed profiles + fit" bullet conflated two *different scientific objects*;
-    they are now separated:
-    - **(A) Computing OBSERVED `dr2_i`/`dr2_n` from a set of homologous structures +
-      an alignment is OUT OF SCOPE for `msamodel`.** That is empirical *measurement*
-      (inputs: a set of PDBs + an MSA; heavy deps — bio3d→Imports, alignment/
-      superposition; different failure modes), a different object from the
-      mechanistic model. It belongs in a **separate "protein-evolution-patterns"
-      package** (sequence / structure / motion levels), which will serve other
-      models too. `msamodel` keeps its clean contract: **observed data enters as a
-      vector** (`pdb_site`/`i`/`n` + `lrmsd_obs`). The EC2024 pipeline and the user's
-      earlier empirical-model project already kept this as a separate upstream stage;
-      there is no homolog/alignment code in `tmp_src` to migrate.
-    - **(B) FITTING the model to an observed profile stays in `msamodel`** (reuses
-      the fit machinery; needs only the observed *vector*). Current ordering of the
-      remaining 0.3.0 fit work (each slice planned in detail only when it starts):
-      1. **σ correctness fix** — `calculate_loglik_msa` used `sd(residuals)`
-         (divisor `n−1`); the profiled-Gaussian MLE is `sqrt(mean(residuals^2))`
-         (divisor `n`). Verified 2026-06-24: argmax `(a1,a2)` is *unchanged* (= the
-         min-SSR / least-squares solution); only σ-derived quantities (logLik, SEs,
-         posterior width) move. A math-correctness fix, not tuning.
-      2. **ML `lrmsd_i` fit arm** — `optim`-based point estimator over the
-         (now-exact) shared likelihood, for speed (large proteins, path sims) and to
-         move toward `lm`/`gam`-style R conventions. Agile scope: **estimator only**,
-         NO S3 interface yet, NO `method=` flag, a **separate function** from the
-         MCMC (the two differ in *kind* — point+covariance vs posterior sample). A
-         shared S3 convention over both arms is a deliberate *later* pass.
-         `fit_msa_ml()` optimises `(a1, log2(a2+1))` by L-BFGS-B (same coords/bounds
-         as the MCMC), returns a **list** (point estimate + logLik + `sigma_hat` +
-         `optimHess` covariance + delta-method SEs), fail-loud on a singular Hessian.
-         The intro vignette gains a §5.2 comparing MCMC fit, ML fit, and the observed
-         profile (overlay + faceted scatter + (a1,a2,R²) table). **Provenance
-         (checked 2026-06-24):** NO `tmp_src` source for ML-fitting the selection
-         parameters — the source project fit `(a1,a2)` only by MCMC or grid search;
-         the lone `optim` hit (`archive/R_backup/model_rates.R`) is the unmigrated
-         rate-model arm, a different object. So this is new code, not a migration.
-      3. **`lrmsd_n` (mode) fit** — bootstrapped on **synthetic** observed data until
-         the patterns package exists: fit site model to real znb `lrmsd_i`, draw
-         `(a1,a2)`, compute `lrmsd_n`, add **seeded** Gaussian noise. Ship a frozen,
-         clearly-named synthetic fixture; mark synthetic on the *data* (roxygen
-         `@source` + vignette note), not via a runtime `warning()`. Mode-arm tests
-         are regression/snapshot drift-guards. **Split at execution into 3a + 3b
-         (2026-06-24):** 3a first renames the fit side to the
-         `fit_<quantity>_<axis>_<model>_<method>` scheme (`fit_msa_ml`→
-         `fit_lrmsd_i_msa_ml`, `run_mcmc_msa`→`fit_lrmsd_i_msa_mcmc`,
-         `calculate_loglik_msa`→`calculate_loglik_lrmsd_i_msa`; objective carries NO
-         method token — shared by both fitters) and renames the observed COLUMN
-         `lrmsd_obs`→`lrmsd_i_obs` (regenerating `znb_profile`); the data ARGUMENT
-         stays `observed_data` (it is a table, not a vector). The mode arm (3b) mirrors
-         with `i`→`n`. The synthetic truth `(a1,a2)` is the **deterministic site ML
-         point estimate** (`fit_lrmsd_i_msa_ml` on real `znb_profile`), a
-         specialization of "draw" (no MCMC seed coupling); seed 2025, sd 0.30.
-         **DONE 2026-06-24** (3a `e00f0ef` + 3b): `calculate_loglik_lrmsd_n_msa` +
-         `fit_lrmsd_n_msa_ml` (new code, provenance-checked — no `tmp_src` source),
-         synthetic `znb_profile_n` fixture, `test-fit-ml-mode.R` (29 drift-guards incl.
-         fixture-determinism), dr2n-analysis vignette fit section. The mode fit recovers
-         the synthetic truth `(0.458,42.30) → (0.449,40.82)`. **This completes the 0.3.0
-         fit work** (all three slices) and the site+mode structural suite.
+  Completed work (one-line goal + DONE pointer; full execution detail in `dev/LOG.md`):
+  - **Mode-form structural divergence (`dr2_njm` / `dr2_n`).** DONE 2026-06-18.
+    Introduced the mode response axis (index `n`, no `pdb_site` anchor) via the slow
+    per-mutant loop + a `preprocess_spm_mode()` reshape + `calculate_dr2_n_msa()`
+    reweight; predict-only; added the `dr2n-analysis` topic vignette.
+  - **`dr2*` naming convention.** DONE 2026-06-18. msamodel names dr2-family objects
+    `dr2_<indices>` (full spec in `CLAUDE.md` "House conventions" + the
+    `dr2-naming-convention` memory). Governs names msamodel CREATES, not penm calls.
+  - **Observed profiles + fit — SPLIT (decided 2026-06-24).** Two different objects:
+    - **(A) OUT OF SCOPE:** computing OBSERVED `dr2_i`/`dr2_n` from homologous
+      structures + an alignment is empirical *measurement* → a future separate
+      "protein-evolution-patterns" package. `msamodel` keeps its contract:
+      **observed data enters as a vector** (`pdb_site`/`i`/`n` + `lrmsd_*_obs`). No
+      homolog/alignment code in `tmp_src` to migrate.
+    - **(B) FITTING the model to an observed profile stays in `msamodel`.** The three
+      0.3.0 fit slices, all DONE (detail in `dev/LOG.md`):
+      1. **σ correctness fix** (DONE 2026-06-24) — profiled-Gaussian σ̂ uses divisor
+         `n` (`sqrt(mean(r^2))`), not `n−1`; argmax `(a1,a2)` unchanged, only
+         σ-derived quantities move.
+      2. **ML `lrmsd_i` fit arm** (`fit_lrmsd_i_msa_ml`, DONE 2026-06-24) — L-BFGS-B
+         point estimator (point + covariance + SEs) over the shared likelihood,
+         separate from the MCMC. New code (provenance-checked).
+      3. **`lrmsd_n` (mode) fit** (`fit_lrmsd_n_msa_ml`, DONE 2026-06-24) — fit on a
+         **seeded synthetic** observed mode profile (`znb_profile_n`, marked synthetic
+         on the data) until the patterns package exists. Fit-side naming normalized to
+         `fit_<quantity>_<axis>_<model>_<method>`. **Completes the 0.3.0 fit work** and
+         the site+mode structural suite.
 
-- **Inference rework — adaptive quadrature + model/fit/analysis layering** (next, goal
-  decided 2026-06-25; detailed slices planned per-loop in `dev/PROGRESS.md`, agile not
-  waterfall). Two durable decisions:
+- **Inference rework — adaptive quadrature + model/fit/analysis layering** (IN
+  FLIGHT, goal decided 2026-06-25; AGQ loop 1 shipped `00ea45a`; remaining slices
+  planned per-loop, agile not waterfall — see the NOW block in `dev/LOG.md`). Two
+  durable decisions:
   1. **AGQ-primary inference.** The `(a1,a2)` posterior is near-Gaussian in
      `(a1, log2(a2+1))` (measured on `znb_profile`: skew +0.17/−0.24, cor ≈ 0.06).
      **Adaptive Gauss–Hermite quadrature referenced to the Laplace approximation**

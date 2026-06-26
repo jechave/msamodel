@@ -8,13 +8,14 @@ Guidance for Claude Code when working in this repository.
 structural evolution: it predicts site-specific structural divergence in protein
 evolution from single-point-mutation scans (SPMs).
 
-**v0.1 is shipped; v0.2 (API cleanup) is in flight.** The package computes
-structure-divergence profiles (structure × site) and fits them to data: SPM
-generation, structure-divergence profiles, Bayesian parameter estimation (MCMC),
-and a site-level decomposition (the `phi_*` columns — renamed from `shap_*` in
-v0.2, since "Shapley" was a misnomer). v0.2 also drops the a1/a2 grid API and
-switches structure/active-site input to a bio3d pdb object + a plain
-`pdb_site_active` integer vector; see the `dev/plan.md` roadmap.
+**v0.1 and v0.2 (API cleanup) shipped; the 0.3.0 site+mode structural suite is
+done (predict + fit, both axes); the inference rework is in flight** (see the NOW
+block in `dev/LOG.md` and the roadmap in `dev/plan.md`). The package computes
+structure-divergence profiles (structure × site and × mode) and fits them to data:
+SPM generation, divergence profiles, parameter estimation (ML / AGQ / MCMC), and a
+site-level decomposition (the `phi_*` columns — renamed from `shap_*`, since
+"Shapley" was a misnomer). Structure/active-site input is a bio3d pdb object + a
+plain `pdb_site_active` integer vector.
 
 The package was migrated out of a paper-specific research project, and **much
 capability is still unmigrated** — most notably the model's motion/mode arm (only
@@ -25,31 +26,58 @@ It depends on the `penm` package (an `Imports:` dependency) for the ENM
 machinery — `set_enm()`, mutation scans, response matrices. `penm` is consumed as
 an installed library; its source is not part of this repo and is not edited here.
 
-## How planning works here (two tiers)
+## How planning works here (two files)
 
 The v0.1 plan was a single 575-line blueprint that tried to be both the durable
 spec and the step-by-step execution script — so every execution surprise forced an
-edit to a huge document. We deliberately split that:
+edit to a huge document. We split that, and (2026-06-26) dropped the third file
+(`dev/PROGRESS.md`) — its checklist was a per-substep sync burden and its history
+duplicated `dev/LOG.md`. Two files now:
 
 - **`dev/plan.md`** — the **coarse, durable roadmap**: what each version *is* (goal
   + rough scope) and findings that must not be re-discovered (e.g. the
   precomputation property). High-level and stable; edited only when a version's
   *goal* changes. Read it for orientation.
-- **`dev/PROGRESS.md`** — the checklist for the **version currently in flight**.
-  Written from that version's detailed plan when the version starts; dormant
-  between versions.
-- **`dev/LOG.md`** — append-only history (sessions, decisions, dead ends). Holds
-  the "why" behind the current state and the v0.1 detail the roadmap no longer
-  carries.
+- **`dev/LOG.md`** — append-only history (sessions, decisions, dead ends), plus a
+  delimited **`<!-- NOW -->` … `<!-- /NOW -->`** block at the very top holding the
+  live agenda / in-flight slice-list. **Read the NOW block first** each session;
+  it is the one place the current state lives.
 
-**Detailed planning is done per-version, at execution time** — not up front. When a
-version starts: enter plan mode, read the specific code that version touches, write
-the executable detail then (and write `dev/PROGRESS.md` from it). Deep code
-exploration belongs where it's actionable.
+**Detailed planning is done per work item, at execution time** — not up front. When
+a work item starts: enter plan mode, read the specific code it touches, and sketch
+its **slice-list** (a 3–5 line *sequence* of committable slices — a disposable map,
+not a contract; re-plan it as reality diverges). Plan a slice's detail when that
+slice starts. Deep code exploration belongs where it's actionable.
 
-**Record decisions before coding.** This still holds — it now means *write the
-per-version detailed plan before coding*, and touch the roadmap only if the
-version's goal changed. Don't fold surprises into ad-hoc code; plan them first.
+### The agile loop (how work actually flows)
+
+The cadence (load_all inner loop → targeted tests → one full `test()` before commit
+→ `check()` at milestones) is in the global `~/.claude/CLAUDE.md`. Repo specifics:
+
+- **A slice = one committable unit; WIP = 1** (one slice in flight). The review gate
+  is the **commit**, so "stop every slice" and "stop before every commit" are the
+  same gate — not a finer one.
+- **Inner loop is autonomous and silent** — the user does not review inside it.
+- **A slice is DONE (ready for the gate)** when its targeted tests are green AND a
+  verification artifact exists. These are **two separate obligations** — a
+  plausible-looking artifact NEVER substitutes for a passing test.
+- **Verification artifact, sized to the slice:**
+  - *code slice* → a **cheap, disposable** table / PNG / few-numbers written to the
+    session scratchpad (`/private/tmp/.../scratchpad`) via `load_all()` + a short
+    script. NO knit, NO `vignettes/` touch.
+  - *vignette slice* (the vignette is the deliverable) → full `dev/preview/<name>.html`
+    render + the vignette HARD RULE below.
+- **Commit gate covers code too** (not just vignettes): nothing commits until the
+  user has reviewed the artifact and said go. Then ONE full `test()`, then commit.
+- **If a slice goes wrong mid-way:** discard the uncommitted working tree
+  (`git restore`) and re-slice — nothing is committed mid-slice. Amend the
+  slice-list.
+- **`check()` + the full Definition-of-Done reconciliation run at the work-item
+  milestone**, never per slice.
+
+**Record decisions before coding.** This still holds — sketch the slice-list before
+coding, and touch the roadmap only if the work item's *goal* changed. Don't fold
+surprises into ad-hoc code; plan them first.
 
 When this file and `dev/plan.md` disagree, the roadmap wins — update this file or
 flag the contradiction.
@@ -168,34 +196,36 @@ provenance, motivates these. They are not optional.
 
 ## Tracking progress
 
-- **`dev/PROGRESS.md`** — checklist for the in-flight version (bare substep titles,
-  `[ ]`/`[x]`). Rewritten from that version's detailed plan when it starts.
-- **`dev/LOG.md`** — append-only history, newest first. Reverts, scope changes,
-  decisions, dead ends live here.
+- **`dev/LOG.md`** — append-only history, newest first (reverts, scope changes,
+  decisions, dead ends), with the live `<!-- NOW -->` block at the top carrying the
+  in-flight slice-list / next agenda.
 
-**After finishing any substep:** (a) tick it in `dev/PROGRESS.md`, and (b) add a
-one-line dated entry to `dev/LOG.md`. Do this as the substep finishes — tied to
-*finishing*, not to ending a session.
+**After finishing a slice:** keep the NOW block current (cross off the slice, note
+what's next) and add a one-line dated entry to `dev/LOG.md`. The heavier
+reconciliation (Definition of Done below) runs at the commit / work-item milestone,
+not per substep.
 
-### Definition of Done (run this reconciliation pass before declaring any plan/substep done)
+### Definition of Done (run this reconciliation pass at the COMMIT / work-item milestone)
 
 Verifying the *deliverable* (tests pass, NAMESPACE clean) is not enough — a change
 also has **satellite state** that describes the codebase and silently goes stale.
 A plan's own verification section never covers this, so it drifts and only surfaces
-later ("get ready for exit" keeps finding it). After the deliverable is verified,
-run this pass against the **whole project**, not just the files you edited:
+later ("get ready for exit" keeps finding it).
+
+**When this runs:** at the **commit gate** (and the broader work-item milestone),
+NOT per substep. Inside the inner loop, only the lightweight upkeep applies (keep
+the NOW block current + a one-line LOG entry); the full pass below fires once per
+commit and can batch a multi-slice session. Run it against the **whole project**,
+not just the files you edited:
 
 1. **Stale cross-references.** If you renamed/moved/deleted a file, function, or
    version label, grep for the OLD name across `R/`, `tests/`, `dev/`, `man/`,
    `vignettes/*.orig`, `DESCRIPTION`, and memory — fix every dangling reference.
-   (E.g. after the R/ reorg, `dev/PROGRESS.md` still named the deleted files.)
-2. **`dev/PROGRESS.md`** reflects reality — ticked to match what's done; set
-   **dormant** if no version is in flight; never describing a superseded state.
-3. **`dev/LOG.md`** has an entry for what just happened (and, at session end, the
-   commit hashes + the next step).
-4. **Memory** (`MEMORY.md` + files): no entry now contradicts the change; the
+2. **`dev/LOG.md`** has an entry for what just happened (and, at session end, the
+   commit hashes + the next step), and its NOW block reflects reality.
+3. **Memory** (`MEMORY.md` + files): no entry now contradicts the change; the
    "next session" pointer is current; new non-obvious decisions are recorded.
-5. **Git:** intended changes committed, nothing stray staged, pushed to `main`
+4. **Git:** intended changes committed, nothing stray staged, pushed to `main`
    (solo repo), `git status` clean — unless the user asked you to hold off.
 
 If any item turns up work, it is **part of this task, not a later cleanup** — do it
@@ -203,19 +233,27 @@ now. Only report done once this pass is clean.
 
 ## Development commands
 
+The tiered cadence (when each runs) is in the global `~/.claude/CLAUDE.md`; these
+are the project-specific invocations, ordered by how often they run:
+
 ```bash
-# Document (regenerate NAMESPACE + man/ from roxygen) — run after any roxygen change
+# INNER LOOP (constant) — load_all + targeted tests; this is the working loop
+Rscript -e "devtools::load_all()"
+Rscript -e "testthat::test_file('tests/testthat/test-msa-mcmc.R')"   # one file
+# (or devtools::test(filter='msa-mcmc') for a name-filtered subset)
+
+# Document (regenerate NAMESPACE + man/) — ONLY after a roxygen/@importFrom change
 Rscript -e "devtools::document()"
 
-# Run all tests / a single test file
+# BEFORE A COMMIT (rigor gate) — one full run of the whole suite
 Rscript -e "devtools::test()"
-Rscript -e "testthat::test_file('tests/testthat/test-msa-mcmc.R')"
 
-# Full check (v0.1 baseline: 0 errors, 1 warning, 2 notes — all deliberately
-# accepted, GitHub-only not CRAN; see dev/LOG.md)
+# AT A MILESTONE ONLY — full check (v0.1 baseline: 0 errors, 1 warning, 2 notes,
+# deliberately accepted, GitHub-only not CRAN; see dev/LOG.md). NOT per slice —
+# it re-runs document() + all tests + re-knits vignettes.
 Rscript -e "devtools::check()"
 
-# Install locally
+# Install locally (only when a vignette needs the working tree's new functions)
 Rscript -e "devtools::install()"
 
 # Preview a pre-rendered vignette as standalone HTML, WITHOUT touching the repo
