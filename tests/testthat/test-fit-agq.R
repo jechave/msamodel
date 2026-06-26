@@ -4,15 +4,19 @@
 # the same likelihood, in the (a1, log2(a2+1)) coordinates where the prior is flat.
 
 # Independent ground truth: normalize exp(ll) on a dense regular grid in
-# (a1, t = log2(a2+1)) -- the flat-in-t posterior, matching the MCMC's prior. A 61x61
-# grid (3721 evals) already matches a 121x121 grid to the tolerances asserted below;
-# computed ONCE here and reused, so the suite isn't dominated by it.
+# (a1, t = log2(a2+1)) -- the flat-in-t posterior, matching the MCMC's prior. This is
+# a QUADRATURE reference (brute-force posterior mean/sd), so its accuracy is its
+# value -- it cannot be tiny. A measured grid-convergence sweep vs a 61x61 reference:
+# 5x5/7x7 are garbage (a2 off by ~19/13), 11x11 and 15x15 still miss the test
+# tolerances; 21x21 matches 61x61 to a2 < 0.003 and the sds < 0.001 -- orders of
+# magnitude inside the tolerances asserted below -- at ~1/8 the cost. So 21x21 is the
+# converged minimum with margin. Computed ONCE here and reused.
 agq_ground_truth <- local({
   pp  <- preprocess_spm(znb_spm)
   obs <- znb_profile
   ll_of <- function(a1, t) calculate_loglik_lrmsd_i_msa(pp, obs, a1, 2^t - 1)
-  a1g <- seq(0, 3, length.out = 61)
-  tg  <- seq(0, 9, length.out = 61)
+  a1g <- seq(0, 3, length.out = 21)
+  tg  <- seq(0, 9, length.out = 21)
   G   <- expand.grid(a1 = a1g, t = tg)
   G$ll <- mapply(ll_of, G$a1, G$t)
   w  <- exp(G$ll - max(G$ll)); ws <- sum(w)
@@ -23,6 +27,17 @@ agq_ground_truth <- local({
     sd_a1 = sqrt(sum((G$a1 - m_a1)^2 * w) / ws),
     sd_a2 = sqrt(sum((a2 - m_a2)^2 * w) / ws)
   )
+})
+
+# Shared default fit. AGQ is deterministic (pure quadrature, no RNG --
+# identical(fit, fit) is TRUE), so the default n_nodes = 7 fit on znb_profile is the
+# SAME object in every block that uses it. Compute it ONCE and reuse, instead of
+# paying ~7 s per block (object-shape, frozen-ref, predict-band, band-sharpens). Same
+# compute-once pattern as agq_ground_truth above. Blocks that need a DIFFERENT n_nodes
+# still fit their own.
+agq_default <- local({
+  pp <- preprocess_spm(znb_spm)
+  list(pp = pp, agq = fit_lrmsd_i_msa_agq(pp, znb_profile))
 })
 
 test_that("gauss_hermite nodes/weights are correct (integrate polynomials exactly)", {
@@ -36,8 +51,7 @@ test_that("gauss_hermite nodes/weights are correct (integrate polynomials exactl
 })
 
 test_that("fit_lrmsd_i_msa_agq returns the documented object", {
-  pp  <- preprocess_spm(znb_spm)
-  agq <- fit_lrmsd_i_msa_agq(pp, znb_profile)
+  agq <- agq_default$agq
 
   expect_s3_class(agq, "msa_agq")
   expect_named(agq, c("a1", "a2", "sd_a1", "sd_a2", "ci_a1", "ci_a2",
@@ -83,8 +97,7 @@ test_that("fit_lrmsd_i_msa_agq matches frozen reference values", {
   # 2026-06-25) on znb_profile, n_nodes = 5. Catches drift in the quadrature path.
   # AGQ is deterministic (pure quadrature, no RNG): identical(fit, fit) is TRUE, so
   # these literals are exact, not seeded. Captured at the default n_nodes = 7.
-  pp  <- preprocess_spm(znb_spm)
-  agq <- fit_lrmsd_i_msa_agq(pp, znb_profile)
+  agq <- agq_default$agq
   expect_equal(agq$a1, 0.47065568, tolerance = 1e-6)
   expect_equal(agq$a2, 42.69310722, tolerance = 1e-5)
   expect_equal(agq$sd_a1, 0.12545482, tolerance = 1e-6)
@@ -104,8 +117,8 @@ test_that("fit_lrmsd_i_msa_agq fails loud on bad input", {
 })
 
 test_that("predict_lrmsd_i_agq gives a per-site banded profile", {
-  pp  <- preprocess_spm(znb_spm)
-  agq <- fit_lrmsd_i_msa_agq(pp, znb_profile)
+  pp  <- agq_default$pp
+  agq <- agq_default$agq
   pr  <- predict_lrmsd_i_agq(agq, pp)
 
   # one row per MODEL site (228), not per observed site (znb_profile covers 225) --
@@ -126,13 +139,13 @@ test_that("predict_lrmsd_i_agq gives a per-site banded profile", {
 test_that("predict_lrmsd_i_agq band sharpens with n_nodes but always returns cleanly", {
   # No coarseness warning by design (documented, not flagged): a small-node fit still
   # produces a valid band, just read off fewer nodes. A higher level (0.99) widens it.
-  pp    <- preprocess_spm(znb_spm)
-  agq3  <- fit_lrmsd_i_msa_agq(pp, znb_profile, n_nodes = 3)
+  pp    <- agq_default$pp
+  agq3  <- fit_lrmsd_i_msa_agq(pp, znb_profile, n_nodes = 3)   # different n_nodes: own fit
   expect_silent(pr3 <- predict_lrmsd_i_agq(agq3, pp))
   expect_equal(nrow(pr3), nrow(pp$site_map))
   expect_true(all(pr3$lrmsd_i_msa_lower <= pr3$lrmsd_i_msa_upper))
 
-  agq <- fit_lrmsd_i_msa_agq(pp, znb_profile)
+  agq <- agq_default$agq
   w95 <- with(predict_lrmsd_i_agq(agq, pp, level = 0.95),
               lrmsd_i_msa_upper - lrmsd_i_msa_lower)
   w99 <- with(predict_lrmsd_i_agq(agq, pp, level = 0.99),
