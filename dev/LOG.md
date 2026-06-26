@@ -14,20 +14,80 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
 
 - **In flight:** inference rework (`dev/plan.md` "Inference rework"). AGQ loop 1
   shipped (`00ea45a`). No slice currently open.
-- **Next agenda (user-set):**
-  1. **Audit the test suite for bloat** — ~690s, much of it recomputing
-     deterministic ENM physics that could be a fixture; plus possible
-     redundant/tautological tests. Decide what to cut, cache, or keep. This is the
-     real speed lever (the 2026-06-26 workflow redesign was cadence clarity, not
-     speed).
-  2. **THEN (deferred): vignette redesign / split** — the intro overgrew into a
-     site-branch deep-dive; prediction sections crowded with 3 methods (MCMC/ML/AGQ).
-     Rethink what vignettes exist, split, restructure. Plan at execution time.
+- **Test-suite redesign DONE** (branch `test-suite-redesign`, 6 commits
+  `8a9e4c1..06b4292`, awaiting merge to `main`). **Default suite 284s → ~60s**
+  (the "~690s" in the old agenda was a STALE figure; measured baseline was 284s).
+  What changed: enabled `Config/testthat/parallel: true` (284→183s alone); the two
+  81×81 ML grid searches (~58s + ~65s) replaced by self-contained local-max
+  consistency checks; the ~21s full SPM regeneration tiered behind
+  `MSAMODEL_FULL_TESTS=true` with a cheap always-on single-mutant coherence check in
+  its place; fit-agq sped up (61×61→21×21 ground-truth quadrature grid, measured-
+  converged; default n_nodes=7 fit deduped into a shared `local()`). Full mode
+  (`MSAMODEL_FULL_TESTS=true`, heavy regen runs) is ~73s, 180 pass / 0 skip. The
+  profile-invariance snapshots were KEPT (the only per-element pin on the dr2_i/dr2_n
+  profile vectors — an expert review caught that deleting them was a coverage hole).
+  Suite 178 pass / 0 fail / 2 skip (the 2 heavy regen blocks skip by default).
+- **Next agenda (user-set): vignette redesign / split** — the intro overgrew into a
+  site-branch deep-dive; prediction sections crowded with 3 methods (MCMC/ML/AGQ).
+  Rethink what vignettes exist, split, restructure. Plan at execution time.
 - **Workflow:** agile cadence now codified — global `~/.claude/CLAUDE.md` (the
   loop) + project `CLAUDE.md` (slice mechanics). Slice = commit; stop at the commit
   gate; cheap scratchpad artifact for code slices, full preview only for vignette
-  slices; `check()` at milestones only.
+  slices; `check()` at milestones only. Commit gate now skips the full `test()` for
+  docs/comment-only diffs (added 2026-06-26).
 <!-- /NOW -->
+
+### 2026-06-26 — Test-suite redesign (audit → tier/cut/cache, 284s → ~60s)
+
+Acted on the user's next-session priority. Started as a chat about testing best
+practice (testthat-3), built a {contract, regression-guard, correctness,
+scaffolding} lifecycle lens, ran an expert test-design review of the first plan
+(which caught real errors — see below), then executed in 6 slices on branch
+`test-suite-redesign`.
+
+**Findings that reshaped the plan (the chat + expert review did real work):**
+- The "~690s" baseline was STALE. Measured baseline: **284s**. Final default: **~60s**.
+- The profile-invariance snapshots are NOT dead scaffolding (the first plan would
+  have deleted them): they are the ONLY value-level pin on the per-element dr2_i /
+  dr2_n profile vectors. The frozen loglik literal is a scalar reduction (misses a
+  site permutation / mean-symmetric sign flip); the nested-model tests recompute via
+  the function under test (circular). KEPT; header reworded to document the standing
+  job (`06b4292`).
+- "Delete the grid because it overlaps the frozen-ref" was the WRONG rationale —
+  frozen-ref catches "the answer moved", a grid catches "optim is at the wrong point
+  / objective miscoded and the literal captured from that same wrong run" (disjoint
+  failures). Resolved by replacing each 81×81 grid with a SELF-CONTAINED local-max
+  consistency check (tiny grid centred on the fit's own optimum, same objective),
+  honestly scoped as consistency-not-correctness; WHERE the optimum is stays pinned
+  by the frozen-ref, THAT it's a max there is pinned by the new check. Dropped an
+  intermediate "ML ≈ AGQ posterior mean" idea — bad cross-function coupling AND
+  circular (AGQ and ML share the objective). (`e34772a`, `402011d`)
+- The SPM "regenerate to check the fixture" test is a CACHE-COHERENCE guard on a
+  computed result (znb_spm is a result cached for speed, not input data — the user
+  corrected an earlier mis-framing of it as data-prep). Tiered the ~21s full regen
+  behind `MSAMODEL_FULL_TESTS=true`; added an always-on cheap single-mutant (m>0,
+  NOT the m=0 wild type) coherence check that reproduces one cell bit-exactly.
+  (`aa93482`)
+
+**Slices (all 6 committed, suite green at each gate):**
+1. `8a9e4c1` — `Config/testthat/parallel: true` + testthat `(>= 3.1.5)` +
+   `helper-skip.R::skip_if_not_full()`. Parallel alone: 284→183s.
+2. `aa93482` — cheap single-mutant coherence check; tier the two heavy regen blocks.
+3. `e34772a` — site 81×81 grid → local-max check. fit-ml 80.7→26.2s.
+4. `402011d` — mode 81×81 grid → local-max check (symmetric). fit-ml-mode 80.1→26.4s.
+   (4.5) `3cdea71` — fit-agq: ground-truth grid 61×61→21×21 (measured-converged via
+   a sweep, NOT guessed — 5×5/7×7 are garbage references; it's a quadrature
+   reference whose accuracy is its value) + dedup the deterministic default fit into
+   a shared `local()`. fit-agq 60.9→41.2s; suite 97→59.8s.
+5. `06b4292` — profile-invariance header reword (docs only).
+
+**Workflow rule refined (user-flagged):** the commit-gate full `test()` now skips
+for docs/comment-only diffs (a non-testable diff makes the gate vacuous). Recorded
+in project `CLAUDE.md` + memory `feedback_commit_gate_docs_only`.
+
+Note: under `parallel: true`, testthat's per-file `real` column is reporting time on
+the main process, not worker CPU — don't use it for attribution; the wall-clock is
+the trustworthy figure, and it's now bounded by the slowest single file.
 
 ### 2026-06-26 — Workflow redesign for agile + dev-docs cleanup (PROGRESS.md retired)
 

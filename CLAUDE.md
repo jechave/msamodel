@@ -69,6 +69,12 @@ The cadence (load_all inner loop → targeted tests → one full `test()` before
     render + the vignette HARD RULE below.
 - **Commit gate covers code too** (not just vignettes): nothing commits until the
   user has reviewed the artifact and said go. Then ONE full `test()`, then commit.
+  **Exception — docs/comment-only diffs:** if the slice touches no code, data,
+  `data-raw/`, roxygen, or `NAMESPACE` (e.g. a comment-only edit), the full `test()`
+  cannot change any outcome, so skip it — the gate verifies behavior change, and a
+  non-testable diff makes it vacuous. The verification is still sized to the change
+  (confirm no code/data/snapshot bytes moved). Run the full `test()` whenever code,
+  data, or roxygen DID change.
 - **If a slice goes wrong mid-way:** discard the uncommitted working tree
   (`git restore`) and re-slice — nothing is committed mid-slice. Amend the
   slice-list.
