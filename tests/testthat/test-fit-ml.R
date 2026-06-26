@@ -19,25 +19,25 @@ test_that("fit_lrmsd_i_msa_ml returns the documented list shape", {
   expect_equal(ml$convergence, 0L)                # L-BFGS-B converged
 })
 
-test_that("ML estimate maximises the likelihood (independent grid route)", {
-  # Independent route: a fine grid-search max of the SAME likelihood, in the same
-  # (a1, b) coordinates. The optimiser's logLik must be at least as high as the
-  # grid's (it refines off the grid), and its (a1, a2) must land in the same basin.
+test_that("ML sits at a local max of its own objective (consistency)", {
+  # Replaces the retired 81x81 grid search (~58 s). Evaluate the SAME objective the
+  # ML fit optimises on a tiny grid centred on the fit's own (a1, a2): optim's logLik
+  # must be no worse than any nearby point, i.e. it sits at a local max. Self-
+  # contained -- depends only on fit_lrmsd_i_msa_ml + calculate_loglik_lrmsd_i_msa,
+  # NOT on AGQ or any other function. Honest scope: this is a local-max CONSISTENCY
+  # check on the ML path, NOT an independent-correctness proof (the grid recomputes
+  # the same objective). WHERE the optimum is, is pinned by the frozen-reference test
+  # below; THAT it is a max there, is pinned here.
   pp <- preprocess_spm(znb_spm)
   ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
 
-  a1g <- seq(0, 10, length.out = 81)
-  bg  <- seq(0, 13, length.out = 81)
+  a1g <- ml$a1 + c(-0.1, -0.05, 0, 0.05, 0.1)
+  bg  <- log2(ml$a2 + 1) + c(-0.3, -0.15, 0, 0.15, 0.3)
   G   <- expand.grid(a1 = a1g, b = bg)
   ll  <- apply(G, 1L, function(r)
     calculate_loglik_lrmsd_i_msa(pp, znb_profile, a1 = r[["a1"]], a2 = 2^r[["b"]] - 1))
-  best <- G[which.max(ll), ]
 
-  # optim's optimum is no worse than the coarse grid's best.
   expect_gte(ml$logLik, max(ll) - 1e-8)
-  # Same basin: within one grid step of the grid argmax (b = log2(a2 + 1)).
-  expect_lt(abs(ml$a1 - best$a1), a1g[2] - a1g[1])
-  expect_lt(abs(log2(ml$a2 + 1) - best$b), bg[2] - bg[1])
 })
 
 test_that("fit_lrmsd_i_msa_ml matches frozen reference values", {
