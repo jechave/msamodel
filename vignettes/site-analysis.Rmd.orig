@@ -1,21 +1,21 @@
 ---
-title: "Introduction to msamodel: structure-divergence profiles and fitting"
+title: "Site analysis of structural divergence"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Introduction to msamodel: structure-divergence profiles and fitting}
+  %\VignetteIndexEntry{Site analysis of structural divergence}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
 <!--
 SOURCE OF TRUTH. This `.Rmd.orig` is the editable vignette; every code chunk runs
-for real. The shipped `msamodel-intro.Rmd` is PRE-RENDERED from this file so that
-`R CMD check` does not re-run the MCMC. Regenerate it after editing this file or
-after any change to the package code the vignette exercises:
+for real. The shipped `site-analysis.Rmd` is PRE-RENDERED from this file.
+Regenerate it after editing this file or after any change to the package code the
+vignette exercises:
 
-  Rscript -e 'knitr::knit("vignettes/msamodel-intro.Rmd.orig", output = "vignettes/msamodel-intro.Rmd")'
+  Rscript -e 'knitr::knit("vignettes/site-analysis.Rmd.orig", output = "vignettes/site-analysis.Rmd")'
 
-then commit both this file, the rendered `msamodel-intro.Rmd`, and its figures.
+then commit both this file, the rendered `site-analysis.Rmd`, and its figures.
 Pattern: https://ropensci.org/technotes/2019/12/08/precompute-vignettes/
 -->
 
@@ -28,7 +28,7 @@ knitr::opts_chunk$set(
   dpi = 96,
   # Write precomputed figures under a vignette-named dir rather than the default
   # bare `figure/`, which R CMD check flags as a stray knitr leftover.
-  fig.path = "msamodel-intro_files/figure-html/"
+  fig.path = "site-analysis_files/figure-html/"
 )
 
 # Every computation chunk below runs for real when this file is knit. ggplot2 is
@@ -36,12 +36,9 @@ knitr::opts_chunk$set(
 # plotting chunks are skipped.
 has_ggplot <- requireNamespace("ggplot2", quietly = TRUE)
 
-# Seed so the one stochastic step (the MCMC fit) gives a stable rendered result
-# for whoever re-knits this file.
+# The fit here is ML (deterministic); the seed is harmless but kept for a stable
+# committed render.
 set.seed(1024)
-
-# 1znb_A active-site residues (PDB numbering); used throughout.
-pdb_site_active <- c(99, 101, 103, 162, 181, 184, 193, 223)
 ```
 
 ```{r libs, include = FALSE}
@@ -54,54 +51,37 @@ if (has_ggplot) {
   suppressMessages(library(ggplot2))
   theme_set(theme_minimal(base_size = 12))
 }
-
-# Vignette-local goodness-of-fit helper. v0.1 does not export r2/rmse (the
-# model-fit assessment layer is deferred to a later version), so we define R^2
-# inline for the fitted-vs-observed plots.
-r2 <- function(obs, pred) {
-  1 - sum((obs - pred)^2) / sum((obs - mean(obs))^2)
-}
 ```
 
-## What this package does
+This vignette predicts structural divergence **per residue** and fits it to data.
+Its sibling, the [mode analysis vignette](mode-analysis.html), runs the same arc
+**per normal mode**; the two are companion views of one model.
 
-`msamodel` implements the Mutation-Stability-Activity (MSA) model of neutral
-structural evolution. Given a protein structure and its active-site residues, it
-predicts the **site-specific structural divergence** expected under neutral
-evolution, from a single-point-mutation scan (SPM) of the structure.
+The per-residue quantity is the log root-mean-square structural displacement,
+`lrmsd = log(sqrt(dr2_i))`, where `dr2_i` is a selection-weighted average over a
+single-point-mutation scan (SPM). Two selection parameters control the weighting:
+`a1` (selection on **stability**) and `a2` (selection on **activity**, proximity
+to the active site). We use the worked example `1znb_A` (zinc beta-lactamase),
+whose data ship as the `znb_*` datasets.
 
-The per-site quantity is the log root-mean-square structural displacement,
-`lrmsd = log(sqrt(dr2_i))`, where `dr2_i` is a selection-weighted average over
-the mutation scan. Two selection parameters control the weighting:
+## 1. Setup
 
-- `a1` — strength of selection on **stability**,
-- `a2` — strength of selection on **activity** (proximity to the active site).
-
-This vignette walks through everything v0.1 can do with the worked example
-`1znb_A` (zinc beta-lactamase), whose data ship with the package as the `znb_*`
-datasets:
+The shipped `znb_wt` and `znb_spm` come from the setup pipeline below: from a
+structure and its active-site residues you build an elastic network model and run
+a single-point-mutation scan. `setup_enm()` takes a bio3d structure object
+directly, so you read the file yourself — with `bio3d::read.pdb()` for legacy
+`.pdb` or `bio3d::read.cif()` for mmCIF — and the active site is just a vector of
+PDB residue numbers.
 
 ```{r data}
 data("znb_wt")       # elastic network model (wild type)
 data("znb_spm")      # single-point-mutation scan
 data("znb_profile")  # observed divergence profile (the fit target)
+
+# Active-site residues (PDB numbering). These mark the red lines in every plot
+# below and drive the activity-selection term.
+pdb_site_active <- c(99, 101, 103, 162, 181, 184, 193, 223)
 ```
-
-```{r show-meta, echo = FALSE}
-cat("Example protein: 1znb_A",
-    "\nActive-site residues (PDB numbering):",
-    paste(pdb_site_active, collapse = ", "),
-    "\nObserved sites:", nrow(znb_profile), "\n")
-```
-
-## 1. Setup: from a PDB structure to an SPM
-
-The shipped `znb_wt` and `znb_spm` are the result of the setup pipeline below.
-Starting from a structure and the active-site residues, you build an elastic
-network model and run a single-point-mutation scan. `setup_enm()` takes a bio3d
-structure object directly, so you read the file yourself — with
-`bio3d::read.pdb()` for legacy `.pdb` or `bio3d::read.cif()` for mmCIF — and the
-active site is just a vector of PDB residue numbers.
 
 This is the exact recipe that produced the shipped `znb_spm` dataset, so we show
 it but do not re-run it here (the package's `test-spm-generate.R` checks that this
@@ -131,18 +111,27 @@ below reuses them:
 pp <- preprocess_spm(znb_spm)   # list: energy_data, dr2_ijm, site_map
 ```
 
-Per-site structural properties (distance to the active site, flexibility) used by
-the plots below, keyed by the internal site index `i`:
+Two per-site structural descriptors are used as plot axes below. We get them from
+`add_site_properties()`, which reads the wild-type ENM (`znb_wt`) and returns, per
+site:
+
+- `dactive` — distance (Å) from the residue to the nearest active-site residue,
+- `msf` — mean square fluctuation, a flexibility measure from the ENM normal modes;
+  we report `lrmsf = log(sqrt(msf))`, the log RMSF.
+
+The site index `i` is msamodel's internal 1..N residue index; `pp$site_map` (built
+by `preprocess_spm()` above) is the key from `i` to `pdb_site`, the PDB residue
+number used on the chain-plot x-axis.
 
 ```{r site-props}
-site_ids   <- as.integer(colnames(pp$dr2_ijm))
+site_ids   <- as.integer(colnames(pp$dr2_ijm))   # the internal site indices i
 site_props <- add_site_properties(tibble(i = site_ids), znb_wt, pdb_site_active) |>
-  mutate(lrmsf = log(sqrt(msf))) |>
-  left_join(pp$site_map, by = "i") |>
+  mutate(lrmsf = log(sqrt(msf))) |>               # log RMSF (flexibility)
+  left_join(pp$site_map, by = "i") |>             # attach pdb_site (i -> PDB number)
   select(i, pdb_site, dactive, lrmsf)
 ```
 
-## 2. Divergence profiles at given (a1, a2)
+## 2. Divergence profile at given (a1, a2)
 
 For any choice of `(a1, a2)`, `calculate_dr2_i_msa()` returns the per-site
 weighted mean squared displacement; `lrmsd = log(sqrt(dr2_i))` is the divergence
@@ -232,9 +221,9 @@ ggplot(nested_long, aes(pdb_site, lrmsd, colour = model)) +
 ```
 
 The **sequential** decomposition starts from the mutation-only model and adds one
-selection pressure at a time along M0 → MM → MS → MSA. Each term is the
-incremental divergence contributed by the next pressure. Writing $\phi$ for the
-contributions,
+selection pressure at a time along MM → MS → MSA (MA is the alternative
+single-selection variant, not on this additive path). Each term is the incremental
+divergence contributed by the next pressure. Writing $\phi$ for the contributions,
 
 $$
 \phi_{\text{mut}}  = \text{lrmsd}_{\text{mm}}
@@ -286,8 +275,8 @@ ggplot(phi_long, aes(pdb_site, phi, colour = component)) +
 ```
 
 This decomposes the profile at the **chosen** `(a1, a2)`. Section 6 applies the
-same decomposition to the **fitted** (posterior-mean) profile after `a1, a2` are
-estimated from data.
+same decomposition to the **fitted** profile, after `a1, a2` are estimated from
+data in section 5.
 
 ## 4. How the profile depends on a1 and a2
 
@@ -340,40 +329,47 @@ selectively around the active site.
 The fit reuses the same four nested model variants of section 3 (MM / MS / MA /
 MSA), but now `a1, a2` are **estimated from data** rather than chosen. The fitted
 profiles are `lrmsd_i_mm`, `lrmsd_i_ms`, `lrmsd_i_ma`, `lrmsd_i_msa`; MSA is the
-full model, and the other three feed the decomposition of section 6.
+full model.
 
 Given an observed divergence profile (`observed_data` with columns `pdb_site`
-and `lrmsd_i_obs` — here `znb_profile`), `run_msa_bayesian_analysis()` estimates
-`a1, a2` by MCMC and returns posterior summaries, per-site predictions for the
-four model variants, and the site-level decomposition of section 6. We use
-a short chain here so the vignette renders quickly; use more iterations in
-practice:
+and `lrmsd_i_obs` — here `znb_profile`), `fit_lrmsd_i_msa_ml()` estimates `a1, a2`
+by maximum likelihood, returning a point estimate plus an asymptotic covariance
+from the Hessian at the optimum. It is fast and deterministic:
 
 ```{r fit-code}
-fit <- run_msa_bayesian_analysis(
-  spm           = znb_spm,
-  observed_data = znb_profile,
-  n_mcmc_iter   = 500,    # short, for a fast vignette render; use more in practice
-  n_burnin      = 100
-)
+ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)   # pp from section 1; znb_profile is the target
+c(a1 = ml$a1, a2 = ml$a2)
 ```
 
 ```{r fit-params, echo = FALSE}
-knitr::kable(fit$parameter_summary, digits = 3,
-             caption = "Posterior summary of the selection parameters")
+knitr::kable(
+  tibble::tibble(
+    parameter = c("a1", "a2"),
+    estimate  = c(ml$a1, ml$a2),
+    se        = c(ml$se_a1, ml$se_a2)
+  ),
+  digits = 3,
+  caption = "ML estimate of the selection parameters (se from the Hessian)"
+)
 ```
+
+`msamodel` also provides a deterministic-posterior fit (adaptive Gauss–Hermite
+quadrature, `fit_lrmsd_i_msa_agq()`) and tools to compare the two.
 
 ### Fitted vs. observed
 
 The likelihood compares **mean-centered** profiles (`nlrmsd = lrmsd - mean(lrmsd)`),
 so the comparison plots use the same centering. We build the comparison table
-from the posterior-mean MSA prediction per site, joined to the observed profile,
-then center both on the compared subset and annotate with R²:
+from the MSA prediction at the ML estimate (via `calculate_lrmsd_i_nested_models()`),
+joined to the observed profile, then center both on the compared subset and
+annotate with R²:
 
 ```{r fit-prep}
-fit_msa <- fit$prediction_summary |>
-  filter(variable == "lrmsd_i_msa") |>
-  select(pdb_site, lrmsd_fit = mean)
+# Coefficient of determination, R^2 = 1 - SSE/SST, used to score the fit.
+r2 <- function(obs, pred) 1 - sum((obs - pred)^2) / sum((obs - mean(obs))^2)
+
+fit_msa <- calculate_lrmsd_i_nested_models(pp, ml$a1, ml$a2) |>
+  select(pdb_site, lrmsd_fit = lrmsd_i_msa)
 
 cmp <- znb_profile |>
   inner_join(fit_msa, by = "pdb_site") |>
@@ -443,209 +439,44 @@ ggplot(cmp_long, aes(dactive, nlrmsd, colour = source)) +
   theme(legend.position = "top")
 ```
 
-### Maximum-likelihood fit, and a comparison of methods
+## 6. Decomposing the fitted profile
 
-The MCMC above samples the posterior of `(a1, a2)`. For a fast **point** estimate,
-`fit_lrmsd_i_msa_ml()` maximises the *same* likelihood
-([`calculate_loglik_lrmsd_i_msa()`]) over the same coordinates (`a1` and
-`log2(a2 + 1)`), returning the estimate plus an asymptotic covariance from the
-Hessian at the optimum. It is much faster than MCMC — useful for large proteins or
-path simulations — but gives no posterior sample. Here we check the two arms agree.
+Section 3 decomposed the profile at a *chosen* `(a1, a2)`. The same sequential
+$\phi_{\text{mut}}/\phi_{\text{stab}}/\phi_{\text{act}}$ decomposition applies to
+the **fitted** profile — evaluate the four nested-model variants at the ML estimate
+`(ml$a1, ml$a2)`, then split:
 
-```{r ml-fit}
-ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)   # pp from section 1; znb_profile is the target
-```
-
-A third option estimates the **posterior** like the MCMC, but *deterministically*:
-`fit_lrmsd_i_msa_agq()` approximates it by adaptive Gauss–Hermite quadrature, placing a
-handful of nodes at the locations the Laplace (Gaussian) approximation suggests. For this
-protein the posterior is near-Gaussian in `(a1, log2(a2 + 1))`, so a 5×5 grid (25
-likelihood evaluations) reproduces the posterior essentially exactly — no chain, no seed,
-no burn-in. It reports posterior means, standard deviations, and credible intervals on the
-natural `(a1, a2)` scale:
-
-```{r agq-fit}
-agq <- fit_lrmsd_i_msa_agq(pp, znb_profile)
-c(a1 = agq$a1, a2 = agq$a2)
-```
-
-To compare the arms on equal footing, we build **all three** profiles the same way:
-the MSA prediction from the single-source-of-truth forward map, evaluated at a single
-`(a1, a2)` — the **posterior mean** for the MCMC arm and the **point estimate** for
-ML — then mean-centered. (This differs from the §5.1 profile above, which is the
-posterior *predictive* mean: the per-site prediction averaged over the whole
-posterior. Predicting at the posterior-mean parameters instead keeps the only
-difference between the two arms the estimate of `(a1, a2)`, not how the profile is
-summarised.)
-
-```{r ml-prep}
-mcmc_par <- fit$parameter_summary
-get <- function(p, col) mcmc_par[[col]][mcmc_par$parameter == p]
-mcmc_a1 <- get("a1", "mean"); mcmc_a2 <- get("a2", "mean")
-
-# MCMC profile at the posterior-mean (a1, a2) -- same recipe as ML below.
-mcmc_msa <- calculate_lrmsd_i_nested_models(pp, mcmc_a1, mcmc_a2) |>
-  transmute(pdb_site, lrmsd_mcmc = lrmsd_i_msa)
-
-# ML profile at the point estimate.
-ml_msa <- calculate_lrmsd_i_nested_models(pp, ml$a1, ml$a2) |>
-  transmute(pdb_site, lrmsd_ml = lrmsd_i_msa)
-
-# AGQ profile at the posterior mean (a1, a2).
-agq_msa <- calculate_lrmsd_i_nested_models(pp, agq$a1, agq$a2) |>
-  transmute(pdb_site, lrmsd_agq = lrmsd_i_msa)
-
-cmp_ml <- cmp |>
-  inner_join(mcmc_msa, by = "pdb_site") |>
-  inner_join(ml_msa,   by = "pdb_site") |>
-  inner_join(agq_msa,  by = "pdb_site") |>
-  mutate(
-    nlrmsd_mcmc = lrmsd_mcmc - mean(lrmsd_mcmc),
-    nlrmsd_ml   = lrmsd_ml   - mean(lrmsd_ml),
-    nlrmsd_agq  = lrmsd_agq  - mean(lrmsd_agq)
-  )
-
-r2_mcmc <- r2(cmp_ml$nlrmsd_i_obs, cmp_ml$nlrmsd_mcmc)
-r2_ml   <- r2(cmp_ml$nlrmsd_i_obs, cmp_ml$nlrmsd_ml)
-r2_agq  <- r2(cmp_ml$nlrmsd_i_obs, cmp_ml$nlrmsd_agq)
-```
-
-The two arms land on essentially the same `(a1, a2)`, with comparable uncertainty
-(MCMC posterior sd vs ML asymptotic standard error), and explain the observed
-profile equally well:
-
-```{r method-table, echo = FALSE}
-method_tbl <- tibble::tibble(
-  method = c("MCMC (posterior mean)", "ML (point estimate)", "AGQ (posterior mean)"),
-  a1     = c(mcmc_a1, ml$a1, agq$a1),
-  a1_unc = c(get("a1", "sd"), ml$se_a1, agq$sd_a1),
-  a2     = c(mcmc_a2, ml$a2, agq$a2),
-  a2_unc = c(get("a2", "sd"), ml$se_a2, agq$sd_a2),
-  R2     = c(r2_mcmc, r2_ml, r2_agq)
+```{r decomp-fit-code}
+nested_fit <- calculate_lrmsd_i_nested_models(pp, ml$a1, ml$a2)
+phi_fit <- dplyr::bind_cols(
+  nested_fit,
+  calculate_msa_decomposition(nested_fit$lrmsd_i_mm, nested_fit$lrmsd_i_ms,
+                              nested_fit$lrmsd_i_ma, nested_fit$lrmsd_i_msa)
 )
-knitr::kable(method_tbl, digits = 3,
-             col.names = c("method", "a1", "a1 (sd/se)", "a2", "a2 (sd/se)", "R²"),
-             caption = "MCMC, ML and AGQ estimates of the selection parameters (all profiles predicted at a single (a1, a2); uncertainty is the MCMC/AGQ posterior sd or the ML asymptotic standard error)")
 ```
-
-The AGQ posterior mean and standard deviation match the MCMC's — at 25 deterministic
-likelihood evaluations instead of thousands of Markov-chain steps.
-
-Observed, MCMC-fitted and ML-fitted profiles along the chain (all mean-centered):
-
-```{r method-long, include = FALSE}
-methods_long <- cmp_ml |>
-  tidyr::pivot_longer(c(nlrmsd_i_obs, nlrmsd_mcmc, nlrmsd_ml, nlrmsd_agq),
-                      names_to = "source", values_to = "nlrmsd") |>
-  mutate(source = dplyr::recode(source,
-                                nlrmsd_i_obs = "observed",
-                                nlrmsd_mcmc = "fitted (MCMC)",
-                                nlrmsd_ml   = "fitted (ML)",
-                                nlrmsd_agq  = "fitted (AGQ)"))
-method_cols <- c("observed" = "grey25",
-                 "fitted (MCMC)" = "firebrick",
-                 "fitted (ML)" = "steelblue",
-                 "fitted (AGQ)" = "seagreen")
-```
-
-```{r method-profile, echo = FALSE, eval = has_ggplot}
-ggplot(methods_long, aes(pdb_site, nlrmsd, colour = source)) +
-  geom_line(alpha = 0.8) +
-  scale_colour_manual(values = method_cols) +
-  labs(title = "Observed vs. MCMC-, ML- and AGQ-fitted divergence profiles",
-       x = "Residue (PDB numbering)", y = "nlrmsd (mean-centered)", colour = NULL) +
-  theme(legend.position = "top")
-```
-
-Fitted vs observed, one panel per fit method:
-
-```{r method-scatter, echo = FALSE, eval = has_ggplot}
-scatter_df <- dplyr::bind_rows(
-  dplyr::transmute(cmp_ml, method = "MCMC", nlrmsd_i_obs, nlrmsd_fit = nlrmsd_mcmc),
-  dplyr::transmute(cmp_ml, method = "ML",   nlrmsd_i_obs, nlrmsd_fit = nlrmsd_ml),
-  dplyr::transmute(cmp_ml, method = "AGQ",  nlrmsd_i_obs, nlrmsd_fit = nlrmsd_agq)
-)
-r2_labels <- tibble::tibble(
-  method = c("MCMC", "ML", "AGQ"),
-  label  = sprintf("R^2 == %.3f", c(r2_mcmc, r2_ml, r2_agq))
-)
-ggplot(scatter_df, aes(nlrmsd_i_obs, nlrmsd_fit)) +
-  geom_abline(slope = 1, intercept = 0, colour = "grey70", linetype = 2) +
-  geom_point(alpha = 0.5, colour = "steelblue") +
-  geom_text(data = r2_labels, aes(x = -Inf, y = Inf, label = label),
-            parse = TRUE, hjust = -0.15, vjust = 1.4, inherit.aes = FALSE) +
-  facet_wrap(~ method) +
-  labs(title = "Fitted vs. observed by method (mean-centered)",
-       x = "observed nlrmsd", y = "fitted nlrmsd")
-```
-
-Finally, the deterministic AGQ posterior directly against the MCMC posterior. Points
-on the dashed 1:1 line mean the methods agree site-for-site; the R² here measures
-**method-vs-method** agreement, not fit to data — AGQ recovers the sampled posterior at
-a tiny fraction of the cost:
-
-```{r agq-vs-mcmc-r2}
-r2_methods <- r2(cmp_ml$nlrmsd_mcmc, cmp_ml$nlrmsd_agq)
-r2_methods
-```
-
-```{r agq-vs-mcmc, echo = FALSE, eval = has_ggplot}
-ggplot(cmp_ml, aes(nlrmsd_mcmc, nlrmsd_agq)) +
-  geom_abline(slope = 1, intercept = 0, colour = "grey70", linetype = 2) +
-  geom_point(alpha = 0.5, colour = "darkorchid") +
-  annotate("text", x = -Inf, y = Inf, hjust = -0.15, vjust = 1.4,
-           label = sprintf("R^2 == %.4f", r2_methods), parse = TRUE) +
-  labs(title = "MCMC- vs. AGQ-fitted profile (mean-centered)",
-       x = "MCMC nlrmsd", y = "AGQ nlrmsd")
-```
-
-Because AGQ carries the whole `(a1, a2)` posterior, it also propagates that uncertainty
-to the **predicted profile**: `predict_lrmsd_i_agq()` returns, per residue, the posterior
-mean and a credible band (the model prediction integrated over the posterior). Here the
-95% band is shown against the observed profile (all mean-centered):
-
-```{r agq-band, echo = FALSE, eval = has_ggplot}
-band <- predict_lrmsd_i_agq(agq, pp) |>
-  inner_join(dplyr::select(cmp_ml, pdb_site, nlrmsd_i_obs), by = "pdb_site")
-
-ggplot(band, aes(pdb_site)) +
-  geom_ribbon(aes(ymin = nlrmsd_i_msa_lower, ymax = nlrmsd_i_msa_upper),
-              fill = "seagreen", alpha = 0.25) +
-  geom_line(aes(y = nlrmsd_i_msa_mean), colour = "seagreen") +
-  geom_point(aes(y = nlrmsd_i_obs), colour = "grey25", size = 0.7, alpha = 0.7) +
-  labs(title = "AGQ posterior profile with 95% credible band vs. observed",
-       x = "Residue (PDB numbering)", y = "nlrmsd (mean-centered)")
-```
-
-## 6. Site-level decomposition of the fitted profile
-
-Section 3 decomposed the profile at a *chosen* `(a1, a2)`. The fit applies the
-**same** sequential decomposition (same $\phi_{\text{mut}}/\phi_{\text{stab}}/\phi_{\text{act}}$
-formula) to the **fitted** profile, propagating the MCMC posterior so each
-contribution comes with an uncertainty band. `run_msa_bayesian_analysis()` returns
-the result as `phi_mut`, `phi_stab`, `phi_act` in `decomposition_summary` (one
-posterior summary per site and term).
 
 The mutation term is the divergence under no selection (it still varies among
 sites — mutations perturb sites unequally); a negative selection term means that
 pressure *reduces* divergence at that site relative to the mutation-only model.
 
-```{r decomp, echo = FALSE, eval = has_ggplot}
+```{r decomp-fit, echo = FALSE, eval = has_ggplot}
 labs_comp <- c(phi_mut = "mutation",
                phi_stab = "stability selection",
                phi_act = "activity selection")
 comp_cols <- c("mutation" = "#FF8C00", "stability selection" = "#0000CD",
                "activity selection" = "#C41E3A")
-dec <- fit$decomposition_summary |>
+phi_fit_long <- phi_fit |>
+  tidyr::pivot_longer(c(phi_mut, phi_stab, phi_act),
+                      names_to = "component", values_to = "phi") |>
   mutate(component = factor(labs_comp[component], levels = labs_comp))
-ggplot(dec, aes(pdb_site, mean, colour = component)) +
+ggplot(phi_fit_long, aes(pdb_site, phi, colour = component)) +
   geom_vline(xintercept = pdb_site_active, colour = "firebrick",
              alpha = 0.3, linewidth = 0.3) +
   geom_hline(yintercept = 0, colour = "grey80") +
   geom_line() +
   scale_colour_manual(values = comp_cols, guide = "none") +
   facet_wrap(~ component, ncol = 1) +
-  labs(title = "Decomposition of predicted divergence",
+  labs(title = "Decomposition of the fitted profile",
        subtitle = "Red lines mark active-site residues",
        x = "Residue (PDB numbering)", y = "contribution to lrmsd")
 ```

@@ -8,7 +8,7 @@
   `lrmsd_i_ma`, `lrmsd_i_msa`). It is the single source of truth for the
   four-variant recipe: `calculate_prediction_samples()` (the MCMC path) now calls
   it per posterior sample instead of inlining the recipe, and a fixed-`(a1, a2)`
-  decomposition (e.g. in the intro vignette) uses it directly.
+  decomposition (e.g. in the site analysis vignette) uses it directly.
 
 * **Mode-form structural divergence.** Structural divergence is now also predicted
   **per normal mode**, not only per site (the first slice of the motion/mode arm).
@@ -114,7 +114,8 @@ GitHub-only package.
 * **The a1/a2 grid API is removed.** `define_selection_grid()` and
   `calculate_dr2i_msa_a1a2grid()` are gone. A systematic 2-D scan is a short
   `purrr::map_dfr()` over the per-point divergence calculator reusing a single
-  `preprocess_spm()` result (see the intro vignette, "Systematic 2-D scans").
+  `preprocess_spm()` result (see the site analysis vignette, "How the profile
+  depends on a1 and a2").
 
 ## Internal
 

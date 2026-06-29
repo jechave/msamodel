@@ -1,0 +1,364 @@
+---
+title: "Site analysis of structural divergence"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Site analysis of structural divergence}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+<!--
+SOURCE OF TRUTH. This `.Rmd.orig` is the editable vignette; every code chunk runs
+for real. The shipped `site-analysis.Rmd` is PRE-RENDERED from this file.
+Regenerate it after editing this file or after any change to the package code the
+vignette exercises:
+
+  Rscript -e 'knitr::knit("vignettes/site-analysis.Rmd.orig", output = "vignettes/site-analysis.Rmd")'
+
+then commit both this file, the rendered `site-analysis.Rmd`, and its figures.
+Pattern: https://ropensci.org/technotes/2019/12/08/precompute-vignettes/
+-->
+
+
+
+
+
+This vignette predicts structural divergence **per residue** and fits it to data.
+Its sibling, the [mode analysis vignette](mode-analysis.html), runs the same arc
+**per normal mode**; the two are companion views of one model.
+
+The per-residue quantity is the log root-mean-square structural displacement,
+`lrmsd = log(sqrt(dr2_i))`, where `dr2_i` is a selection-weighted average over a
+single-point-mutation scan (SPM). Two selection parameters control the weighting:
+`a1` (selection on **stability**) and `a2` (selection on **activity**, proximity
+to the active site). We use the worked example `1znb_A` (zinc beta-lactamase),
+whose data ship as the `znb_*` datasets.
+
+## 1. Setup
+
+The shipped `znb_wt` and `znb_spm` come from the setup pipeline below: from a
+structure and its active-site residues you build an elastic network model and run
+a single-point-mutation scan. `setup_enm()` takes a bio3d structure object
+directly, so you read the file yourself — with `bio3d::read.pdb()` for legacy
+`.pdb` or `bio3d::read.cif()` for mmCIF — and the active site is just a vector of
+PDB residue numbers.
+
+
+```r
+data("znb_wt")       # elastic network model (wild type)
+data("znb_spm")      # single-point-mutation scan
+data("znb_profile")  # observed divergence profile (the fit target)
+
+# Active-site residues (PDB numbering). These mark the red lines in every plot
+# below and drive the activity-selection term.
+pdb_site_active <- c(99, 101, 103, 162, 181, 184, 193, 223)
+```
+
+This is the exact recipe that produced the shipped `znb_spm` dataset, so we show
+it but do not re-run it here (the package's `test-spm-generate.R` checks that this
+code still reproduces `znb_spm`):
+
+
+```r
+# Read the structure (any source that yields a bio3d pdb object works)
+pdb     <- bio3d::read.pdb(system.file("extdata", "1znb_A.pdb", package = "msamodel"))
+
+# Active-site residues (PDB numbering)
+pdb_site_active <- c(99, 101, 103, 162, 181, 184, 193, 223)
+
+# Build the elastic network model (wild type)
+wt      <- setup_enm(pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+
+# Single-point-mutation scan: 10 mutations per site
+spm     <- generate_spm_data(wt, n_mutations = 10, model = "lfenm",
+                             sigma = 0.3, min_sd = 2,
+                             pdb_site_active = pdb_site_active, seed = 1024)
+# `spm` is identical to the embedded `znb_spm`.
+```
+
+From the SPM we precompute the energy/displacement matrices once; every profile
+below reuses them:
+
+
+```r
+pp <- preprocess_spm(znb_spm)   # list: energy_data, dr2_ijm, site_map
+```
+
+Two per-site structural descriptors are used as plot axes below. We get them from
+`add_site_properties()`, which reads the wild-type ENM (`znb_wt`) and returns, per
+site:
+
+- `dactive` — distance (Å) from the residue to the nearest active-site residue,
+- `msf` — mean square fluctuation, a flexibility measure from the ENM normal modes;
+  we report `lrmsf = log(sqrt(msf))`, the log RMSF.
+
+The site index `i` is msamodel's internal 1..N residue index; `pp$site_map` (built
+by `preprocess_spm()` above) is the key from `i` to `pdb_site`, the PDB residue
+number used on the chain-plot x-axis.
+
+
+```r
+site_ids   <- as.integer(colnames(pp$dr2_ijm))   # the internal site indices i
+site_props <- add_site_properties(tibble(i = site_ids), znb_wt, pdb_site_active) |>
+  mutate(lrmsf = log(sqrt(msf))) |>               # log RMSF (flexibility)
+  left_join(pp$site_map, by = "i") |>             # attach pdb_site (i -> PDB number)
+  select(i, pdb_site, dactive, lrmsf)
+```
+
+## 2. Divergence profile at given (a1, a2)
+
+For any choice of `(a1, a2)`, `calculate_dr2_i_msa()` returns the per-site
+weighted mean squared displacement; `lrmsd = log(sqrt(dr2_i))` is the divergence
+profile. We attach the two structural descriptors from `site_props` — the log
+RMSF (flexibility) and the distance to the active site — for context:
+
+
+```r
+a1 <- 2; a2 <- 500
+profile_demo <- calculate_dr2_i_msa(pp, a1, a2) |>
+  mutate(lrmsd = log(sqrt(dr2_i))) |>
+  left_join(site_props, by = "i")
+```
+
+The divergence profile along the chain (active sites marked in red):
+
+![plot of chunk profile-residue](site-analysis_files/figure-html/profile-residue-1.png)
+
+Divergence is lower (more conserved) at rigid sites and near the active site.
+Plotting `lrmsd` against flexibility and against distance to the active site,
+with a smooth, makes those trends explicit:
+
+![plot of chunk profile-lrmsf](site-analysis_files/figure-html/profile-lrmsf-1.png)
+
+![plot of chunk profile-dactive](site-analysis_files/figure-html/profile-dactive-1.png)
+
+## 3. Decomposing the profile at given (a1, a2)
+
+The profile at a chosen `(a1, a2)` can be split into additive contributions from
+mutation, stability selection, and activity selection. The split uses four
+**nested model variants**, each just `calculate_dr2_i_msa()` evaluated at a
+particular parameter point:
+
+| Variant | a1 (stability) | a2 (activity) | meaning |
+|:--|:--|:--|:--|
+| **MM** | 0 | 0 | mutation only — no selection |
+| **MS** | a1 | 0 | mutation + stability selection |
+| **MA** | 0 | a2 | mutation + activity selection |
+| **MSA** | a1 | a2 | full model — both selections |
+
+`calculate_lrmsd_i_nested_models()` returns all four lrmsd profiles at once
+(`lrmsd_i_mm`, `lrmsd_i_ms`, `lrmsd_i_ma`, `lrmsd_i_msa`):
+
+
+```r
+nested <- calculate_lrmsd_i_nested_models(pp, a1, a2)   # a1 = 2, a2 = 500 from section 2
+```
+
+The four profiles along the chain — each model adds one more selection pressure,
+suppressing divergence further (active sites marked in red):
+
+![plot of chunk nested-profiles](site-analysis_files/figure-html/nested-profiles-1.png)
+
+The **sequential** decomposition starts from the mutation-only model and adds one
+selection pressure at a time along MM → MS → MSA (MA is the alternative
+single-selection variant, not on this additive path). Each term is the incremental
+divergence contributed by the next pressure. Writing $\phi$ for the contributions,
+
+$$
+\phi_{\text{mut}}  = \text{lrmsd}_{\text{mm}}
+$$
+$$
+\phi_{\text{stab}} = \text{lrmsd}_{\text{ms}} - \text{lrmsd}_{\text{mm}}
+$$
+$$
+\phi_{\text{act}}  = \text{lrmsd}_{\text{msa}} - \text{lrmsd}_{\text{ms}}
+$$
+
+By construction these sum to the full prediction,
+$\phi_{\text{mut}} + \phi_{\text{stab}} + \phi_{\text{act}} = \text{lrmsd}_{\text{msa}}$.
+`calculate_msa_decomposition()` is pure: it takes the four nested-model lrmsd
+vectors and returns the three $\phi$ vectors, so we attach them to `nested`:
+
+
+```r
+phi <- dplyr::bind_cols(
+  nested,
+  calculate_msa_decomposition(nested$lrmsd_i_mm, nested$lrmsd_i_ms,
+                              nested$lrmsd_i_ma, nested$lrmsd_i_msa)
+)
+```
+
+The three contributions along the chain (active sites marked in red):
+
+![plot of chunk decomp-fixed](site-analysis_files/figure-html/decomp-fixed-1.png)
+
+This decomposes the profile at the **chosen** `(a1, a2)`. Section 6 applies the
+same decomposition to the **fitted** profile, after `a1, a2` are estimated from
+data in section 5.
+
+## 4. How the profile depends on a1 and a2
+
+Stability selection (`a1`, with `a2 = 0`) and activity selection (`a2`, with
+`a1 = 0`) reshape the profile in different ways. Here we vary one parameter at a
+time and overlay the resulting whole (un-centered) profiles:
+
+
+```r
+# Stability sweep: vary a1, hold a2 = 0
+a1_values <- c(0, 1, 2, 4, 8)
+sweep_a1 <- purrr::map_dfr(a1_values, function(a1)
+  calculate_dr2_i_msa(pp, a1, 0) |>
+    mutate(lrmsd = log(sqrt(dr2_i)), a1 = a1) |>
+    left_join(site_props, by = "i"))
+
+# Activity sweep: vary a2, hold a1 = 0
+a2_values <- c(0, 31, 127, 511, 2047)
+sweep_a2 <- purrr::map_dfr(a2_values, function(a2)
+  calculate_dr2_i_msa(pp, 0, a2) |>
+    mutate(lrmsd = log(sqrt(dr2_i)), a2 = a2) |>
+    left_join(site_props, by = "i"))
+```
+
+![plot of chunk sweep-a1](site-analysis_files/figure-html/sweep-a1-1.png)
+
+![plot of chunk sweep-a2](site-analysis_files/figure-html/sweep-a2-1.png)
+
+Increasing `a1` suppresses divergence broadly (stronger stability selection
+conserves the whole structure); increasing `a2` suppresses divergence
+selectively around the active site.
+
+## 5. Fitting a1 and a2 to observed divergence
+
+The fit reuses the same four nested model variants of section 3 (MM / MS / MA /
+MSA), but now `a1, a2` are **estimated from data** rather than chosen. The fitted
+profiles are `lrmsd_i_mm`, `lrmsd_i_ms`, `lrmsd_i_ma`, `lrmsd_i_msa`; MSA is the
+full model.
+
+Given an observed divergence profile (`observed_data` with columns `pdb_site`
+and `lrmsd_i_obs` — here `znb_profile`), `fit_lrmsd_i_msa_ml()` estimates `a1, a2`
+by maximum likelihood, returning a point estimate plus an asymptotic covariance
+from the Hessian at the optimum. It is fast and deterministic:
+
+
+```r
+ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)   # pp from section 1; znb_profile is the target
+c(a1 = ml$a1, a2 = ml$a2)
+#>         a1         a2 
+#>  0.4580022 42.3021911
+```
+
+
+
+Table: ML estimate of the selection parameters (se from the Hessian)
+
+|parameter | estimate|     se|
+|:---------|--------:|------:|
+|a1        |    0.458|  0.122|
+|a2        |   42.302| 10.187|
+
+
+
+`msamodel` also provides a deterministic-posterior fit (adaptive Gauss–Hermite
+quadrature, `fit_lrmsd_i_msa_agq()`) and tools to compare the two.
+
+### Fitted vs. observed
+
+The likelihood compares **mean-centered** profiles (`nlrmsd = lrmsd - mean(lrmsd)`),
+so the comparison plots use the same centering. We build the comparison table
+from the MSA prediction at the ML estimate (via `calculate_lrmsd_i_nested_models()`),
+joined to the observed profile, then center both on the compared subset and
+annotate with R²:
+
+
+```r
+# Coefficient of determination, R^2 = 1 - SSE/SST, used to score the fit.
+r2 <- function(obs, pred) 1 - sum((obs - pred)^2) / sum((obs - mean(obs))^2)
+
+fit_msa <- calculate_lrmsd_i_nested_models(pp, ml$a1, ml$a2) |>
+  select(pdb_site, lrmsd_fit = lrmsd_i_msa)
+
+cmp <- znb_profile |>
+  inner_join(fit_msa, by = "pdb_site") |>
+  left_join(select(site_props, pdb_site, dactive, lrmsf), by = "pdb_site") |>
+  mutate(
+    nlrmsd_i_obs = lrmsd_i_obs - mean(lrmsd_i_obs),
+    nlrmsd_fit = lrmsd_fit - mean(lrmsd_fit)
+  )
+
+r2_fit <- r2(cmp$nlrmsd_i_obs, cmp$nlrmsd_fit)
+```
+
+
+
+Profile along the chain — observed vs fitted:
+
+![plot of chunk fit-profile](site-analysis_files/figure-html/fit-profile-1.png)
+
+Fitted vs observed as a scatter (the gof view):
+
+![plot of chunk fit-scatter](site-analysis_files/figure-html/fit-scatter-1.png)
+
+And the fitted/observed divergence against flexibility and distance to the
+active site:
+
+![plot of chunk fit-vs-lrmsf](site-analysis_files/figure-html/fit-vs-lrmsf-1.png)
+
+![plot of chunk fit-vs-dactive](site-analysis_files/figure-html/fit-vs-dactive-1.png)
+
+## 6. Decomposing the fitted profile
+
+Section 3 decomposed the profile at a *chosen* `(a1, a2)`. The same sequential
+$\phi_{\text{mut}}/\phi_{\text{stab}}/\phi_{\text{act}}$ decomposition applies to
+the **fitted** profile — evaluate the four nested-model variants at the ML estimate
+`(ml$a1, ml$a2)`, then split:
+
+
+```r
+nested_fit <- calculate_lrmsd_i_nested_models(pp, ml$a1, ml$a2)
+phi_fit <- dplyr::bind_cols(
+  nested_fit,
+  calculate_msa_decomposition(nested_fit$lrmsd_i_mm, nested_fit$lrmsd_i_ms,
+                              nested_fit$lrmsd_i_ma, nested_fit$lrmsd_i_msa)
+)
+```
+
+The mutation term is the divergence under no selection (it still varies among
+sites — mutations perturb sites unequally); a negative selection term means that
+pressure *reduces* divergence at that site relative to the mutation-only model.
+
+![plot of chunk decomp-fit](site-analysis_files/figure-html/decomp-fit-1.png)
+
+## Session info
+
+
+```
+#> R version 4.2.1 (2022-06-23)
+#> Platform: x86_64-apple-darwin17.0 (64-bit)
+#> Running under: macOS Big Sur ... 10.16
+#> 
+#> Matrix products: default
+#> BLAS:   /Library/Frameworks/R.framework/Versions/4.2/Resources/lib/libRblas.0.dylib
+#> LAPACK: /Library/Frameworks/R.framework/Versions/4.2/Resources/lib/libRlapack.dylib
+#> 
+#> locale:
+#> [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+#> 
+#> attached base packages:
+#> [1] stats     graphics  grDevices utils     datasets  methods   base     
+#> 
+#> other attached packages:
+#> [1] ggplot2_4.0.1       tidyr_1.3.1         dplyr_1.1.4        
+#> [4] msamodel_0.3.0.9000
+#> 
+#> loaded via a namespace (and not attached):
+#>  [1] Rcpp_1.1.0         pillar_1.11.1      compiler_4.2.1     RColorBrewer_1.1-3
+#>  [5] highr_0.11         tools_4.2.1        jefuns_0.1.0       viridisLite_0.4.2 
+#>  [9] nlme_3.1-164       evaluate_0.24.0    lifecycle_1.0.4    tibble_3.3.0      
+#> [13] gtable_0.3.6       lattice_0.22-5     mgcv_1.9-1         pkgconfig_2.0.3   
+#> [17] rlang_1.1.6        Matrix_1.5-4.1     cli_3.6.5          rstudioapi_0.16.0 
+#> [21] parallel_4.2.1     xfun_0.41          withr_3.0.2        knitr_1.43        
+#> [25] generics_0.1.4     vctrs_0.6.5        grid_4.2.1         tidyselect_1.2.1  
+#> [29] glue_1.8.0         R6_2.6.1           farver_2.1.2       purrr_1.2.0       
+#> [33] magrittr_2.0.4     splines_4.2.1      scales_1.4.0       bio3d_2.4-5       
+#> [37] labeling_0.4.3     S7_0.2.1           penm_0.2.0.9000
+```

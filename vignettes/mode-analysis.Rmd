@@ -23,40 +23,46 @@ Pattern: https://ropensci.org/technotes/2019/12/08/precompute-vignettes/
 
 
 
-## The mode form
+This vignette predicts structural divergence **per normal mode** and fits it to
+data. Its sibling, the [site analysis vignette](site-analysis.html), runs the same
+arc **per residue**; the two are companion views of one model.
 
-This vignette predicts structural divergence **per normal mode**. Its sibling, the
-[site analysis vignette](site-analysis.html), predicts the same divergence **per
-residue** with `calculate_dr2_i_msa()`; the two are companion views of one model.
+A single mutation displaces the structure by a vector `dr`. The site form sums `dr`
+per residue (`dr2_i`); the mode form projects `dr` onto the elastic-network normal
+modes and squares each contribution (`dr2_n = (mode n component of dr)^2`). The two
+are the same displacement in two bases, so for any single mutant the totals agree:
+`sum_i dr2_i == sum_n dr2_n`. Low-index modes are the soft, collective motions of
+the protein; the mode profile shows **which motions** carry the predicted
+divergence, where the site profile shows **which residues** do. We use the worked
+example `1znb_A` (zinc beta-lactamase), whose data ship as the `znb_*` datasets.
 
-A single mutation displaces the structure by a vector `dr`. The site form sums
-`dr` per residue (`dr2_i`); the mode form projects `dr` onto the elastic-network
-normal modes and squares each contribution (`dr2_n = (mode n component of dr)^2`).
-The two are the same displacement in two bases, so for any single mutant the
-totals agree: `sum_i dr2_i == sum_n dr2_n`. Low-index modes are the soft,
-collective motions of the protein; the mode profile shows **which motions** carry
-the predicted divergence, where the site profile shows **which residues** do.
+## 1. Setup
 
-The final section fits the mode model to data. No *empirical* per-mode divergence
-profile exists yet (deriving `dr2_n` from structural alignments is out of scope for
-`msamodel`), so that section fits a **synthetic** stand-in profile to exercise the
-mode fit end-to-end — it is flagged as synthetic where it appears.
-
-## Preprocessing for the mode axis
-
-We use the worked example `1znb_A` (zinc beta-lactamase), shipped as `znb_spm`.
-`preprocess_spm_mode()` is the mode counterpart of `preprocess_spm()`: it reshapes
-the per-mutant scan into the `[mutant x mode]` matrix the mode evaluator reweights.
+The mode axis reuses the **same** single-point-mutation scan as the site axis —
+only the reshaping differs, and there is no structure-reading step here. That scan,
+`znb_spm`, is produced by the pipeline shown in the
+[site analysis vignette's setup](site-analysis.html) (read structure → `setup_enm()`
+→ `generate_spm_data(...)`); see `?generate_spm_data` for the generating parameters.
+We reload it here. `preprocess_spm_mode()` is the mode counterpart of
+`preprocess_spm()`: it reshapes the per-mutant scan into the `[mutant x mode]`
+matrix the mode evaluator reweights.
 
 
 ```r
-data("znb_spm")
+data("znb_spm")           # single-point-mutation scan (same as the site axis)
+data("znb_profile_n")     # observed (SYNTHETIC) mode profile, the fit target
+data("znb_profile")       # real site profile; the §5 truth the synthetic
+                          # mode profile was built from (see ?znb_profile_n)
+```
+
+
+```r
 pp_mode <- preprocess_spm_mode(znb_spm)   # list: energy_data, dr2_njm
 dim(pp_mode$dr2_njm)                       # mutants x modes
 #> [1] 2280  678
 ```
 
-## The mode-divergence profile at given (a1, a2)
+## 2. Divergence profile at given (a1, a2)
 
 For any `(a1, a2)`, `calculate_dr2_n_msa()` returns the selection-weighted mean
 `dr2_n` per mode. The per-mode divergence is `lrmsd_n = log(sqrt(dr2_n))`, the
@@ -84,7 +90,7 @@ head(prof_mode)
 The lowest-index (softest) modes carry the most divergence: a handful of
 collective motions account for most of the predicted structural change.
 
-## Nested models and decomposition
+## 3. Decomposing the profile at given (a1, a2)
 
 As in the site form, the mode profile at a chosen `(a1, a2)` splits into additive
 mutation, stability-selection, and activity-selection contributions, built from
@@ -109,8 +115,9 @@ nested <- calculate_lrmsd_n_nested_models(pp_mode, a1, a2)   # a1 = 2, a2 = 500
 ![plot of chunk nested-profiles](mode-analysis_files/figure-html/nested-profiles-1.png)
 
 The **sequential** decomposition adds one selection pressure at a time along
-M0 → MM → MS → MSA; each $\phi$ term is the incremental divergence contributed by
-the next pressure:
+MM → MS → MSA (MA is the alternative single-selection variant, not on this
+additive path); each $\phi$ term is the incremental divergence contributed by the
+next pressure:
 
 $$
 \phi_{\text{mut}}  = \text{lrmsd}_{\text{mm}}, \qquad
@@ -133,7 +140,7 @@ phi <- dplyr::bind_cols(
 
 ![plot of chunk decomp-plot](mode-analysis_files/figure-html/decomp-plot-1.png)
 
-## How the mode profile depends on a1 and a2
+## 4. How the profile depends on a1 and a2
 
 As in the site form, stability selection (`a1`, with `a2 = 0`) and activity
 selection (`a2`, with `a1 = 0`) reshape the profile differently. We vary one
@@ -160,7 +167,7 @@ Increasing `a1` suppresses divergence across the soft modes (stability selection
 damps the collective motions); increasing `a2` reshapes the soft-mode divergence
 according to selection on activity.
 
-## Fitting the mode profile (on synthetic data)
+## 5. Fitting a1 and a2 to observed divergence
 
 > **The observed mode profile here is SYNTHETIC, not empirical.** No measured
 > per-mode divergence profile exists yet — computing observed `dr2_n` from
@@ -171,12 +178,12 @@ according to selection on activity.
 > added (see `?znb_profile_n`). This section exercises the mode fit end-to-end; it
 > is **not** an empirical result.
 
-The mode fit mirrors the site fit exactly. `fit_lrmsd_n_msa_ml()` maximises the
-mode-form profiled Gaussian log-likelihood ([`calculate_loglik_lrmsd_n_msa()`]) over
-the same `(a1, log2(a2 + 1))` coordinates, returning a point estimate plus an
-asymptotic covariance. The target is `znb_profile_n` (columns `n`, `lrmsd_n_obs`),
-keyed by the mode index `n` (modes are not structure-anchored, so there is no
-`pdb_site`).
+Mirroring the site fit, `fit_lrmsd_n_msa_ml()` estimates `a1, a2` by maximum
+likelihood — maximising the mode-form profiled Gaussian log-likelihood
+(`calculate_loglik_lrmsd_n_msa()`) over the same `(a1, log2(a2 + 1))`
+coordinates — returning a point estimate plus an asymptotic covariance from the
+Hessian. The target is `znb_profile_n` (columns `n`, `lrmsd_n_obs`), keyed by the
+mode index `n`.
 
 
 ```r
@@ -212,11 +219,16 @@ Table: Mode fit recovers the (synthetic) truth (a1, a2); se is the ML asymptotic
 
 
 
+### Fitted vs. observed
+
 Observed (synthetic) vs. fitted mode profile, mean-centered as the likelihood
 compares them:
 
 
 ```r
+# Coefficient of determination, R^2 = 1 - SSE/SST, used to score the fit.
+r2 <- function(obs, pred) 1 - sum((obs - pred)^2) / sum((obs - mean(obs))^2)
+
 fitted_n <- calculate_dr2_n_msa(pp_mode, ml_n$a1, ml_n$a2) |>
   transmute(n, lrmsd_n_fit = log(sqrt(dr2_n)))
 
@@ -227,13 +239,36 @@ cmp_n <- znb_profile_n |>
     nlrmsd_n_fit = lrmsd_n_fit - mean(lrmsd_n_fit)
   )
 
-r2_n <- 1 - sum((cmp_n$nlrmsd_n_obs - cmp_n$nlrmsd_n_fit)^2) /
-            sum((cmp_n$nlrmsd_n_obs - mean(cmp_n$nlrmsd_n_obs))^2)
+r2_n <- r2(cmp_n$nlrmsd_n_obs, cmp_n$nlrmsd_n_fit)
 ```
 
 ![plot of chunk mode-fit-profile](mode-analysis_files/figure-html/mode-fit-profile-1.png)
 
 ![plot of chunk mode-fit-scatter](mode-analysis_files/figure-html/mode-fit-scatter-1.png)
+
+## 6. Decomposing the fitted profile
+
+Section 3 decomposed the profile at a *chosen* `(a1, a2)`. The same sequential
+$\phi_{\text{mut}}/\phi_{\text{stab}}/\phi_{\text{act}}$ decomposition applies to
+the **fitted** profile — evaluate the four nested-model variants at the ML estimate
+`(ml_n$a1, ml_n$a2)`, then split. (The fit is to synthetic data, so this decomposes
+a synthetic-fitted profile.)
+
+
+```r
+nested_fit <- calculate_lrmsd_n_nested_models(pp_mode, ml_n$a1, ml_n$a2)
+phi_fit <- dplyr::bind_cols(
+  nested_fit,
+  calculate_msa_decomposition(nested_fit$lrmsd_n_mm, nested_fit$lrmsd_n_ms,
+                              nested_fit$lrmsd_n_ma, nested_fit$lrmsd_n_msa)
+)
+```
+
+The mutation term is the divergence under no selection; a negative selection term
+means that pressure *reduces* divergence at that mode relative to the
+mutation-only model.
+
+![plot of chunk decomp-fit](mode-analysis_files/figure-html/decomp-fit-1.png)
 
 ## Session info
 
