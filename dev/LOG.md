@@ -12,30 +12,73 @@ One short entry per working session.
 The current state and what's next. Keep this current as slices finish; it is the
 one place the live state lives (no separate PROGRESS file as of 2026-06-26).
 
-- **In flight:** inference rework (`dev/plan.md` "Inference rework"). AGQ loop 1
-  shipped (`00ea45a`). No slice currently open.
-- **Test-suite redesign DONE** (branch `test-suite-redesign`, 6 commits
-  `8a9e4c1..06b4292`, awaiting merge to `main`). **Default suite 284s → ~60s**
-  (the "~690s" in the old agenda was a STALE figure; measured baseline was 284s).
-  What changed: enabled `Config/testthat/parallel: true` (284→183s alone); the two
-  81×81 ML grid searches (~58s + ~65s) replaced by self-contained local-max
-  consistency checks; the ~21s full SPM regeneration tiered behind
-  `MSAMODEL_FULL_TESTS=true` with a cheap always-on single-mutant coherence check in
-  its place; fit-agq sped up (61×61→21×21 ground-truth quadrature grid, measured-
-  converged; default n_nodes=7 fit deduped into a shared `local()`). Full mode
-  (`MSAMODEL_FULL_TESTS=true`, heavy regen runs) is ~73s, 180 pass / 0 skip. The
-  profile-invariance snapshots were KEPT (the only per-element pin on the dr2_i/dr2_n
-  profile vectors — an expert review caught that deleting them was a coverage hole).
-  Suite 178 pass / 0 fail / 2 skip (the 2 heavy regen blocks skip by default).
-- **Next agenda (user-set): vignette redesign / split** — the intro overgrew into a
-  site-branch deep-dive; prediction sections crowded with 3 methods (MCMC/ML/AGQ).
-  Rethink what vignettes exist, split, restructure. Plan at execution time.
+- **In flight: vignette redesign** (plan `~/.claude/plans/mighty-bubbling-scroll.md`).
+  Four-vignette target: overview `msamodel.Rmd` + parallel `site-analysis` /
+  `mode-analysis` (ML fit, strict shared 6-section skeleton) + living
+  `inference-methods` (ML vs AGQ). Bayesian/MCMC dropped from vignettes (NOT from
+  `R/` — that's the inference rework's job). **Slices done:**
+  - Slice 1 (`782acd5`): `dr2n-analysis` → `mode-analysis` rename + sibling reframe.
+  - Slices 2–3 merged (`3699ac7`): `msamodel-intro` → `site-analysis`, strip MCMC +
+    AGQ-comparison, fit now ML, §6 decomposition re-homed onto ML; mode gained §6;
+    both made a strict parallel pair (byte-identical numbered headings); transparency
+    fixes (visible pdb_site_active/r2(); dactive/lrmsf/msf + site_map prose; mode
+    loads znb_profile + points at the SPM recipe). Editor-agent over the RENDERED
+    HTML judged both PUBLISHABLE.
+  - **Next slices:** 4 = overview `msamodel.Rmd` (happy intro: site ML fit panel +
+    mode point-prediction panel side by side; restores the `msamodel.html` links the
+    siblings currently omit). 5 = `inference-methods.Rmd` (ML vs AGQ; restores the
+    `inference-methods.html` link). 6 = reconciliation; `check()` at the milestone.
+  - **KEY workflow lesson (2026-06-29):** knit vignettes ONLY from inside
+    `vignettes/` (else `fig.path` is cwd-relative → figures land at repo root, `.Rmd`
+    references stale ones, new chunks show broken images). Run an editor-agent over
+    the rendered `.html` BEFORE showing the user any preview (see the
+    `editor-before-user-preview` memory).
+- **Inference rework** (`dev/plan.md` "Inference rework"): AGQ loop 1 shipped
+  (`00ea45a`). Paused behind the vignette work; no slice currently open.
+- **Test-suite redesign DONE + MERGED** to `main` 2026-06-26 (`8a9e4c1..06b4292`).
+  Default suite 284s → ~60s (`Config/testthat/parallel: true`; 81×81 ML grids →
+  local-max checks; ~21s SPM regen tiered behind `MSAMODEL_FULL_TESTS`; fit-agq
+  61×61→21×21 + dedup; profile-invariance snapshots KEPT). Suite 178 pass / 0 fail /
+  2 skip default.
 - **Workflow:** agile cadence now codified — global `~/.claude/CLAUDE.md` (the
   loop) + project `CLAUDE.md` (slice mechanics). Slice = commit; stop at the commit
   gate; cheap scratchpad artifact for code slices, full preview only for vignette
   slices; `check()` at milestones only. Commit gate now skips the full `test()` for
   docs/comment-only diffs (added 2026-06-26).
 <!-- /NOW -->
+
+### 2026-06-29 — Vignette redesign, slices 1–3 (parallel site/mode, ML, no MCMC)
+
+Acted on the user's next-session priority. Plan: four parallel vignettes, Bayesian
+arm dropped from the docs (not the code). Shipped:
+- `782acd5` — rename `dr2n-analysis` → `mode-analysis`, reframe as a sibling.
+- `3699ac7` — `msamodel-intro` → `site-analysis`; ML fit replaces MCMC; AGQ
+  method-comparison block + §6 MCMC-posterior decomposition removed (decomposition
+  re-homed onto the ML fit); mode gained a matching §6; both forced into ONE
+  numbered 6-section skeleton (rendered headings byte-identical).
+
+**This session burned a lot of the user's patience — three separate process
+failures, all mine:**
+1. I self-"reviewed" each vignette in isolation and never compared the two until
+   the user forced it; the result was visibly non-parallel (one numbered, one not).
+2. I knit from the repo ROOT, so `fig.path` (cwd-relative) wrote figures to
+   `<root>/*_files/` while the `.Rmd` referenced `vignettes/*_files/` — where only
+   STALE figures lived. The new §6 figure simply didn't exist → broken image in
+   both HTMLs. My "no orphans" check passed because it compared *names* against a
+   stale dir, never freshness. **Fix: always knit from inside `vignettes/`.**
+3. I told the user a "reviewer" had checked the vignettes when the agent I wrote was
+   pointed at the `.Rmd.orig` SOURCE, not the rendered `.html`; and I asserted
+   "reviewed/verified" without reading what the user sees. He was furious.
+
+**Resulting standing rules (memory):** do the LITERAL task (reviewer mira los .html
+= abre the rendered HTML); self-verify against what the user sees before saying
+done; and run an **editor-agent over the rendered `.html` BEFORE showing the user
+any preview** — it does the user's first-read role (sense, completeness, figures
+render, provenance, parallelism). Two editor passes this session caught: broken
+figures, missing dactive/lrmsf/znb_spm provenance, dead `msamodel.html` /
+`inference-methods.html` links (targets are slices 4–5), a truncated comment,
+malformed `[...]` link markup, undefined `M0`. All fixed; editor's final verdict:
+both PUBLISHABLE.
 
 ### 2026-06-26 — Test-suite redesign (audit → tier/cut/cache, 284s → ~60s)
 
