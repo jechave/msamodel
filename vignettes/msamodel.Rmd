@@ -1,0 +1,207 @@
+---
+title: "msamodel: predicting structural divergence from a single-mutation scan"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{msamodel: predicting structural divergence from a single-mutation scan}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+<!--
+SOURCE OF TRUTH. This `.Rmd.orig` is the editable vignette; every code chunk runs
+for real. The shipped `msamodel.Rmd` is PRE-RENDERED from this file. Regenerate it
+after editing this file or after any change to the package code the vignette
+exercises (run from INSIDE vignettes/ so fig.path resolves correctly):
+
+  cd vignettes && Rscript -e 'knitr::knit("msamodel.Rmd.orig", output = "msamodel.Rmd")'
+
+then commit both this file, the rendered `msamodel.Rmd`, and its figures.
+Pattern: https://ropensci.org/technotes/2019/12/08/precompute-vignettes/
+-->
+
+
+
+
+
+## What does this package do for me?
+
+You have a protein structure and a list of its active-site residues. `msamodel`
+implements the Mutation-Stability-Activity (MSA) model of neutral structural
+evolution: it predicts how much each part of the structure **diverges** under
+neutral evolution, fits that prediction to an observed divergence profile, and
+tells you how stability and activity selection shape the result.
+
+The model has two selection parameters: `a1` (selection on **stability**) and `a2`
+(selection on **activity**, proximity to the active site). The same predicted
+divergence can be read along **two axes** — per residue and per normal mode — and
+this overview shows both, end to end.
+
+|                              | what it is                                              |
+|------------------------------|--------------------------------------------------------|
+| **You provide**              | a PDB file; a vector of active-site residue numbers; (to fit) an observed divergence table `{pdb_site, lrmsd_i_obs}` |
+| **`msamodel` computes**      | the elastic network model (`setup_enm`), the mutation scan (`generate_spm_data`), the divergence profiles (`calculate_*`), and the fit (`fit_*`) |
+
+## From your structure to a mutation scan
+
+Everything starts from your two inputs. We use the worked example `1znb_A` (zinc
+beta-lactamase) that ships with the package; swap in your own file and residues at
+the two marked lines:
+
+
+```r
+pdb_file        <- system.file("extdata", "1znb_A.pdb", package = "msamodel")  # <- your PDB path
+pdb_site_active <- c(99, 101, 103, 162, 181, 184, 193, 223)                    # <- your active-site residues
+```
+
+`msamodel` reads the structure, builds an elastic network model (`wt`), and runs a
+single-point-mutation scan (`spm`):
+
+
+```r
+pdb <- bio3d::read.pdb(pdb_file)
+wt  <- setup_enm(pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+spm <- generate_spm_data(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
+                         min_sd = 2, pdb_site_active = pdb_site_active, seed = 1024)
+#> Processing site 10 of 228 
+#> Processing site 20 of 228 
+#> Processing site 30 of 228 
+#> Processing site 40 of 228 
+#> Processing site 50 of 228 
+#> Processing site 60 of 228 
+#> Processing site 70 of 228 
+#> Processing site 80 of 228 
+#> Processing site 90 of 228 
+#> Processing site 100 of 228 
+#> Processing site 110 of 228 
+#> Processing site 120 of 228 
+#> Processing site 130 of 228 
+#> Processing site 140 of 228 
+#> Processing site 150 of 228 
+#> Processing site 160 of 228 
+#> Processing site 170 of 228 
+#> Processing site 180 of 228 
+#> Processing site 190 of 228 
+#> Processing site 200 of 228 
+#> Processing site 210 of 228 
+#> Processing site 220 of 228
+```
+
+(`wt` and `spm` here are identical to the `znb_wt` / `znb_spm` datasets shipped with
+the package; if you only want to skim, `data("znb_spm")` loads the prebuilt scan
+instead of running the line above.) From the scan we precompute once, for each axis:
+
+
+```r
+pp      <- preprocess_spm(spm)        # per-residue (site) axis
+pp_mode <- preprocess_spm_mode(spm)   # per-mode axis
+```
+
+## Fit the model, then read divergence two ways
+
+To fit, you supply an **observed** per-residue divergence profile — this is **your**
+data, not something `msamodel` computes. The observed divergence (`lrmsd_i_obs`)
+comes from comparing homologous structures over an alignment, which is out of scope
+for `msamodel`; you bring it as a table with columns `pdb_site` and `lrmsd_i_obs`.
+The package ships one for the worked example, `znb_profile`:
+
+
+```r
+data("znb_profile")   # the example observed data; supply your own in this shape
+head(znb_profile)
+#> # A tibble: 6 × 2
+#>   pdb_site lrmsd_i_obs
+#>      <int>       <dbl>
+#> 1       20        1.65
+#> 2       21        1.68
+#> 3       22        1.23
+#> 4       23        1.30
+#> 5       24        1.95
+#> 6       25        1.69
+```
+
+We fit the two selection parameters to that observed profile by maximum likelihood:
+
+
+```r
+ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
+c(a1 = ml$a1, a2 = ml$a2)
+#>         a1         a2 
+#>  0.4580022 42.3021911
+```
+
+At that fitted `(a1, a2)`, the model predicts a divergence profile along **each**
+axis. The per-residue prediction has an observed counterpart to check against; the
+per-mode prediction reads the *same* selection in the normal-mode basis.
+
+
+```r
+# Per-residue: fitted profile vs the observed data
+site <- calculate_lrmsd_i_nested_models(pp, ml$a1, ml$a2) |>
+  transmute(pdb_site, lrmsd_fit = lrmsd_i_msa) |>
+  inner_join(znb_profile, by = "pdb_site") |>
+  mutate(nlrmsd_obs = lrmsd_i_obs - mean(lrmsd_i_obs),
+         nlrmsd_fit = lrmsd_fit   - mean(lrmsd_fit))
+
+# Per-mode: predicted divergence at the same fitted (a1, a2)
+mode <- calculate_dr2_n_msa(pp_mode, ml$a1, ml$a2) |>
+  mutate(lrmsd_n = log(sqrt(dr2_n)))
+```
+
+**Per residue** — the fitted profile (red) tracks the observed one (grey) along the
+chain; this is the model fit to real data. Both are the mean-centered log-RMSD
+(`nlrmsd`): the fit constrains the divergence *shape*, not its overall level, so we
+compare shapes.
+
+![plot of chunk panel-site](msamodel_files/figure-html/panel-site-1.png)
+
+**Per normal mode** — the *same* fitted model, predicted in the normal-mode basis:
+the per-mode log-RMSD (`lrmsd_n`) is largest for the softest (lowest-index) modes,
+so a handful of collective motions carry most of the predicted divergence. (This is
+a point prediction; no observed mode profile exists to fit against yet.)
+
+![plot of chunk panel-mode](msamodel_files/figure-html/panel-mode-1.png)
+
+Same evolutionary divergence, read per residue and per mode.
+
+## Where to next
+
+- **[Site analysis](site-analysis.html)** — the per-residue arc in full: predict,
+  decompose into mutation / stability / activity contributions, sweep `a1`/`a2`,
+  fit, and decompose the fitted profile.
+- **[Mode analysis](mode-analysis.html)** — the same arc per normal mode.
+- **Inference methods** — maximum likelihood is the standard fit shown here;
+  `msamodel` also offers a deterministic-posterior fit (adaptive Gauss–Hermite
+  quadrature; see `?fit_lrmsd_i_msa_agq`).
+
+## Session info
+
+
+```
+#> R version 4.2.1 (2022-06-23)
+#> Platform: x86_64-apple-darwin17.0 (64-bit)
+#> Running under: macOS Big Sur ... 10.16
+#> 
+#> Matrix products: default
+#> BLAS:   /Library/Frameworks/R.framework/Versions/4.2/Resources/lib/libRblas.0.dylib
+#> LAPACK: /Library/Frameworks/R.framework/Versions/4.2/Resources/lib/libRlapack.dylib
+#> 
+#> locale:
+#> [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
+#> 
+#> attached base packages:
+#> [1] stats     graphics  grDevices utils     datasets  methods   base     
+#> 
+#> other attached packages:
+#> [1] ggplot2_4.0.1       dplyr_1.1.4         msamodel_0.3.0.9000
+#> 
+#> loaded via a namespace (and not attached):
+#>  [1] Rcpp_1.1.0         rstudioapi_0.16.0  knitr_1.43         magrittr_2.0.4    
+#>  [5] tidyselect_1.2.1   lattice_0.22-5     R6_2.6.1           rlang_1.1.6       
+#>  [9] highr_0.11         jefuns_0.1.0       tools_4.2.1        parallel_4.2.1    
+#> [13] grid_4.2.1         gtable_0.3.6       xfun_0.41          cli_3.6.5         
+#> [17] withr_3.0.2        bio3d_2.4-5        tibble_3.3.0       lifecycle_1.0.4   
+#> [21] S7_0.2.1           Matrix_1.5-4.1     tidyr_1.3.1        purrr_1.2.0       
+#> [25] RColorBrewer_1.1-3 farver_2.1.2       vctrs_0.6.5        glue_1.8.0        
+#> [29] evaluate_0.24.0    labeling_0.4.3     compiler_4.2.1     pillar_1.11.1     
+#> [33] generics_0.1.4     scales_1.4.0       penm_0.2.0.9000    pkgconfig_2.0.3
+```

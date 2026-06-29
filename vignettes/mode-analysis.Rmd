@@ -25,7 +25,8 @@ Pattern: https://ropensci.org/technotes/2019/12/08/precompute-vignettes/
 
 This vignette predicts structural divergence **per normal mode** and fits it to
 data. Its sibling, the [site analysis vignette](site-analysis.html), runs the same
-arc **per residue**; the two are companion views of one model.
+arc **per residue**; the two are companion views of one model. For a short
+end-to-end tour of both axes, see the [package overview](msamodel.html).
 
 A single mutation displaces the structure by a vector `dr`. The site form sums `dr`
 per residue (`dr2_i`); the mode form projects `dr` onto the elastic-network normal
@@ -38,29 +39,66 @@ example `1znb_A` (zinc beta-lactamase), whose data ship as the `znb_*` datasets.
 
 ## 1. Setup
 
-The mode axis reuses the **same** single-point-mutation scan as the site axis —
-only the reshaping differs, and there is no structure-reading step here. That scan,
-`znb_spm`, is produced by the pipeline shown in the
-[site analysis vignette's setup](site-analysis.html) (read structure → `setup_enm()`
-→ `generate_spm_data(...)`); see `?generate_spm_data` for the generating parameters.
-We reload it here. `preprocess_spm_mode()` is the mode counterpart of
-`preprocess_spm()`: it reshapes the per-mutant scan into the `[mutant x mode]`
-matrix the mode evaluator reweights.
+Everything starts from your two inputs: a structure file and a vector of
+active-site residue numbers. We use the worked example `1znb_A` (zinc
+beta-lactamase) that ships with the package; swap in your own at the two marked
+lines.
 
 
 ```r
-data("znb_spm")           # single-point-mutation scan (same as the site axis)
-data("znb_profile_n")     # observed (SYNTHETIC) mode profile, the fit target
-data("znb_profile")       # real site profile; the §5 truth the synthetic
-                          # mode profile was built from (see ?znb_profile_n)
+pdb_file        <- system.file("extdata", "1znb_A.pdb", package = "msamodel")  # <- your PDB path
+pdb_site_active <- c(99, 101, 103, 162, 181, 184, 193, 223)                    # <- your active-site residues
 ```
 
+`msamodel` reads the structure, builds an elastic network model (`wt`), and runs a
+single-point-mutation scan (`spm`) — the **same** scan the site axis uses; only the
+reshaping differs:
+
 
 ```r
-pp_mode <- preprocess_spm_mode(znb_spm)   # list: energy_data, dr2_njm
-dim(pp_mode$dr2_njm)                       # mutants x modes
+pdb <- bio3d::read.pdb(pdb_file)
+wt  <- setup_enm(pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+spm <- generate_spm_data(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
+                         min_sd = 2, pdb_site_active = pdb_site_active, seed = 1024)
+#> Processing site 10 of 228 
+#> Processing site 20 of 228 
+#> Processing site 30 of 228 
+#> Processing site 40 of 228 
+#> Processing site 50 of 228 
+#> Processing site 60 of 228 
+#> Processing site 70 of 228 
+#> Processing site 80 of 228 
+#> Processing site 90 of 228 
+#> Processing site 100 of 228 
+#> Processing site 110 of 228 
+#> Processing site 120 of 228 
+#> Processing site 130 of 228 
+#> Processing site 140 of 228 
+#> Processing site 150 of 228 
+#> Processing site 160 of 228 
+#> Processing site 170 of 228 
+#> Processing site 180 of 228 
+#> Processing site 190 of 228 
+#> Processing site 200 of 228 
+#> Processing site 210 of 228 
+#> Processing site 220 of 228
+```
+
+(`spm` is identical to the shipped `znb_spm`; to skim, `data("znb_spm")` loads it.)
+`preprocess_spm_mode()` is the mode counterpart of `preprocess_spm()`: it reshapes
+the per-mutant scan into the `[mutant x mode]` matrix the mode evaluator reweights.
+
+
+```r
+pp_mode <- preprocess_spm_mode(spm)   # list: energy_data, dr2_njm
+dim(pp_mode$dr2_njm)                   # mutants x modes
 #> [1] 2280  678
 ```
+
+> **For your own protein you can run the mode prediction (sections 1–4); the mode
+> fit (section 5) cannot yet be reproduced on real data** — it needs an observed
+> per-mode divergence profile, which `msamodel` does not compute. The example uses a
+> **synthetic** stand-in, loaded where the fit begins (section 5).
 
 ## 2. Divergence profile at given (a1, a2)
 
@@ -169,21 +207,21 @@ according to selection on activity.
 
 ## 5. Fitting a1 and a2 to observed divergence
 
-> **The observed mode profile here is SYNTHETIC, not empirical.** No measured
-> per-mode divergence profile exists yet — computing observed `dr2_n` from
-> homologous structures and an alignment is out of scope for `msamodel` (it belongs
-> to a future protein-evolution-patterns package). The fixture `znb_profile_n` is a
-> stand-in: the site model is fit to the *real* `znb_profile` to get a realistic
-> `(a1, a2)`, the mode forward map is evaluated there, and seeded Gaussian noise is
-> added (see `?znb_profile_n`). This section exercises the mode fit end-to-end; it
-> is **not** an empirical result.
+To fit, you supply an **observed** per-mode divergence profile — your data, not
+something `msamodel` computes. It is a table with columns `n` and `lrmsd_n_obs`
+(the observed log-RMSD per mode), keyed by the mode index `n`. The observed mode
+divergence comes from comparing homologous structures over an alignment, which is
+out of scope for `msamodel`. The example fixture `znb_profile_n` is a synthetic
+stand-in (no measured per-mode profile exists yet; see `?znb_profile_n`):
 
-Mirroring the site fit, `fit_lrmsd_n_msa_ml()` estimates `a1, a2` by maximum
-likelihood — maximising the mode-form profiled Gaussian log-likelihood
-(`calculate_loglik_lrmsd_n_msa()`) over the same `(a1, log2(a2 + 1))`
-coordinates — returning a point estimate plus an asymptotic covariance from the
-Hessian. The target is `znb_profile_n` (columns `n`, `lrmsd_n_obs`), keyed by the
-mode index `n`.
+
+```r
+data("znb_profile_n")   # observed mode profile (here a synthetic example); supply your own in this shape
+```
+
+Mirroring the site fit, `fit_lrmsd_n_msa_ml()` estimates `a1, a2` from it by maximum
+likelihood, returning a point estimate plus an asymptotic covariance from the
+Hessian:
 
 
 ```r
@@ -193,36 +231,20 @@ c(a1 = ml_n$a1, a2 = ml_n$a2)
 #>  0.4492209 40.8195734
 ```
 
-Because the synthetic profile was built at a known `(a1, a2)` — the site fit to the
-real `znb_profile` — we can check the mode fit recovers it. (This recovery is only
-meaningful for synthetic data, where the truth is known.)
 
 
-```r
-truth <- fit_lrmsd_i_msa_ml(preprocess_spm(znb_spm), znb_profile)
-recovery <- tibble::tibble(
-  parameter = c("a1", "a2"),
-  truth     = c(truth$a1, truth$a2),
-  fitted    = c(ml_n$a1, ml_n$a2),
-  se        = c(ml_n$se_a1, ml_n$se_a2)
-)
-```
+Table: ML estimate of the selection parameters (se from the Hessian)
 
-
-
-Table: Mode fit recovers the (synthetic) truth (a1, a2); se is the ML asymptotic standard error
-
-|parameter |  truth| fitted|    se|
-|:---------|------:|------:|-----:|
-|a1        |  0.458|  0.449| 0.058|
-|a2        | 42.302| 40.820| 6.314|
+|parameter | estimate|    se|
+|:---------|--------:|-----:|
+|a1        |    0.449| 0.058|
+|a2        |   40.820| 6.314|
 
 
 
 ### Fitted vs. observed
 
-Observed (synthetic) vs. fitted mode profile, mean-centered as the likelihood
-compares them:
+Observed vs. fitted mode profile, mean-centered as the likelihood compares them:
 
 
 ```r

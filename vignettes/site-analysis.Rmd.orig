@@ -55,7 +55,8 @@ if (has_ggplot) {
 
 This vignette predicts structural divergence **per residue** and fits it to data.
 Its sibling, the [mode analysis vignette](mode-analysis.html), runs the same arc
-**per normal mode**; the two are companion views of one model.
+**per normal mode**; the two are companion views of one model. For a short
+end-to-end tour of both axes, see the [package overview](msamodel.html).
 
 The per-residue quantity is the log root-mean-square structural displacement,
 `lrmsd = log(sqrt(dr2_i))`, where `dr2_i` is a selection-weighted average over a
@@ -66,53 +67,40 @@ whose data ship as the `znb_*` datasets.
 
 ## 1. Setup
 
-The shipped `znb_wt` and `znb_spm` come from the setup pipeline below: from a
-structure and its active-site residues you build an elastic network model and run
-a single-point-mutation scan. `setup_enm()` takes a bio3d structure object
-directly, so you read the file yourself — with `bio3d::read.pdb()` for legacy
-`.pdb` or `bio3d::read.cif()` for mmCIF — and the active site is just a vector of
-PDB residue numbers.
+Everything starts from your two inputs: a structure file and a vector of
+active-site residue numbers. We use the worked example `1znb_A` (zinc
+beta-lactamase) that ships with the package; swap in your own at the two marked
+lines. `setup_enm()` takes a bio3d structure object directly, so you read the file
+yourself — `bio3d::read.pdb()` for legacy `.pdb`, `bio3d::read.cif()` for mmCIF.
 
-```{r data}
-data("znb_wt")       # elastic network model (wild type)
-data("znb_spm")      # single-point-mutation scan
-data("znb_profile")  # observed divergence profile (the fit target)
-
-# Active-site residues (PDB numbering). These mark the red lines in every plot
-# below and drive the activity-selection term.
-pdb_site_active <- c(99, 101, 103, 162, 181, 184, 193, 223)
+```{r inputs}
+pdb_file        <- system.file("extdata", "1znb_A.pdb", package = "msamodel")  # <- your PDB path
+pdb_site_active <- c(99, 101, 103, 162, 181, 184, 193, 223)                    # <- your active-site residues
 ```
 
-This is the exact recipe that produced the shipped `znb_spm` dataset, so we show
-it but do not re-run it here (the package's `test-spm-generate.R` checks that this
-code still reproduces `znb_spm`):
+`msamodel` reads the structure, builds an elastic network model (`wt`), and runs a
+single-point-mutation scan (`spm`):
 
-```{r setup-pipeline, eval = FALSE}
-# Read the structure (any source that yields a bio3d pdb object works)
-pdb     <- bio3d::read.pdb(system.file("extdata", "1znb_A.pdb", package = "msamodel"))
-
-# Active-site residues (PDB numbering)
-pdb_site_active <- c(99, 101, 103, 162, 181, 184, 193, 223)
-
-# Build the elastic network model (wild type)
-wt      <- setup_enm(pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
-
-# Single-point-mutation scan: 10 mutations per site
-spm     <- generate_spm_data(wt, n_mutations = 10, model = "lfenm",
-                             sigma = 0.3, min_sd = 2,
-                             pdb_site_active = pdb_site_active, seed = 1024)
-# `spm` is identical to the embedded `znb_spm`.
+```{r build}
+pdb <- bio3d::read.pdb(pdb_file)
+wt  <- setup_enm(pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+spm <- generate_spm_data(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
+                         min_sd = 2, pdb_site_active = pdb_site_active, seed = 1024)
 ```
 
-From the SPM we precompute the energy/displacement matrices once; every profile
+(`wt` and `spm` are identical to the shipped `znb_wt` / `znb_spm`; to skim without
+running the scan, `data("znb_spm")` loads the prebuilt object instead.) The
+observed divergence profile we will fit to is loaded later, in section 5.
+
+From the scan we precompute the energy/displacement matrices once; every profile
 below reuses them:
 
 ```{r preprocess}
-pp <- preprocess_spm(znb_spm)   # list: energy_data, dr2_ijm, site_map
+pp <- preprocess_spm(spm)   # list: energy_data, dr2_ijm, site_map
 ```
 
 Two per-site structural descriptors are used as plot axes below. We get them from
-`add_site_properties()`, which reads the wild-type ENM (`znb_wt`) and returns, per
+`add_site_properties()`, which reads the wild-type ENM (`wt`) and returns, per
 site:
 
 - `dactive` — distance (Å) from the residue to the nearest active-site residue,
@@ -125,7 +113,7 @@ number used on the chain-plot x-axis.
 
 ```{r site-props}
 site_ids   <- as.integer(colnames(pp$dr2_ijm))   # the internal site indices i
-site_props <- add_site_properties(tibble(i = site_ids), znb_wt, pdb_site_active) |>
+site_props <- add_site_properties(tibble(i = site_ids), wt, pdb_site_active) |>
   mutate(lrmsf = log(sqrt(msf))) |>               # log RMSF (flexibility)
   left_join(pp$site_map, by = "i") |>             # attach pdb_site (i -> PDB number)
   select(i, pdb_site, dactive, lrmsf)
@@ -331,10 +319,21 @@ MSA), but now `a1, a2` are **estimated from data** rather than chosen. The fitte
 profiles are `lrmsd_i_mm`, `lrmsd_i_ms`, `lrmsd_i_ma`, `lrmsd_i_msa`; MSA is the
 full model.
 
-Given an observed divergence profile (`observed_data` with columns `pdb_site`
-and `lrmsd_i_obs` — here `znb_profile`), `fit_lrmsd_i_msa_ml()` estimates `a1, a2`
-by maximum likelihood, returning a point estimate plus an asymptotic covariance
-from the Hessian at the optimum. It is fast and deterministic:
+To fit, you supply an **observed** divergence profile — **your** data, not something
+`msamodel` computes. The observed per-residue divergence (`lrmsd_i_obs`) comes from
+comparing homologous structures over an alignment — out of scope for `msamodel` (it
+belongs to a future protein-evolution-patterns package); you bring it as a table
+with columns `pdb_site` and `lrmsd_i_obs`. The package ships one for the worked
+example, `znb_profile`:
+
+```{r obs}
+data("znb_profile")   # the example observed data; supply your own in this shape
+head(znb_profile)
+```
+
+`fit_lrmsd_i_msa_ml()` estimates `a1, a2` from it by maximum likelihood, returning a
+point estimate plus an asymptotic covariance from the Hessian at the optimum. It is
+fast and deterministic:
 
 ```{r fit-code}
 ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)   # pp from section 1; znb_profile is the target
