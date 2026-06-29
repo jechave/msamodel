@@ -13,26 +13,31 @@ The current state and what's next. Keep this current as slices finish; it is the
 one place the live state lives (no separate PROGRESS file as of 2026-06-26).
 
 - **In flight: vignette redesign** (plan `~/.claude/plans/mighty-bubbling-scroll.md`).
-  Four-vignette target: overview `msamodel.Rmd` + parallel `site-analysis` /
-  `mode-analysis` (ML fit, strict shared 6-section skeleton) + living
-  `inference-methods` (ML vs AGQ). Bayesian/MCMC dropped from vignettes (NOT from
-  `R/` — that's the inference rework's job). **Slices done:**
-  - Slice 1 (`782acd5`): `dr2n-analysis` → `mode-analysis` rename + sibling reframe.
-  - Slices 2–3 merged (`3699ac7`): `msamodel-intro` → `site-analysis`, strip MCMC +
-    AGQ-comparison, fit now ML, §6 decomposition re-homed onto ML; mode gained §6;
-    both made a strict parallel pair (byte-identical numbered headings); transparency
-    fixes (visible pdb_site_active/r2(); dactive/lrmsf/msf + site_map prose; mode
-    loads znb_profile + points at the SPM recipe). Editor-agent over the RENDERED
-    HTML judged both PUBLISHABLE.
-  - **Next slices:** 4 = overview `msamodel.Rmd` (happy intro: site ML fit panel +
-    mode point-prediction panel side by side; restores the `msamodel.html` links the
-    siblings currently omit). 5 = `inference-methods.Rmd` (ML vs AGQ; restores the
-    `inference-methods.html` link). 6 = reconciliation; `check()` at the milestone.
-  - **KEY workflow lesson (2026-06-29):** knit vignettes ONLY from inside
-    `vignettes/` (else `fig.path` is cwd-relative → figures land at repo root, `.Rmd`
-    references stale ones, new chunks show broken images). Run an editor-agent over
-    the rendered `.html` BEFORE showing the user any preview (see the
-    `editor-before-user-preview` memory).
+  Target: overview `msamodel.Rmd` + parallel `site-analysis` / `mode-analysis` (ML
+  fit, strict shared 6-section skeleton) + a future `inference-methods` (ML vs AGQ).
+  Bayesian/MCMC dropped from vignettes (NOT from `R/` — inference rework's job).
+  **Done:**
+  - `782acd5`: `dr2n-analysis` → `mode-analysis` rename + sibling reframe.
+  - `3699ac7`: `msamodel-intro` → `site-analysis`, strip MCMC + AGQ-comparison, fit
+    now ML, §6 decomposition re-homed onto ML; mode gained §6; strict parallel pair
+    (byte-identical numbered headings).
+  - `8b51b9c`: **all three vignettes are now independent runnable "from your own
+    protein" tutorials** + the overview `msamodel.Rmd` added. Each runs its OWN build
+    chain (`read.pdb → setup_enm → generate_spm_data`, `eval=TRUE`) from two marked
+    inputs and consumes the built `wt`/`spm` (fixtures = optional skim shortcut).
+    Observed data (`lrmsd_i_obs`/`lrmsd_n_obs`) framed identically on both axes:
+    user-supplied, not computed (homologous-structure/alignment, out of scope), shape
+    shown. Mode §5 lost the circular truth-recovery block + the false real-vs-synthetic
+    contrast; synthetic is now a parenthetical. Knit cost ~20s scan ×3, once each.
+  - **Next:** `inference-methods.Rmd` (ML vs AGQ; restores the `inference-methods.html`
+    link both analysis vignettes currently omit), then `check()` at the milestone.
+  - **KEY workflow lesson (2026-06-29):** knit vignettes ONLY from inside `vignettes/`
+    (else `fig.path` is cwd-relative → figures land at repo root, `.Rmd` references
+    stale ones, new chunks show broken images — the §6 bug). The decisive test for
+    "does the doc teach a user to USE the package" was a **context-free naive-user
+    agent reading the RENDERED `.html`** (a scientist with their own PDB), not a
+    checklist-driven editor — it caught the "no path from raw input" failure that
+    prior checks missed.
 - **Inference rework** (`dev/plan.md` "Inference rework"): AGQ loop 1 shipped
   (`00ea45a`). Paused behind the vignette work; no slice currently open.
 - **Test-suite redesign DONE + MERGED** to `main` 2026-06-26 (`8a9e4c1..06b4292`).
@@ -46,6 +51,35 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   slices; `check()` at milestones only. Commit gate now skips the full `test()` for
   docs/comment-only diffs (added 2026-06-26).
 <!-- /NOW -->
+
+### 2026-06-29 — Vignettes as runnable "from your own protein" tutorials + overview (`8b51b9c`)
+
+A context-free naive-user agent (a scientist with their own PDB + active-site
+residues, given ONLY the rendered `.html`) found the central failure: there was no
+continuous runnable path from raw input to a result. The overview loaded
+`znb_wt`/`znb_spm` via `data()` and linked away for the recipe; site §1 showed the
+build `eval=FALSE` then consumed the fixtures instead of what it taught.
+
+Fixed (user-driven, several hard corrections): **vignette independence** — each of
+the three pages (overview/site/mode) now carries its OWN runnable build chain
+(`read.pdb → setup_enm → generate_spm_data`, `eval=TRUE`) from two marked inputs and
+consumes the built `wt`/`spm`, fixtures only as an optional skim shortcut. Observed
+data (`lrmsd_i_obs`/`lrmsd_n_obs`) is framed identically on both axes: user-supplied,
+not computed (homology/alignment, out of scope), shape shown. Added the overview
+`msamodel.Rmd` (happy intro: inputs → scan → ML fit → site fitted-vs-observed + mode
+point-prediction panels + an input-vs-computed table). Mode §5 lost the circular
+truth-recovery block (it fit the site model to `znb_profile` to "recover" the a1,a2
+the synthetic profile was generated at — meaningless to a user) and the false
+"real vs synthetic" contrast; mode now just fits `znb_profile_n`, mirroring site.
+
+Process notes (this session cost a lot of the user's patience):
+- The decisive review tool is a **context-free naive-user agent on the RENDERED
+  `.html`**, NOT a checklist-driven editor and NOT me reading it (I'm contaminated by
+  knowing the package). Earlier editor agents I wrote were biased by my own prompt
+  (pointed at source, given checklists) and missed the raw-input-path failure.
+- All memory "rules" I'd written this session were deleted at the user's request —
+  they reformulated his instructions into my version and were counterproductive.
+- Knit ONLY from inside `vignettes/`.
 
 ### 2026-06-29 — Vignette redesign, slices 1–3 (parallel site/mode, ML, no MCMC)
 
