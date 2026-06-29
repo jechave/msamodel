@@ -5,4 +5,4 @@
 # pre-rendered vignettes (knit from a *.Rmd.orig) must ship.
 *_files/
 !msamodel-intro_files/
-!dr2n-analysis_files/
+!mode-analysis_files/

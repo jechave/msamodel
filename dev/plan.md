@@ -89,7 +89,8 @@ per-version detail is written when each version starts.
   - **Mode-form structural divergence (`dr2_njm` / `dr2_n`).** DONE 2026-06-18.
     Introduced the mode response axis (index `n`, no `pdb_site` anchor) via the slow
     per-mutant loop + a `preprocess_spm_mode()` reshape + `calculate_dr2_n_msa()`
-    reweight; predict-only; added the `dr2n-analysis` topic vignette.
+    reweight; predict-only; added the mode topic vignette (since renamed
+    `dr2n-analysis` → `mode-analysis`).
   - **`dr2*` naming convention.** DONE 2026-06-18. msamodel names dr2-family objects
     `dr2_<indices>` (full spec in `CLAUDE.md` "House conventions" + the
     `dr2-naming-convention` memory). Governs names msamodel CREATES, not penm calls.

@@ -18,7 +18,7 @@
 # precompute step). Run knit first if you changed the .orig; then preview.
 #
 # Usage (from the package root):
-#   Rscript dev/preview-vignette.R dr2n-analysis
+#   Rscript dev/preview-vignette.R mode-analysis
 #   Rscript dev/preview-vignette.R              # previews every vignettes/*.Rmd
 #
 # Output: dev/preview/<name>.html  (git-ignored; for local viewing only).

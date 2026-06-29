@@ -1,21 +1,21 @@
 ---
-title: "Mode analysis of structural divergence (dr2n)"
+title: "Mode analysis of structural divergence"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Mode analysis of structural divergence (dr2n)}
+  %\VignetteIndexEntry{Mode analysis of structural divergence}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
 
 <!--
 SOURCE OF TRUTH. This `.Rmd.orig` is the editable vignette; every code chunk runs
-for real. The shipped `dr2n-analysis.Rmd` is PRE-RENDERED from this file.
+for real. The shipped `mode-analysis.Rmd` is PRE-RENDERED from this file.
 Regenerate it after editing this file or after any change to the package code the
 vignette exercises:
 
-  Rscript -e 'knitr::knit("vignettes/dr2n-analysis.Rmd.orig", output = "vignettes/dr2n-analysis.Rmd")'
+  Rscript -e 'knitr::knit("vignettes/mode-analysis.Rmd.orig", output = "vignettes/mode-analysis.Rmd")'
 
-then commit both this file, the rendered `dr2n-analysis.Rmd`, and its figures.
+then commit both this file, the rendered `mode-analysis.Rmd`, and its figures.
 Pattern: https://ropensci.org/technotes/2019/12/08/precompute-vignettes/
 -->
 
@@ -23,12 +23,11 @@ Pattern: https://ropensci.org/technotes/2019/12/08/precompute-vignettes/
 
 
 
-## Site form vs. mode form
+## The mode form
 
-The [introduction vignette](msamodel-intro.html) predicts structural divergence
-**per site**: `calculate_dr2_i_msa()` returns `dr2_i`, the selection-weighted mean
-squared displacement of each residue. This vignette predicts the same divergence
-**per normal mode**.
+This vignette predicts structural divergence **per normal mode**. Its sibling, the
+[site analysis vignette](site-analysis.html), predicts the same divergence **per
+residue** with `calculate_dr2_i_msa()`; the two are companion views of one model.
 
 A single mutation displaces the structure by a vector `dr`. The site form sums
 `dr` per residue (`dr2_i`); the mode form projects `dr` onto the elastic-network
@@ -38,17 +37,16 @@ totals agree: `sum_i dr2_i == sum_n dr2_n`. Low-index modes are the soft,
 collective motions of the protein; the mode profile shows **which motions** carry
 the predicted divergence, where the site profile shows **which residues** do.
 
-Everything here is **predict-only** — there is (yet) no observed mode profile to
-fit against, so the mode arm has no likelihood/fit counterpart. (When functions to
-derive `dr2_n` from structural alignments and to fit them are added, a fitting
-section will be added to *this* vignette.)
+The final section fits the mode model to data. No *empirical* per-mode divergence
+profile exists yet (deriving `dr2_n` from structural alignments is out of scope for
+`msamodel`), so that section fits a **synthetic** stand-in profile to exercise the
+mode fit end-to-end — it is flagged as synthetic where it appears.
 
 ## Preprocessing for the mode axis
 
 We use the worked example `1znb_A` (zinc beta-lactamase), shipped as `znb_spm`.
 `preprocess_spm_mode()` is the mode counterpart of `preprocess_spm()`: it reshapes
 the per-mutant scan into the `[mutant x mode]` matrix the mode evaluator reweights.
-There is no `pdb_site` map — modes are not anchored to residues.
 
 
 ```r
@@ -81,7 +79,7 @@ head(prof_mode)
 #> 6     6 0.00247   -3.00
 ```
 
-![plot of chunk profile-plot](dr2n-analysis_files/figure-html/profile-plot-1.png)
+![plot of chunk profile-plot](mode-analysis_files/figure-html/profile-plot-1.png)
 
 The lowest-index (softest) modes carry the most divergence: a handful of
 collective motions account for most of the predicted structural change.
@@ -108,7 +106,7 @@ the mode counterpart of `calculate_lrmsd_i_nested_models()`:
 nested <- calculate_lrmsd_n_nested_models(pp_mode, a1, a2)   # a1 = 2, a2 = 500
 ```
 
-![plot of chunk nested-profiles](dr2n-analysis_files/figure-html/nested-profiles-1.png)
+![plot of chunk nested-profiles](mode-analysis_files/figure-html/nested-profiles-1.png)
 
 The **sequential** decomposition adds one selection pressure at a time along
 M0 → MM → MS → MSA; each $\phi$ term is the incremental divergence contributed by
@@ -133,14 +131,13 @@ phi <- dplyr::bind_cols(
 )
 ```
 
-![plot of chunk decomp-plot](dr2n-analysis_files/figure-html/decomp-plot-1.png)
+![plot of chunk decomp-plot](mode-analysis_files/figure-html/decomp-plot-1.png)
 
 ## How the mode profile depends on a1 and a2
 
 As in the site form, stability selection (`a1`, with `a2 = 0`) and activity
 selection (`a2`, with `a1 = 0`) reshape the profile differently. We vary one
-parameter at a time and overlay the resulting whole mode profiles — the same
-`map_dfr` sweep pattern the intro vignette uses for the site profile.
+parameter at a time and overlay the resulting whole mode profiles.
 
 
 ```r
@@ -155,9 +152,9 @@ sweep_a2 <- purrr::map_dfr(a2_values, function(a2)
   calculate_dr2_n_msa(pp_mode, 0, a2) |> mutate(lrmsd_n = log(sqrt(dr2_n)), a2 = a2))
 ```
 
-![plot of chunk sweep-a1](dr2n-analysis_files/figure-html/sweep-a1-1.png)
+![plot of chunk sweep-a1](mode-analysis_files/figure-html/sweep-a1-1.png)
 
-![plot of chunk sweep-a2](dr2n-analysis_files/figure-html/sweep-a2-1.png)
+![plot of chunk sweep-a2](mode-analysis_files/figure-html/sweep-a2-1.png)
 
 Increasing `a1` suppresses divergence across the soft modes (stability selection
 damps the collective motions); increasing `a2` reshapes the soft-mode divergence
@@ -234,9 +231,9 @@ r2_n <- 1 - sum((cmp_n$nlrmsd_n_obs - cmp_n$nlrmsd_n_fit)^2) /
             sum((cmp_n$nlrmsd_n_obs - mean(cmp_n$nlrmsd_n_obs))^2)
 ```
 
-![plot of chunk mode-fit-profile](dr2n-analysis_files/figure-html/mode-fit-profile-1.png)
+![plot of chunk mode-fit-profile](mode-analysis_files/figure-html/mode-fit-profile-1.png)
 
-![plot of chunk mode-fit-scatter](dr2n-analysis_files/figure-html/mode-fit-scatter-1.png)
+![plot of chunk mode-fit-scatter](mode-analysis_files/figure-html/mode-fit-scatter-1.png)
 
 ## Session info
 

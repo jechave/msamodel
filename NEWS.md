@@ -14,15 +14,20 @@
   **per normal mode**, not only per site (the first slice of the motion/mode arm).
   `generate_spm_data()` carries two new SPM list-columns, `mode` and `dr2_njm`
   (per-mode squared contribution to the mutant displacement), computed in the same
-  per-mutant scan. Two new exported functions, parallel to the site path:
+  per-mutant scan. New exported functions, parallel to the site path:
   * `preprocess_spm_mode()` — reshapes the scan into a `[mutant x mode]` matrix
     (`dr2_njm`); mode counterpart of `preprocess_spm()`.
   * `calculate_dr2_n_msa()` — selection-weighted mean `dr2_n` per mode; mode
     counterpart of `calculate_dr2_i_msa()`.
+  * `calculate_loglik_lrmsd_n_msa()` / `fit_lrmsd_n_msa_ml()` — mode-form profiled
+    Gaussian log-likelihood and its ML fit, parallel to the site path's
+    `calculate_loglik_lrmsd_i_msa()` / `fit_lrmsd_i_msa_ml()`.
 
-  The mode arm is **predict-only** (there is no observed mode profile to fit), so
-  it has no log-likelihood counterpart and the site fit is unchanged. New
-  `dr2n-analysis` vignette walks through it.
+  No *empirical* per-mode divergence profile exists yet (deriving observed `dr2_n`
+  from structural alignments is out of scope for `msamodel`), so the mode fit is
+  exercised against a synthetic stand-in target; the site fit is unchanged. The new
+  `mode-analysis` vignette walks through both the prediction and the (synthetic)
+  fit.
 
 ## Breaking changes
 
