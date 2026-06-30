@@ -1,0 +1,313 @@
+---
+title: "Inference methods: ML vs adaptive quadrature"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Inference methods: ML vs adaptive quadrature}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+<!--
+SOURCE OF TRUTH. This `.Rmd.orig` is the editable vignette; every code chunk runs
+for real. The shipped `inference-methods.Rmd` is PRE-RENDERED from this file.
+Regenerate it after editing this file or after any change to the package code the
+vignette exercises (run from INSIDE vignettes/ so fig.path resolves correctly):
+
+  cd vignettes && Rscript -e 'knitr::knit("inference-methods.Rmd.orig", output = "inference-methods.Rmd")'
+
+then commit this file, the rendered `inference-methods.Rmd`, and its figures.
+The working tree must be installed first if a chunk calls package functions not
+yet in the installed package (`library(msamodel)` loads the *installed* package).
+Pattern: https://ropensci.org/technotes/2019/12/08/precompute-vignettes/
+-->
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 4.2,
+  dpi = 96,
+  # Write precomputed figures under a vignette-named dir rather than the default
+  # bare `figure/`, which R CMD check flags as a stray knitr leftover.
+  fig.path = "inference-methods_files/figure-html/"
+)
+
+# Every computation chunk below runs for real when this file is knit. ggplot2 is
+# a Suggested dependency; if it is absent the computation still runs and only the
+# plotting chunks are skipped.
+has_ggplot <- requireNamespace("ggplot2", quietly = TRUE)
+
+# Both fits here are deterministic; the seed is harmless but kept for a stable
+# committed render (and for generate_spm_data below).
+set.seed(1024)
+```
+
+```{r libs, include = FALSE}
+suppressMessages({
+  library(msamodel)
+  library(dplyr)
+  library(tidyr)
+})
+if (has_ggplot) {
+  suppressMessages(library(ggplot2))
+  theme_set(theme_minimal(base_size = 12))
+}
+```
+
+`msamodel` ships two **deterministic** ways to fit the per-residue `lrmsd_i` MSA
+model to an observed divergence profile. This vignette runs both on the same data
+and compares them. Its siblings, the [site analysis](site-analysis.html) and
+[mode analysis](mode-analysis.html) vignettes, develop the model itself; here we
+hold the model fixed and vary the *fitting method*.
+
+- **Maximum likelihood** (`fit_lrmsd_i_msa_ml()`) returns a **point estimate** of
+  the selection parameters `(a1, a2)` plus an asymptotic standard error from the
+  Hessian at the optimum — a fast Gaussian (Laplace) summary.
+- **Adaptive Gauss–Hermite quadrature** (`fit_lrmsd_i_msa_agq()`) returns a
+  **deterministic posterior**: posterior means, standard deviations and credible
+  intervals, computed by placing a handful of quadrature nodes at the locations
+  the ML Laplace approximation suggests. No chain, no seed, no burn-in.
+
+The question this vignette answers: do the two agree, and what does the posterior
+buy you over the point estimate?
+
+## 1. Setup
+
+Everything starts from your two inputs: a structure file and a vector of
+active-site residue numbers. We use the worked example `1znb_A` (zinc
+beta-lactamase) that ships with the package; swap in your own at the two marked
+lines.
+
+```{r attach}
+library(msamodel)
+library(dplyr)    # data-wrangling verbs (mutate, inner_join, ...) used below
+```
+
+```{r inputs}
+pdb_file        <- system.file("extdata", "1znb_A.pdb", package = "msamodel")  # <- your PDB path
+pdb_site_active <- c(99, 101, 103, 162, 181, 184, 193, 223)                    # <- your active-site residues
+```
+
+`msamodel` reads the structure, builds an elastic network model (`wt`), and runs a
+single-point-mutation scan (`spm`):
+
+```{r build}
+pdb <- bio3d::read.pdb(pdb_file)
+wt  <- setup_enm(pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+spm <- generate_spm_data(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
+                         min_sd = 2, pdb_site_active = pdb_site_active, seed = 1024)
+```
+
+(`spm` is identical to the shipped `znb_spm`; to skim without running the scan,
+`data("znb_spm")` loads the prebuilt object instead.) From the scan we precompute
+the energy/displacement matrices once; both fits below reuse them:
+
+```{r preprocess}
+pp <- preprocess_spm(spm)   # list: energy_data, dr2_ijm, site_map
+```
+
+The fit target is an **observed** per-residue divergence profile — your data, a
+table with columns `pdb_site` and `lrmsd_i_obs`. The observed divergence comes
+from comparing homologous structures over an alignment, which is out of scope for
+`msamodel`; you bring it in this shape. The package ships one for the worked
+example, `znb_profile`:
+
+```{r obs}
+data("znb_profile")   # the example observed data; supply your own in this shape
+head(znb_profile)
+```
+
+## 2. The two fits
+
+`fit_lrmsd_i_msa_ml()` maximises the profiled Gaussian log-likelihood
+(`calculate_loglik_lrmsd_i_msa()`) over `(a1, a2)` and returns the estimate plus an
+asymptotic covariance from the Hessian at the optimum. It is fast and deterministic:
+
+```{r ml-fit}
+ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)   # pp from section 1; znb_profile is the target
+c(a1 = ml$a1, a2 = ml$a2)
+```
+
+`fit_lrmsd_i_msa_agq()` approximates the **posterior** of `(a1, a2)` under the same
+likelihood, *deterministically*, by adaptive Gauss–Hermite quadrature — placing
+nodes at the locations the ML Laplace (Gaussian) approximation suggests. For this
+protein the posterior is near-Gaussian in `(a1, log2(a2 + 1))`, so the default 7×7
+grid (49 likelihood evaluations) reproduces it essentially exactly. It reports
+posterior means, standard deviations and credible intervals on the natural
+`(a1, a2)` scale:
+
+```{r agq-fit}
+agq <- fit_lrmsd_i_msa_agq(pp, znb_profile)   # default n_nodes = 7
+c(a1 = agq$a1, a2 = agq$a2)
+```
+
+## 3. Do they agree on the parameters?
+
+To score each fit against the data, we predict the MSA profile at a single
+`(a1, a2)` — the ML point estimate and the AGQ posterior mean — using the same
+forward map (`calculate_lrmsd_i_nested_models()`), then mean-center it
+(`nlrmsd = lrmsd - mean(lrmsd)`). Predicting at a single point keeps the only
+difference between the two arms the *estimate* of `(a1, a2)`, not how the profile is
+summarised:
+
+```{r prep}
+# Goodness-of-fit helper. msamodel does not export an R^2 (the fit-assessment
+# layer is deferred to a later version), so we define it here for the comparison.
+r2 <- function(obs, pred) 1 - sum((obs - pred)^2) / sum((obs - mean(obs))^2)
+
+ml_msa <- calculate_lrmsd_i_nested_models(pp, ml$a1, ml$a2) |>
+  transmute(pdb_site, lrmsd_ml = lrmsd_i_msa)
+
+agq_msa <- calculate_lrmsd_i_nested_models(pp, agq$a1, agq$a2) |>
+  transmute(pdb_site, lrmsd_agq = lrmsd_i_msa)
+
+cmp <- znb_profile |>
+  inner_join(ml_msa,  by = "pdb_site") |>
+  inner_join(agq_msa, by = "pdb_site") |>
+  mutate(
+    nlrmsd_i_obs = lrmsd_i_obs - mean(lrmsd_i_obs),
+    nlrmsd_ml    = lrmsd_ml    - mean(lrmsd_ml),
+    nlrmsd_agq   = lrmsd_agq   - mean(lrmsd_agq)
+  )
+
+r2_ml  <- r2(cmp$nlrmsd_i_obs, cmp$nlrmsd_ml)
+r2_agq <- r2(cmp$nlrmsd_i_obs, cmp$nlrmsd_agq)
+```
+
+The two arms land on essentially the same `(a1, a2)`, with comparable uncertainty
+(the ML asymptotic standard error vs the AGQ posterior sd), and explain the observed
+profile equally well:
+
+```{r method-table, echo = FALSE}
+method_tbl <- tibble::tibble(
+  method = c("ML (point estimate)", "AGQ (posterior mean)"),
+  a1     = c(ml$a1, agq$a1),
+  a1_unc = c(ml$se_a1, agq$sd_a1),
+  a2     = c(ml$a2, agq$a2),
+  a2_unc = c(ml$se_a2, agq$sd_a2),
+  R2     = c(r2_ml, r2_agq)
+)
+knitr::kable(
+  method_tbl, digits = 3,
+  col.names = c("method", "a1", "a1 (se/sd)", "a2", "a2 (se/sd)", "R²"),
+  caption = "ML and AGQ estimates of the selection parameters (uncertainty is the ML asymptotic standard error or the AGQ posterior sd)"
+)
+```
+
+## 4. Do they agree on the predicted profile?
+
+The parameters agree; so do the profiles they predict. Observed, ML-fitted and
+AGQ-fitted profiles along the chain (all mean-centered):
+
+```{r method-long, include = FALSE}
+methods_long <- cmp |>
+  tidyr::pivot_longer(c(nlrmsd_i_obs, nlrmsd_ml, nlrmsd_agq),
+                      names_to = "source", values_to = "nlrmsd") |>
+  mutate(source = dplyr::recode(source,
+                                nlrmsd_i_obs = "observed",
+                                nlrmsd_ml    = "fitted (ML)",
+                                nlrmsd_agq   = "fitted (AGQ)"))
+method_cols <- c("observed" = "grey25",
+                 "fitted (ML)" = "steelblue",
+                 "fitted (AGQ)" = "seagreen")
+```
+
+```{r method-profile, echo = FALSE, eval = has_ggplot}
+ggplot(methods_long, aes(pdb_site, nlrmsd, colour = source)) +
+  geom_line(alpha = 0.8) +
+  scale_colour_manual(values = method_cols) +
+  labs(title = "Observed vs. ML- and AGQ-fitted divergence profiles",
+       x = "Residue (PDB numbering)", y = "nlrmsd (mean-centered)", colour = NULL) +
+  theme(legend.position = "top")
+```
+
+Fitted vs observed, one panel per method (the goodness-of-fit view); points on the
+dashed 1:1 line fit perfectly, and the R² scores the fit to data:
+
+```{r method-scatter, echo = FALSE, eval = has_ggplot}
+scatter_df <- dplyr::bind_rows(
+  dplyr::transmute(cmp, method = "ML",  nlrmsd_i_obs, nlrmsd_fit = nlrmsd_ml),
+  dplyr::transmute(cmp, method = "AGQ", nlrmsd_i_obs, nlrmsd_fit = nlrmsd_agq)
+)
+r2_labels <- tibble::tibble(
+  method = c("ML", "AGQ"),
+  label  = sprintf("R^2 == %.3f", c(r2_ml, r2_agq))
+)
+ggplot(scatter_df, aes(nlrmsd_i_obs, nlrmsd_fit)) +
+  geom_abline(slope = 1, intercept = 0, colour = "grey70", linetype = 2) +
+  geom_point(alpha = 0.5, colour = "steelblue") +
+  geom_text(data = r2_labels, aes(x = -Inf, y = Inf, label = label),
+            parse = TRUE, hjust = -0.15, vjust = 1.4, inherit.aes = FALSE) +
+  facet_wrap(~ method) +
+  labs(title = "Fitted vs. observed by method (mean-centered)",
+       x = "observed nlrmsd", y = "fitted nlrmsd")
+```
+
+Finally, the ML point estimate directly against the AGQ posterior mean. Points on
+the dashed 1:1 line mean the two methods predict the **same** profile site-for-site;
+the R² here measures **method-vs-method** agreement, not fit to data:
+
+```{r ml-vs-agq-r2}
+r2_methods <- r2(cmp$nlrmsd_ml, cmp$nlrmsd_agq)
+r2_methods
+```
+
+```{r ml-vs-agq, echo = FALSE, eval = has_ggplot}
+ggplot(cmp, aes(nlrmsd_ml, nlrmsd_agq)) +
+  geom_abline(slope = 1, intercept = 0, colour = "grey70", linetype = 2) +
+  geom_point(alpha = 0.5, colour = "darkorchid") +
+  annotate("text", x = -Inf, y = Inf, hjust = -0.15, vjust = 1.4,
+           label = sprintf("R^2 == %.4f", r2_methods), parse = TRUE) +
+  labs(title = "ML- vs. AGQ-fitted profile (mean-centered)",
+       x = "ML nlrmsd", y = "AGQ nlrmsd")
+```
+
+The deterministic quadrature recovers the same profile as the point estimate, at
+49 likelihood evaluations.
+
+## 5. What AGQ gives you that ML doesn't
+
+Because AGQ carries the whole `(a1, a2)` posterior, it propagates that uncertainty
+to the **predicted profile**: `predict_lrmsd_i_agq()` returns, per residue, the
+posterior mean and a credible band — the model prediction integrated over the
+posterior — making no Gaussian assumption. The ML fit gives a single line; AGQ
+gives that line plus a band around it:
+
+```{r agq-predict}
+band <- predict_lrmsd_i_agq(agq, pp)   # one row per residue; *_mean / *_lower / *_upper
+head(band)
+```
+
+Plotted against the observed profile (the band and observed both mean-centered):
+
+```{r agq-band, echo = FALSE, eval = has_ggplot}
+band_obs <- band |>
+  inner_join(dplyr::select(cmp, pdb_site, nlrmsd_i_obs), by = "pdb_site")
+
+ggplot(band_obs, aes(pdb_site)) +
+  geom_ribbon(aes(ymin = nlrmsd_i_msa_lower, ymax = nlrmsd_i_msa_upper),
+              fill = "seagreen", alpha = 0.25) +
+  geom_line(aes(y = nlrmsd_i_msa_mean), colour = "seagreen") +
+  geom_point(aes(y = nlrmsd_i_obs), colour = "grey25", size = 0.7, alpha = 0.7) +
+  labs(title = "AGQ posterior profile with 95% credible band vs. observed",
+       x = "Residue (PDB numbering)", y = "nlrmsd (mean-centered)")
+```
+
+The band is read off the node masses as weighted quantiles, so its tails are only
+as fine as the node grid; on this protein it is already stable at the default
+`n_nodes`. To sharpen it (e.g. at `level = 0.99`), refit with a larger `n_nodes`.
+
+## Where to next
+
+- **[Site analysis](site-analysis.html)** — the per-residue model in full: predict
+  the profile, decompose it into mutation / stability / activity contributions,
+  sweep `a1`/`a2`, and fit.
+- **[Mode analysis](mode-analysis.html)** — the same arc per normal mode.
+- **[Package overview](msamodel.html)** — a short end-to-end tour of both axes.
+
+## Session info
+
+```{r session, echo = FALSE}
+sessionInfo()
+```

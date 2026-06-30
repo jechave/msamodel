@@ -358,7 +358,8 @@ knitr::kable(
 ```
 
 `msamodel` also provides a deterministic-posterior fit (adaptive Gauss–Hermite
-quadrature, `fit_lrmsd_i_msa_agq()`) and tools to compare the two.
+quadrature, `fit_lrmsd_i_msa_agq()`); the [inference methods
+vignette](inference-methods.html) compares it with the ML fit side by side.
 
 ### Fitted vs. observed
 
