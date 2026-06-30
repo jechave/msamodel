@@ -12,11 +12,22 @@ One short entry per working session.
 The current state and what's next. Keep this current as slices finish; it is the
 one place the live state lives (no separate PROGRESS file as of 2026-06-26).
 
-- **In flight: vignette redesign** (plan `~/.claude/plans/mighty-bubbling-scroll.md`).
-  Target: overview `msamodel.Rmd` + parallel `site-analysis` / `mode-analysis` (ML
-  fit, strict shared 6-section skeleton) + a future `inference-methods` (ML vs AGQ).
-  Bayesian/MCMC dropped from vignettes (NOT from `R/` — inference rework's job).
-  **Done:**
+- **ACTIVE WORK ITEM: inference rework** (`dev/plan.md` "Inference rework"). AGQ loop 1
+  shipped (`00ea45a`); remaining slices planned per-loop (agile, not waterfall). No
+  slice currently open — **next session: open the next inference-rework slice** (see
+  the plan's two durable decisions: AGQ-primary inference + the model/fit/analysis
+  three-layer split). Still at `0.3.0.9000` (dev); NOT releasing now — a release waits
+  until the inference rework reaches a coherent stopping point (user decision
+  2026-06-30).
+
+- **DONE — vignette redesign** (plan `~/.claude/plans/mighty-bubbling-scroll.md`).
+  Overview `msamodel.Rmd` + parallel `site-analysis` / `mode-analysis` (ML fit, strict
+  shared 6-section skeleton) + `inference-methods` (ML vs AGQ). Bayesian/MCMC dropped
+  from vignettes (NOT from `R/` — inference rework's job). **Milestone `check()` clean
+  2026-06-30: 0 errors / 1 warning / 2 notes — identical to the accepted v0.1 baseline
+  (LazyData-compression warning + data-size note + clock note; all pre-existing,
+  GitHub-only). All four vignettes re-knit OK, full suite OK.** Work item closed.
+  **Slices:**
   - `782acd5`: `dr2n-analysis` → `mode-analysis` rename + sibling reframe.
   - `3699ac7`: `msamodel-intro` → `site-analysis`, strip MCMC + AGQ-comparison, fit
     now ML, §6 decomposition re-homed onto ML; mode gained §6; strict parallel pair
@@ -51,8 +62,7 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
     making both visible. Remaining reviewer flags (hidden plot code, ggplot2 not
     visibly attached, user-supplied observed profile) are the by-design house
     convention, same as all siblings — deferred, not blockers.
-  - **Next:** `check()` at the vignette-redesign milestone (re-knits all four + runs
-    the full suite + man/NAMESPACE). Then the work item closes.
+  - `e908510`: **`check()` milestone clean** (above); work item closed, no release.
   - **NEW reusable artifact (2026-06-30):** the naive-user review is now a skill,
     `~/.claude/skills/vignette-naive-review/` — captures the winning prompt (persona
     = method-USER not domain-peer; context-free, ONLY the rendered `.html`; no
@@ -66,8 +76,6 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
     agent reading the RENDERED `.html`** (a scientist with their own PDB), not a
     checklist-driven editor — it caught the "no path from raw input" failure that
     prior checks missed.
-- **Inference rework** (`dev/plan.md` "Inference rework"): AGQ loop 1 shipped
-  (`00ea45a`). Paused behind the vignette work; no slice currently open.
 - **Test-suite redesign DONE + MERGED** to `main` 2026-06-26 (`8a9e4c1..06b4292`).
   Default suite 284s → ~60s (`Config/testthat/parallel: true`; 81×81 ML grids →
   local-max checks; ~21s SPM regen tiered behind `MSAMODEL_FULL_TESTS`; fit-agq
