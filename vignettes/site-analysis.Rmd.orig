@@ -73,6 +73,11 @@ beta-lactamase) that ships with the package; swap in your own at the two marked
 lines. `setup_enm()` takes a bio3d structure object directly, so you read the file
 yourself — `bio3d::read.pdb()` for legacy `.pdb`, `bio3d::read.cif()` for mmCIF.
 
+```{r attach}
+library(msamodel)
+library(dplyr)    # data-wrangling verbs (mutate, left_join, ...) used below
+```
+
 ```{r inputs}
 pdb_file        <- system.file("extdata", "1znb_A.pdb", package = "msamodel")  # <- your PDB path
 pdb_site_active <- c(99, 101, 103, 162, 181, 184, 193, 223)                    # <- your active-site residues
