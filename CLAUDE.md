@@ -227,31 +227,56 @@ what's next) and add a one-line dated entry to `dev/LOG.md`. The heavier
 reconciliation (Definition of Done below) runs at the commit / work-item milestone,
 not per substep.
 
-### Definition of Done (run this reconciliation pass at the COMMIT / work-item milestone)
+### Definition of Done — a COMMAND-OUTPUT gate, not a self-attestation
 
 Verifying the *deliverable* (tests pass, NAMESPACE clean) is not enough — a change
-also has **satellite state** that describes the codebase and silently goes stale.
-A plan's own verification section never covers this, so it drifts and only surfaces
-later ("get ready for exit" keeps finding it).
+also has **satellite state** (LOG, NOW block, memory, cross-references) that
+silently goes stale. **Why this keeps failing:** a failing test stops you cold, but
+a stale memory file does not — it just sits there looking fine. So you get the
+"looks done" signal at `git push` and stop, having done the *easy* part of the pass
+(the LOG entry) while skipping the rest. The amputated part only surfaces when the
+user says "get ready to exit." (Exactly what happened 2026-06-30: the LOG NOW block
+was updated in the vignette commit, but the memory `project_next_session.md` +
+`MEMORY.md` index were left stale until the user prompted an exit cleanup.)
 
-**When this runs:** at the **commit gate** (and the broader work-item milestone),
-NOT per substep. Inside the inner loop, only the lightweight upkeep applies (keep
-the NOW block current + a one-line LOG entry); the full pass below fires once per
-commit and can batch a multi-slice session. Run it against the **whole project**,
-not just the files you edited:
+**The fix: this gate is RUN COMMANDS + PASTE OUTPUT, not "I reconciled."** "I
+checked for stale refs" is unfalsifiable and easy to assert past; a grep that prints
+the dangling line is not. Treat the DoD pass as the runtime version of the
+"verified means I ran the command" rule — stale state must *show up in output*, not
+be reasoned away.
 
-1. **Stale cross-references.** If you renamed/moved/deleted a file, function, or
-   version label, grep for the OLD name across `R/`, `tests/`, `dev/`, `man/`,
-   `vignettes/*.orig`, `DESCRIPTION`, and memory — fix every dangling reference.
-2. **`dev/LOG.md`** has an entry for what just happened (and, at session end, the
-   commit hashes + the next step), and its NOW block reflects reality.
-3. **Memory** (`MEMORY.md` + files): no entry now contradicts the change; the
-   "next session" pointer is current; new non-obvious decisions are recorded.
-4. **Git:** intended changes committed, nothing stray staged, pushed to `main`
-   (solo repo), `git status` clean — unless the user asked you to hold off.
+**When it runs:** at the **commit gate** (every commit) — it is part of what "ready
+to commit" MEANS, not a later step after `git push`. The slice is NOT done, and you
+do NOT report done, until these commands have been run and their output is clean
+(or the only output is changes you then make). Run them against the **whole
+project**, not just edited files:
 
-If any item turns up work, it is **part of this task, not a later cleanup** — do it
-now. Only report done once this pass is clean.
+```bash
+# 1. STALE CROSS-REFS. For EVERY name you renamed/closed/moved this slice (old file,
+#    function, version label, status word like "in flight"/"next"), grep it across
+#    code AND satellite state. Substitute the real old term(s):
+git grep -n 'OLD_NAME'                         # tracked: R/ tests/ dev/ man/ vignettes DESCRIPTION
+grep -rn 'OLD_NAME' ~/.claude/projects/-Users-julianechave-Library-Mobile-Documents-com-apple-CloudDocs-lab-Rpackages-msamodel/memory/
+#    -> every hit is either correct or a fix you make NOW. Zero unexplained hits to pass.
+
+# 2. LOG + NOW reflect reality (read, don't assert):
+sed -n '/<!-- NOW -->/,/<!-- \/NOW -->/p' dev/LOG.md   # is the live item right? closed work crossed off?
+#    + a dated dev/LOG.md history entry for what just happened exists.
+
+# 3. MEMORY currency — the next-session pointer is the one loaded first each session:
+sed -n '1,3p' ~/.claude/.../memory/MEMORY.md            # index line current?
+#    + grep (step 1) already proved no memory file contradicts the change.
+
+# 4. GIT clean + pushed:
+git status -sb        # clean tree, '## main...origin/main' (no ahead/behind), nothing stray
+```
+
+**Pass condition:** steps 1–4 above have each been *run this session* and their
+output is clean. If any turns up work, it is **part of this task, not a later
+cleanup** — do it now, then re-run. Do not report done on the strength of "tests
+pass + committed + pushed" alone — that is the easy part; the grep output is the
+gate. (Docs/comment-only commits still run steps 1–4; they skip only the full
+`test()` per the diff-rule above.)
 
 ## Development commands
 
