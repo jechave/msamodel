@@ -68,13 +68,29 @@ The cadence (load_all inner loop → targeted tests → one full `test()` before
   - *vignette slice* (the vignette is the deliverable) → full `dev/preview/<name>.html`
     render + the vignette HARD RULE below.
 - **Commit gate covers code too** (not just vignettes): nothing commits until the
-  user has reviewed the artifact and said go. Then ONE full `test()`, then commit.
-  **Exception — docs/comment-only diffs:** if the slice touches no code, data,
-  `data-raw/`, roxygen, or `NAMESPACE` (e.g. a comment-only edit), the full `test()`
-  cannot change any outcome, so skip it — the gate verifies behavior change, and a
-  non-testable diff makes it vacuous. The verification is still sized to the change
-  (confirm no code/data/snapshot bytes moved). Run the full `test()` whenever code,
-  data, or roxygen DID change.
+  user has reviewed the artifact and said go.
+- **Whether the full `test()` runs at the gate is decided by ONE rule — the diff,
+  not the slice category.** Look at what bytes the commit actually moves:
+  - **If the diff touches `R/`, `data/`, `data-raw/`, roxygen, `NAMESPACE`, or any
+    test snapshot value → run ONE full `devtools::test()` before committing.** This
+    is the rigor gate.
+  - **Otherwise the diff is non-testable → SKIP `test()`.** No test exercises those
+    bytes, so the run is vacuous, not satisfied-by-running. This covers every
+    docs-only diff *including a whole vignette slice* — `.Rmd.orig`, the re-knit
+    `.Rmd`, and `_files/` figures are documentation, not code/data/roxygen, so a
+    slice that touches **only** `vignettes/` always lands here. (The vignette
+    HARD RULE — user approves the rendered HTML — still applies in full; it is the
+    real gate for a vignette slice. `check()` re-knits + runs the full suite at the
+    milestone; that is where vignette-touching code gets its test coverage, not the
+    per-slice gate.)
+  - Either way, verification is **sized to the change**: for a non-testable diff,
+    confirm `git status`/`git diff --stat` shows only docs/vignette bytes moved (no
+    `R/`/`data/`/roxygen/`NAMESPACE`/snapshot) — that confirmation IS the artifact.
+  - **The slice category (code vs vignette, above) decides the *artifact* — scratchpad
+    table vs full HTML render. It does NOT decide whether `test()` runs. Only the
+    diff does.** A vignette slice is not a third "always test" category; do not run
+    `test()` "because it's a vignette" and do not invent a reason (e.g. "figures
+    count") to override the diff rule.
 - **If a slice goes wrong mid-way:** discard the uncommitted working tree
   (`git restore`) and re-slice — nothing is committed mid-slice. Amend the
   slice-list.
