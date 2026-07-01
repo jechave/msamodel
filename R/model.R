@@ -309,9 +309,12 @@ predict_lrmsd_i_agq <- function(object, spm_pp, level = 0.95) {
   alpha <- (1 - level) / 2
 
   # lrmsd_i_msa at every node: [site x node] matrix, sites carried from node 1.
-  first <- calculate_lrmsd_i_nested_models(spm_pp, nodes$a1[1], nodes$a2[1])
+  # site_map recovers pdb_site (the forward rung returns only i); left_join keeps
+  # the rung's row order (unique i), so first's rows stay aligned with P's rows.
+  first <- calculate_lrmsd_i_msa(spm_pp, nodes$a1[1], nodes$a2[1]) %>%
+    dplyr::left_join(spm_pp$site_map, by = "i")
   P <- vapply(seq_len(nrow(nodes)), function(k)
-    calculate_lrmsd_i_nested_models(spm_pp, nodes$a1[k], nodes$a2[k])$lrmsd_i_msa,
+    calculate_lrmsd_i_msa(spm_pp, nodes$a1[k], nodes$a2[k])$lrmsd_i_msa,
     numeric(nrow(first)))
 
   mean_i  <- as.numeric(P %*% w)
