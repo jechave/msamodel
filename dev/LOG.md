@@ -17,7 +17,7 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   at `0.3.0.9000` (dev); NOT releasing now — a release waits until the inference rework
   reaches a coherent stopping point (user decision 2026-06-30).
 
-  - **IN FLIGHT (2026-07-01): forward-model layer refactor — site axis** (plan
+  - **DONE (2026-07-01): forward-model layer refactor — both axes** (plan
     `~/.claude/plans/noble-sleeping-brooks.md`; `dev/plan.md` inference-rework decision
     3). Triggered by the AGQ 4×-waste (`predict_lrmsd_i_agq` computed 4 nested profiles
     per node, kept 1) → root cause: the MSA model is not a function (fixation-prob 4
@@ -40,13 +40,22 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
       original 4×-waste is closed. Verified no-op (all 6 band columns + i/pdb_site
       0e+00). Independent agile-expert review pre-execution (no blocking; alias-
       substitution = firmest footing).
-    **SITE-AXIS FORWARD REFACTOR COMPLETE** (slices 1-3, `14f324b`/`951ebe6`/`c06f760`).
-    Forward layer now: `pfix_msa` (model) → `weights_jm_spm` (SPM ensemble) →
-    `calculate_dr2_i_msa` → `calculate_lrmsd_i_msa` (sole log(sqrt) owner) → analysis
-    (`nested_models`, decomposition, AGQ predictor). All site-axis `log(sqrt)`
-    open-coding gone; suite 178/0F/2skip throughout.
-    **Deferred (next candidates):** mode-axis mirror; decomposition→analysis rehoming;
-    AGQ phi-with-bands (the original goal); MCMC removal.
+    - **MODE MIRROR (1) DONE `4741295`** — `calculate_dr2_n_msa` now calls
+      `weights_jm_spm`; dropped dead `energy_data` local. Eliminates the **last inline
+      `pfix` copy** in the package (`pstab_jm` now appears nowhere). dr2_n 0e+00.
+    - **MODE MIRROR (2) DONE `b9f6fc4`** — added `calculate_lrmsd_n_msa`, rewired the 3
+      mode-axis log(sqrt) sites (nested_n helper, mode loglik, mode ML post-fit).
+      Verified no-op (nested profile, loglik interior+corners, mode ML fit all 0e+00).
+      No new test — `test-msa-mode.R` nested oracle + `test-fit-ml-mode.R` frozen fit
+      pin every rewired site. Independent agile-expert review pre-execution (no blocking).
+    **FORWARD-LAYER REFACTOR COMPLETE — BOTH AXES** (site 1-3 + mode 1-2,
+    `14f324b`/`951ebe6`/`c06f760`/`4741295`/`b9f6fc4`). Uniform layer both axes:
+    `pfix_msa` (model) → `weights_jm_spm` (SPM ensemble) → `calculate_dr2_{i,n}_msa` →
+    `calculate_lrmsd_{i,n}_msa` (sole log(sqrt) owners) → analysis (`nested_models`,
+    decomposition, AGQ predictor). Closing artifact: `git grep 'log(sqrt(dr2'` in `R/`
+    hits ONLY the two owners; `pstab_jm` gone. Suite 178/0F/2skip throughout.
+    **Deferred (next candidates):** decomposition→analysis rehoming; AGQ phi-with-bands
+    (the original goal); MCMC removal.
 
   - **DECISION (2026-07-01): MCMC is slated for REMOVAL**, not kept as a permanent
     legacy arm (corrects the old "kept as legacy/fallback" in `dev/plan.md`). NOT
