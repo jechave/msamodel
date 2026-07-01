@@ -83,6 +83,38 @@ calculate_dr2_i_msa <- function(spm_pp, a1, a2) {
   tibble(i = as.integer(colnames(dr2_ijm)), dr2_i = dr2_i)
 }
 
+#' Predicted per-site log structural divergence at one selection strength
+#'
+#' The model's forward prediction in the units the fit works in: the per-site log
+#' root-mean-square structural divergence `lrmsd_i = log(sqrt(dr2_i))`, at a single
+#' pair of selection strengths `(a1, a2)`. This is the sole owner of the
+#' `dr2 -> lrmsd` transform -- the likelihood, the fitters, and the nested-model
+#' expansion all obtain their predicted profile through this function rather than
+#' re-applying `log(sqrt(.))` by hand.
+#'
+#' @param spm_pp Preprocessed single-point-mutation data, the output of
+#'   [preprocess_spm()].
+#' @param a1 Stability selection strength (non-negative). `0` disables stability
+#'   selection.
+#' @param a2 Activity selection strength (non-negative). `0` disables activity
+#'   selection.
+#' @return A tibble with one row per site: the site index `i` and the predicted
+#'   profile `lrmsd_i_msa`. Callers needing the PDB residue number join
+#'   `spm_pp$site_map` themselves (as [calculate_lrmsd_i_nested_models()] does).
+#' @seealso [calculate_dr2_i_msa()] (the squared-divergence forward map it wraps);
+#'   [calculate_lrmsd_i_nested_models()] (the four-variant analysis expansion).
+#' @family model
+#' @examples
+#' \dontrun{
+#' pp <- preprocess_spm(znb_spm)
+#' head(calculate_lrmsd_i_msa(pp, a1 = 1, a2 = 1))
+#' }
+#' @export
+calculate_lrmsd_i_msa <- function(spm_pp, a1, a2) {
+  dr2 <- calculate_dr2_i_msa(spm_pp, a1, a2)
+  tibble(i = dr2$i, lrmsd_i_msa = log(sqrt(dr2$dr2_i)))
+}
+
 #' Predicted per-mode structural divergence at one selection strength
 #'
 #' Mode-indexed counterpart of [calculate_dr2_i_msa()]: instead of a divergence
@@ -168,7 +200,7 @@ calculate_dr2_n_msa <- function(spm_pp, a1, a2) {
 #' }
 #' @export
 calculate_lrmsd_i_nested_models <- function(spm_pp, a1, a2) {
-  lrmsd <- function(p1, p2) log(sqrt(calculate_dr2_i_msa(spm_pp, p1, p2)$dr2_i))
+  lrmsd <- function(p1, p2) calculate_lrmsd_i_msa(spm_pp, p1, p2)$lrmsd_i_msa
 
   tibble(
     i           = as.integer(colnames(spm_pp$dr2_ijm)),

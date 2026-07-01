@@ -112,10 +112,7 @@ fit_lrmsd_i_msa_ml <- function(spm_pp,
   se_a2 <- abs(2^b_hat * log(2)) * se_b
 
   # Profiled noise scale at the optimum (same formula the likelihood uses).
-  dr2_i_msa <- calculate_dr2_i_msa(spm_pp, a1_hat, a2_hat)
-  pred <- dr2_i_msa %>%
-    mutate(lrmsd_i_msa = log(sqrt(dr2_i))) %>%
-    dplyr::select(i, lrmsd_i_msa)
+  pred <- calculate_lrmsd_i_msa(spm_pp, a1_hat, a2_hat)
   obs <- observed_data %>%
     dplyr::select(pdb_site, lrmsd_i_obs) %>%
     inner_join(spm_pp$site_map, by = "pdb_site") %>%

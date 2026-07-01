@@ -32,14 +32,7 @@
 calculate_loglik_lrmsd_i_msa <- function(spm_pp, observed_data, a1, a2) {
 
   # Generate model predictions (keyed by the internal response-site index i)
-  dr2_i_msa <- calculate_dr2_i_msa(spm_pp, a1, a2)  %>%
-    rename(dr2_i_msa = dr2_i)
-
-  predictions <- dr2_i_msa %>%
-    mutate(
-      lrmsd_i_msa = log(sqrt(dr2_i_msa)),
-    ) %>%
-    dplyr::select(i, lrmsd_i_msa)
+  predictions <- calculate_lrmsd_i_msa(spm_pp, a1, a2)
 
   # Translate user-supplied pdb_site to the internal index i via the model's
   # site_map. pdb_site is the structure-anchored key; i is model-internal.

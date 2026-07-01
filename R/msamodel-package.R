@@ -18,7 +18,7 @@ NULL
 # dplyr/tidyr verbs). These are data-column / grouping names, not real globals.
 utils::globalVariables(c(
   "a1", "a2", "dactive", "ddg_dv_jm", "ddg_jm", "ddg_tds_jm", "ddgact_dv_jm",
-  "ddgact_jm", "ddgact_tds_jm", "dr2_i", "dr2_i_msa", "dr2_ijm", "dr2_n", "dr2_njm",
+  "ddgact_jm", "ddgact_tds_jm", "dr2_i", "dr2_ijm", "dr2_n", "dr2_njm",
   "i", "j", "lower", "lrmsd", "lrmsd_i_ma", "lrmsd_i_mm", "lrmsd_i_ms", "lrmsd_i_msa",
   "lrmsd_n_ma", "lrmsd_n_mm", "lrmsd_n_ms", "lrmsd_n_msa",
   "lrmsd_i_obs", "lrmsd_n_obs", "lrmsd_n_true", "m", "mode", "model", "n",
