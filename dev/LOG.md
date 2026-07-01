@@ -34,10 +34,19 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
       interior+corners, ML fit, AGQ fit all 0e+00). No new permanent test — existing
       frozen-loglik + nested-oracle tests pin it. Independent agile-expert agent review
       pre-execution (no blocking findings; F1/F2/F5 folded into the artifact).
-    - **(3) NEXT** — fix `predict_lrmsd_i_agq` to call `calculate_lrmsd_i_msa` (one
-      forward eval/node, not four); source `pdb_site` from `site_map`.
-    **Deferred:** mode-axis mirror; decomposition→analysis rehoming; AGQ phi-with-bands;
-    MCMC removal.
+    - **(3) DONE `c06f760`** — `predict_lrmsd_i_agq` now calls `calculate_lrmsd_i_msa`
+      (one forward eval/node, not four); `pdb_site` recovered via
+      `left_join(site_map)`. The AGQ path no longer calls `nested_models` — the
+      original 4×-waste is closed. Verified no-op (all 6 band columns + i/pdb_site
+      0e+00). Independent agile-expert review pre-execution (no blocking; alias-
+      substitution = firmest footing).
+    **SITE-AXIS FORWARD REFACTOR COMPLETE** (slices 1-3, `14f324b`/`951ebe6`/`c06f760`).
+    Forward layer now: `pfix_msa` (model) → `weights_jm_spm` (SPM ensemble) →
+    `calculate_dr2_i_msa` → `calculate_lrmsd_i_msa` (sole log(sqrt) owner) → analysis
+    (`nested_models`, decomposition, AGQ predictor). All site-axis `log(sqrt)`
+    open-coding gone; suite 178/0F/2skip throughout.
+    **Deferred (next candidates):** mode-axis mirror; decomposition→analysis rehoming;
+    AGQ phi-with-bands (the original goal); MCMC removal.
 
   - **DECISION (2026-07-01): MCMC is slated for REMOVAL**, not kept as a permanent
     legacy arm (corrects the old "kept as legacy/fallback" in `dev/plan.md`). NOT
