@@ -144,14 +144,11 @@ calculate_lrmsd_i_msa <- function(spm_pp, a1, a2) {
 #' }
 #' @export
 calculate_dr2_n_msa <- function(spm_pp, a1, a2) {
-  energy_data <- spm_pp$energy_data
   dr2_njm <- spm_pp$dr2_njm
 
-  # Fixation probabilities (same axis-agnostic weights as the site form)
-  pstab_jm <- pmin(exp(-a1 * energy_data$ddg_jm), 1)
-  pact_jm <- pmin(exp(-a2 * energy_data$ddgact_jm), 1)
-  pfix_jm <- pstab_jm * pact_jm
-  weights_jm <- pfix_jm / sum(pfix_jm)
+  # SPM-ensemble weights from the MSA model's fixation probabilities
+  # (axis-agnostic: identical weights as the site form).
+  weights_jm <- weights_jm_spm(spm_pp, a1, a2)
 
   # Weighted average over the mutant (j,m) axis: (dr2_njm) -> (dr2_n)
   dr2_n <- colSums(dr2_njm * weights_jm)
