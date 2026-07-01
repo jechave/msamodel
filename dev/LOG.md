@@ -17,17 +17,25 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   at `0.3.0.9000` (dev); NOT releasing now — a release waits until the inference rework
   reaches a coherent stopping point (user decision 2026-06-30).
 
-  - **OPEN SLICE (2026-07-01): forward-model layer refactor — site axis** (plan
+  - **IN FLIGHT (2026-07-01): forward-model layer refactor — site axis** (plan
     `~/.claude/plans/noble-sleeping-brooks.md`; `dev/plan.md` inference-rework decision
     3). Triggered by the AGQ 4×-waste (`predict_lrmsd_i_agq` computed 4 nested profiles
     per node, kept 1) → root cause: the MSA model is not a function (fixation-prob 4
     lines inlined byte-identically in both `dr2` calculators) and `log(sqrt(dr2))` is
-    open-coded in 5 sites (no `calculate_lrmsd_*_msa`). Fix = 3 rungs: `pfix_msa`
-    (model, pure) / `weights_jm_spm` (SPM-ensemble weights) / `calculate_lrmsd_i_msa`
-    (forward prediction, owns log(sqrt)). **Pure refactor — reproduce current numbers
-    to machine precision.** Slice-list: (1) extract `pfix_msa` + `weights_jm_spm`,
-    rewire `calculate_dr2_i_msa` (leave `_n` inline); (2) add `calculate_lrmsd_i_msa`,
-    rewire site-axis log(sqrt) sites; (3) fix `predict_lrmsd_i_agq` to call it.
+    open-coded (no `calculate_lrmsd_*_msa`). Fix = 3 rungs: `pfix_msa` (model, pure) /
+    `weights_jm_spm` (SPM-ensemble weights) / `calculate_lrmsd_i_msa` (forward
+    prediction, owns log(sqrt)). **Pure refactor — every slice reproduces current
+    numbers to machine precision (0e+00).** Slices:
+    - **(1) DONE `14f324b`** — extracted `pfix_msa` + `weights_jm_spm`, rewired site
+      `calculate_dr2_i_msa` (mode `_n` left inline).
+    - **(2) DONE `951ebe6`** — added `calculate_lrmsd_i_msa`, rewired the 3 site-axis
+      log(sqrt) sites (nested_models helper, objective, ML post-fit); dropped the dead
+      `dr2_i_msa` globalVariables entry. Verified no-op (nested profile, loglik
+      interior+corners, ML fit, AGQ fit all 0e+00). No new permanent test — existing
+      frozen-loglik + nested-oracle tests pin it. Independent agile-expert agent review
+      pre-execution (no blocking findings; F1/F2/F5 folded into the artifact).
+    - **(3) NEXT** — fix `predict_lrmsd_i_agq` to call `calculate_lrmsd_i_msa` (one
+      forward eval/node, not four); source `pdb_site` from `site_map`.
     **Deferred:** mode-axis mirror; decomposition→analysis rehoming; AGQ phi-with-bands;
     MCMC removal.
 
