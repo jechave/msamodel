@@ -38,6 +38,7 @@ the mode form.
 
 Other spm:
 \code{\link[=generate_spm_data]{generate_spm_data()}},
-\code{\link[=preprocess_spm_mode]{preprocess_spm_mode()}}
+\code{\link[=preprocess_spm_mode]{preprocess_spm_mode()}},
+\code{\link[=weights_jm_spm]{weights_jm_spm()}}
 }
 \concept{spm}

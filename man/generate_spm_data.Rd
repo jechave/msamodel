@@ -61,6 +61,7 @@ head(spm[c("j", "m")])
 
 Other spm:
 \code{\link[=preprocess_spm]{preprocess_spm()}},
-\code{\link[=preprocess_spm_mode]{preprocess_spm_mode()}}
+\code{\link[=preprocess_spm_mode]{preprocess_spm_mode()}},
+\code{\link[=weights_jm_spm]{weights_jm_spm()}}
 }
 \concept{spm}

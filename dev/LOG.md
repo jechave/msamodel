@@ -13,12 +13,30 @@ The current state and what's next. Keep this current as slices finish; it is the
 one place the live state lives (no separate PROGRESS file as of 2026-06-26).
 
 - **ACTIVE WORK ITEM: inference rework** (`dev/plan.md` "Inference rework"). AGQ loop 1
-  shipped (`00ea45a`); remaining slices planned per-loop (agile, not waterfall). No
-  slice currently open — **next session: open the next inference-rework slice** (see
-  the plan's two durable decisions: AGQ-primary inference + the model/fit/analysis
-  three-layer split). Still at `0.3.0.9000` (dev); NOT releasing now — a release waits
-  until the inference rework reaches a coherent stopping point (user decision
-  2026-06-30).
+  shipped (`00ea45a`); remaining slices planned per-loop (agile, not waterfall). Still
+  at `0.3.0.9000` (dev); NOT releasing now — a release waits until the inference rework
+  reaches a coherent stopping point (user decision 2026-06-30).
+
+  - **OPEN SLICE (2026-07-01): forward-model layer refactor — site axis** (plan
+    `~/.claude/plans/noble-sleeping-brooks.md`; `dev/plan.md` inference-rework decision
+    3). Triggered by the AGQ 4×-waste (`predict_lrmsd_i_agq` computed 4 nested profiles
+    per node, kept 1) → root cause: the MSA model is not a function (fixation-prob 4
+    lines inlined byte-identically in both `dr2` calculators) and `log(sqrt(dr2))` is
+    open-coded in 5 sites (no `calculate_lrmsd_*_msa`). Fix = 3 rungs: `pfix_msa`
+    (model, pure) / `weights_jm_spm` (SPM-ensemble weights) / `calculate_lrmsd_i_msa`
+    (forward prediction, owns log(sqrt)). **Pure refactor — reproduce current numbers
+    to machine precision.** Slice-list: (1) extract `pfix_msa` + `weights_jm_spm`,
+    rewire `calculate_dr2_i_msa` (leave `_n` inline); (2) add `calculate_lrmsd_i_msa`,
+    rewire site-axis log(sqrt) sites; (3) fix `predict_lrmsd_i_agq` to call it.
+    **Deferred:** mode-axis mirror; decomposition→analysis rehoming; AGQ phi-with-bands;
+    MCMC removal.
+
+  - **DECISION (2026-07-01): MCMC is slated for REMOVAL**, not kept as a permanent
+    legacy arm (corrects the old "kept as legacy/fallback" in `dev/plan.md`). NOT
+    deleted until AGQ reproduces its one remaining unique piece — **phi decomposition
+    profiles with credible bands** (node-propagated). Wrappers
+    (`run_msa_bayesian_analysis`) out of scope for now. The v0.5 tree's stochastic
+    sampler is built fresh then, not preserved from this M-H.
 
 - **DONE — vignette redesign** (plan `~/.claude/plans/mighty-bubbling-scroll.md`).
   Overview `msamodel.Rmd` + parallel `site-analysis` / `mode-analysis` (ML fit, strict

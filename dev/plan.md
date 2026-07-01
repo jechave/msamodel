@@ -125,12 +125,17 @@ per-version detail is written when each version starts.
      of measure, NOT a prior) reproduces the posterior moments essentially exactly at
      **~25 deterministic evaluations** (5×5), vs the hand-rolled M-H needing thousands
      and still off (E[a2] err 2.0 at 2500/500; AGQ 5×5 err 0.013). AGQ becomes the
-     primary fitter; the existing M-H is kept as **legacy/fallback** (and is the only
-     viable shape for the future non-star tree, where the likelihood is expensive AND
-     stochastic → pseudo-marginal, not plain M-H). Free to change: no obligation to
-     reproduce the paper's MCMC draws (agreement within noise suffices). The cheap-now
-     vs expensive-stochastic-later split is *why* inference must not be hard-wired to
-     the likelihood — keep the objective pluggable (`R/objective.R` already is).
+     primary fitter. **M-H / MCMC is slated for REMOVAL** (user decision 2026-07-01),
+     NOT kept as a permanent legacy arm — but it is **not deleted until AGQ reproduces
+     its remaining unique functionality**, namely the **phi decomposition profiles with
+     credible bands** (node-propagated). The `run_msa_bayesian_analysis` wrapper is out
+     of scope for now (user: no wrappers). The future non-star tree will need a
+     *stochastic* sampler (expensive AND stochastic likelihood → pseudo-marginal), but
+     that is built fresh at v0.5, not preserved from this M-H. Free to change: no
+     obligation to reproduce the paper's MCMC draws (agreement within noise suffices).
+     The cheap-now vs expensive-stochastic-later split is *why* inference must not be
+     hard-wired to the likelihood — keep the objective pluggable (`R/objective.R`
+     already is).
   2. **Three-layer split (model / fit / analysis).** Currently mixed (e.g.
      prediction/decomposition filed `@family fitting`; `run_msa_bayesian_analysis` does
      fit+predict+nested+decompose in one call). Separate: **model** = `(a1,a2) →
@@ -150,6 +155,30 @@ per-version detail is written when each version starts.
      — distinct from the observed-profile "patterns" package (that's a different *input*;
      this is a different *output of the same fit*). Default band = **posterior credible
      interval** propagated through the quantity.
+  3. **Forward-model layer has three rungs (design decided 2026-07-01).** The current
+     forward map is missing its middle rungs, and *the MSA model itself is not a
+     function* — the four lines defining per-mutant fixation probability were inlined
+     (byte-identically) inside both `dr2` calculators, and `log(sqrt(dr2))` was
+     open-coded in 5 sites. Correct layering, separating three conflated concerns:
+     - **`pfix_msa(ddg, ddgact, a1, a2)`** — *the MSA model*: per-mutant fixation
+       probability `min(exp(−a1·ddg),1)·min(exp(−a2·ddgact),1)`. **Pure, vectorized
+       (scalar or vector), no `spm_pp`** — the primitive a trajectory simulator calls.
+       `@family model`.
+     - **`weights_jm_spm(spm_pp, a1, a2)`** — *the SPM ensemble's* averaging weights
+       (`pfix / sum(pfix)`). The normalization is **ensemble-specific**, NOT part of the
+       model: a star-tree ensemble (v0.5) reweights the same `pfix` differently. Naming
+       this seam (`git grep weights_jm_spm`) is what keeps the v0.5 tree from having to
+       untangle it. `@family spm`.
+     - **`calculate_lrmsd_i_msa` / `calculate_lrmsd_n_msa`** — the actual forward
+       prediction (`dr2 → lrmsd`), **sole owner of `log(sqrt(·))`**. These are the
+       missing rungs. `@family model`.
+
+     `dr2_*_msa` become weighted averages that call `weights_jm_spm`; `nested_models`
+     and the decomposition are **analysis** (downstream), the decomposition running
+     `nested_models` internally so a user wanting only phi need not run nested_models
+     first (the pure `calculate_msa_decomposition(mm,ms,ma,msa)` kernel stays). Once the
+     rungs exist, predictors/band-analyzers (incl. AGQ phi-with-bands) are trivial. This
+     is a **pure refactor** — every step reproduces current numbers to machine precision.
 
 - **v0.4 — motion arm (`dh_ijm`, then `dh_njm` + `nh_njm`).** Each adds the new
   *quantity* `dh`/`nh` via the same slow loop + reweighting. These exist ONLY in

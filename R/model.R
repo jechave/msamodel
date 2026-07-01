@@ -1,6 +1,48 @@
 # MSA model forward map (divergence calculators at given (a1, a2))
 # Functions to compute the model's predicted structural-divergence profiles
 
+#' Fixation probability of a mutant under the MSA model
+#'
+#' The MSA model proper: the probability that a single-point mutant fixes under
+#' stability selection (strength `a1`) and activity selection (strength `a2`),
+#' `p_fix = min(exp(-a1 * ddg), 1) * min(exp(-a2 * ddgact), 1)`. This is a property
+#' of a mutant on its own -- it depends only on the mutant's two energy changes and
+#' the selection strengths, not on any ensemble -- so it is the elementary quantity
+#' an evolutionary-trajectory simulation would evaluate step by step, as well as the
+#' primitive the ensemble weights ([weights_jm_spm()]) are built from.
+#'
+#' Pure and vectorised: `ddg` and `ddgact` may be scalars (one mutant) or
+#' equal-length vectors (many mutants), and the result matches their shape. This is
+#' *not* normalised -- turning fixation probabilities into averaging weights over a
+#' particular ensemble of mutants is a separate, ensemble-specific step.
+#'
+#' @param ddg Stability free-energy change(s) of the mutant(s) (`ddg_jm`). Scalar or
+#'   vector.
+#' @param ddgact Activity free-energy change(s) of the mutant(s) (`ddgact_jm`), the
+#'   same length as `ddg`.
+#' @param a1 Stability selection strength (non-negative). `0` disables stability
+#'   selection.
+#' @param a2 Activity selection strength (non-negative). `0` disables activity
+#'   selection.
+#' @return A numeric vector of fixation probabilities, the same length as `ddg`.
+#' @seealso [weights_jm_spm()] (normalises these into SPM-ensemble averaging
+#'   weights); [calculate_dr2_i_msa()] (the site forward map built on them).
+#' @family model
+#' @examples
+#' \dontrun{
+#' # One mutant:
+#' pfix_msa(ddg = 1.2, ddgact = 0.4, a1 = 1, a2 = 1)
+#' # A whole scan:
+#' pp <- preprocess_spm(znb_spm)
+#' pfix_msa(pp$energy_data$ddg_jm, pp$energy_data$ddgact_jm, a1 = 1, a2 = 1)
+#' }
+#' @export
+pfix_msa <- function(ddg, ddgact, a1, a2) {
+  pstab <- pmin(exp(-a1 * ddg), 1)
+  pact  <- pmin(exp(-a2 * ddgact), 1)
+  pstab * pact
+}
+
 #' Predicted per-site structural divergence at one selection strength
 #'
 #' Computes the model's predicted per-site structural divergence `dr2_i` (the
@@ -30,14 +72,10 @@
 #' }
 #' @export
 calculate_dr2_i_msa <- function(spm_pp, a1, a2) {
-  energy_data <- spm_pp$energy_data
   dr2_ijm <- spm_pp$dr2_ijm
 
-  # Fixation probabilities
-  pstab_jm <- pmin(exp(-a1 * energy_data$ddg_jm), 1)
-  pact_jm <- pmin(exp(-a2 * energy_data$ddgact_jm), 1)
-  pfix_jm <- pstab_jm * pact_jm
-  weights_jm <- pfix_jm / sum(pfix_jm)
+  # SPM-ensemble weights from the MSA model's fixation probabilities.
+  weights_jm <- weights_jm_spm(spm_pp, a1, a2)
 
   # Weighted average over the mutant (j,m) axis: (dr2_ijm) -> (dr2_i)
   dr2_i <- colSums(dr2_ijm * weights_jm)

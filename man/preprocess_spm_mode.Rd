@@ -35,6 +35,7 @@ site form.
 
 Other spm:
 \code{\link[=generate_spm_data]{generate_spm_data()}},
-\code{\link[=preprocess_spm]{preprocess_spm()}}
+\code{\link[=preprocess_spm]{preprocess_spm()}},
+\code{\link[=weights_jm_spm]{weights_jm_spm()}}
 }
 \concept{spm}
