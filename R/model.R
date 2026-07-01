@@ -156,6 +156,40 @@ calculate_dr2_n_msa <- function(spm_pp, a1, a2) {
   tibble(n = as.integer(colnames(dr2_njm)), dr2_n = dr2_n)
 }
 
+#' Predicted per-mode log structural divergence at one selection strength
+#'
+#' Mode-indexed counterpart of [calculate_lrmsd_i_msa()]: the model's forward
+#' prediction in the units the fit works in, the per-mode log root-mean-square
+#' structural divergence `lrmsd_n = log(sqrt(dr2_n))`, at a single pair of selection
+#' strengths `(a1, a2)`. This is the sole owner of the mode `dr2 -> lrmsd` transform
+#' -- the mode likelihood, the mode fitter, and the mode nested-model expansion all
+#' obtain their predicted profile through this function rather than re-applying
+#' `log(sqrt(.))` by hand.
+#'
+#' @param spm_pp Preprocessed single-point-mutation data in mode form, the output
+#'   of [preprocess_spm_mode()].
+#' @param a1 Stability selection strength (non-negative). `0` disables stability
+#'   selection.
+#' @param a2 Activity selection strength (non-negative). `0` disables activity
+#'   selection.
+#' @return A tibble with one row per mode: the mode index `n` and the predicted
+#'   profile `lrmsd_n_msa`. Modes are not residue-anchored, so there is no
+#'   `pdb_site` column (unlike the site form).
+#' @seealso [calculate_dr2_n_msa()] (the squared-divergence forward map it wraps);
+#'   [calculate_lrmsd_i_msa()] (the residue-indexed counterpart);
+#'   [calculate_lrmsd_n_nested_models()] (the four-variant analysis expansion).
+#' @family model
+#' @examples
+#' \dontrun{
+#' pp <- preprocess_spm_mode(znb_spm)
+#' head(calculate_lrmsd_n_msa(pp, a1 = 1, a2 = 1))
+#' }
+#' @export
+calculate_lrmsd_n_msa <- function(spm_pp, a1, a2) {
+  dr2 <- calculate_dr2_n_msa(spm_pp, a1, a2)
+  tibble(n = dr2$n, lrmsd_n_msa = log(sqrt(dr2$dr2_n)))
+}
+
 #' Per-site divergence profiles under all four model variants (MM, MS, MA, MSA)
 #'
 #' The MSA model has two selection pressures, stability and activity, each of
@@ -249,7 +283,7 @@ calculate_lrmsd_i_nested_models <- function(spm_pp, a1, a2) {
 #' }
 #' @export
 calculate_lrmsd_n_nested_models <- function(spm_pp, a1, a2) {
-  lrmsd <- function(p1, p2) log(sqrt(calculate_dr2_n_msa(spm_pp, p1, p2)$dr2_n))
+  lrmsd <- function(p1, p2) calculate_lrmsd_n_msa(spm_pp, p1, p2)$lrmsd_n_msa
 
   tibble(
     n           = as.integer(colnames(spm_pp$dr2_njm)),

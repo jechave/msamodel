@@ -103,9 +103,7 @@ calculate_loglik_lrmsd_i_msa <- function(spm_pp, observed_data, a1, a2) {
 calculate_loglik_lrmsd_n_msa <- function(spm_pp_mode, observed_data, a1, a2) {
 
   # Generate model predictions (keyed by the response-mode index n)
-  predictions <- calculate_dr2_n_msa(spm_pp_mode, a1, a2) %>%
-    mutate(lrmsd_n_msa = log(sqrt(dr2_n))) %>%
-    dplyr::select(n, lrmsd_n_msa)
+  predictions <- calculate_lrmsd_n_msa(spm_pp_mode, a1, a2)
 
   # Modes are not structure-anchored: n is the model index directly (no site_map).
   observations <- observed_data %>%

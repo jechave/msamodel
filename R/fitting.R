@@ -246,9 +246,7 @@ fit_lrmsd_n_msa_ml <- function(spm_pp_mode,
   se_a2 <- abs(2^b_hat * log(2)) * se_b
 
   # Profiled noise scale at the optimum (mode form: join on n, no site_map).
-  pred <- calculate_dr2_n_msa(spm_pp_mode, a1_hat, a2_hat) %>%
-    mutate(lrmsd_n_msa = log(sqrt(dr2_n))) %>%
-    dplyr::select(n, lrmsd_n_msa)
+  pred <- calculate_lrmsd_n_msa(spm_pp_mode, a1_hat, a2_hat)
   obs <- observed_data %>%
     dplyr::select(n, lrmsd_n_obs)
   cmp <- obs %>%
