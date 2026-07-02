@@ -17,8 +17,10 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   at `0.3.0.9000` (dev); NOT releasing now — a release waits until the inference rework
   reaches a coherent stopping point (user decision 2026-06-30).
 
-- **IN FLIGHT — AGQ banded-analysis pair + predictor rename** (plan
-  `~/.claude/plans/lovely-purring-pixel.md`). **Predictor naming grammar LOCKED
+- **DONE 2026-07-02 — AGQ banded-analysis pair + predictor rename** (all 3 slices
+  pushed; plan `~/.claude/plans/lovely-purring-pixel.md`). **NEXT ACTIVE ITEM = MCMC
+  REMOVAL** (now unblocked — see the last bullet in this block). **Predictor naming
+  grammar LOCKED
   2026-07-02:** `<verb>_<quantity>_<axis>_<modelspec>[_<method>]` — verb
   `calculate` (bare params) vs `predict` (takes a fit object); quantity names the
   RETURN (`dr2`/`lrmsd`/`decomposition`/`loglik`); modelspec `msa` (single full model)
@@ -129,6 +131,9 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
     `predict_decomposition_i_agq` (phi_mut/phi_stab/phi_act with bands), both by
     node-weighting the forward fns (names provisional); then decomposition→analysis
     rehoming; MCMC removal (blocked until the decomposition-with-bands lands).
+    *(RESOLVED 2026-07-02: the pair shipped as `predict_lrmsd_i_nested_models_agq` +
+    `predict_decomposition_i_msa_agq` — see the DONE bullet at the top of this block;
+    MCMC removal is now unblocked and is the next active item.)*
 
   - **DECISION (2026-07-01): MCMC is slated for REMOVAL**, not kept as a permanent
     legacy arm (corrects the old "kept as legacy/fallback" in `dev/plan.md`). NOT
