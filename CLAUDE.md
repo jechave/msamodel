@@ -6,282 +6,116 @@ Guidance for Claude Code when working in this repository.
 
 `msamodel` implements the Mutation-Stability-Activity (MSA) model of neutral
 structural evolution: it predicts site-specific structural divergence in protein
-evolution from single-point-mutation scans (SPMs).
+evolution from single-point-mutation scans (SPMs). Structure/active-site input is a
+bio3d pdb object + a plain `pdb_site_active` integer vector.
 
-**v0.1 and v0.2 (API cleanup) shipped; the 0.3.0 site+mode structural suite is
-done (predict + fit, both axes); the inference rework is in flight** (see the NOW
-block in `dev/LOG.md` and the roadmap in `dev/plan.md`). The package computes
+v0.1 and v0.2 (API cleanup) shipped; the 0.3.0 site+mode structural suite is done
+(predict + fit, both axes); the inference rework is in flight. The package computes
 structure-divergence profiles (structure × site and × mode) and fits them to data:
 SPM generation, divergence profiles, parameter estimation (ML / AGQ / MCMC), and a
-site-level decomposition (the `phi_*` columns — renamed from `shap_*`, since
-"Shapley" was a misnomer). Structure/active-site input is a bio3d pdb object + a
-plain `pdb_site_active` integer vector.
+site-level decomposition (the `phi_*` columns). **Read the `<!-- NOW -->` block in
+`dev/LOG.md` first each session** — it holds the live state; `dev/plan.md` is the
+roadmap.
 
-The package was migrated out of a paper-specific research project, and **much
-capability is still unmigrated** — most notably the model's motion/mode arm (only
-the structure × site cell of a larger divergence grid is implemented). The
-`dev/plan.md` roadmap tracks what each future version adds.
+It depends on `penm` (an `Imports:` dependency) for the ENM machinery — `set_enm()`,
+mutation scans, response matrices. **penm is a dependency, never a source**: call
+`penm::fn()`; never copy or wrap its code, and never rename a penm function to fit a
+local convention.
 
-It depends on the `penm` package (an `Imports:` dependency) for the ENM
-machinery — `set_enm()`, mutation scans, response matrices. `penm` is consumed as
-an installed library; its source is not part of this repo and is not edited here.
+## Planning & cadence (how work flows)
 
-## How planning works here (two files)
+Planning lives in **two files**: `dev/plan.md` (coarse, durable roadmap — what each
+version *is*; edited only when a version's *goal* changes) and `dev/LOG.md`
+(append-only history + a delimited `<!-- NOW -->` … `<!-- /NOW -->` block at the top
+holding the live agenda). Read the NOW block first; keep it current.
 
-The v0.1 plan was a single 575-line blueprint that tried to be both the durable
-spec and the step-by-step execution script — so every execution surprise forced an
-edit to a huge document. We split that, and (2026-06-26) dropped the third file
-(`dev/PROGRESS.md`) — its checklist was a per-substep sync burden and its history
-duplicated `dev/LOG.md`. Two files now:
+Work is reviewed at the **work-item level**, not per commit:
 
-- **`dev/plan.md`** — the **coarse, durable roadmap**: what each version *is* (goal
-  + rough scope) and findings that must not be re-discovered (e.g. the
-  precomputation property). High-level and stable; edited only when a version's
-  *goal* changes. Read it for orientation.
-- **`dev/LOG.md`** — append-only history (sessions, decisions, dead ends), plus a
-  delimited **`<!-- NOW -->` … `<!-- /NOW -->`** block at the very top holding the
-  live agenda / in-flight slice-list. **Read the NOW block first** each session;
-  it is the one place the current state lives.
+1. **Plan up front.** Enter plan mode, read the code the item touches, sketch the
+   approach, and get the user's approval before implementing. Skip the plan only for
+   changes you could describe in one sentence (typo, log line, rename).
+2. **Execute autonomously.** Run the inner loop (`load_all()` → targeted
+   `test_file()`) across as many atomic commits as the item needs. Commits are
+   logical units, but they are **not** individual review gates — don't stop the user
+   at each one. The test suite is the between-touchpoint verification loop, so keep
+   it strong (see the rigor gate below).
+3. **Review the diff.** At the item's end, show the user the finished diff plus a
+   verification artifact sized to the change (a scratchpad table/PNG for code; a
+   `dev/preview/<name>.html` render for a vignette). Nothing is pushed until the user
+   has reviewed and said go.
 
-**Detailed planning is done per work item, at execution time** — not up front. When
-a work item starts: enter plan mode, read the specific code it touches, and sketch
-its **slice-list** (a 3–5 line *sequence* of committable slices — a disposable map,
-not a contract; re-plan it as reality diverges). Plan a slice's detail when that
-slice starts. Deep code exploration belongs where it's actionable.
+If a change goes wrong mid-way, `git restore` the uncommitted tree and re-approach —
+nothing is committed mid-unit.
 
-### The agile loop (how work actually flows)
+### The rigor gate — decided by the DIFF, not by how big the change felt
 
-The cadence (load_all inner loop → targeted tests → one full `test()` before commit
-→ `check()` at milestones) is in the global `~/.claude/CLAUDE.md`. Repo specifics:
+Before committing, whether the full `devtools::test()` runs is decided by one rule:
 
-- **A slice = one committable unit; WIP = 1** (one slice in flight). The review gate
-  is the **commit**, so "stop every slice" and "stop before every commit" are the
-  same gate — not a finer one.
-- **Inner loop is autonomous and silent** — the user does not review inside it.
-- **A slice is DONE (ready for the gate)** when its targeted tests are green AND a
-  verification artifact exists. These are **two separate obligations** — a
-  plausible-looking artifact NEVER substitutes for a passing test.
-- **Verification artifact, sized to the slice:**
-  - *code slice* → a **cheap, disposable** table / PNG / few-numbers written to the
-    session scratchpad (`/private/tmp/.../scratchpad`) via `load_all()` + a short
-    script. NO knit, NO `vignettes/` touch.
-  - *vignette slice* (the vignette is the deliverable) → full `dev/preview/<name>.html`
-    render + the vignette HARD RULE below.
-- **Commit gate covers code too** (not just vignettes): nothing commits until the
-  user has reviewed the artifact and said go.
-- **Whether the full `test()` runs at the gate is decided by ONE rule — the diff,
-  not the slice category.** Look at what bytes the commit actually moves:
-  - **If the diff touches `R/`, `data/`, `data-raw/`, roxygen, `NAMESPACE`, or any
-    test snapshot value → run ONE full `devtools::test()` before committing.** This
-    is the rigor gate.
-  - **Otherwise the diff is non-testable → SKIP `test()`.** No test exercises those
-    bytes, so the run is vacuous, not satisfied-by-running. This covers every
-    docs-only diff *including a whole vignette slice* — `.Rmd.orig`, the re-knit
-    `.Rmd`, and `_files/` figures are documentation, not code/data/roxygen, so a
-    slice that touches **only** `vignettes/` always lands here. (The vignette
-    HARD RULE — user approves the rendered HTML — still applies in full; it is the
-    real gate for a vignette slice. `check()` re-knits + runs the full suite at the
-    milestone; that is where vignette-touching code gets its test coverage, not the
-    per-slice gate.)
-  - Either way, verification is **sized to the change**: for a non-testable diff,
-    confirm `git status`/`git diff --stat` shows only docs/vignette bytes moved (no
-    `R/`/`data/`/roxygen/`NAMESPACE`/snapshot) — that confirmation IS the artifact.
-  - **The slice category (code vs vignette, above) decides the *artifact* — scratchpad
-    table vs full HTML render. It does NOT decide whether `test()` runs. Only the
-    diff does.** A vignette slice is not a third "always test" category; do not run
-    `test()` "because it's a vignette" and do not invent a reason (e.g. "figures
-    count") to override the diff rule.
-- **If a slice goes wrong mid-way:** discard the uncommitted working tree
-  (`git restore`) and re-slice — nothing is committed mid-slice. Amend the
-  slice-list.
-- **`check()` + the full Definition-of-Done reconciliation run at the work-item
-  milestone**, never per slice.
+- **Diff touches `R/`, `data/`, `data-raw/`, roxygen, `NAMESPACE`, or any test
+  snapshot value → run ONE full `devtools::test()`.** This is the rigor gate.
+- **Otherwise the diff is non-testable → SKIP `test()`.** No test exercises those
+  bytes, so the run is vacuous. This covers every docs-only diff *including a whole
+  vignette commit* — `.Rmd.orig`, the re-knit `.Rmd`, and `_files/` figures are
+  documentation, not code/data/roxygen. Verification is still sized to the change:
+  confirm `git diff --stat` shows only docs/vignette bytes moved. `check()` re-knits
+  + runs the full suite at milestones — that is where vignette-touching code gets its
+  test coverage, not the per-commit gate.
 
-**Record decisions before coding.** This still holds — sketch the slice-list before
-coding, and touch the roadmap only if the work item's *goal* changed. Don't fold
-surprises into ad-hoc code; plan them first.
+While iterating, run only the relevant `test_file()` / `test(filter=)`. The full
+`test()` is a **gate action fired once** before a code/data/roxygen commit — never a
+mid-work "did it pass" reflex. `check()` runs at milestones only.
 
-When this file and `dev/plan.md` disagree, the roadmap wins — update this file or
-flag the contradiction.
+### At the work-item milestone
 
-## The migration source is READ-ONLY
+Run the **`/done` skill** (the command-output reconciliation gate: grep stale
+cross-refs across code + memory, confirm the LOG NOW block and a dated history entry
+are current, confirm git is clean + pushed). The principle: satellite state (LOG,
+memory, cross-references) goes stale silently, so it must show up in *command
+output*, not be asserted. Run `check()` at the milestone too.
 
-Continuing migration reads from a **local frozen snapshot** of the source project
-that lives inside this package:
+## Test discipline
 
-```
-tmp_src/
-```
+A permanent test must be able to **fail for a real reason**. Before trusting any new
+invariant/value test, run a **negative control**: feed a deliberately-wrong input and
+confirm the assertion goes RED. If it can't go red, it's a tautology — drop it. A
+"numbers didn't change" refactor-invariance check is a one-time scratchpad artifact,
+**not** a permanent suite test. Invoke the **`/test-review` skill** when writing or
+reviewing tests — it holds the full checklist (permanence filter, negative control,
+anti-patterns, loop discipline).
 
-A one-time copy of the live project (`.../lab/projects/MSA-neutral-structure-evolution`),
-made so the migration cannot touch the original — the live path is intentionally
-**not** reachable from this session. `tmp_src/` is `.Rbuildignore`d. It is a
-snapshot, so it goes stale: re-copy deliberately if the live source changes.
-**Treat `tmp_src/` as read-only** — copy *out of* it, never edit *in* it.
+## Migration (essentially done — read only when resuming)
 
-Much unmigrated code lives in **`tmp_src/archive/`** (the model's motion/mode arm,
-rates, etc.). This was previously `tmp_src/.archive/` (hidden) — renamed
-2026-06-18 because the dot-prefix made `grep -r` silently skip its ~18 `.R` files,
-which once caused a false "no source exists" conclusion. **Always search all of
-`tmp_src/` — including any hidden dirs — before concluding a function has no
-migration source.** Use `dev/find-source.sh '<pattern>'` (greps `tmp_src/`
-hidden-dirs-included) as the canonical check.
-
-## Migration rules (apply whenever migration continues)
-
-This is a migration, not a refactor — stay close to the source. When copying a
-function from `tmp_src/R/` into `R/`:
-
-1. Remove `library(...)` calls (top-level and inline). All package usage goes
-   through `Imports:` + `@importFrom` (or `pkg::fn()`).
-2. Keep function signatures identical. Do not rename functions or variables or
-   "improve" logic as part of a copy. (Deliberate, recorded API changes — like the
-   v0.2 `phi_*` rename — are separate, planned work, not folded into a copy.)
-3. Namespacing: **Option A** by default — package-level `@importFrom` + bare calls
-   (smallest diff). **Exception:** a Suggested package (e.g. ggplot2) cannot be
-   `@importFrom`'d — qualify calls as `ggplot2::...` behind a `requireNamespace`
-   guard.
-4. Keep `%>%` (magrittr, re-exported).
-5. Strip the non-standard `@requires` roxygen tags (every source file has them;
-   roxygen2 doesn't recognise them). Keep standard tags.
-6. Add `@export` to public top-level functions; helpers stay unexported
-   (`#' @noRd`).
-7. Fix catalogued bugs as you reach each file — record them in the version's
-   detailed plan (e.g. the tree route's `p_act`→`p_ma` bug, the `akima`→`interp`
-   swap; see `dev/plan.md` findings).
-
-**Organize `R/` files by function family/role, not by source filename**
-(decided 2026-06-18, retiring the earlier "keep `tmp_src` filenames" rule). A
-migrated function goes in the `R/` file for its `@family` (spm / model /
-objective / fitting / decomposition / setup), regardless of which `tmp_src/` file
-it came from; functions with no `tmp_src` source go in the matching family file
-too. Traceability to the source is provided by `dev/find-source.sh` (content
-search), **not** by filename. This does **not** loosen the provenance HARD RULES
-below, nor migration rule 2 — function *names* and *signatures* still don't change
-in a copy; only file placement and grouping do.
-
-### Provenance & verification discipline (HARD RULES — a 2026-06-18 failure)
-
-A bad "migration" of the mode functions, followed by repeatedly asserting false
-provenance, motivates these. They are not optional.
-
-- **Migration sources are ONLY `tmp_src/`** (incl. `tmp_src/archive/` and any
-  other hidden dirs). Before claiming any function or logic is "new" /
-  "package-native" / "written from scratch", you MUST search for it:
-  `dev/find-source.sh '<fn name>'` **and** `dev/find-source.sh '<core formula>'`.
-  A zero-hit search on the *name* is not proof of no source — names get changed
-  in migration; the **math** does not. Search the formula.
-- **penm is a DEPENDENCY, never a migration source.** Call `penm::fn()`. Never
-  copy or "migrate" code out of penm — not the installed library, not the local
-  `../penm` source. Reading penm to check a *signature you are calling* is fine;
-  reading it to source/justify package code is not. If a computation seems to
-  need penm internals, that means a `penm::` call, not a copy.
-- **Migration = restructure + VERIFY, not clone-and-rename.** When migrating a
-  property the user has NOT already refactored, do not assume that axis-swapping
-  an existing function (e.g. site → mode) is equivalent. Reproduce the OLD
-  (archive) version's numbers and assert equality — machine precision for
-  deterministic code, seeded for stochastic — **before** trusting the new form.
-  "Looks structurally identical" is not verification; run the comparison.
-- **Provenance honesty.** Never state where code came from ("I wrote it" / "it's
-  migrated from X" / "no source exists") unless you have *just* searched/read to
-  confirm it. These are factual claims, governed by the same rule as
-  "verified"/"fixed": no claim without a check.
+`tmp_src/` is a **read-only frozen snapshot** of the source project that is *not*
+part of this package (it is `.Rbuildignore`d). **Never edit inside `tmp_src/`** —
+copy out of it only. Most planned migration is done; new work is developed directly.
+When migration resumes for a specific piece, **invoke the `/migration` skill** — it
+holds the mining procedure (`dev/find-source.sh`, hidden dirs), the copy rules, and
+the restructure-and-verify-vs-archive discipline. Provenance honesty is the global
+honesty rule applied to code origin: never claim code is new / migrated-from-X /
+has-no-source without having *just* searched to confirm.
 
 ## House conventions
 
 - **Naming:** `snake_case`, following the source.
-- **`dr2`-family index-signature convention (decided 2026-06-18).** Every
-  `dr2`-family name msamodel *creates* is `dr2_<indices>`: one underscore between
-  `dr2` and the index block, then exactly the free indices the object spans in its
-  representation, letters joined, in order **response index (`i` site / `n` mode),
-  then mutated site `j`, then mutation `m`**. A reduction (sum/mean/weighted-mean
-  over an axis) drops that axis's letter. Examples: a per-mutant SPM list-column
-  whose cell is an `i`-vector (with `j`,`m` as sibling columns) is `dr2_ijm`; its
-  `[mutant × i]` matrix form keeps the same name `dr2_ijm`; the jm-averaged profile
-  is `dr2_i`. No `mat`/`msa`/provenance words *in the index part*. Transform
-  prefixes (`l`=log, `n`=normalized) and source labels (`_msa`/`_obs`) are kept,
-  with the index still underscore-set: `lrmsd_i`, `nlrmsd_i_msa`, `nlrmsd_n_obs`,
-  `dr2_i_msa`. **Scope: this governs names msamodel CREATES, not what it CALLS** —
-  penm's own (no-underscore) names like `penm::delta_structure_dr2i` /
-  `delta_structure_dr2n` are called directly by their own names; never wrap or
-  rename a dependency function to fit this convention. This convention also applies
-  to future motion-arm names (`dh_*`, `nh_*`) and all later migration.
-- **Roxygen on every function.** `#' @export` for public API, `#' @noRd` for
-  internal helpers. Document `@param`, `@return`/`@returns`, and add `@family` tags
-  to group related functions. `@examples` wrapped in `\dontrun{}` when they need
-  real data.
-- **Imports live in one place:** `R/msamodel-package.R` carries the `"_PACKAGE"`
-  doc and the `@importFrom` directives for the whole package. Re-export `%>%` via
-  `#' @importFrom magrittr %>%`.
-- **Tibbles** (not data.frames) for tabular returns; tidyverse for data
-  manipulation.
-
-## Tracking progress
-
-- **`dev/LOG.md`** — append-only history, newest first (reverts, scope changes,
-  decisions, dead ends), with the live `<!-- NOW -->` block at the top carrying the
-  in-flight slice-list / next agenda.
-
-**After finishing a slice:** keep the NOW block current (cross off the slice, note
-what's next) and add a one-line dated entry to `dev/LOG.md`. The heavier
-reconciliation (Definition of Done below) runs at the commit / work-item milestone,
-not per substep.
-
-### Definition of Done — a COMMAND-OUTPUT gate, not a self-attestation
-
-Verifying the *deliverable* (tests pass, NAMESPACE clean) is not enough — a change
-also has **satellite state** (LOG, NOW block, memory, cross-references) that
-silently goes stale. **Why this keeps failing:** a failing test stops you cold, but
-a stale memory file does not — it just sits there looking fine. So you get the
-"looks done" signal at `git push` and stop, having done the *easy* part of the pass
-(the LOG entry) while skipping the rest. The amputated part only surfaces when the
-user says "get ready to exit." (Exactly what happened 2026-06-30: the LOG NOW block
-was updated in the vignette commit, but the memory `project_next_session.md` +
-`MEMORY.md` index were left stale until the user prompted an exit cleanup.)
-
-**The fix: this gate is RUN COMMANDS + PASTE OUTPUT, not "I reconciled."** "I
-checked for stale refs" is unfalsifiable and easy to assert past; a grep that prints
-the dangling line is not. Treat the DoD pass as the runtime version of the
-"verified means I ran the command" rule — stale state must *show up in output*, not
-be reasoned away.
-
-**When it runs:** at the **commit gate** (every commit) — it is part of what "ready
-to commit" MEANS, not a later step after `git push`. The slice is NOT done, and you
-do NOT report done, until these commands have been run and their output is clean
-(or the only output is changes you then make). Run them against the **whole
-project**, not just edited files:
-
-```bash
-# 1. STALE CROSS-REFS. For EVERY name you renamed/closed/moved this slice (old file,
-#    function, version label, status word like "in flight"/"next"), grep it across
-#    code AND satellite state. Substitute the real old term(s):
-git grep -n 'OLD_NAME'                         # tracked: R/ tests/ dev/ man/ vignettes DESCRIPTION
-grep -rn 'OLD_NAME' ~/.claude/projects/-Users-julianechave-Library-Mobile-Documents-com-apple-CloudDocs-lab-Rpackages-msamodel/memory/
-#    -> every hit is either correct or a fix you make NOW. Zero unexplained hits to pass.
-
-# 2. LOG + NOW reflect reality (read, don't assert):
-sed -n '/<!-- NOW -->/,/<!-- \/NOW -->/p' dev/LOG.md   # is the live item right? closed work crossed off?
-#    + a dated dev/LOG.md history entry for what just happened exists.
-
-# 3. MEMORY currency — the next-session pointer is the one loaded first each session:
-sed -n '1,3p' ~/.claude/.../memory/MEMORY.md            # index line current?
-#    + grep (step 1) already proved no memory file contradicts the change.
-
-# 4. GIT clean + pushed:
-git status -sb        # clean tree, '## main...origin/main' (no ahead/behind), nothing stray
-```
-
-**Pass condition:** steps 1–4 above have each been *run this session* and their
-output is clean. If any turns up work, it is **part of this task, not a later
-cleanup** — do it now, then re-run. Do not report done on the strength of "tests
-pass + committed + pushed" alone — that is the easy part; the grep output is the
-gate. (Docs/comment-only commits still run steps 1–4; they skip only the full
-`test()` per the diff-rule above.)
+- **`dr2`-family index-signature convention.** Every `dr2`-family name msamodel
+  *creates* is `dr2_<indices>`: one underscore, then exactly the free indices the
+  object spans, in order **response index (`i` site / `n` mode), mutated site `j`,
+  mutation `m`**. A reduction over an axis drops that axis's letter (`dr2_ijm` →
+  `dr2_i`). Transform prefixes (`l`=log, `n`=normalized) and source labels
+  (`_msa`/`_obs`) are kept, index still underscore-set: `lrmsd_i`, `nlrmsd_i_msa`,
+  `dr2_i_msa`. This governs names msamodel **creates**, not what it **calls** — call
+  penm's own names (`penm::delta_structure_dr2i`) directly; never wrap or rename a
+  dependency. Applies to future motion-arm names (`dh_*`, `nh_*`) too.
+- **Roxygen on every function.** `#' @export` for public API, `#' @noRd` for internal
+  helpers. Document `@param`, `@return`/`@returns`, add `@family` tags to group
+  related functions. `@examples` in `\dontrun{}` when they need real data.
+- **Organize `R/` files by function family/role** (`@family`: spm / model / objective
+  / fitting / decomposition / setup), not by source filename.
+- **Imports live in one place:** `R/msamodel-package.R` carries the `"_PACKAGE"` doc
+  and the `@importFrom` directives. Re-export `%>%` via `#' @importFrom magrittr %>%`.
+- **Tibbles** (not data.frames) for tabular returns; tidyverse for data manipulation.
 
 ## Development commands
-
-The tiered cadence (when each runs) is in the global `~/.claude/CLAUDE.md`; these
-are the project-specific invocations, ordered by how often they run:
 
 ```bash
 # INNER LOOP (constant) — load_all + targeted tests; this is the working loop
@@ -292,12 +126,11 @@ Rscript -e "testthat::test_file('tests/testthat/test-msa-mcmc.R')"   # one file
 # Document (regenerate NAMESPACE + man/) — ONLY after a roxygen/@importFrom change
 Rscript -e "devtools::document()"
 
-# BEFORE A COMMIT (rigor gate) — one full run of the whole suite
+# BEFORE A CODE/DATA/ROXYGEN COMMIT (rigor gate) — one full run of the whole suite
 Rscript -e "devtools::test()"
 
 # AT A MILESTONE ONLY — full check (v0.1 baseline: 0 errors, 1 warning, 2 notes,
-# deliberately accepted, GitHub-only not CRAN; see dev/LOG.md). NOT per slice —
-# it re-runs document() + all tests + re-knits vignettes.
+# deliberately accepted, GitHub-only not CRAN; see dev/LOG.md).
 Rscript -e "devtools::check()"
 
 # Install locally (only when a vignette needs the working tree's new functions)
@@ -307,48 +140,42 @@ Rscript -e "devtools::install()"
 Rscript dev/preview-vignette.R mode-analysis   # -> dev/preview/<name>.html (git-ignored)
 ```
 
-**HARD RULE — never commit/push `vignettes/` without the user's explicit HTML
-approval.** Do NOT `git commit` or `git push` any change touching `vignettes/`
-(`.Rmd`, `.Rmd.orig`, or `_files/`) until the **user** has said they previewed the
-rendered HTML and approved it. Re-knitting it, "tests pass", "check() is clean",
-or *you* glancing at a preview do **not** satisfy this — only the user's explicit
-OK on the HTML does. When vignettes change: regenerate **every** affected preview
-(not just one), tell the user exactly which `dev/preview/<name>.html` files to
-open, and then STOP and wait. (Violated 2026-06-18 — committed re-knit vignettes
-the user never saw; this gate exists because of that.) The
-`.githooks/pre-commit` hook enforces this mechanically (see below).
-
-**Vignettes use the `.Rmd.orig` precompute pattern.** Workflow when changing a
-vignette: edit `<name>.Rmd.orig` → knit it to `<name>.Rmd`
-(`Rscript -e 'knitr::knit("vignettes/<name>.Rmd.orig", output="vignettes/<name>.Rmd")'`)
-→ **preview** with `dev/preview-vignette.R` → **user reviews the HTML and approves**
-→ only then commit. Knitting requires the working tree to
-be **installed first** if the vignette calls new package functions
-(`library(msamodel)` in the chunk loads the *installed* package). The
-`.githooks/pre-commit` guard blocks committing an edited `.orig` without its
-re-knit `.Rmd`, and (see the approval gate above) blocks committing `vignettes/`
-changes without a recorded user approval. **Never render the committed
-`vignettes/<name>.Rmd` in place** — `html_vignette` renders `--self-contained`,
-which base64-embeds the figures and then DELETES the `<name>_files/` dir the
-shipped `.Rmd` references. Use `dev/preview-vignette.R` (renders a temp-dir copy;
-leaves the repo figures intact).
-
-Embedded `znb_*` datasets are (re)generated by running
-`data-raw/prepare_znb_data.R`. The fixture is **frozen**: regenerate it
-intentionally, not incidentally. `test-spm-generate.R` catches drift between the
-SPM-generation code and the embedded fixture, so the parameters in the data-prep
-script and that test must stay in sync.
-
 NAMESPACE and everything under `man/` are roxygen-generated — edit the roxygen
 comments and run `document()`, never hand-edit them.
 
-## Working style (from project memory)
+### Vignettes — HARD RULES
+
+- **Never commit/push `vignettes/` without the user's explicit HTML approval.** Do
+  NOT commit any change touching `vignettes/` (`.Rmd`, `.Rmd.orig`, `_files/`) until
+  the **user** has said they previewed the rendered HTML and approved it. Re-knitting,
+  "tests pass", or *you* glancing at a preview do not satisfy this — only the user's
+  explicit OK does. When vignettes change: regenerate **every** affected preview, tell
+  the user exactly which `dev/preview/<name>.html` to open, then STOP and wait. The
+  `.githooks/pre-commit` hook enforces this mechanically.
+- **`.Rmd.orig` precompute pattern.** Edit `<name>.Rmd.orig` → knit to `<name>.Rmd`
+  (`Rscript -e 'knitr::knit("vignettes/<name>.Rmd.orig", output="vignettes/<name>.Rmd")'`)
+  → preview with `dev/preview-vignette.R` → user approves → commit. Install the working
+  tree first if the vignette calls new functions (`library(msamodel)` loads the
+  *installed* package). **Never render the committed `vignettes/<name>.Rmd` in place** —
+  `html_vignette` renders `--self-contained`, which base64-embeds figures and then
+  DELETES the `<name>_files/` dir the shipped `.Rmd` references. Use
+  `dev/preview-vignette.R` (renders a temp-dir copy; leaves repo figures intact).
+
+Embedded `znb_*` datasets are (re)generated by `data-raw/prepare_znb_data.R`. The
+fixture is **frozen** — regenerate it intentionally, not incidentally.
+`test-spm-generate.R` catches drift between the SPM-generation code and the fixture,
+so the data-prep script and that test must stay in sync.
+
+## Working style
 
 - Don't hand-wave uncertainty — flag anything unverified. Only say
   "confirmed/verified/fixed" when you actually checked.
 - Own contradictions across turns instead of smoothing them over.
 - Push back on bad ideas rather than silently implementing them.
 - Terse is good; real uncertainty should be stated explicitly.
-- **Tool choice:** read files with `Read` (use `offset`/`limit` for big files).
-  Avoid `sed`/`head`/`cat`/`tail`/`awk`/`echo` in Bash for reading — they trigger
-  permission prompts in this environment.
+- **Tool choice:** read files with `Read` (use `offset`/`limit` for big files). Avoid
+  `sed`/`head`/`cat`/`tail`/`awk`/`echo` in Bash for reading — they trigger permission
+  prompts here.
+
+When this file and `dev/plan.md` disagree, the roadmap wins — update this file or flag
+the contradiction.

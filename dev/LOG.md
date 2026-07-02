@@ -203,12 +203,42 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   local-max checks; ~21s SPM regen tiered behind `MSAMODEL_FULL_TESTS`; fit-agq
   61×61→21×21 + dedup; profile-invariance snapshots KEPT). Suite 178 pass / 0 fail /
   2 skip default.
-- **Workflow:** agile cadence now codified — global `~/.claude/CLAUDE.md` (the
-  loop) + project `CLAUDE.md` (slice mechanics). Slice = commit; stop at the commit
-  gate; cheap scratchpad artifact for code slices, full preview only for vignette
-  slices; `check()` at milestones only. Commit gate now skips the full `test()` for
-  docs/comment-only diffs (added 2026-06-26).
+- **Workflow (OVERHAULED 2026-07-02):** cadence is now **work-item level**, not
+  per-commit slices — plan up front (user approves) → autonomous multi-commit
+  execution → user reviews the finished diff. "slice"/"WIP=1"/"stop-every-commit"
+  vocabulary RETIRED. Project `CLAUDE.md` slimmed 354→181 lines; migration workflow,
+  DoD ritual, and test-quality discipline moved to three project skills
+  (`.claude/skills/`): **`/migration`**, **`/done`** (DoD command-output gate, run at
+  the work-item milestone), **`/test-review`** (negative-control gate). Rigor
+  unchanged: the **diff-rule** still decides whether the full `test()` runs — fire it
+  before a code/data/roxygen commit; skip it for docs/vignette-only diffs.
 <!-- /NOW -->
+
+### 2026-07-02 — Working-environment overhaul: work-item cadence, slim CLAUDE.md, three skills
+
+Cadence changed from per-commit "slices" (WIP=1, stop-every-commit for review) to
+**work-item level**: plan up front → user approves → autonomous multi-commit run →
+user reviews the finished diff. Root cause of the change (user-flagged): the slice
+granularity was too fine (too many interventions) AND the 354-line project
+`CLAUDE.md` was ~6× the ~60-line best-practice ceiling, degrading instruction
+adherence ("bloated CLAUDE.md causes Claude to ignore your instructions" — Anthropic
+best-practices doc). Grounded in a 2026 power-user web search + measurement of the
+env (~6.5k always-loaded tokens before reading any code).
+
+Changes: (1) `CLAUDE.md` 354→181 lines — retired slice/gate choreography, the
+~40-line DoD ritual, ~85 lines of migration workflow, and narrated post-mortems;
+kept the rigor diff-rule, house conventions, vignette HARD RULES, dev commands.
+(2) Three new project skills in `.claude/skills/`: `/migration` (tmp_src mining +
+provenance discipline), `/done` (DoD command-output reconciliation at the work-item
+milestone), `/test-review` (permanence filter + **required negative control** — make
+a new test go RED with a wrong input before trusting it; refactor-invariance checks
+are one-time scratchpad artifacts, not permanent tests). (3) Memory index reconciled
+to the new cadence + skill pointers. Retro-catch verified: `/test-review`'s criteria
+flag both historical bad tests (the Shapley-additivity tautology — negative control
+can't go red; the `weights_jm_spm` circular test — wrong input changes both sides).
+Docs/config-only diff → no `test()` (diff-rule). `tmp_src/` read-only boundary kept
+in `CLAUDE.md`; migration procedure moved to the skill (migration is essentially
+done). Aggressive memory-index pruning deferred (deliberately not done unilaterally).
 
 ### 2026-07-02 — AGQ predictor naming grammar locked; slice 1 (rename) done
 
