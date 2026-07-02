@@ -17,6 +17,14 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   at `0.3.0.9000` (dev); NOT releasing now — a release waits until the inference rework
   reaches a coherent stopping point (user decision 2026-06-30).
 
+- **MILESTONE `check()` clean 2026-07-02** (after the forward-decomposition + kernel-
+  unexport + vignette work, `d0bd36d`/`8b0f8e1`): **0 errors / 1 warning / 2 notes**,
+  identical to the accepted v0.1 baseline (LazyData-compression warning + installed-size
+  note [data 32.7Mb] + clock "unable to verify current time" note; all pre-existing,
+  GitHub-only). Tests OK (`testthat.R [93s/53s]`), examples OK, all vignettes re-knit OK
+  (exercises the rewritten `calculate_decomposition_{i,n}_msa` chunks through the
+  installed package). No new errors/warnings/notes from this session's work.
+
   - **DONE (2026-07-01): forward-model layer refactor — both axes** (plan
     `~/.claude/plans/noble-sleeping-brooks.md`; `dev/plan.md` inference-rework decision
     3). Triggered by the AGQ 4×-waste (`predict_lrmsd_i_agq` computed 4 nested profiles
