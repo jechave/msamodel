@@ -152,3 +152,55 @@ test_that("predict_lrmsd_i_msa_agq band sharpens with n_nodes but always returns
               lrmsd_i_msa_upper - lrmsd_i_msa_lower)
   expect_true(mean(w99) >= mean(w95))   # higher coverage -> wider band
 })
+
+test_that("predict_lrmsd_i_nested_models_agq bands all four variants (wide)", {
+  pp  <- agq_default$pp
+  agq <- agq_default$agq
+  nm  <- predict_lrmsd_i_nested_models_agq(agq, pp)
+
+  expect_equal(nrow(nm), nrow(pp$site_map))
+  variants <- c("lrmsd_i_mm", "lrmsd_i_ms", "lrmsd_i_ma", "lrmsd_i_msa")
+  expect_named(nm, c("i", "pdb_site",
+                     as.vector(t(outer(variants, c("_mean", "_lower", "_upper"), paste0)))))
+  # band ordering holds for EACH of the four variants (tol: MM is constant across
+  # nodes -> a degenerate zero-width band whose mean/bounds differ by fp rounding).
+  tol <- 1e-9
+  for (v in variants) {
+    lo <- nm[[paste0(v, "_lower")]]; mu <- nm[[paste0(v, "_mean")]]; hi <- nm[[paste0(v, "_upper")]]
+    expect_true(all(lo - mu <= tol & mu - hi <= tol), info = v)
+  }
+  # the MSA variant's banded mean equals the single-model predictor (same quantity,
+  # same nodes) -- an independent cross-check between the two predictors.
+  full <- predict_lrmsd_i_msa_agq(agq, pp)
+  expect_equal(nm$lrmsd_i_msa_mean, full$lrmsd_i_msa_mean)
+
+  expect_error(predict_lrmsd_i_nested_models_agq(agq, pp, level = 1.5), "level")
+  expect_error(predict_lrmsd_i_nested_models_agq(list(), pp), "msa_agq")
+})
+
+test_that("predict_decomposition_i_msa_agq bands phi; means satisfy the sum identity", {
+  pp  <- agq_default$pp
+  agq <- agq_default$agq
+  dc  <- predict_decomposition_i_msa_agq(agq, pp)
+
+  expect_equal(nrow(dc), nrow(pp$site_map))
+  phis <- c("phi_mut", "phi_stab", "phi_act")
+  expect_named(dc, c("i", "pdb_site",
+                     as.vector(t(outer(phis, c("_mean", "_lower", "_upper"), paste0)))))
+  # band ordering (tol: phi_mut is the MM baseline, constant across nodes -> a
+  # degenerate zero-width band whose mean/bounds differ only by fp rounding).
+  tol <- 1e-9
+  for (v in phis) {
+    lo <- dc[[paste0(v, "_lower")]]; mu <- dc[[paste0(v, "_mean")]]; hi <- dc[[paste0(v, "_upper")]]
+    expect_true(all(lo - mu <= tol & mu - hi <= tol), info = v)
+  }
+  # SUM IDENTITY: the three posterior-mean contributions add up to the full-model
+  # posterior-mean profile. Negative control (2026-07-02): scaling one contribution
+  # by 1.01 makes max abs err ~0.043, well outside this tolerance -- the test bites.
+  full <- predict_lrmsd_i_msa_agq(agq, pp)
+  expect_equal(dc$phi_mut_mean + dc$phi_stab_mean + dc$phi_act_mean,
+               full$lrmsd_i_msa_mean)
+
+  expect_error(predict_decomposition_i_msa_agq(agq, pp, level = 1.5), "level")
+  expect_error(predict_decomposition_i_msa_agq(list(), pp), "msa_agq")
+})

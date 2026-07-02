@@ -31,11 +31,16 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   `predict_lrmsd_i_msa_agq` (was missing its `msa` modelspec token) — pure no-op
   (`identical` to captured baseline), also fixed a stale docstring (`@node`-eval ref
   said `nested_models`, code calls `calculate_lrmsd_i_msa`), suite 192/0F/2skip.
-  **(2) NEXT** add `predict_lrmsd_i_nested_models_agq` (12-col wide MM/MS/MA/MSA bands)
-  + `predict_decomposition_i_msa_agq` (phi bands) — node-weight the matching forward
-  fn, same loop as the renamed predictor; sum-identity test w/ negative control.
-  **(3)** vignette `inference-methods` (fix rename ref + show banded decomposition;
-  STOP for user HTML approval). Then MCMC removal (unblocked once slice 2 lands).
+  **(2) DONE** added `predict_lrmsd_i_nested_models_agq` (228×14: `i`,`pdb_site` + 12
+  wide MM/MS/MA/MSA band cols) + `predict_decomposition_i_msa_agq` (228×11: + 9 phi
+  band cols), both node-weighting the matching forward fn via shared `@noRd` helpers
+  `agq_node_weights`/`agq_band` (`predict_lrmsd_i_msa_agq` left untouched). sum-identity
+  test (phi means sum to full-model mean, err 4e-15) WITH negative control (phi_mut×1.01
+  → err 0.043, bites); nested-MSA banded mean `identical` to the full-model predictor.
+  Band-ordering tests use 1e-9 tol: MM/phi_mut are node-invariant (verified 0e+00) →
+  legit zero-width bands differing by fp ULP. suite 209/0F/2skip. **(3) NEXT** vignette
+  `inference-methods` (fix rename ref + show banded decomposition; STOP for user HTML
+  approval). Then MCMC removal (now unblocked — decomposition-with-bands exists).
 
 - **MILESTONE `check()` clean 2026-07-02** (after the forward-decomposition + kernel-
   unexport + vignette work, `d0bd36d`/`8b0f8e1`): **0 errors / 1 warning / 2 notes**,
@@ -219,6 +224,29 @@ vignette refs (`inference-methods.Rmd`/`.orig`) still say `predict_lrmsd_i_agq` 
 are fixed in slice 3 (vignette), so the committed vignette carries a transient stale
 ref between slices 1 and 3; invisible to `test()`, resolved before any milestone
 `check()`.
+
+**Slice 2 (two banded predictors) DONE:** added `predict_lrmsd_i_nested_models_agq`
+(returns `i`, `pdb_site` + 12 wide band columns — a `_mean`/`_lower`/`_upper` triple
+for each of MM/MS/MA/MSA) and `predict_decomposition_i_msa_agq` (`i`, `pdb_site` + 9
+phi band columns), both in `R/model.R`, `@family model`, `@export`. Each node-weights
+the matching forward fn (`calculate_lrmsd_i_nested_models` /
+`calculate_decomposition_i_msa`) across `object$nodes` — the same loop as
+`predict_lrmsd_i_msa_agq`, which was left untouched (kept slice 2 additive, no
+refactor of the shipped predictor). Two small `@noRd` helpers factor the shared
+machinery: `agq_node_weights(nodes)` (mass-normalized weights) and
+`agq_band(values, w, alpha, name)` (mean + weighted-quantile band → a named tibble;
+built with `setNames`/`as_tibble`, no tidy-eval, so no new `globalVariables`). Tests
+(`test-fit-agq.R`): shape/names, per-variant band ordering, input validation, and the
+**sum identity** — the three `phi_*_mean` columns add to `predict_lrmsd_i_msa_agq`'s
+mean profile (max err 4e-15), with a **negative control** (scaling `phi_mut` by 1.01
+→ err 0.043, so the test bites) run before trusting it. Cross-check: the nested
+predictor's `lrmsd_i_msa_mean` is `identical` to the full-model predictor's.
+**One test-tolerance finding:** band ordering initially failed on `phi_mut` /
+`lrmsd_i_mm` for 165/228 rows — but the violation was 2.7e-15. Root cause (verified,
+not assumed): the MM variant is `(0,0)`, independent of `(a1,a2)`, so it is *exactly*
+node-invariant (max spread across nodes 0e+00) → a degenerate zero-width band whose
+mean and bounds differ only by a floating-point ULP. Fixed by asserting order to a
+1e-9 tol, not by masking. suite 209 pass / 0 fail / 2 skip.
 
 ### 2026-06-30 — `inference-methods.Rmd` vignette (ML vs AGQ); commit-gate rule de-conflicted
 
