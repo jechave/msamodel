@@ -63,8 +63,13 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
     per [[pure-functions-over-param-flexibility]]). API is `(spm_pp, a1, a2)` (user
     correction: forward decomposition takes spm+params, NOT the four variant vectors);
     internals reuse nested_models (user choice). Site returns `i, pdb_site, phi_*`;
-    mode returns `n, phi_*` (no pdb_site). **This unblocks AGQ phi-with-bands** — the
-    banded version is now "run this forward fn across nodes/draws". Tests: equivalence
+    mode returns `n, phi_*` (no pdb_site). **This unblocks the AGQ banded-analysis
+    functions** — both AGQ **nested-models-with-bands** (band each of MM/MS/MA/MSA)
+    AND AGQ **decomposition-with-bands** (band phi_mut/phi_stab/phi_act) are now "run
+    the matching forward fn across nodes/draws". (`predict_lrmsd_i_agq`, `R/model.R`,
+    already does exactly this loop for the single full-model profile — the two new
+    predictors swap `calculate_lrmsd_i_nested_models` / `calculate_decomposition_i_msa`
+    in as the per-node evaluator.) Tests: equivalence
     to the manual two-step + sum-identity (`phi_mut+phi_stab+phi_act == lrmsd_*_msa`,
     max err 0e+00) in `test-decomposition.R`; NEGATIVE CONTROL run on both (injected
     error → sum-identity goes red). Suite 192/0F/2skip. `document()` regenerated
@@ -79,8 +84,11 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
     {i,n}_msa(pp, a1, a2)`; the four-variant `nested` object + its plot KEPT (user
     choice), the decomposition-only `nested_fit` in §6 dropped. Re-knit both from inside
     `vignettes/`; previews rendered; **user approved the HTML**. phi values/figures
-    unchanged (same composition). **Deferred (next candidates):** AGQ phi-with-bands
-    (the original goal, now unblocked); decomposition→analysis rehoming; MCMC removal.
+    unchanged (same composition). **Deferred (next candidates):** the AGQ banded-analysis
+    pair — `predict_lrmsd_i_nested_models_agq` (nested MM/MS/MA/MSA with bands) AND
+    `predict_decomposition_i_agq` (phi_mut/phi_stab/phi_act with bands), both by
+    node-weighting the forward fns (names provisional); then decomposition→analysis
+    rehoming; MCMC removal (blocked until the decomposition-with-bands lands).
 
   - **DECISION (2026-07-01): MCMC is slated for REMOVAL**, not kept as a permanent
     legacy arm (corrects the old "kept as legacy/fallback" in `dev/plan.md`). NOT
