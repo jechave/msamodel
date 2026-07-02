@@ -1,5 +1,5 @@
 # Drift-guards and correctness checks for the AGQ fit arm (fit_lrmsd_i_msa_agq) and
-# its profile predictor (predict_lrmsd_i_agq). The moment checks are NOT
+# its profile predictor (predict_lrmsd_i_msa_agq). The moment checks are NOT
 # tautologies: they compare AGQ against an INDEPENDENT dense-grid normalization of
 # the same likelihood, in the (a1, log2(a2+1)) coordinates where the prior is flat.
 
@@ -116,10 +116,10 @@ test_that("fit_lrmsd_i_msa_agq fails loud on bad input", {
   )
 })
 
-test_that("predict_lrmsd_i_agq gives a per-site banded profile", {
+test_that("predict_lrmsd_i_msa_agq gives a per-site banded profile", {
   pp  <- agq_default$pp
   agq <- agq_default$agq
-  pr  <- predict_lrmsd_i_agq(agq, pp)
+  pr  <- predict_lrmsd_i_msa_agq(agq, pp)
 
   # one row per MODEL site (228), not per observed site (znb_profile covers 225) --
   # a prediction is defined everywhere the model is, including unobserved sites.
@@ -132,23 +132,23 @@ test_that("predict_lrmsd_i_agq gives a per-site banded profile", {
   expect_true(all(pr$lrmsd_i_msa_upper - pr$lrmsd_i_msa_lower > 0))   # nonzero band
   # the mean-centred profile mean is ~0
   expect_equal(mean(pr$nlrmsd_i_msa_mean), 0, tolerance = 1e-8)
-  expect_error(predict_lrmsd_i_agq(agq, pp, level = 1.5), "level")
-  expect_error(predict_lrmsd_i_agq(list(), pp), "msa_agq")
+  expect_error(predict_lrmsd_i_msa_agq(agq, pp, level = 1.5), "level")
+  expect_error(predict_lrmsd_i_msa_agq(list(), pp), "msa_agq")
 })
 
-test_that("predict_lrmsd_i_agq band sharpens with n_nodes but always returns cleanly", {
+test_that("predict_lrmsd_i_msa_agq band sharpens with n_nodes but always returns cleanly", {
   # No coarseness warning by design (documented, not flagged): a small-node fit still
   # produces a valid band, just read off fewer nodes. A higher level (0.99) widens it.
   pp    <- agq_default$pp
   agq3  <- fit_lrmsd_i_msa_agq(pp, znb_profile, n_nodes = 3)   # different n_nodes: own fit
-  expect_silent(pr3 <- predict_lrmsd_i_agq(agq3, pp))
+  expect_silent(pr3 <- predict_lrmsd_i_msa_agq(agq3, pp))
   expect_equal(nrow(pr3), nrow(pp$site_map))
   expect_true(all(pr3$lrmsd_i_msa_lower <= pr3$lrmsd_i_msa_upper))
 
   agq <- agq_default$agq
-  w95 <- with(predict_lrmsd_i_agq(agq, pp, level = 0.95),
+  w95 <- with(predict_lrmsd_i_msa_agq(agq, pp, level = 0.95),
               lrmsd_i_msa_upper - lrmsd_i_msa_lower)
-  w99 <- with(predict_lrmsd_i_agq(agq, pp, level = 0.99),
+  w99 <- with(predict_lrmsd_i_msa_agq(agq, pp, level = 0.99),
               lrmsd_i_msa_upper - lrmsd_i_msa_lower)
   expect_true(mean(w99) >= mean(w95))   # higher coverage -> wider band
 })

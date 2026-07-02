@@ -345,7 +345,7 @@ weighted_quantile <- function(x, w, probs) {
 #'   }
 #' @seealso [fit_lrmsd_i_msa_mcmc()] (the sampling counterpart),
 #'   [fit_lrmsd_i_msa_ml()] (the Laplace reference / point estimate),
-#'   [predict_lrmsd_i_agq()] (propagate the posterior to a banded profile).
+#'   [predict_lrmsd_i_msa_agq()] (propagate the posterior to a banded profile).
 #' @family fitting
 #' @export
 #' @examples

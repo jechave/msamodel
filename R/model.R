@@ -379,7 +379,7 @@ calculate_decomposition_n_msa <- function(spm_pp, a1, a2) {
 #' ([fit_lrmsd_i_msa_agq()]) to the predicted per-site divergence profile, returning
 #' a posterior mean and a central credible interval at every residue. For each
 #' quadrature node the full-model profile `lrmsd_i_msa` is evaluated with
-#' [calculate_lrmsd_i_nested_models()]; the per-site posterior is then those node
+#' [calculate_lrmsd_i_msa()]; the per-site posterior is then those node
 #' values weighted by their (normalized) posterior masses `exp(log_weight)`.
 #' Everything -- mean and band -- comes from the same quadrature, making no Gaussian
 #' assumption (consistent with the fit's parameter summaries). Deterministic.
@@ -397,16 +397,16 @@ calculate_decomposition_n_msa <- function(spm_pp, a1, a2) {
 #'   `lrmsd_i_msa_upper`), and their mean-centred counterparts (`nlrmsd_i_msa_mean`,
 #'   `nlrmsd_i_msa_lower`, `nlrmsd_i_msa_upper`).
 #' @seealso [fit_lrmsd_i_msa_agq()] (produces the posterior);
-#'   [calculate_lrmsd_i_nested_models()] (evaluated at each node).
+#'   [calculate_lrmsd_i_msa()] (evaluated at each node).
 #' @family model
 #' @examples
 #' \dontrun{
 #' pp  <- preprocess_spm(znb_spm)
 #' agq <- fit_lrmsd_i_msa_agq(pp, znb_profile)
-#' head(predict_lrmsd_i_agq(agq, pp))
+#' head(predict_lrmsd_i_msa_agq(agq, pp))
 #' }
 #' @export
-predict_lrmsd_i_agq <- function(object, spm_pp, level = 0.95) {
+predict_lrmsd_i_msa_agq <- function(object, spm_pp, level = 0.95) {
   if (!inherits(object, "msa_agq")) {
     stop("object must be an 'msa_agq' fit (from fit_lrmsd_i_msa_agq)")
   }

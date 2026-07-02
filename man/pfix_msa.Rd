@@ -59,6 +59,6 @@ Other model:
 \code{\link[=calculate_lrmsd_i_nested_models]{calculate_lrmsd_i_nested_models()}},
 \code{\link[=calculate_lrmsd_n_msa]{calculate_lrmsd_n_msa()}},
 \code{\link[=calculate_lrmsd_n_nested_models]{calculate_lrmsd_n_nested_models()}},
-\code{\link[=predict_lrmsd_i_agq]{predict_lrmsd_i_agq()}}
+\code{\link[=predict_lrmsd_i_msa_agq]{predict_lrmsd_i_msa_agq()}}
 }
 \concept{model}

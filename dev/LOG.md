@@ -17,6 +17,26 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   at `0.3.0.9000` (dev); NOT releasing now — a release waits until the inference rework
   reaches a coherent stopping point (user decision 2026-06-30).
 
+- **IN FLIGHT — AGQ banded-analysis pair + predictor rename** (plan
+  `~/.claude/plans/lovely-purring-pixel.md`). **Predictor naming grammar LOCKED
+  2026-07-02:** `<verb>_<quantity>_<axis>_<modelspec>[_<method>]` — verb
+  `calculate` (bare params) vs `predict` (takes a fit object); quantity names the
+  RETURN (`dr2`/`lrmsd`/`decomposition`/`loglik`); modelspec `msa` (single full model)
+  vs `nested_models` (the four variants) is a SEPARATE slot from quantity
+  (`decomposition` is a quantity, `nested_models` a modelspec — never interchange);
+  method `agq` trailing, only on the fit-consuming predict layer. `spm` ensemble token
+  DEFERRED (tree = a distinct input object → revisit as dispatch at v0.5, NOT S3 now);
+  `_ml` predictors deferred (independent siblings, after MCMC removal). SITE AXIS ONLY
+  (mode has no AGQ fit). Slices: **(1) DONE** rename `predict_lrmsd_i_agq` →
+  `predict_lrmsd_i_msa_agq` (was missing its `msa` modelspec token) — pure no-op
+  (`identical` to captured baseline), also fixed a stale docstring (`@node`-eval ref
+  said `nested_models`, code calls `calculate_lrmsd_i_msa`), suite 192/0F/2skip.
+  **(2) NEXT** add `predict_lrmsd_i_nested_models_agq` (12-col wide MM/MS/MA/MSA bands)
+  + `predict_decomposition_i_msa_agq` (phi bands) — node-weight the matching forward
+  fn, same loop as the renamed predictor; sum-identity test w/ negative control.
+  **(3)** vignette `inference-methods` (fix rename ref + show banded decomposition;
+  STOP for user HTML approval). Then MCMC removal (unblocked once slice 2 lands).
+
 - **MILESTONE `check()` clean 2026-07-02** (after the forward-decomposition + kernel-
   unexport + vignette work, `d0bd36d`/`8b0f8e1`): **0 errors / 1 warning / 2 notes**,
   identical to the accepted v0.1 baseline (LazyData-compression warning + installed-size
@@ -172,6 +192,33 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   slices; `check()` at milestones only. Commit gate now skips the full `test()` for
   docs/comment-only diffs (added 2026-06-26).
 <!-- /NOW -->
+
+### 2026-07-02 — AGQ predictor naming grammar locked; slice 1 (rename) done
+
+Opened the **AGQ banded-analysis pair** work item (plan
+`~/.claude/plans/lovely-purring-pixel.md`). Long design discussion settled the
+**predictor naming grammar** `<verb>_<quantity>_<axis>_<modelspec>[_<method>]`
+(details in the NOW block). Key resolutions: `predict` is reserved for functions that
+take a fit object, `calculate` for the bare-parameter forward map (idiomatic R — a
+predictor consumes a fit); `decomposition` is a *quantity* and `nested_models` a
+*modelspec*, distinct slots; the `spm` ensemble is a real coordinate but its token is
+**deferred** — the v0.5 tree ensemble is a genuinely different input object (multi-
+mutation leaves, plain-averaged, not a reweighting of the single-point set), so it
+belongs as dispatch on the input type, revisited with real code in hand, not S3 now.
+
+**Slice 1 (rename) DONE:** `predict_lrmsd_i_agq` → `predict_lrmsd_i_msa_agq` — it was
+missing its `msa` modelspec token (same class of bug as the historical missing-`msa`
+names). Edited the def + example in `R/model.R`, the `@seealso` in `R/fitting.R`, and
+8 refs in `test-fit-agq.R`; `document()` regenerated `man/`/`NAMESPACE`. Also fixed a
+**stale docstring** in the same block: the "evaluated with [...]" line named
+`calculate_lrmsd_i_nested_models`, but the code calls `calculate_lrmsd_i_msa` (the
+single full-model profile) — corrected the roxygen to match the code. Verified a pure
+no-op: `identical(predict_lrmsd_i_msa_agq(...), <captured baseline>)` is TRUE (digest
+unchanged). Full suite 192 pass / 0 fail / 2 skip. **Knowingly deferred:** the two
+vignette refs (`inference-methods.Rmd`/`.orig`) still say `predict_lrmsd_i_agq` — they
+are fixed in slice 3 (vignette), so the committed vignette carries a transient stale
+ref between slices 1 and 3; invisible to `test()`, resolved before any milestone
+`check()`.
 
 ### 2026-06-30 — `inference-methods.Rmd` vignette (ML vs AGQ); commit-gate rule de-conflicted
 

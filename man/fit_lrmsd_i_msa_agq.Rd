@@ -75,7 +75,7 @@ c(a1 = agq$a1, a2 = agq$a2)
 \seealso{
 \code{\link[=fit_lrmsd_i_msa_mcmc]{fit_lrmsd_i_msa_mcmc()}} (the sampling counterpart),
 \code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}} (the Laplace reference / point estimate),
-\code{\link[=predict_lrmsd_i_agq]{predict_lrmsd_i_agq()}} (propagate the posterior to a banded profile).
+\code{\link[=predict_lrmsd_i_msa_agq]{predict_lrmsd_i_msa_agq()}} (propagate the posterior to a banded profile).
 
 Other fitting:
 \code{\link[=calculate_parameter_summary]{calculate_parameter_summary()}},
