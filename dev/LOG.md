@@ -38,9 +38,16 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   test (phi means sum to full-model mean, err 4e-15) WITH negative control (phi_mut×1.01
   → err 0.043, bites); nested-MSA banded mean `identical` to the full-model predictor.
   Band-ordering tests use 1e-9 tol: MM/phi_mut are node-invariant (verified 0e+00) →
-  legit zero-width bands differing by fp ULP. suite 209/0F/2skip. **(3) NEXT** vignette
-  `inference-methods` (fix rename ref + show banded decomposition; STOP for user HTML
-  approval). Then MCMC removal (now unblocked — decomposition-with-bands exists).
+  legit zero-width bands differing by fp ULP. suite 209/0F/2skip. **(3) DONE** vignette
+  `inference-methods` §5: fixed the rename ref and added BOTH banded predictors —
+  nested-models (single panel, MM/MS/MSA overlaid, MA dropped for readability) and the
+  mean-centred decomposition (`nphi = phi - mean(phi)` per component), both using the
+  site-analysis palette (`model_cols`/`comp_cols`, firebrick active-site vlines).
+  Naive-user review clean (both predictors shown runnable); **user approved the HTML**.
+  Rename checked across ALL four vignettes: only `inference-methods` ever referenced the
+  predictor. **WORK ITEM COMPLETE.** Next: MCMC removal (now unblocked —
+  decomposition-with-bands exists), then `_ml` predictors, then decomposition→analysis
+  rehoming.
 
 - **MILESTONE `check()` clean 2026-07-02** (after the forward-decomposition + kernel-
   unexport + vignette work, `d0bd36d`/`8b0f8e1`): **0 errors / 1 warning / 2 notes**,
@@ -247,6 +254,29 @@ not assumed): the MM variant is `(0,0)`, independent of `(a1,a2)`, so it is *exa
 node-invariant (max spread across nodes 0e+00) → a degenerate zero-width band whose
 mean and bounds differ only by a floating-point ULP. Fixed by asserting order to a
 1e-9 tol, not by masking. suite 209 pass / 0 fail / 2 skip.
+
+**Slice 3 (vignette) DONE — work item complete.** Revised `inference-methods.Rmd`
+§5 ("What AGQ gives you that ML doesn't"): fixed the `predict_lrmsd_i_agq` →
+`predict_lrmsd_i_msa_agq` reference and added runnable demonstrations of BOTH new
+banded predictors. The nested-models figure is a single panel with MM/MS/MSA overlaid
+(MA omitted so the panel stays readable, at the user's request); the decomposition
+figure overlays the three contributions **mean-centred** (`nphi = phi - mean(phi)` per
+component, so the site-to-site shape is comparable on one panel — the shift leaves band
+widths unchanged). Both figures use the **site-analysis vignette's palette**
+(`model_cols` MM=orange/MS=blue/MSA=red, `comp_cols` mutation=orange/stability=blue/
+activity=red) and firebrick active-site vlines, at the user's request for consistency.
+Naive-user review (skill) came back clean — both predictors shown with runnable
+commands, all six figures render, no name mismatches; the one standing flag (hidden
+plot code) is the by-design house convention shared with every sibling vignette.
+**Checked the rename across all four vignettes**: only `inference-methods` ever
+referenced the predictor, so the other three needed no change. Installed the working
+tree, knit from inside `vignettes/`, previewed, and the **user approved the rendered
+HTML**. Docs-only diff (vignette bytes only) → `test()` correctly skipped per the diff
+rule; the vignette HARD RULE (user HTML approval + `VIGNETTE_APPROVED=1`) is the gate.
+
+The AGQ arm now bands all three per-site quantities (full profile, nested variants,
+decomposition), which is what MCMC uniquely still provided — **MCMC removal is now
+unblocked** and is the natural next work item.
 
 ### 2026-06-30 — `inference-methods.Rmd` vignette (ML vs AGQ); commit-gate rule de-conflicted
 

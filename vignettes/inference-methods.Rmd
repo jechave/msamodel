@@ -236,14 +236,14 @@ The deterministic quadrature recovers the same profile as the point estimate, at
 ## 5. What AGQ gives you that ML doesn't
 
 Because AGQ carries the whole `(a1, a2)` posterior, it propagates that uncertainty
-to the **predicted profile**: `predict_lrmsd_i_agq()` returns, per residue, the
+to the **predicted profile**: `predict_lrmsd_i_msa_agq()` returns, per residue, the
 posterior mean and a credible band — the model prediction integrated over the
 posterior — making no Gaussian assumption. The ML fit gives a single line; AGQ
 gives that line plus a band around it:
 
 
 ```r
-band <- predict_lrmsd_i_agq(agq, pp)   # one row per residue; *_mean / *_lower / *_upper
+band <- predict_lrmsd_i_msa_agq(agq, pp)   # one row per residue; *_mean / *_lower / *_upper
 head(band)
 #> # A tibble: 6 × 8
 #>       i pdb_site lrmsd_i_msa_mean lrmsd_i_msa_lower lrmsd_i_msa_upper
@@ -265,6 +265,66 @@ Plotted against the observed profile (the band and observed both mean-centered):
 The band is read off the node masses as weighted quantiles, so its tails are only
 as fine as the node grid; on this protein it is already stable at the default
 `n_nodes`. To sharpen it (e.g. at `level = 0.99`), refit with a larger `n_nodes`.
+
+The same posterior propagation applies to any per-residue quantity the model
+produces, not just the full profile. Two companions band the analysis outputs.
+
+First, `predict_lrmsd_i_nested_models_agq()` bands each of the four nested variants
+— from no selection (MM) through stability-only (MS) and activity-only (MA) to the
+full model (MSA) — returning a posterior mean and credible interval for every one:
+
+
+```r
+nested_band <- predict_lrmsd_i_nested_models_agq(agq, pp)  # lrmsd_i_{mm,ms,ma,msa}_{mean,lower,upper}
+head(nested_band[, 1:8])   # i, pdb_site, then the MM and MS bands
+#> # A tibble: 6 × 8
+#>       i pdb_site lrmsd_i_mm_mean lrmsd_i_mm_lower lrmsd_i_mm_upper
+#>   <int>    <int>           <dbl>            <dbl>            <dbl>
+#> 1     1       20           -2.42            -2.42            -2.42
+#> 2     2       21           -3.35            -3.35            -3.35
+#> 3     3       22           -3.27            -3.27            -3.27
+#> 4     4       23           -3.62            -3.62            -3.62
+#> 5     5       24           -3.67            -3.67            -3.67
+#> 6     6       25           -3.60            -3.60            -3.60
+#> # ℹ 3 more variables: lrmsd_i_ms_mean <dbl>, lrmsd_i_ms_lower <dbl>,
+#> #   lrmsd_i_ms_upper <dbl>
+```
+
+![plot of chunk agq-nested-plot](inference-methods_files/figure-html/agq-nested-plot-1.png)
+
+The MM band is a flat line with no width: with both selection strengths off it does
+not depend on `(a1, a2)`, so the posterior leaves it unchanged. The bands widen as
+selection is switched on.
+
+Second, `predict_decomposition_i_msa_agq()` bands the mutation / stability / activity
+decomposition — each contribution gets a posterior mean and a credible interval:
+
+
+```r
+phi_band <- predict_decomposition_i_msa_agq(agq, pp)  # phi_{mut,stab,act}_{mean,lower,upper}
+head(phi_band)
+#> # A tibble: 6 × 11
+#>       i pdb_site phi_mut_mean phi_mut_lower phi_mut_upper phi_stab_mean
+#>   <int>    <int>        <dbl>         <dbl>         <dbl>         <dbl>
+#> 1     1       20        -2.42         -2.42         -2.42       0.00665
+#> 2     2       21        -3.35         -3.35         -3.35      -0.0146 
+#> 3     3       22        -3.27         -3.27         -3.27      -0.0189 
+#> 4     4       23        -3.62         -3.62         -3.62       0.00921
+#> 5     5       24        -3.67         -3.67         -3.67      -0.0310 
+#> 6     6       25        -3.60         -3.60         -3.60      -0.00283
+#> # ℹ 5 more variables: phi_stab_lower <dbl>, phi_stab_upper <dbl>,
+#> #   phi_act_mean <dbl>, phi_act_lower <dbl>, phi_act_upper <dbl>
+```
+
+![plot of chunk agq-decomposition-plot](inference-methods_files/figure-html/agq-decomposition-plot-1.png)
+
+The three contributions' posterior *means* still add up to the full-model profile
+(the decomposition is exact at every node, so it holds in the posterior mean); the
+per-contribution bands are read off the same quadrature. This is the deterministic
+replacement for the credible bands the Markov chain used to provide. (The figure
+above centres each contribution on its residue mean, `nphi = phi - mean(phi)`, so the
+site-to-site *shape* of the three contributions can be compared on one panel; this
+shift does not change the band widths.)
 
 ## Where to next
 

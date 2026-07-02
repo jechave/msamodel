@@ -269,13 +269,13 @@ The deterministic quadrature recovers the same profile as the point estimate, at
 ## 5. What AGQ gives you that ML doesn't
 
 Because AGQ carries the whole `(a1, a2)` posterior, it propagates that uncertainty
-to the **predicted profile**: `predict_lrmsd_i_agq()` returns, per residue, the
+to the **predicted profile**: `predict_lrmsd_i_msa_agq()` returns, per residue, the
 posterior mean and a credible band — the model prediction integrated over the
 posterior — making no Gaussian assumption. The ML fit gives a single line; AGQ
 gives that line plus a band around it:
 
 ```{r agq-predict}
-band <- predict_lrmsd_i_agq(agq, pp)   # one row per residue; *_mean / *_lower / *_upper
+band <- predict_lrmsd_i_msa_agq(agq, pp)   # one row per residue; *_mean / *_lower / *_upper
 head(band)
 ```
 
@@ -297,6 +297,93 @@ ggplot(band_obs, aes(pdb_site)) +
 The band is read off the node masses as weighted quantiles, so its tails are only
 as fine as the node grid; on this protein it is already stable at the default
 `n_nodes`. To sharpen it (e.g. at `level = 0.99`), refit with a larger `n_nodes`.
+
+The same posterior propagation applies to any per-residue quantity the model
+produces, not just the full profile. Two companions band the analysis outputs.
+
+First, `predict_lrmsd_i_nested_models_agq()` bands each of the four nested variants
+— from no selection (MM) through stability-only (MS) and activity-only (MA) to the
+full model (MSA) — returning a posterior mean and credible interval for every one:
+
+```{r agq-nested}
+nested_band <- predict_lrmsd_i_nested_models_agq(agq, pp)  # lrmsd_i_{mm,ms,ma,msa}_{mean,lower,upper}
+head(nested_band[, 1:8])   # i, pdb_site, then the MM and MS bands
+```
+
+```{r agq-nested-plot, echo = FALSE, eval = has_ggplot}
+# Same model colours as the site-analysis vignette; MA omitted to keep the panel
+# readable (MM baseline, MS stability-only, MSA full model).
+model_cols <- c(MM = "#FF8C00", MS = "#0000CD", MSA = "#C41E3A")
+nested_long <- nested_band |>
+  tidyr::pivot_longer(
+    c(starts_with("lrmsd_i_mm_"), starts_with("lrmsd_i_ms_"), starts_with("lrmsd_i_msa_")),
+    names_to = c("model", ".value"),
+    names_pattern = "lrmsd_i_(mm|ms|msa)_(mean|lower|upper)"
+  ) |>
+  mutate(model = factor(toupper(model), levels = c("MM", "MS", "MSA")))
+
+ggplot(nested_long, aes(pdb_site, colour = model, fill = model)) +
+  geom_vline(xintercept = pdb_site_active, colour = "firebrick",
+             alpha = 0.4, linewidth = 0.3) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), colour = NA, alpha = 0.18) +
+  geom_line(aes(y = mean), alpha = 0.85) +
+  scale_colour_manual(values = model_cols) +
+  scale_fill_manual(values = model_cols) +
+  labs(title = "Nested-model profiles with 95% credible bands (AGQ)",
+       x = "Residue (PDB numbering)", y = "lrmsd", colour = "model", fill = "model")
+```
+
+The MM band is a flat line with no width: with both selection strengths off it does
+not depend on `(a1, a2)`, so the posterior leaves it unchanged. The bands widen as
+selection is switched on.
+
+Second, `predict_decomposition_i_msa_agq()` bands the mutation / stability / activity
+decomposition — each contribution gets a posterior mean and a credible interval:
+
+```{r agq-decomposition}
+phi_band <- predict_decomposition_i_msa_agq(agq, pp)  # phi_{mut,stab,act}_{mean,lower,upper}
+head(phi_band)
+```
+
+```{r agq-decomposition-plot, echo = FALSE, eval = has_ggplot}
+# Same component colours as the site-analysis vignette.
+comp_labs <- c(mut = "mutation", stab = "stability selection", act = "activity selection")
+comp_cols <- c("mutation" = "#FF8C00", "stability selection" = "#0000CD",
+               "activity selection" = "#C41E3A")
+phi_long <- phi_band |>
+  tidyr::pivot_longer(
+    -c(i, pdb_site),
+    names_to = c("component", ".value"),
+    names_pattern = "phi_(mut|stab|act)_(mean|lower|upper)"
+  ) |>
+  mutate(component = factor(comp_labs[component], levels = comp_labs)) |>
+  # Mean-centre each contribution across residues (nphi = phi - mean(phi)); the band
+  # is shifted by the same per-component constant, so its width is unchanged.
+  group_by(component) |>
+  mutate(shift = mean(mean),
+         mean = mean - shift, lower = lower - shift, upper = upper - shift) |>
+  ungroup()
+
+ggplot(phi_long, aes(pdb_site, colour = component, fill = component)) +
+  geom_vline(xintercept = pdb_site_active, colour = "firebrick",
+             alpha = 0.4, linewidth = 0.3) +
+  geom_hline(yintercept = 0, colour = "grey80") +
+  geom_ribbon(aes(ymin = lower, ymax = upper), colour = NA, alpha = 0.2) +
+  geom_line(aes(y = mean)) +
+  scale_colour_manual(values = comp_cols) +
+  scale_fill_manual(values = comp_cols) +
+  labs(title = "Mean-centered decomposition contributions with 95% credible bands (AGQ)",
+       x = "Residue (PDB numbering)", y = "nphi (phi - mean, log-divergence units)",
+       colour = NULL, fill = NULL)
+```
+
+The three contributions' posterior *means* still add up to the full-model profile
+(the decomposition is exact at every node, so it holds in the posterior mean); the
+per-contribution bands are read off the same quadrature. This is the deterministic
+replacement for the credible bands the Markov chain used to provide. (The figure
+above centres each contribution on its residue mean, `nphi = phi - mean(phi)`, so the
+site-to-site *shape* of the three contributions can be compared on one panel; this
+shift does not change the band widths.)
 
 ## Where to next
 
