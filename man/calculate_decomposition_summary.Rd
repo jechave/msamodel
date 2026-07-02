@@ -34,7 +34,6 @@ head(summ)
 \code{\link[=run_msa_bayesian_analysis]{run_msa_bayesian_analysis()}} (which calls this as its final step).
 
 Other decomposition:
-\code{\link[=calculate_decomposition_samples]{calculate_decomposition_samples()}},
-\code{\link[=calculate_msa_decomposition]{calculate_msa_decomposition()}}
+\code{\link[=calculate_decomposition_samples]{calculate_decomposition_samples()}}
 }
 \concept{decomposition}

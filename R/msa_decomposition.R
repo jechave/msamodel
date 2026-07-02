@@ -13,27 +13,19 @@
 #' care whether they are indexed by site or by mode, so the same call serves both;
 #' the caller supplies whichever four columns it holds and attaches the result.
 #'
+#' The public entry points that own the four-variant evaluation and attach the
+#' result are [calculate_decomposition_i_msa()] / [calculate_decomposition_n_msa()]
+#' (forward, at one `(a1, a2)`) and [calculate_decomposition_samples()] (across
+#' posterior samples); this kernel is the pure math they share and is internal.
+#'
 #' @param mm,ms,ma,msa Numeric vectors of equal length giving the divergence under
 #'   the four model variants: mutation-only (`mm`), plus-stability (`ms`),
 #'   plus-activity (`ma`), and the full model (`msa`). `ma` is accepted but not used
 #'   by the current sequential formula; it is kept so an alternative decomposition
 #'   that needs it can be added later without changing the signature.
 #' @return A named list of three numeric vectors -- `phi_mut`, `phi_stab`,
-#'   `phi_act` -- one value per input element. Splice into a tibble with
-#'   `dplyr::mutate(df, !!!calculate_msa_decomposition(mm, ms, ma, msa))`.
-#' @seealso [calculate_lrmsd_i_nested_models()] which produces the four input
-#'   profiles; [calculate_decomposition_samples()] which applies this across
-#'   posterior samples.
-#' @family decomposition
-#' @examples
-#' # Sequential split of four toy profiles (two sites):
-#' calculate_msa_decomposition(
-#'   mm  = c(0.0, 0.0),
-#'   ms  = c(0.3, 0.1),
-#'   ma  = c(0.2, 0.4),
-#'   msa = c(0.5, 0.6)
-#' )
-#' @export
+#'   `phi_act` -- one value per input element.
+#' @noRd
 calculate_msa_decomposition <- function(mm, ms, ma, msa) {
   # Sequential M0 -> MM -> MS -> MSA decomposition. `ma` is unused here but kept
   # in the signature so the future Shapley `method` is a non-breaking addition.
@@ -46,7 +38,7 @@ calculate_msa_decomposition <- function(mm, ms, ma, msa) {
 
 #' Apply the divergence decomposition to every posterior sample
 #'
-#' Runs [calculate_msa_decomposition()] on each row of a table of per-sample,
+#' Runs `calculate_msa_decomposition()` on each row of a table of per-sample,
 #' per-site divergence profiles, turning the four model-variant columns into the
 #' three contribution columns (`phi_mut`, `phi_stab`, `phi_act`). The split is
 #' computed independently for each row, so samples and sites need no grouping.
@@ -56,7 +48,7 @@ calculate_msa_decomposition <- function(mm, ms, ma, msa) {
 #'   column, if present, is carried through.
 #' @return A data frame with `sample_id`, `i` (and `pdb_site` if it was present),
 #'   and the three contribution columns `phi_mut`, `phi_stab`, `phi_act`.
-#' @seealso [calculate_msa_decomposition()] (the per-row split it applies);
+#' @seealso `calculate_msa_decomposition()` (the per-row split it applies);
 #'   [calculate_decomposition_summary()] (summarises the result across samples).
 #' @family decomposition
 #' @examples

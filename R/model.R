@@ -208,7 +208,7 @@ calculate_lrmsd_n_msa <- function(spm_pp, a1, a2) {
 #' | MA  | (0, a2)  | mutation + activity selection |
 #' | MSA | (a1, a2) | full model, both selections |
 #'
-#' Pass the four returned columns to [calculate_msa_decomposition()] to split the
+#' Pass the four returned columns to `calculate_msa_decomposition()` to split the
 #' divergence into its mutation, stability, and activity contributions.
 #'
 #' @param spm_pp Preprocessed single-point-mutation data, the output of
@@ -221,7 +221,7 @@ calculate_lrmsd_n_msa <- function(spm_pp, a1, a2) {
 #'   number `pdb_site`, and the four divergence profiles `lrmsd_i_mm`,
 #'   `lrmsd_i_ms`, `lrmsd_i_ma`, `lrmsd_i_msa`.
 #' @seealso [calculate_dr2_i_msa()] (the single-variant prediction it calls);
-#'   [calculate_msa_decomposition()] (splits the four columns into contributions);
+#'   `calculate_msa_decomposition()` (splits the four columns into contributions);
 #'   [calculate_lrmsd_n_nested_models()] (the mode-indexed counterpart).
 #' @family model
 #' @examples
@@ -244,6 +244,46 @@ calculate_lrmsd_i_nested_models <- function(spm_pp, a1, a2) {
     select(i, pdb_site, everything())
 }
 
+#' Per-site divergence decomposition at one (a1, a2)
+#'
+#' Forward decomposition on the site axis: at a single pair of selection strengths
+#' `(a1, a2)` it splits the predicted structural-divergence profile into its
+#' mutation, stability, and activity contributions (`phi_mut`, `phi_stab`,
+#' `phi_act`). It packages the two-step recipe -- evaluate the four nested model
+#' variants with [calculate_lrmsd_i_nested_models()], then apply the sequential
+#' split `calculate_msa_decomposition()` -- so a caller wanting phi at a point need
+#' not run and thread the four variant columns by hand. The three contributions sum
+#' exactly to the full-model profile `lrmsd_i_msa`.
+#'
+#' This is the single-point (forward) form. Propagating a fitted posterior over
+#' `(a1, a2)` to phi with credible bands is done downstream by evaluating this
+#' function across the posterior's nodes or draws.
+#'
+#' @param spm_pp Preprocessed single-point-mutation data, the output of
+#'   [preprocess_spm()].
+#' @param a1 Stability selection strength (non-negative).
+#' @param a2 Activity selection strength (non-negative).
+#' @return A tibble with one row per site: the site index `i`, the PDB residue
+#'   number `pdb_site`, and the three contributions `phi_mut`, `phi_stab`,
+#'   `phi_act`.
+#' @seealso [calculate_lrmsd_i_nested_models()] (the four variants it splits);
+#'   `calculate_msa_decomposition()` (the pure sequential split);
+#'   [calculate_decomposition_n_msa()] (the mode-indexed counterpart).
+#' @family model
+#' @examples
+#' \dontrun{
+#' pp <- preprocess_spm(znb_spm)
+#' head(calculate_decomposition_i_msa(pp, a1 = 1, a2 = 1))
+#' }
+#' @export
+calculate_decomposition_i_msa <- function(spm_pp, a1, a2) {
+  nm  <- calculate_lrmsd_i_nested_models(spm_pp, a1, a2)
+  phi <- calculate_msa_decomposition(
+    nm$lrmsd_i_mm, nm$lrmsd_i_ms, nm$lrmsd_i_ma, nm$lrmsd_i_msa
+  )
+  dplyr::bind_cols(nm[c("i", "pdb_site")], tibble::as_tibble(phi))
+}
+
 #' Per-mode divergence profiles under all four model variants (MM, MS, MA, MSA)
 #'
 #' Mode-indexed counterpart of [calculate_lrmsd_i_nested_models()]: it returns the
@@ -263,7 +303,7 @@ calculate_lrmsd_i_nested_models <- function(spm_pp, a1, a2) {
 #'
 #' Modes are not anchored to residues, so the output has no `pdb_site` column
 #' (unlike the site form). Pass the four returned columns to
-#' [calculate_msa_decomposition()] to split the divergence into its contributions.
+#' `calculate_msa_decomposition()` to split the divergence into its contributions.
 #'
 #' @param spm_pp Preprocessed single-point-mutation data in mode form, the output
 #'   of [preprocess_spm_mode()].
@@ -292,6 +332,45 @@ calculate_lrmsd_n_nested_models <- function(spm_pp, a1, a2) {
     lrmsd_n_ma  = lrmsd(0,  a2),
     lrmsd_n_msa = lrmsd(a1, a2)
   )
+}
+
+#' Per-mode divergence decomposition at one (a1, a2)
+#'
+#' Mode-indexed counterpart of [calculate_decomposition_i_msa()]: at a single pair
+#' of selection strengths `(a1, a2)` it splits the predicted mode-divergence profile
+#' into its mutation, stability, and activity contributions (`phi_mut`, `phi_stab`,
+#' `phi_act`). It packages the two-step recipe -- evaluate the four nested model
+#' variants with [calculate_lrmsd_n_nested_models()], then apply the sequential split
+#' `calculate_msa_decomposition()`. The three contributions sum exactly to the
+#' full-model profile `lrmsd_n_msa`. Modes are not anchored to residues, so the
+#' output has no `pdb_site` column.
+#'
+#' This is the single-point (forward) form. Propagating a fitted posterior over
+#' `(a1, a2)` to phi with credible bands is done downstream by evaluating this
+#' function across the posterior's nodes or draws.
+#'
+#' @param spm_pp Preprocessed single-point-mutation data in mode form, the output
+#'   of [preprocess_spm_mode()].
+#' @param a1 Stability selection strength (non-negative).
+#' @param a2 Activity selection strength (non-negative).
+#' @return A tibble with one row per mode: the mode index `n` and the three
+#'   contributions `phi_mut`, `phi_stab`, `phi_act`.
+#' @seealso [calculate_lrmsd_n_nested_models()] (the four variants it splits);
+#'   `calculate_msa_decomposition()` (the pure sequential split);
+#'   [calculate_decomposition_i_msa()] (the residue-indexed counterpart).
+#' @family model
+#' @examples
+#' \dontrun{
+#' pp <- preprocess_spm_mode(znb_spm)
+#' head(calculate_decomposition_n_msa(pp, a1 = 1, a2 = 1))
+#' }
+#' @export
+calculate_decomposition_n_msa <- function(spm_pp, a1, a2) {
+  nm  <- calculate_lrmsd_n_nested_models(spm_pp, a1, a2)
+  phi <- calculate_msa_decomposition(
+    nm$lrmsd_n_mm, nm$lrmsd_n_ms, nm$lrmsd_n_ma, nm$lrmsd_n_msa
+  )
+  dplyr::bind_cols(nm["n"], tibble::as_tibble(phi))
 }
 
 #' Predicted lrmsd_i profile with posterior credible bands from an AGQ fit

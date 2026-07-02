@@ -71,3 +71,46 @@ test_that("decomposition_samples carries pdb_site through (optional-branch, pres
   expect_contains(names(dsum), "pdb_site")
   expect_equal(nrow(dsum), 9L)
 })
+
+test_that("calculate_decomposition_i_msa packages nested-models + the kernel", {
+  pp <- preprocess_spm(znb_spm)
+  got <- calculate_decomposition_i_msa(pp, a1 = 1, a2 = 1)
+
+  # Shape / keys: one row per site, site keys carried, phi columns present.
+  expect_named(got, c("i", "pdb_site", "phi_mut", "phi_stab", "phi_act"))
+  expect_equal(got$i, sort(got$i))   # ordered by site
+
+  # It equals the manual two-step it packages (its contract).
+  nm  <- calculate_lrmsd_i_nested_models(pp, a1 = 1, a2 = 1)
+  ref <- calculate_msa_decomposition(nm$lrmsd_i_mm, nm$lrmsd_i_ms,
+                                     nm$lrmsd_i_ma, nm$lrmsd_i_msa)
+  expect_equal(got$phi_mut,  ref$phi_mut)
+  expect_equal(got$phi_stab, ref$phi_stab)
+  expect_equal(got$phi_act,  ref$phi_act)
+
+  # Independent check: the three contributions sum to the full-model profile.
+  # (a1=1, a2=1 keeps all three non-trivial -- not a degenerate zero point.)
+  expect_equal(got$phi_mut + got$phi_stab + got$phi_act, nm$lrmsd_i_msa)
+  expect_true(all(got$phi_stab != 0) && all(got$phi_act != 0))
+})
+
+test_that("calculate_decomposition_n_msa packages nested-models + the kernel (mode)", {
+  pp <- preprocess_spm_mode(znb_spm)
+  got <- calculate_decomposition_n_msa(pp, a1 = 1, a2 = 1)
+
+  # Shape / keys: one row per mode, keyed on n, no pdb_site (modes aren't residues).
+  expect_named(got, c("n", "phi_mut", "phi_stab", "phi_act"))
+  expect_false("pdb_site" %in% names(got))
+  expect_equal(got$n, sort(got$n))
+
+  # It equals the manual two-step it packages (its contract).
+  nm  <- calculate_lrmsd_n_nested_models(pp, a1 = 1, a2 = 1)
+  ref <- calculate_msa_decomposition(nm$lrmsd_n_mm, nm$lrmsd_n_ms,
+                                     nm$lrmsd_n_ma, nm$lrmsd_n_msa)
+  expect_equal(got$phi_mut,  ref$phi_mut)
+  expect_equal(got$phi_stab, ref$phi_stab)
+  expect_equal(got$phi_act,  ref$phi_act)
+
+  # Independent check: the three contributions sum to the full-model profile.
+  expect_equal(got$phi_mut + got$phi_stab + got$phi_act, nm$lrmsd_n_msa)
+})

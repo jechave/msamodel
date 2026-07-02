@@ -51,6 +51,8 @@ pfix_msa(pp$energy_data$ddg_jm, pp$energy_data$ddgact_jm, a1 = 1, a2 = 1)
 weights); \code{\link[=calculate_dr2_i_msa]{calculate_dr2_i_msa()}} (the site forward map built on them).
 
 Other model:
+\code{\link[=calculate_decomposition_i_msa]{calculate_decomposition_i_msa()}},
+\code{\link[=calculate_decomposition_n_msa]{calculate_decomposition_n_msa()}},
 \code{\link[=calculate_dr2_i_msa]{calculate_dr2_i_msa()}},
 \code{\link[=calculate_dr2_n_msa]{calculate_dr2_n_msa()}},
 \code{\link[=calculate_lrmsd_i_msa]{calculate_lrmsd_i_msa()}},

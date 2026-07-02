@@ -230,15 +230,12 @@ $$
 
 By construction these sum to the full prediction,
 $\phi_{\text{mut}} + \phi_{\text{stab}} + \phi_{\text{act}} = \text{lrmsd}_{\text{msa}}$.
-`calculate_msa_decomposition()` is pure: it takes the four nested-model lrmsd
-vectors and returns the three $\phi$ vectors, so we attach them to `nested`:
+`calculate_decomposition_i_msa()` packages this split: give it the preprocessed
+data and a selection strength `(a1, a2)` and it returns one row per site with the
+three $\phi$ contributions.
 
 ```{r decomp-fixed-code}
-phi <- dplyr::bind_cols(
-  nested,
-  calculate_msa_decomposition(nested$lrmsd_i_mm, nested$lrmsd_i_ms,
-                              nested$lrmsd_i_ma, nested$lrmsd_i_msa)
-)
+phi <- calculate_decomposition_i_msa(pp, a1, a2)   # a1 = 2, a2 = 500 from section 2
 ```
 
 The three contributions along the chain (active sites marked in red):
@@ -446,18 +443,13 @@ ggplot(cmp_long, aes(dactive, nlrmsd, colour = source)) +
 
 ## 6. Decomposing the fitted profile
 
-Section 3 decomposed the profile at a *chosen* `(a1, a2)`. The same sequential
+Section 3 decomposed the profile at a *chosen* `(a1, a2)`. The same
 $\phi_{\text{mut}}/\phi_{\text{stab}}/\phi_{\text{act}}$ decomposition applies to
-the **fitted** profile — evaluate the four nested-model variants at the ML estimate
-`(ml$a1, ml$a2)`, then split:
+the **fitted** profile — call `calculate_decomposition_i_msa()` at the ML estimate
+`(ml$a1, ml$a2)` instead of the chosen strengths:
 
 ```{r decomp-fit-code}
-nested_fit <- calculate_lrmsd_i_nested_models(pp, ml$a1, ml$a2)
-phi_fit <- dplyr::bind_cols(
-  nested_fit,
-  calculate_msa_decomposition(nested_fit$lrmsd_i_mm, nested_fit$lrmsd_i_ms,
-                              nested_fit$lrmsd_i_ma, nested_fit$lrmsd_i_msa)
-)
+phi_fit <- calculate_decomposition_i_msa(pp, ml$a1, ml$a2)
 ```
 
 The mutation term is the divergence under no selection (it still varies among

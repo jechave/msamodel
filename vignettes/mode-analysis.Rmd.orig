@@ -180,16 +180,13 @@ $$
 \phi_{\text{act}}  = \text{lrmsd}_{\text{msa}} - \text{lrmsd}_{\text{ms}}
 $$
 
-By construction these sum to the full prediction. `calculate_msa_decomposition()`
-is axis-agnostic — the same pure function used for the site form — so we apply it
-to the four `lrmsd_n` vectors:
+By construction these sum to the full prediction.
+`calculate_decomposition_n_msa()` packages the split for the mode axis — the exact
+mirror of `calculate_decomposition_i_msa()` for sites — returning one row per mode
+with the three $\phi$ contributions:
 
 ```{r decomp-code}
-phi <- dplyr::bind_cols(
-  nested,
-  calculate_msa_decomposition(nested$lrmsd_n_mm, nested$lrmsd_n_ms,
-                              nested$lrmsd_n_ma, nested$lrmsd_n_msa)
-)
+phi <- calculate_decomposition_n_msa(pp_mode, a1, a2)   # a1 = 2, a2 = 500
 ```
 
 ```{r decomp-plot, echo = FALSE, eval = has_ggplot}
@@ -333,19 +330,14 @@ ggplot(cmp_n, aes(nlrmsd_n_obs, nlrmsd_n_fit)) +
 
 ## 6. Decomposing the fitted profile
 
-Section 3 decomposed the profile at a *chosen* `(a1, a2)`. The same sequential
+Section 3 decomposed the profile at a *chosen* `(a1, a2)`. The same
 $\phi_{\text{mut}}/\phi_{\text{stab}}/\phi_{\text{act}}$ decomposition applies to
-the **fitted** profile — evaluate the four nested-model variants at the ML estimate
-`(ml_n$a1, ml_n$a2)`, then split. (The fit is to synthetic data, so this decomposes
-a synthetic-fitted profile.)
+the **fitted** profile — call `calculate_decomposition_n_msa()` at the ML estimate
+`(ml_n$a1, ml_n$a2)` instead of the chosen strengths. (The fit is to synthetic data,
+so this decomposes a synthetic-fitted profile.)
 
 ```{r decomp-fit-code}
-nested_fit <- calculate_lrmsd_n_nested_models(pp_mode, ml_n$a1, ml_n$a2)
-phi_fit <- dplyr::bind_cols(
-  nested_fit,
-  calculate_msa_decomposition(nested_fit$lrmsd_n_mm, nested_fit$lrmsd_n_ms,
-                              nested_fit$lrmsd_n_ma, nested_fit$lrmsd_n_msa)
-)
+phi_fit <- calculate_decomposition_n_msa(pp_mode, ml_n$a1, ml_n$a2)
 ```
 
 The mutation term is the divergence under no selection; a negative selection term

@@ -54,8 +54,33 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
     `calculate_lrmsd_{i,n}_msa` (sole log(sqrt) owners) → analysis (`nested_models`,
     decomposition, AGQ predictor). Closing artifact: `git grep 'log(sqrt(dr2'` in `R/`
     hits ONLY the two owners; `pstab_jm` gone. Suite 178/0F/2skip throughout.
-    **Deferred (next candidates):** decomposition→analysis rehoming; AGQ phi-with-bands
-    (the original goal); MCMC removal.
+
+  - **DONE (2026-07-02): forward decomposition functions — both axes** (plan
+    `~/.claude/plans/ancient-beaming-micali.md`). Added `calculate_decomposition_i_msa`
+    and `calculate_decomposition_n_msa` (`R/model.R`, `@family model`, `@export`) — the
+    single-`(a1,a2)` forward rung that packages `calculate_lrmsd_{i,n}_nested_models`
+    → the pure `calculate_msa_decomposition(mm,ms,ma,msa)` kernel (kernel UNTOUCHED,
+    per [[pure-functions-over-param-flexibility]]). API is `(spm_pp, a1, a2)` (user
+    correction: forward decomposition takes spm+params, NOT the four variant vectors);
+    internals reuse nested_models (user choice). Site returns `i, pdb_site, phi_*`;
+    mode returns `n, phi_*` (no pdb_site). **This unblocks AGQ phi-with-bands** — the
+    banded version is now "run this forward fn across nodes/draws". Tests: equivalence
+    to the manual two-step + sum-identity (`phi_mut+phi_stab+phi_act == lrmsd_*_msa`,
+    max err 0e+00) in `test-decomposition.R`; NEGATIVE CONTROL run on both (injected
+    error → sum-identity goes red). Suite 192/0F/2skip. `document()` regenerated
+    NAMESPACE + man/ (2 new pages; family cross-ref churn on the other model pages).
+    Then, same work item (user decisions): **(3) unexported the pure kernel**
+    `calculate_msa_decomposition` (now `@noRd`, internal) — its only callers are
+    in-package (the two forward fns + `calculate_decomposition_samples`); public phi
+    API is now the forward `calculate_decomposition_{i,n}_msa` + the sample path. 9
+    dangling `[fn()]` roxygen links delinked to `` `fn()` `` code text (no man page to
+    link). **(4) vignettes** (site + mode, 4 chunks): decomposition step rewritten from
+    the manual `nested` + kernel `bind_cols` to the one-call `calculate_decomposition_
+    {i,n}_msa(pp, a1, a2)`; the four-variant `nested` object + its plot KEPT (user
+    choice), the decomposition-only `nested_fit` in §6 dropped. Re-knit both from inside
+    `vignettes/`; previews rendered; **user approved the HTML**. phi values/figures
+    unchanged (same composition). **Deferred (next candidates):** AGQ phi-with-bands
+    (the original goal, now unblocked); decomposition→analysis rehoming; MCMC removal.
 
   - **DECISION (2026-07-01): MCMC is slated for REMOVAL**, not kept as a permanent
     legacy arm (corrects the old "kept as legacy/fallback" in `dev/plan.md`). NOT

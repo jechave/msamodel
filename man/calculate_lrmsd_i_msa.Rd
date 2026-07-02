@@ -40,6 +40,8 @@ head(calculate_lrmsd_i_msa(pp, a1 = 1, a2 = 1))
 \code{\link[=calculate_lrmsd_i_nested_models]{calculate_lrmsd_i_nested_models()}} (the four-variant analysis expansion).
 
 Other model:
+\code{\link[=calculate_decomposition_i_msa]{calculate_decomposition_i_msa()}},
+\code{\link[=calculate_decomposition_n_msa]{calculate_decomposition_n_msa()}},
 \code{\link[=calculate_dr2_i_msa]{calculate_dr2_i_msa()}},
 \code{\link[=calculate_dr2_n_msa]{calculate_dr2_n_msa()}},
 \code{\link[=calculate_lrmsd_i_nested_models]{calculate_lrmsd_i_nested_models()}},

@@ -16,7 +16,7 @@ A data frame with \code{sample_id}, \code{i} (and \code{pdb_site} if it was pres
 and the three contribution columns \code{phi_mut}, \code{phi_stab}, \code{phi_act}.
 }
 \description{
-Runs \code{\link[=calculate_msa_decomposition]{calculate_msa_decomposition()}} on each row of a table of per-sample,
+Runs \code{calculate_msa_decomposition()} on each row of a table of per-sample,
 per-site divergence profiles, turning the four model-variant columns into the
 three contribution columns (\code{phi_mut}, \code{phi_stab}, \code{phi_act}). The split is
 computed independently for each row, so samples and sites need no grouping.
@@ -29,11 +29,10 @@ head(phi)
 }
 }
 \seealso{
-\code{\link[=calculate_msa_decomposition]{calculate_msa_decomposition()}} (the per-row split it applies);
+\code{calculate_msa_decomposition()} (the per-row split it applies);
 \code{\link[=calculate_decomposition_summary]{calculate_decomposition_summary()}} (summarises the result across samples).
 
 Other decomposition:
-\code{\link[=calculate_decomposition_summary]{calculate_decomposition_summary()}},
-\code{\link[=calculate_msa_decomposition]{calculate_msa_decomposition()}}
+\code{\link[=calculate_decomposition_summary]{calculate_decomposition_summary()}}
 }
 \concept{decomposition}
