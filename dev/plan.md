@@ -141,16 +141,17 @@ per-version detail is written when each version starts.
      The cheap-now vs expensive-stochastic-later split is *why* inference must not be
      hard-wired to the likelihood — keep the objective pluggable (`R/objective.R`
      already is).
-  2. **Three-layer split (model / fit / analysis).** Currently mixed (e.g.
-     prediction/decomposition filed `@family fitting`; `run_msa_bayesian_analysis` does
-     fit+predict+nested+decompose in one call). Separate: **model** = `(a1,a2) →
+  2. **Three-layer split (model / fit / analysis).** Was mixed (e.g.
+     prediction/decomposition filed `@family fitting`; the removed
+     `run_msa_bayesian_analysis` did fit+predict+nested+decompose in one call — deleting
+     it 2026-07-03 was part of untangling this). Separate: **model** = `(a1,a2) →
      dr2_i/lrmsd_i` (pure, deterministic, exists); **fit** = data → posterior over
      `(a1,a2)` (its public unit is "fit a *possibly-constrained* model — a1/a2
      fixed/zeroed — → posterior", reusing the `fix_a1`/`fix_a2` machinery); **analysis**
      = posterior + any model-fn → value-with-bands. ONE generic uncertainty-propagator
-     (an AGQ posterior propagates by node-weighting, an MCMC posterior by draw-average —
-     same analysis interface, different posterior type), not per-quantity sample
-     machinery. Nested-models and decomposition move to the analysis layer; the
+     (an AGQ posterior propagates by node-weighting; a future draw-based posterior would
+     average — same analysis interface, different posterior type), not per-quantity
+     sample machinery. Nested-models and decomposition move to the analysis layer; the
      decomposition stays a **pure function of predictions** (4 vectors in → 3 phi out),
      agnostic to whether those came from one shared fit or four separate fits — so the
      "decompose four separately-fitted models" idea is *architecturally allowed* (caller's

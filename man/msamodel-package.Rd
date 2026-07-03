@@ -6,6 +6,6 @@
 \alias{msamodel-package}
 \title{msamodel: Mutation-Stability-Activity Model of Neutral Structural Evolution}
 \description{
-Implementation of the Mutation-Stability-Activity (MSA) model for predicting site-specific structural divergence in protein evolution from single-point-mutation scans (SPMs). Provides Bayesian parameter estimation, prediction of divergence profiles under mutation-only and selection-only model variants, and a site-level (phi) decomposition of evolutionary constraint contributions.
+Implementation of the Mutation-Stability-Activity (MSA) model for predicting site-specific structural divergence in protein evolution from single-point-mutation scans (SPMs). Provides maximum-likelihood and Bayesian (adaptive-quadrature) parameter estimation, prediction of divergence profiles under mutation-only and selection-only model variants, and a site-level (phi) decomposition of evolutionary constraint contributions.
 }
 \keyword{internal}

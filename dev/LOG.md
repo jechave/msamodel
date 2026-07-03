@@ -15,11 +15,34 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
 - **ACTIVE WORK ITEM: inference rework** (`dev/plan.md` "Inference rework"). AGQ loop 1
   shipped (`00ea45a`); remaining slices planned per-loop (agile, not waterfall). Still
   at `0.3.0.9000` (dev); NOT releasing now — a release waits until the inference rework
-  reaches a coherent stopping point (user decision 2026-06-30).
+  reaches a coherent stopping point (user decision 2026-06-30). **NEXT ACTIVE ITEM =
+  `_ml` predictors** (independent siblings), then decomposition→analysis rehoming.
+
+- **DONE 2026-07-03 — MCMC removal** (`d413a50`, pushed; plan
+  `~/.claude/plans/the-next-step-in-nested-sphinx.md`). Hard-deleted the whole M-H
+  branch now that AGQ reproduces its last unique output (the 2026-07-02 banded
+  decomposition): removed `R/msa_bayesian_analysis.R` (`fit_lrmsd_i_msa_mcmc` +
+  `calculate_prediction_samples`/`_parameter_summary`/`_prediction_summary`) and
+  `R/msa_bayesian_workflow.R` (`run_msa_bayesian_analysis`); dropped
+  `calculate_decomposition_samples`/`_summary` from `R/msa_decomposition.R`, **kept** the
+  `@noRd` `calculate_msa_decomposition` kernel (the AGQ forward path uses it). Deleted
+  `test-msa-mcmc.R` + `test-workflow-endtoend.R`; pruned the MCMC blocks from
+  `test-contract.R` (1) and `test-decomposition.R` (3 blocks + helper) — the dead-ref
+  sweep, not the plan, caught `test-decomposition.R` (the plan had missed it).
+  `document()` removed 7 orphaned man pages + 7 NAMESPACE exports. Repointed roxygen
+  cross-refs (`objective`/`fitting`/`model`/`data-doc`) to `fit_lrmsd_i_msa_ml` /
+  `fit_lrmsd_i_msa_agq` / `predict_*_agq`; reconciled prose (`DESCRIPTION`, `NEWS.md`
+  Removed bullet — v0.1 release history untouched, `CLAUDE.md`, `dev/plan.md`
+  slated→REMOVED). AGQ + `predict_*_agq` is now the sole band path; `fit_lrmsd_i_msa_ml`
+  the point arm. No `lifecycle` cycle (solo dev, git preserves it); no generic
+  posterior-sample propagator kept. **Verify:** full dead-ref sweep over
+  `R/ man/ NAMESPACE tests/` clean; touched test files pass 0F; `check()` **0E/1W/2N =
+  accepted v0.1 baseline** (no new undocumented/orphaned/`\link` diagnostics; vignettes
+  re-knit OK). **WORK ITEM COMPLETE.**
 
 - **DONE 2026-07-02 — AGQ banded-analysis pair + predictor rename** (all 3 slices
-  pushed; plan `~/.claude/plans/lovely-purring-pixel.md`). **NEXT ACTIVE ITEM = MCMC
-  REMOVAL** (now unblocked — see the last bullet in this block). **Predictor naming
+  pushed; plan `~/.claude/plans/lovely-purring-pixel.md`). (Its output unblocked the
+  MCMC removal above.) **Predictor naming
   grammar LOCKED
   2026-07-02:** `<verb>_<quantity>_<axis>_<modelspec>[_<method>]` — verb
   `calculate` (bare params) vs `predict` (takes a fit object); quantity names the
