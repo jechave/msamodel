@@ -125,11 +125,16 @@ per-version detail is written when each version starts.
      of measure, NOT a prior) reproduces the posterior moments essentially exactly at
      **~25 deterministic evaluations** (5×5), vs the hand-rolled M-H needing thousands
      and still off (E[a2] err 2.0 at 2500/500; AGQ 5×5 err 0.013). AGQ becomes the
-     primary fitter. **M-H / MCMC is slated for REMOVAL** (user decision 2026-07-01),
-     NOT kept as a permanent legacy arm — but it is **not deleted until AGQ reproduces
-     its remaining unique functionality**, namely the **phi decomposition profiles with
-     credible bands** (node-propagated). The `run_msa_bayesian_analysis` wrapper is out
-     of scope for now (user: no wrappers). The future non-star tree will need a
+     primary fitter. **M-H / MCMC was REMOVED 2026-07-03** (user decision 2026-07-01;
+     unblocked once AGQ reproduced its last unique output — the node-propagated phi
+     decomposition bands, `predict_decomposition_i_msa_agq`, shipped 2026-07-02). The
+     whole sample-averaging chain went with it (`fit_lrmsd_i_msa_mcmc`,
+     `run_msa_bayesian_analysis`, `calculate_prediction_samples`,
+     `calculate_parameter_summary`, `calculate_prediction_summary`,
+     `calculate_decomposition_samples`, `calculate_decomposition_summary`); AGQ +
+     `predict_*_agq` is now the sole band-producing path (ML stays the point arm). No
+     generic posterior-sample propagator kept — built fresh when a real second consumer
+     exists. The future non-star tree will need a
      *stochastic* sampler (expensive AND stochastic likelihood → pseudo-marginal), but
      that is built fresh at v0.5, not preserved from this M-H. Free to change: no
      obligation to reproduce the paper's MCMC draws (agreement within noise suffices).

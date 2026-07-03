@@ -40,12 +40,3 @@ test_that("pdb_site contract gives the same loglik as a manual i-keyed join", {
 
   expect_equal(ll_contract, ll_manual)
 })
-
-test_that("site-keyed workflow outputs carry pdb_site", {
-  res <- suppressMessages(
-    run_msa_bayesian_analysis(znb_spm, znb_profile,
-                              n_mcmc_iter = 60, n_burnin = 20)
-  )
-  expect_contains(names(res$prediction_summary), "pdb_site")
-  expect_contains(names(res$decomposition_summary), "pdb_site")
-})

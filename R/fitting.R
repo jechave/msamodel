@@ -1,19 +1,21 @@
 # MSA model fitting — maximum-likelihood point estimation
-# Point-estimate counterpart of the MCMC fit (R/msa_bayesian_analysis.R). Shares
-# the same profiled Gaussian log-likelihood (calculate_loglik_lrmsd_i_msa) and the
-# same (a1, log2(a2+1)) coordinates / box bounds, so the two arms are directly
+# Point-estimate counterpart of the AGQ posterior fit (fit_lrmsd_i_msa_agq, below).
+# Shares the same profiled Gaussian log-likelihood (calculate_loglik_lrmsd_i_msa) and
+# the same (a1, log2(a2+1)) coordinates / box bounds, so the two arms are directly
 # comparable.
 
 #' Maximum-likelihood point fit of the lrmsd_i MSA model
 #'
-#' Point-estimation counterpart of [fit_lrmsd_i_msa_mcmc()]: maximises the same
+#' Point-estimation counterpart of [fit_lrmsd_i_msa_agq()]: maximises the same
 #' profiled Gaussian log-likelihood ([calculate_loglik_lrmsd_i_msa()]) over `(a1, a2)`
 #' by numerical
 #' optimisation, returning a point estimate plus an asymptotic covariance from the
-#' Hessian at the optimum. Much faster than MCMC; intended for large proteins and
-#' path simulations. This is **not** a Bayesian fit and returns no posterior sample.
+#' Hessian at the optimum. Where AGQ returns a full posterior over the selection
+#' strengths, this returns a single point plus asymptotic errors; intended for large
+#' proteins and path simulations. This is **not** a Bayesian fit and returns no
+#' posterior sample.
 #'
-#' The optimiser works in the same coordinates as the MCMC: `a1` and
+#' The optimiser works in the same coordinates as the AGQ fit: `a1` and
 #' `log2(a2 + 1)` (so `a2 = 2^(log2(a2+1)) - 1 >= 0`), on the box `a1_range` ×
 #' `log2_a2_plus1_range` — the coordinates in which the prior is uniform. The
 #' returned covariance `cov` is on the `(a1, log2(a2+1))` scale; the standard error
@@ -39,7 +41,7 @@
 #'     \item{se_a1, se_a2}{Standard errors; `se_a2` via the delta method.}
 #'     \item{convergence}{`optim` convergence code (0 = success).}
 #'   }
-#' @seealso [fit_lrmsd_i_msa_mcmc()] (the Bayesian counterpart),
+#' @seealso [fit_lrmsd_i_msa_agq()] (the Bayesian/posterior counterpart),
 #'   [calculate_loglik_lrmsd_i_msa()] (the shared objective).
 #' @family fitting
 #' @export
@@ -55,7 +57,7 @@ fit_lrmsd_i_msa_ml <- function(spm_pp,
                        log2_a2_plus1_range = c(0, 13),
                        init = NULL,
                        grid_n = 25) {
-  # Validate box bounds (same contract as fit_lrmsd_i_msa_mcmc) -- fail loud.
+  # Validate box bounds (same contract as fit_lrmsd_i_msa_agq) -- fail loud.
   if (length(a1_range) != 2 || a1_range[1] >= a1_range[2]) {
     stop("a1_range must be a vector of length 2 with min < max")
   }
@@ -69,7 +71,7 @@ fit_lrmsd_i_msa_ml <- function(spm_pp,
 
   # Negative profiled log-likelihood in (a1, b) coordinates, b = log2(a2 + 1).
   # calculate_loglik_lrmsd_i_msa already mean-centers both profiles, so this IS the
-  # MCMC's likelihood (no separate centering here).
+  # shared objective (no separate centering here).
   nll <- function(theta) {
     -calculate_loglik_lrmsd_i_msa(spm_pp, observed_data,
                           a1 = theta[1], a2 = 2^theta[2] - 1)
@@ -301,16 +303,16 @@ weighted_quantile <- function(x, w, probs) {
 
 #' Posterior fit of the lrmsd_i MSA model by adaptive Gauss-Hermite quadrature
 #'
-#' Deterministic Bayesian counterpart of [fit_lrmsd_i_msa_mcmc()]: approximates the
-#' posterior of the selection strengths `(a1, a2)` by adaptive Gauss-Hermite
-#' quadrature, under the same prior (uniform in `(a1, log2(a2 + 1))`) and the same
-#' likelihood ([calculate_loglik_lrmsd_i_msa()]). The quadrature is *referenced* to
-#' the Laplace (Gaussian) approximation that [fit_lrmsd_i_msa_ml()] already computes:
-#' nodes are placed at that Gaussian's optimal locations, so a handful of
-#' likelihood evaluations reproduce the posterior. For the bundled `znb_profile` the
-#' posterior is near-Gaussian in `(a1, log2(a2 + 1))`, and even a 5x5 grid (25
-#' evaluations) matches a dense reference posterior essentially exactly -- far cheaper
-#' than the Markov chain, with no seed, burn-in, or autocorrelation.
+#' The Bayesian arm of the MSA fit: it approximates the posterior of the selection
+#' strengths `(a1, a2)` by adaptive Gauss-Hermite quadrature, under a uniform prior
+#' in `(a1, log2(a2 + 1))` and the profiled Gaussian likelihood
+#' ([calculate_loglik_lrmsd_i_msa()]). The quadrature is *referenced* to the Laplace
+#' (Gaussian) approximation that [fit_lrmsd_i_msa_ml()] already computes: nodes are
+#' placed at that Gaussian's optimal locations, so a handful of likelihood
+#' evaluations reproduce the posterior. For the bundled `znb_profile` the posterior
+#' is near-Gaussian in `(a1, log2(a2 + 1))`, and even a 5x5 grid (25 evaluations)
+#' matches a dense reference posterior essentially exactly. The fit is fully
+#' deterministic -- no seed, burn-in, or autocorrelation.
 #'
 #' The quadrature is built on the unconstrained scale `t = log2(a2 + 1)` (where the
 #' prior is flat and the posterior is near-Gaussian) and results are reported on the
@@ -343,8 +345,7 @@ weighted_quantile <- function(x, w, probs) {
 #'       the `(a1, log2(a2 + 1))` scale (`cov` carries matching `dimnames`).}
 #'     \item{log_evidence}{Log marginal likelihood from the quadrature.}
 #'   }
-#' @seealso [fit_lrmsd_i_msa_mcmc()] (the sampling counterpart),
-#'   [fit_lrmsd_i_msa_ml()] (the Laplace reference / point estimate),
+#' @seealso [fit_lrmsd_i_msa_ml()] (the Laplace reference / point-estimate arm),
 #'   [predict_lrmsd_i_msa_agq()] (propagate the posterior to a banded profile).
 #' @family fitting
 #' @export

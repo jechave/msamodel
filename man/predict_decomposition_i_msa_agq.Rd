@@ -25,8 +25,8 @@ posterior mean and a central credible band for each of the three contributions
 (\code{phi_mut}, \code{phi_stab}, \code{phi_act}), at every residue. At each quadrature node the
 contributions are evaluated with \code{\link[=calculate_decomposition_i_msa]{calculate_decomposition_i_msa()}}, then each is
 summarized across nodes by their (normalized) posterior masses \code{exp(log_weight)}.
-All-quadrature, no Gaussian assumption, deterministic. This is the assumption-free
-replacement for the MCMC decomposition bands.
+All-quadrature, no Gaussian assumption, deterministic -- the decomposition-band
+path: credible bands on the phi contributions without any sampling.
 }
 \details{
 Bands are read off the node masses as weighted quantiles, so their tails are only

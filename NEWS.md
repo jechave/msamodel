@@ -6,9 +6,8 @@
   per-site lrmsd profiles of the four nested model variants (MM/MS/MA/MSA) at a
   given `(a1, a2)`, in one tibble (`i`, `pdb_site`, `lrmsd_i_mm`, `lrmsd_i_ms`,
   `lrmsd_i_ma`, `lrmsd_i_msa`). It is the single source of truth for the
-  four-variant recipe: `calculate_prediction_samples()` (the MCMC path) now calls
-  it per posterior sample instead of inlining the recipe, and a fixed-`(a1, a2)`
-  decomposition (e.g. in the site analysis vignette) uses it directly.
+  four-variant recipe used by the fixed-`(a1, a2)` decomposition (e.g. in the site
+  analysis vignette) and, node by node, by the AGQ banded predictors.
 
 * **Mode-form structural divergence.** Structural divergence is now also predicted
   **per normal mode**, not only per site (the first slice of the motion/mode arm).
@@ -30,6 +29,18 @@
   fit.
 
 ## Breaking changes
+
+* **Removed the Metropolis–Hastings MCMC fitter and its sample-averaging analysis
+  chain.** The exported functions `fit_lrmsd_i_msa_mcmc()`,
+  `run_msa_bayesian_analysis()`, `calculate_prediction_samples()`,
+  `calculate_parameter_summary()`, `calculate_prediction_summary()`,
+  `calculate_decomposition_samples()`, and `calculate_decomposition_summary()` are
+  gone. Bayesian inference is now done by adaptive Gauss–Hermite quadrature
+  (`fit_lrmsd_i_msa_agq()`), and posterior profiles/decompositions with credible
+  bands come from `predict_lrmsd_i_msa_agq()`,
+  `predict_lrmsd_i_nested_models_agq()`, and `predict_decomposition_i_msa_agq()` —
+  deterministic, with no seed, burn-in, or draw-averaging. `fit_lrmsd_i_msa_ml()`
+  remains the point-estimate arm.
 
 * **`dr2`-family names now follow one index-signature convention:**
   `dr2_<indices>` — one underscore, then the free indices the object spans
@@ -69,27 +80,21 @@ GitHub-only package.
   `phi_act = lrmsd_msa − lrmsd_ms`), the φ components used for the paper analysis.
   The earlier code computed a different, symmetric "Shapley" formula by mistake;
   both telescope to `lrmsd_msa`, so the values shipped under `shap_*`/`phi_*` in
-  prior dev snapshots were wrong. Affects `calculate_msa_decomposition()`,
-  `calculate_decomposition_samples()`, `calculate_decomposition_summary()`, and
-  the `decomposition_summary` returned by `run_msa_bayesian_analysis()`.
-  (`lrmsd_ma` is still a required input, reserved for a future `method` switch to
-  the Shapley variant.)
+  prior dev snapshots were wrong. Affects the shared decomposition kernel and every
+  `phi_*` output built on it. (`lrmsd_ma` is still a required input, reserved for a
+  future `method` switch to the Shapley variant.)
 
 * **`calculate_msa_decomposition()` is now a pure vector function.** It takes the
   four nested-model lrmsd *vectors* — `calculate_msa_decomposition(mm, ms, ma, msa)`
   — and returns a named list of the three phi vectors, instead of taking a tibble
   with hard-coded column names. The decomposition is context-free math, so the same
   function serves the site (`i`) and future mode (`n`) axes unchanged; the caller
-  supplies whichever four columns it holds. The MCMC plumbing
-  (`calculate_decomposition_samples()`) keeps its tibble interface and calls the
-  vector function internally.
+  supplies whichever four columns it holds.
 
 * **Nested-model lrmsd columns renamed `lrmsd_*` → `lrmsd_i_*`.** The four
   nested-model profiles are now `lrmsd_i_mm`, `lrmsd_i_ms`, `lrmsd_i_ma`,
   `lrmsd_i_msa` (parallel to `dr2_i`/`dr2_n`, leaving room for the mode arm's
-  `lrmsd_n_*`). Affects the columns of `calculate_prediction_samples()`, the
-  `variable` *values* in `prediction_summary` (e.g. `"lrmsd_i_msa"`), and the
-  required input columns of `calculate_decomposition_samples()`.
+  `lrmsd_n_*`).
 
 * **Structure input is now a bio3d pdb object.** `load_protein()` (which took a
   `pdb_chain` ID + a `data_dir`) is **removed**. Read the structure yourself and

@@ -12,7 +12,7 @@ bio3d pdb object + a plain `pdb_site_active` integer vector.
 v0.1 and v0.2 (API cleanup) shipped; the 0.3.0 site+mode structural suite is done
 (predict + fit, both axes); the inference rework is in flight. The package computes
 structure-divergence profiles (structure × site and × mode) and fits them to data:
-SPM generation, divergence profiles, parameter estimation (ML / AGQ / MCMC), and a
+SPM generation, divergence profiles, parameter estimation (ML / AGQ), and a
 site-level decomposition (the `phi_*` columns). **Read the `<!-- NOW -->` block in
 `dev/LOG.md` first each session** — it holds the live state; `dev/plan.md` is the
 roadmap.
@@ -120,8 +120,8 @@ has-no-source without having *just* searched to confirm.
 ```bash
 # INNER LOOP (constant) — load_all + targeted tests; this is the working loop
 Rscript -e "devtools::load_all()"
-Rscript -e "testthat::test_file('tests/testthat/test-msa-mcmc.R')"   # one file
-# (or devtools::test(filter='msa-mcmc') for a name-filtered subset)
+Rscript -e "testthat::test_file('tests/testthat/test-fit-agq.R')"    # one file
+# (or devtools::test(filter='fit-agq') for a name-filtered subset)
 
 # Document (regenerate NAMESPACE + man/) — ONLY after a roxygen/@importFrom change
 Rscript -e "devtools::document()"

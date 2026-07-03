@@ -4,7 +4,7 @@
 # the same likelihood, in the (a1, log2(a2+1)) coordinates where the prior is flat.
 
 # Independent ground truth: normalize exp(ll) on a dense regular grid in
-# (a1, t = log2(a2+1)) -- the flat-in-t posterior, matching the MCMC's prior. This is
+# (a1, t = log2(a2+1)) -- the posterior under the flat-in-t (uniform) prior. This is
 # a QUADRATURE reference (brute-force posterior mean/sd), so its accuracy is its
 # value -- it cannot be tiny. A measured grid-convergence sweep vs a 61x61 reference:
 # 5x5/7x7 are garbage (a2 off by ~19/13), 11x11 and 15x15 still miss the test

@@ -1,6 +1,8 @@
 # MSA fitting objectives
 # Pluggable criteria a fitter optimizes (currently the log-likelihood; future
-# criteria such as RMSE or robust objectives belong here)
+# criteria such as RMSE or robust objectives belong here). Keeping the objective
+# decoupled from the fitter is what lets a future stochastic-likelihood tree swap
+# in a different criterion without touching the fit layer.
 
 #' Log-likelihood of an observed per-site divergence profile
 #'
@@ -9,7 +11,8 @@
 #' observations are each mean-centred and compared under a Gaussian noise model
 #' whose scale is estimated from the residuals (profiled out), giving a single
 #' log-likelihood value. Both fitters use this same score: [fit_lrmsd_i_msa_ml()]
-#' maximises it and [fit_lrmsd_i_msa_mcmc()] samples it.
+#' maximises it (point estimate) and [fit_lrmsd_i_msa_agq()] integrates it over the
+#' selection strengths by adaptive quadrature (posterior).
 #'
 #' @param spm_pp Preprocessed single-point-mutation data, the output of
 #'   [preprocess_spm()]. Used to predict the divergence profile and to map the
@@ -20,8 +23,8 @@
 #' @param a2 Activity selection strength (non-negative).
 #' @return A single numeric value: the log-likelihood of `observed_data` under the
 #'   model at `(a1, a2)`.
-#' @seealso [fit_lrmsd_i_msa_ml()] and [fit_lrmsd_i_msa_mcmc()], which optimise and
-#'   sample this score; [calculate_loglik_lrmsd_n_msa()] for the mode form.
+#' @seealso [fit_lrmsd_i_msa_ml()] and [fit_lrmsd_i_msa_agq()], which optimise and
+#'   integrate this score; [calculate_loglik_lrmsd_n_msa()] for the mode form.
 #' @family objective
 #' @examples
 #' \dontrun{

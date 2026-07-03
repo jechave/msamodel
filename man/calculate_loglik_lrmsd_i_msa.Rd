@@ -28,7 +28,8 @@ an observed per-site divergence profile. The model prediction and the
 observations are each mean-centred and compared under a Gaussian noise model
 whose scale is estimated from the residuals (profiled out), giving a single
 log-likelihood value. Both fitters use this same score: \code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}}
-maximises it and \code{\link[=fit_lrmsd_i_msa_mcmc]{fit_lrmsd_i_msa_mcmc()}} samples it.
+maximises it (point estimate) and \code{\link[=fit_lrmsd_i_msa_agq]{fit_lrmsd_i_msa_agq()}} integrates it over the
+selection strengths by adaptive quadrature (posterior).
 }
 \examples{
 \dontrun{
@@ -37,8 +38,8 @@ calculate_loglik_lrmsd_i_msa(pp, znb_profile, a1 = 1, a2 = 1)
 }
 }
 \seealso{
-\code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}} and \code{\link[=fit_lrmsd_i_msa_mcmc]{fit_lrmsd_i_msa_mcmc()}}, which optimise and
-sample this score; \code{\link[=calculate_loglik_lrmsd_n_msa]{calculate_loglik_lrmsd_n_msa()}} for the mode form.
+\code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}} and \code{\link[=fit_lrmsd_i_msa_agq]{fit_lrmsd_i_msa_agq()}}, which optimise and
+integrate this score; \code{\link[=calculate_loglik_lrmsd_n_msa]{calculate_loglik_lrmsd_n_msa()}} for the mode form.
 
 Other objective:
 \code{\link[=calculate_loglik_lrmsd_n_msa]{calculate_loglik_lrmsd_n_msa()}}

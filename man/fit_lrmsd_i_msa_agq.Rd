@@ -43,16 +43,16 @@ the \verb{(a1, log2(a2 + 1))} scale (\code{cov} carries matching \code{dimnames}
 }
 }
 \description{
-Deterministic Bayesian counterpart of \code{\link[=fit_lrmsd_i_msa_mcmc]{fit_lrmsd_i_msa_mcmc()}}: approximates the
-posterior of the selection strengths \verb{(a1, a2)} by adaptive Gauss-Hermite
-quadrature, under the same prior (uniform in \verb{(a1, log2(a2 + 1))}) and the same
-likelihood (\code{\link[=calculate_loglik_lrmsd_i_msa]{calculate_loglik_lrmsd_i_msa()}}). The quadrature is \emph{referenced} to
-the Laplace (Gaussian) approximation that \code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}} already computes:
-nodes are placed at that Gaussian's optimal locations, so a handful of
-likelihood evaluations reproduce the posterior. For the bundled \code{znb_profile} the
-posterior is near-Gaussian in \verb{(a1, log2(a2 + 1))}, and even a 5x5 grid (25
-evaluations) matches a dense reference posterior essentially exactly -- far cheaper
-than the Markov chain, with no seed, burn-in, or autocorrelation.
+The Bayesian arm of the MSA fit: it approximates the posterior of the selection
+strengths \verb{(a1, a2)} by adaptive Gauss-Hermite quadrature, under a uniform prior
+in \verb{(a1, log2(a2 + 1))} and the profiled Gaussian likelihood
+(\code{\link[=calculate_loglik_lrmsd_i_msa]{calculate_loglik_lrmsd_i_msa()}}). The quadrature is \emph{referenced} to the Laplace
+(Gaussian) approximation that \code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}} already computes: nodes are
+placed at that Gaussian's optimal locations, so a handful of likelihood
+evaluations reproduce the posterior. For the bundled \code{znb_profile} the posterior
+is near-Gaussian in \verb{(a1, log2(a2 + 1))}, and even a 5x5 grid (25 evaluations)
+matches a dense reference posterior essentially exactly. The fit is fully
+deterministic -- no seed, burn-in, or autocorrelation.
 }
 \details{
 The quadrature is built on the unconstrained scale \code{t = log2(a2 + 1)} (where the
@@ -73,17 +73,11 @@ c(a1 = agq$a1, a2 = agq$a2)
 }
 }
 \seealso{
-\code{\link[=fit_lrmsd_i_msa_mcmc]{fit_lrmsd_i_msa_mcmc()}} (the sampling counterpart),
-\code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}} (the Laplace reference / point estimate),
+\code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}} (the Laplace reference / point-estimate arm),
 \code{\link[=predict_lrmsd_i_msa_agq]{predict_lrmsd_i_msa_agq()}} (propagate the posterior to a banded profile).
 
 Other fitting:
-\code{\link[=calculate_parameter_summary]{calculate_parameter_summary()}},
-\code{\link[=calculate_prediction_samples]{calculate_prediction_samples()}},
-\code{\link[=calculate_prediction_summary]{calculate_prediction_summary()}},
-\code{\link[=fit_lrmsd_i_msa_mcmc]{fit_lrmsd_i_msa_mcmc()}},
 \code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}},
-\code{\link[=fit_lrmsd_n_msa_ml]{fit_lrmsd_n_msa_ml()}},
-\code{\link[=run_msa_bayesian_analysis]{run_msa_bayesian_analysis()}}
+\code{\link[=fit_lrmsd_n_msa_ml]{fit_lrmsd_n_msa_ml()}}
 }
 \concept{fitting}

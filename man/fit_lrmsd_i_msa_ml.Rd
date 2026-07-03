@@ -43,15 +43,17 @@ selection strengths, on the natural scale (the paper's \code{aS}, \code{aA}).}
 }
 }
 \description{
-Point-estimation counterpart of \code{\link[=fit_lrmsd_i_msa_mcmc]{fit_lrmsd_i_msa_mcmc()}}: maximises the same
+Point-estimation counterpart of \code{\link[=fit_lrmsd_i_msa_agq]{fit_lrmsd_i_msa_agq()}}: maximises the same
 profiled Gaussian log-likelihood (\code{\link[=calculate_loglik_lrmsd_i_msa]{calculate_loglik_lrmsd_i_msa()}}) over \verb{(a1, a2)}
 by numerical
 optimisation, returning a point estimate plus an asymptotic covariance from the
-Hessian at the optimum. Much faster than MCMC; intended for large proteins and
-path simulations. This is \strong{not} a Bayesian fit and returns no posterior sample.
+Hessian at the optimum. Where AGQ returns a full posterior over the selection
+strengths, this returns a single point plus asymptotic errors; intended for large
+proteins and path simulations. This is \strong{not} a Bayesian fit and returns no
+posterior sample.
 }
 \details{
-The optimiser works in the same coordinates as the MCMC: \code{a1} and
+The optimiser works in the same coordinates as the AGQ fit: \code{a1} and
 \code{log2(a2 + 1)} (so \code{a2 = 2^(log2(a2+1)) - 1 >= 0}), on the box \code{a1_range} ×
 \code{log2_a2_plus1_range} — the coordinates in which the prior is uniform. The
 returned covariance \code{cov} is on the \verb{(a1, log2(a2+1))} scale; the standard error
@@ -65,16 +67,11 @@ c(a1 = ml$a1, a2 = ml$a2)
 }
 }
 \seealso{
-\code{\link[=fit_lrmsd_i_msa_mcmc]{fit_lrmsd_i_msa_mcmc()}} (the Bayesian counterpart),
+\code{\link[=fit_lrmsd_i_msa_agq]{fit_lrmsd_i_msa_agq()}} (the Bayesian/posterior counterpart),
 \code{\link[=calculate_loglik_lrmsd_i_msa]{calculate_loglik_lrmsd_i_msa()}} (the shared objective).
 
 Other fitting:
-\code{\link[=calculate_parameter_summary]{calculate_parameter_summary()}},
-\code{\link[=calculate_prediction_samples]{calculate_prediction_samples()}},
-\code{\link[=calculate_prediction_summary]{calculate_prediction_summary()}},
 \code{\link[=fit_lrmsd_i_msa_agq]{fit_lrmsd_i_msa_agq()}},
-\code{\link[=fit_lrmsd_i_msa_mcmc]{fit_lrmsd_i_msa_mcmc()}},
-\code{\link[=fit_lrmsd_n_msa_ml]{fit_lrmsd_n_msa_ml()}},
-\code{\link[=run_msa_bayesian_analysis]{run_msa_bayesian_analysis()}}
+\code{\link[=fit_lrmsd_n_msa_ml]{fit_lrmsd_n_msa_ml()}}
 }
 \concept{fitting}
