@@ -16,7 +16,30 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   shipped (`00ea45a`); remaining slices planned per-loop (agile, not waterfall). Still
   at `0.3.0.9000` (dev); NOT releasing now — a release waits until the inference rework
   reaches a coherent stopping point (user decision 2026-06-30). **NEXT ACTIVE ITEM =
-  `_ml` predictors** (independent siblings), then decomposition→analysis rehoming.
+  `_ml` predictors** (independent siblings). Then a deferred cleanup: extract a shared
+  `posterior_average(nodes, values)` helper (the 3× `log_weight`-normalization
+  duplication across fit + predictors — see the restructure entry below).
+
+- **DONE 2026-07-07 — file/family restructure by input-type** (`49ce313`; plan
+  `~/.claude/plans/the-next-step-in-nested-sphinx.md`). Triggered by the tool-derived
+  call graph (`dev/callgraph.R`) exposing two smells: `model.R` mixed the pure model
+  (`calculate_*`, bare params) with the fit-consuming `predict_*_agq`, and `objective.R`
+  was a near-empty file whose 2 loglik fns are pure fitter plumbing. **Criterion locked:
+  `@family` = file = INPUT TYPE** — bare `(a1,a2)` → `model`; observed data → `fitting`;
+  a fit object → `prediction`. (Retired the "forward/analysis/objective" vocabulary:
+  "forward" is fit-relative & doesn't apply to `_ml`; "analysis" wrongly swept in
+  bare-param `calculate_decomposition_*`.) Moves: **`R/predict.R` (new)** ← `predict_*_agq`
+  ×3 + `agq_node_weights`/`agq_band` out of `model.R`, retagged `@family prediction`;
+  **`calculate_loglik_*` → `@noRd` internal** folded into `R/fitting.R`, **`R/objective.R`
+  deleted** (users never call raw loglik; future GoF/AIC = separate public fns);
+  **`R/utils.R` (new)** ← `weighted_quantile` (shared numeric helper), `gauss_hermite`
+  stays in fitting. Ripples: 8 dangling `[calculate_loglik_*()]` links → code; 11 test
+  call sites → `msamodel:::`. **Pure move, ZERO logic change** — frozen loglik/ML/AGQ
+  values identical; `test()` 185/0F/2skip; `check()` **0E/1W/2N = v0.1 baseline** (also
+  fixed `dev/callgraph.R` leaking `Rplots.pdf` into the repo root, which had added a
+  spurious top-level-file NOTE). Exports 23→21, man 31→29. `dev/plan.md` decisions 1&2 +
+  `CLAUDE.md` family line reconciled first. Families now: `setup / spm / model / fitting
+  / prediction / datasets`. **WORK ITEM COMPLETE.**
 
 - **DONE 2026-07-03 — MCMC removal** (`d413a50`, pushed; plan
   `~/.claude/plans/the-next-step-in-nested-sphinx.md`). Hard-deleted the whole M-H
