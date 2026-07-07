@@ -109,8 +109,11 @@ has-no-source without having *just* searched to confirm.
 - **Roxygen on every function.** `#' @export` for public API, `#' @noRd` for internal
   helpers. Document `@param`, `@return`/`@returns`, add `@family` tags to group
   related functions. `@examples` in `\dontrun{}` when they need real data.
-- **Organize `R/` files by function family/role** (`@family`: spm / model / objective
-  / fitting / decomposition / setup), not by source filename.
+- **Organize `R/` files by function family/role** (`@family`: setup / spm / model /
+  fitting / prediction / datasets), not by source filename. The family is fixed by a
+  function's **input type**: bare `(a1,a2)` → `model`; observed data → `fitting`; a fit
+  object → `prediction`. (`objective` and `decomposition` are retired as families — the
+  loglik is an internal of `fitting`; decomposition is a `model` function.)
 - **Imports live in one place:** `R/msamodel-package.R` carries the `"_PACKAGE"` doc
   and the `@importFrom` directives. Re-export `%>%` via `#' @importFrom magrittr %>%`.
 - **Tibbles** (not data.frames) for tabular returns; tidyverse for data manipulation.

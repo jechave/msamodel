@@ -31,6 +31,6 @@ test_that("calculate_loglik_lrmsd_i_msa matches a frozen reference value", {
   # sd(residuals) to the profile MLE sqrt(mean(residuals^2)); the value shifted by
   # a constant ~+0.0011 and the (a1,a2) argmax is unchanged.)
   pp <- preprocess_spm(znb_spm)
-  ll <- calculate_loglik_lrmsd_i_msa(pp, znb_profile, a1 = 2, a2 = 5)
+  ll <- msamodel:::calculate_loglik_lrmsd_i_msa(pp, znb_profile, a1 = 2, a2 = 5)
   expect_equal(ll, -184.3230779142, tolerance = 1e-6)
 })

@@ -14,7 +14,7 @@
 agq_ground_truth <- local({
   pp  <- preprocess_spm(znb_spm)
   obs <- znb_profile
-  ll_of <- function(a1, t) calculate_loglik_lrmsd_i_msa(pp, obs, a1, 2^t - 1)
+  ll_of <- function(a1, t) msamodel:::calculate_loglik_lrmsd_i_msa(pp, obs, a1, 2^t - 1)
   a1g <- seq(0, 3, length.out = 21)
   tg  <- seq(0, 9, length.out = 21)
   G   <- expand.grid(a1 = a1g, t = tg)

@@ -18,7 +18,7 @@ fit_lrmsd_n_msa_ml(
 the \code{dr2_njm} matrix; no \code{site_map}).}
 
 \item{observed_data}{Tibble with columns \code{n} (mode index) and \code{lrmsd_n_obs} (the
-fit target), as documented for \code{\link[=calculate_loglik_lrmsd_n_msa]{calculate_loglik_lrmsd_n_msa()}}.}
+fit target), as documented for \code{calculate_loglik_lrmsd_n_msa()}.}
 
 \item{a1_range}{Length-2 \verb{[min, max]} box bound for \code{a1}.}
 
@@ -46,7 +46,7 @@ selection strengths, on the natural scale (the paper's \code{aS}, \code{aA}).}
 }
 \description{
 Mode counterpart of \code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}}: maximises the mode-form profiled
-Gaussian log-likelihood (\code{\link[=calculate_loglik_lrmsd_n_msa]{calculate_loglik_lrmsd_n_msa()}}) over \verb{(a1, a2)} by
+Gaussian log-likelihood (\code{calculate_loglik_lrmsd_n_msa()}) over \verb{(a1, a2)} by
 numerical optimisation, returning a point estimate plus an asymptotic covariance
 from the Hessian at the optimum. Identical machinery to the site fit; the response
 index is the mode \code{n} (no \code{site_map} / \code{pdb_site}). There is no Bayesian mode
@@ -68,7 +68,7 @@ c(a1 = ml$a1, a2 = ml$a2)
 }
 \seealso{
 \code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}} (the site counterpart),
-\code{\link[=calculate_loglik_lrmsd_n_msa]{calculate_loglik_lrmsd_n_msa()}} (the objective).
+\code{calculate_loglik_lrmsd_n_msa()} (the objective).
 
 Other fitting:
 \code{\link[=fit_lrmsd_i_msa_agq]{fit_lrmsd_i_msa_agq()}},

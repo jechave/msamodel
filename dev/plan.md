@@ -139,28 +139,38 @@ per-version detail is written when each version starts.
      that is built fresh at v0.5, not preserved from this M-H. Free to change: no
      obligation to reproduce the paper's MCMC draws (agreement within noise suffices).
      The cheap-now vs expensive-stochastic-later split is *why* inference must not be
-     hard-wired to the likelihood — keep the objective pluggable (`R/objective.R`
-     already is).
-  2. **Three-layer split (model / fit / analysis).** Was mixed (e.g.
-     prediction/decomposition filed `@family fitting`; the removed
-     `run_msa_bayesian_analysis` did fit+predict+nested+decompose in one call — deleting
-     it 2026-07-03 was part of untangling this). Separate: **model** = `(a1,a2) →
-     dr2_i/lrmsd_i` (pure, deterministic, exists); **fit** = data → posterior over
-     `(a1,a2)` (its public unit is "fit a *possibly-constrained* model — a1/a2
-     fixed/zeroed — → posterior", reusing the `fix_a1`/`fix_a2` machinery); **analysis**
-     = posterior + any model-fn → value-with-bands. ONE generic uncertainty-propagator
-     (an AGQ posterior propagates by node-weighting; a future draw-based posterior would
-     average — same analysis interface, different posterior type), not per-quantity
-     sample machinery. Nested-models and decomposition move to the analysis layer; the
+     hard-wired to the likelihood — keep the objective pluggable. Pluggability lives at
+     the *function seam* (the fitter calls a swappable `calculate_loglik_*`), not in a
+     separate file/export: as of 2026-07-07 the loglik is an **internal (`@noRd`) helper
+     folded into `R/fitting.R`** — users never call the raw likelihood (a future
+     goodness-of-fit surface, AIC etc., will be separate public functions). The old
+     `R/objective.R` file was deleted.
+  2. **Three-layer split, by INPUT TYPE (model / fitting / prediction).** Decided
+     2026-07-07. The layer of a function is fixed by *what it takes as input* — the one
+     mechanical, unambiguous criterion (the earlier "forward/analysis" vocabulary is
+     retired: "forward" is fit-relative and doesn't apply to `_ml`; "analysis" wrongly
+     swept in `calculate_decomposition_*`, which takes bare params). The three layers,
+     one `@family` and one `R/` file each:
+       - **model** (`@family model`, `R/model.R`) — input = bare `(a1, a2)` + `spm_pp`.
+         `pfix_msa`, all `calculate_*` **including** `calculate_*_nested_models` and
+         `calculate_decomposition_*`. These ARE the model, full stop — they take
+         parameters, so they are model regardless of whether the *quantity* feels
+         analysis-flavored. (Corrects the earlier "nested-models and decomposition move
+         to the analysis layer" — they stay put.)
+       - **fitting** (`@family fitting`, `R/fitting.R`) — input = observed data.
+         `fit_*_ml`, `fit_*_agq`; internal loglik + `gauss_hermite` live here as `@noRd`.
+       - **prediction** (`@family prediction`, `R/predict.R`) — input = a **fit object**.
+         `predict_*_agq` (mean + credible band by node-weighting the model over the
+         stored posterior nodes). The only fit-consuming layer.
+     ONE generic uncertainty-propagator idea still holds (an AGQ posterior propagates by
+     node-weighting; a future draw-based posterior would average) — deferred: a shared
+     `posterior_average(nodes, values)` helper is a follow-up, not built yet. The
      decomposition stays a **pure function of predictions** (4 vectors in → 3 phi out),
-     agnostic to whether those came from one shared fit or four separate fits — so the
-     "decompose four separately-fitted models" idea is *architecturally allowed* (caller's
-     choice) without being built now. Analysis stays **a separate layer inside msamodel**
-     (clean seam: calls model only via public fns; posterior is a documented contract),
-     splittable into its own package later if it churns or gains an independent consumer
-     — distinct from the observed-profile "patterns" package (that's a different *input*;
-     this is a different *output of the same fit*). Default band = **posterior credible
-     interval** propagated through the quantity.
+     so "decompose four separately-fitted models" remains *architecturally allowed*
+     (caller's choice) without being built. The prediction layer is splittable into its
+     own package later if it churns or gains an independent consumer — distinct from the
+     observed-profile "patterns" package (that's a different *input*; this is a different
+     *output of the same fit*). Default band = **posterior credible interval**.
   3. **Forward-model layer has three rungs (design decided 2026-07-01).** The current
      forward map is missing its middle rungs, and *the MSA model itself is not a
      function* — the four lines defining per-mutant fixation probability were inlined

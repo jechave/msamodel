@@ -18,7 +18,7 @@ fit_lrmsd_i_msa_agq(
 \item{spm_pp}{Preprocessed data from \code{\link[=preprocess_spm]{preprocess_spm()}} (must include \code{site_map}).}
 
 \item{observed_data}{Tibble with columns \code{pdb_site} and \code{lrmsd_i_obs} (the fit
-target), as documented for \code{\link[=calculate_loglik_lrmsd_i_msa]{calculate_loglik_lrmsd_i_msa()}}.}
+target), as documented for \code{calculate_loglik_lrmsd_i_msa()}.}
 
 \item{n_nodes}{Number of Gauss-Hermite nodes per axis (the quadrature uses an
 \code{n_nodes} x \code{n_nodes} tensor grid). Default 7 (49 evaluations); the posterior
@@ -46,7 +46,7 @@ the \verb{(a1, log2(a2 + 1))} scale (\code{cov} carries matching \code{dimnames}
 The Bayesian arm of the MSA fit: it approximates the posterior of the selection
 strengths \verb{(a1, a2)} by adaptive Gauss-Hermite quadrature, under a uniform prior
 in \verb{(a1, log2(a2 + 1))} and the profiled Gaussian likelihood
-(\code{\link[=calculate_loglik_lrmsd_i_msa]{calculate_loglik_lrmsd_i_msa()}}). The quadrature is \emph{referenced} to the Laplace
+(\code{calculate_loglik_lrmsd_i_msa()}). The quadrature is \emph{referenced} to the Laplace
 (Gaussian) approximation that \code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}} already computes: nodes are
 placed at that Gaussian's optimal locations, so a handful of likelihood
 evaluations reproduce the posterior. For the bundled \code{znb_profile} the posterior

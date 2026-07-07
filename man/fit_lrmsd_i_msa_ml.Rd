@@ -17,7 +17,7 @@ fit_lrmsd_i_msa_ml(
 \item{spm_pp}{Preprocessed data from \code{\link[=preprocess_spm]{preprocess_spm()}} (must include \code{site_map}).}
 
 \item{observed_data}{Tibble with columns \code{pdb_site} and \code{lrmsd_i_obs} (the fit
-target), as documented for \code{\link[=calculate_loglik_lrmsd_i_msa]{calculate_loglik_lrmsd_i_msa()}}.}
+target), as documented for \code{calculate_loglik_lrmsd_i_msa()}.}
 
 \item{a1_range}{Length-2 \verb{[min, max]} box bound for \code{a1}.}
 
@@ -44,7 +44,7 @@ selection strengths, on the natural scale (the paper's \code{aS}, \code{aA}).}
 }
 \description{
 Point-estimation counterpart of \code{\link[=fit_lrmsd_i_msa_agq]{fit_lrmsd_i_msa_agq()}}: maximises the same
-profiled Gaussian log-likelihood (\code{\link[=calculate_loglik_lrmsd_i_msa]{calculate_loglik_lrmsd_i_msa()}}) over \verb{(a1, a2)}
+profiled Gaussian log-likelihood (\code{calculate_loglik_lrmsd_i_msa()}) over \verb{(a1, a2)}
 by numerical
 optimisation, returning a point estimate plus an asymptotic covariance from the
 Hessian at the optimum. Where AGQ returns a full posterior over the selection
@@ -68,7 +68,7 @@ c(a1 = ml$a1, a2 = ml$a2)
 }
 \seealso{
 \code{\link[=fit_lrmsd_i_msa_agq]{fit_lrmsd_i_msa_agq()}} (the Bayesian/posterior counterpart),
-\code{\link[=calculate_loglik_lrmsd_i_msa]{calculate_loglik_lrmsd_i_msa()}} (the shared objective).
+\code{calculate_loglik_lrmsd_i_msa()} (the shared objective).
 
 Other fitting:
 \code{\link[=fit_lrmsd_i_msa_agq]{fit_lrmsd_i_msa_agq()}},

@@ -35,7 +35,7 @@ test_that("mode ML sits at a local max of its own objective (consistency)", {
   bg  <- log2(ml$a2 + 1) + c(-0.3, -0.15, 0, 0.15, 0.3)
   G   <- expand.grid(a1 = a1g, b = bg)
   ll  <- apply(G, 1L, function(r)
-    calculate_loglik_lrmsd_n_msa(pp, znb_profile_n, a1 = r[["a1"]], a2 = 2^r[["b"]] - 1))
+    msamodel:::calculate_loglik_lrmsd_n_msa(pp, znb_profile_n, a1 = r[["a1"]], a2 = 2^r[["b"]] - 1))
 
   expect_gte(ml$logLik, max(ll) - 1e-8)
 })
@@ -75,7 +75,7 @@ test_that("unknown mode index in observed_data is an error, not a silent drop", 
   bad <- znb_profile_n
   bad$n[1] <- 999999L
   expect_error(
-    calculate_loglik_lrmsd_n_msa(pp, bad, a1 = 2, a2 = 5),
+    msamodel:::calculate_loglik_lrmsd_n_msa(pp, bad, a1 = 2, a2 = 5),
     "mode index\\(es\\) not present in the model"
   )
   expect_error(fit_lrmsd_n_msa_ml(pp, bad), "not present in the model")
@@ -85,10 +85,10 @@ test_that("calculate_loglik_lrmsd_n_msa is invariant to a constant shift in lrms
   # Both profiles are mean-centered, so adding a constant to the observed column
   # leaves the log-likelihood unchanged. Independent property, not a re-derivation.
   pp <- preprocess_spm_mode(znb_spm)
-  ll1 <- calculate_loglik_lrmsd_n_msa(pp, znb_profile_n, a1 = 2, a2 = 5)
+  ll1 <- msamodel:::calculate_loglik_lrmsd_n_msa(pp, znb_profile_n, a1 = 2, a2 = 5)
   shifted <- znb_profile_n
   shifted$lrmsd_n_obs <- shifted$lrmsd_n_obs + 3.7
-  ll2 <- calculate_loglik_lrmsd_n_msa(pp, shifted, a1 = 2, a2 = 5)
+  ll2 <- msamodel:::calculate_loglik_lrmsd_n_msa(pp, shifted, a1 = 2, a2 = 5)
   expect_equal(ll1, ll2)
 })
 
