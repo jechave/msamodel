@@ -16,11 +16,44 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   shipped (`00ea45a`); remaining slices planned per-loop (agile, not waterfall). Still
   at `0.3.0.9000` (dev); NOT releasing now — a release waits until the inference rework
   reaches a coherent stopping point (user decision 2026-06-30). **NEXT ACTIVE ITEM =
-  `_ml` predictors** (independent siblings, delta-method bands — plan warm-up settled
-  the method: delta method, not MVN-sample; the `posterior_average` cleanup is AGQ-local
-  and non-blocking under that choice, extract the `delta_band` seam AFTER the predictors
-  exist). Then the deferred cleanup: extract `posterior_average(nodes, values)` (the 3×
-  `log_weight`-normalization dup across fit + predictors).
+  fix the AGQ band tie-plateau bug** (diagnosed 2026-07-13 while building the `_ml`
+  predictors — user directed we do it next). Then the deferred cleanup: extract
+  `posterior_average(nodes, values)` (the 3× `log_weight`-normalization dup across fit +
+  predictors).
+
+- **BUG (diagnosed 2026-07-13, NOT yet fixed) — AGQ credible bands too narrow on
+  single-parameter quantities.** `weighted_quantile` (`R/utils.R:7`) is called by the
+  `predict_*_agq` predictors on the **full 49-node** `a1`/`a2` vectors, which are a 7×7
+  tensor grid → each distinct node value appears 7× (tied). Tied `x` in
+  `stats::approx(cw, xo, xout=probs)` creates a **flat plateau in x**: a `prob` landing in a
+  tie's cumulative-mass span returns that node value *exactly*, pinning tail quantiles
+  inward → band too narrow. Proven by controlled experiment: collapsing ties (sum weight
+  per distinct node, then quantile the 7 atoms) widens the `a1` band 1.32× and moves `.025`
+  off the node (0.317→0.185); `rule=1` vs `rule=2` identical (NOT a clamp issue — that
+  theory was disproved). Hits **single-selection** variants MS/MA/phi_stab hardest (their
+  value is constant across the 7 copies of the off-axis param → maximal ties), ≈0 on the
+  full MSA profile (varies on both axes → few ties). Manifested as an ML-delta/AGQ
+  band-width **slope > 1** (1.137 at n_nodes=7 → ~1.0 at n_nodes≥15). The `_ml` delta
+  bands are the *correct*-width ones. Fix candidate: collapse ties (or pass marginal
+  weights) inside/around `weighted_quantile`; must re-verify the fitter's own uses of it.
+
+- **DONE 2026-07-13 — delta-method ML predictors, both axes** (`c1723b2` + `d7b8950`
+  globalVariables fix; plan `~/.claude/plans/what-are-we-working-composed-lagoon.md`). Six
+  exports `predict_{lrmsd,decomposition}_{i,n}_*_ml` — the ML siblings of the AGQ trio,
+  both site (`i`) and mode (`n`). Shared `@noRd` core: `grad_t` (central-difference
+  Jacobian on the `t=(a1,b)` scale; hardened to always return a matrix — vapply collapses
+  to a vector for scalar `f`), `delta_band` (delta twin of `agq_band`: `mean ± z·sqrt(diag(J
+  cov Jᵀ))`, symmetric on the reported scale), `validate_ml_fit`, `ml_t_hat`. Differentiate
+  on `t`, sandwich `fit$cov` directly (no covariance transform). Column-for-column mirror of
+  the AGQ tables (site keys `i,pdb_site`; mode `n` only). MM/phi_mut bands zero-width
+  (parameter-independent). Verified (scratchpad): means == forward map at the point estimate
+  (machine precision, both axes); delta `se` reproduces `fit$se_a2` independently; band
+  ordering; col shapes 8/14/11 (site) 7/13/10 (mode). Tests lean (`test-predict-ml.R`:
+  fail-loud + wiring smoke; delta identities scratchpad-only). No `numDeriv` dep (hand-rolled
+  central diff). Exports 23→29, man 29→35. `test()` 206/0F/2skip; `check()` **0E/1W/2N**
+  (the globalVariables commit fixed a transient 3rd NOTE for the mode `nlrmsd` bare names —
+  `check()` caught it, `test()` couldn't). NOTE: building this **diagnosed the AGQ band bug
+  above** — the ML/AGQ band comparison exposed it. **WORK ITEM COMPLETE.**
 
 - **DONE 2026-07-13 — absolute goodness-of-fit for the `_ml` fits** (`f82d75a`; plan
   `~/.claude/plans/what-are-we-working-composed-lagoon.md`). glm/broom pattern: fitter
