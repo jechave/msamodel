@@ -16,26 +16,35 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   shipped (`00ea45a`); remaining slices planned per-loop (agile, not waterfall). Still
   at `0.3.0.9000` (dev); NOT releasing now — a release waits until the inference rework
   reaches a coherent stopping point (user decision 2026-06-30). **NEXT ACTIVE ITEM =
-  fix the AGQ band tie-plateau bug** (diagnosed 2026-07-13 while building the `_ml`
-  predictors — user directed we do it next). Then the deferred cleanup: extract
-  `posterior_average(nodes, values)` (the 3× `log_weight`-normalization dup across fit +
-  predictors).
+  moment-based AGQ credible bands** (design agreed 2026-07-13; see the AGQ-band entry
+  below and the detailed note in `~/.claude/plans/what-are-we-working-composed-lagoon.md`).
+  Then the deferred cleanup: extract `posterior_average(nodes, values)` (the 3×
+  `log_weight`-normalization dup across fit + predictors).
 
-- **BUG (diagnosed 2026-07-13, NOT yet fixed) — AGQ credible bands too narrow on
-  single-parameter quantities.** `weighted_quantile` (`R/utils.R:7`) is called by the
-  `predict_*_agq` predictors on the **full 49-node** `a1`/`a2` vectors, which are a 7×7
-  tensor grid → each distinct node value appears 7× (tied). Tied `x` in
-  `stats::approx(cw, xo, xout=probs)` creates a **flat plateau in x**: a `prob` landing in a
-  tie's cumulative-mass span returns that node value *exactly*, pinning tail quantiles
-  inward → band too narrow. Proven by controlled experiment: collapsing ties (sum weight
-  per distinct node, then quantile the 7 atoms) widens the `a1` band 1.32× and moves `.025`
-  off the node (0.317→0.185); `rule=1` vs `rule=2` identical (NOT a clamp issue — that
-  theory was disproved). Hits **single-selection** variants MS/MA/phi_stab hardest (their
-  value is constant across the 7 copies of the off-axis param → maximal ties), ≈0 on the
-  full MSA profile (varies on both axes → few ties). Manifested as an ML-delta/AGQ
-  band-width **slope > 1** (1.137 at n_nodes=7 → ~1.0 at n_nodes≥15). The `_ml` delta
-  bands are the *correct*-width ones. Fix candidate: collapse ties (or pass marginal
-  weights) inside/around `weighted_quantile`; must re-verify the fitter's own uses of it.
+- **AGQ BAND ISSUE — root cause found 2026-07-13, fix DESIGNED, not built.** The
+  `predict_*_agq` bands (and the fitter's `ci_a1`/`ci_a2`) come out too narrow / wrong
+  slope vs the ML delta bands. **This is a METHOD MISMATCH, not a code bug.** Adaptive
+  Gauss-Hermite places nodes where they are optimal for the *integral* (posterior mass
+  high) → moments (mean/sd/skew/kurtosis, all `Σ(x−μ)^k·w`) converge fast and are accurate;
+  but a credible interval is a *tail quantile*, and the tails are exactly where the
+  adaptive grid puts fewest points. Reading the .025/.975 band off `weighted_quantile` of
+  the nodes is the wrong tool: measured ML/AGQ width slope does NOT converge as n_nodes
+  grows (MS 1.137→0.988→0.964 and MA 1.104→0.992→0.960 for 7/15/21 — monotone drift, no
+  settling; more nodes keep exposing further-out tail nodes). **DEAD ENDS ruled out (do
+  not revisit):** it is NOT a `weighted_quantile` "tie bug" — a fix along those lines was
+  written, tested only against its own premise, and REVERTED (it broke MS convergence and
+  rested on wrong theories); it is NOT fixed by more nodes. **AGREED FIX:** give the AGQ
+  band function a `method` argument computing the band FROM MOMENTS (the grid's strength):
+  `method="moment"` (default, 2-moment `mean ± z·sd`) and `method="cornish_fisher"`
+  (4-moment: skewness + excess kurtosis via the Cornish–Fisher quantile expansion). User
+  runs both, sees whether higher moments matter for their data (no arbitrary "too-skewed"
+  threshold to defend). For the `znb` fixture the posterior is nearly symmetric → the two
+  nearly coincide; the 4-moment option is for skewed datasets. Open questions to settle
+  first (scope across predictors + `ci_a1/a2`; keep old node-quantile path as opt-in
+  `method="quantile"`?; do `_ml` delta predictors get `method` too?) + the verify step
+  (compare both methods against a dense-grid TRUTH band, not just against ML) are in the
+  `~/.claude/plans/` note. `R/utils.R` `weighted_quantile` is back to its original
+  committed form (reverted fix is gone); tree clean at `main`.
 
 - **DONE 2026-07-13 — delta-method ML predictors, both axes** (`c1723b2` + `d7b8950`
   globalVariables fix; plan `~/.claude/plans/what-are-we-working-composed-lagoon.md`). Six
