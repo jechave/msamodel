@@ -16,9 +16,28 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   shipped (`00ea45a`); remaining slices planned per-loop (agile, not waterfall). Still
   at `0.3.0.9000` (dev); NOT releasing now — a release waits until the inference rework
   reaches a coherent stopping point (user decision 2026-06-30). **NEXT ACTIVE ITEM =
-  `_ml` predictors** (independent siblings). Then a deferred cleanup: extract a shared
-  `posterior_average(nodes, values)` helper (the 3× `log_weight`-normalization
-  duplication across fit + predictors — see the restructure entry below).
+  `_ml` predictors** (independent siblings, delta-method bands — plan warm-up settled
+  the method: delta method, not MVN-sample; the `posterior_average` cleanup is AGQ-local
+  and non-blocking under that choice, extract the `delta_band` seam AFTER the predictors
+  exist). Then the deferred cleanup: extract `posterior_average(nodes, values)` (the 3×
+  `log_weight`-normalization dup across fit + predictors).
+
+- **DONE 2026-07-13 — absolute goodness-of-fit for the `_ml` fits** (`f82d75a`; plan
+  `~/.claude/plans/what-are-we-working-composed-lagoon.md`). glm/broom pattern: fitter
+  stores raw primitives, a separate prediction-family accessor derives the row.
+  `fit_lrmsd_{i,n}_msa_ml` now store `deviance`, `null_deviance`, `nobs`, `k=3L` (k
+  counts the profiled σ, matching `logLik.lm`/`broom`); new `@noRd`
+  `calculate_null_deviance()` computes the flat/mean-only null deviance. New exports
+  `gof_lrmsd_{i,n}_msa_ml(fit)` → `{D2, AIC, BIC, logLik, deviance, null_deviance, nobs,
+  k}`. **D2 = 1 − deviance/null_deviance = 1 − Var(resid)/Var(obs)** (verified to machine
+  precision; **the planned `1 − logLik/logLik_null` form was WRONG** — the profiled-
+  Gaussian loglik's additive constant doesn't cancel in a ratio; caught by the scratchpad
+  identity check). D2 ≤ 1, **unbounded below**, returned unclamped (negative = real
+  signal). **Deferred:** comparative AIC/BIC/LRT needs MS/MA fit at their own maxima (a
+  future `fix_a1`/`fix_a2` fitter) — MS/MA are projections of the full fit, not fits; per-
+  fit AIC/BIC only here. `_agq` GoF (uses `log_evidence`) also deferred. Exports 21→23,
+  man 29→31. `test()` 206/0F/2skip; `check()` **0E/1W/2N = accepted v0.1 baseline**.
+  **WORK ITEM COMPLETE.**
 
 - **DONE 2026-07-07 — file/family restructure by input-type** (`49ce313`; plan
   `~/.claude/plans/the-next-step-in-nested-sphinx.md`). Triggered by the tool-derived

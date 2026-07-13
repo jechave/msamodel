@@ -219,7 +219,7 @@ predict_decomposition_i_msa_agq <- function(object, spm_pp, level = 0.95) {
 
 # ---- goodness of fit -------------------------------------------------------------
 # Absolute (single-model) goodness of fit for the _ml fits, glm/broom-patterned: the
-# fitter stores raw primitives (logLik, logLik_null, nobs, k), these accessors derive
+# fitter stores raw primitives (logLik, deviance, null_deviance, nobs, k), these derive
 # the reportable row. Comparative AIC/BIC across nested models needs those models fit
 # at their own maxima (a future fix_a1/fix_a2 fitter) -- not built here.
 
