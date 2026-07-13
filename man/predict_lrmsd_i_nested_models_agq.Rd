@@ -48,6 +48,8 @@ head(predict_lrmsd_i_nested_models_agq(agq, pp))
 \code{\link[=predict_decomposition_i_msa_agq]{predict_decomposition_i_msa_agq()}} (the phi decomposition, banded).
 
 Other prediction:
+\code{\link[=gof_lrmsd_i_msa_ml]{gof_lrmsd_i_msa_ml()}},
+\code{\link[=gof_lrmsd_n_msa_ml]{gof_lrmsd_n_msa_ml()}},
 \code{\link[=predict_decomposition_i_msa_agq]{predict_decomposition_i_msa_agq()}},
 \code{\link[=predict_lrmsd_i_msa_agq]{predict_lrmsd_i_msa_agq()}}
 }

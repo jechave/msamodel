@@ -36,12 +36,21 @@
 #'     \item{a1, a2}{Point estimate of the stability (`a1`) and activity (`a2`)
 #'       selection strengths, on the natural scale (the paper's `aS`, `aA`).}
 #'     \item{logLik}{Profiled Gaussian log-likelihood at the optimum.}
+#'     \item{deviance}{Residual deviance `sum(residuals^2)` (= `nobs * sigma_hat^2`).
+#'       A goodness-of-fit primitive; consumed by [gof_lrmsd_i_msa_ml()].}
+#'     \item{null_deviance}{Deviance of the flat/mean-only null (a constant profile),
+#'       `sum((observed - mean(observed))^2)`. With `deviance`, gives
+#'       `D2 = 1 - deviance/null_deviance`.}
+#'     \item{nobs}{Number of matched (observed) sites the likelihood scores.}
+#'     \item{k}{Free-parameter count for AIC/BIC: `a1`, `a2`, and the profiled `sigma`
+#'       (`3`), matching the `logLik.lm`/`broom` convention.}
 #'     \item{sigma_hat}{Profiled noise scale `sqrt(mean(residuals^2))` at the optimum.}
 #'     \item{cov}{2×2 covariance matrix on the `(a1, log2(a2+1))` scale.}
 #'     \item{se_a1, se_a2}{Standard errors; `se_a2` via the delta method.}
 #'     \item{convergence}{`optim` convergence code (0 = success).}
 #'   }
 #' @seealso [fit_lrmsd_i_msa_agq()] (the Bayesian/posterior counterpart),
+#'   [gof_lrmsd_i_msa_ml()] (goodness-of-fit from this fit),
 #'   `calculate_loglik_lrmsd_i_msa()` (the shared objective).
 #' @family fitting
 #' @export
@@ -128,15 +137,26 @@ fit_lrmsd_i_msa_ml <- function(spm_pp,
   residuals <- cmp$nlrmsd_i_obs - cmp$nlrmsd_i_msa
   sigma_hat <- sqrt(mean(residuals^2))
 
+  # Goodness-of-fit primitives (flat/mean-only null; k counts sigma). D^2/AIC/BIC are
+  # derived from these by gof_lrmsd_i_msa_ml(). deviance = sum(resid^2) (= glm's
+  # residual deviance for a Gaussian, = nobs * sigma_hat^2); null_deviance vs a
+  # constant profile.
+  deviance      <- sum(residuals^2)
+  null_deviance <- calculate_null_deviance(cmp$nlrmsd_i_obs)
+
   list(
-    a1          = unname(a1_hat),
-    a2          = unname(a2_hat),
-    logLik      = -opt$value,
-    sigma_hat   = sigma_hat,
-    cov         = cov,
-    se_a1       = unname(se_a1),
-    se_a2       = unname(se_a2),
-    convergence = opt$convergence
+    a1            = unname(a1_hat),
+    a2            = unname(a2_hat),
+    logLik        = -opt$value,
+    deviance      = deviance,
+    null_deviance = null_deviance,
+    nobs          = length(residuals),
+    k             = 3L,
+    sigma_hat     = sigma_hat,
+    cov           = cov,
+    se_a1         = unname(se_a1),
+    se_a2         = unname(se_a2),
+    convergence   = opt$convergence
   )
 }
 
@@ -172,12 +192,21 @@ fit_lrmsd_i_msa_ml <- function(spm_pp,
 #'     \item{a1, a2}{Point estimate of the stability (`a1`) and activity (`a2`)
 #'       selection strengths, on the natural scale (the paper's `aS`, `aA`).}
 #'     \item{logLik}{Profiled Gaussian log-likelihood at the optimum.}
+#'     \item{deviance}{Residual deviance `sum(residuals^2)` (= `nobs * sigma_hat^2`).
+#'       A goodness-of-fit primitive; consumed by [gof_lrmsd_n_msa_ml()].}
+#'     \item{null_deviance}{Deviance of the flat/mean-only null (a constant profile),
+#'       `sum((observed - mean(observed))^2)`. With `deviance`, gives
+#'       `D2 = 1 - deviance/null_deviance`.}
+#'     \item{nobs}{Number of matched (observed) modes the likelihood scores.}
+#'     \item{k}{Free-parameter count for AIC/BIC: `a1`, `a2`, and the profiled `sigma`
+#'       (`3`), matching the `logLik.lm`/`broom` convention.}
 #'     \item{sigma_hat}{Profiled noise scale `sqrt(mean(residuals^2))` at the optimum.}
 #'     \item{cov}{2×2 covariance matrix on the `(a1, log2(a2+1))` scale.}
 #'     \item{se_a1, se_a2}{Standard errors; `se_a2` via the delta method.}
 #'     \item{convergence}{`optim` convergence code (0 = success).}
 #'   }
 #' @seealso [fit_lrmsd_i_msa_ml()] (the site counterpart),
+#'   [gof_lrmsd_n_msa_ml()] (goodness-of-fit from this fit),
 #'   `calculate_loglik_lrmsd_n_msa()` (the objective).
 #' @family fitting
 #' @export
@@ -260,15 +289,26 @@ fit_lrmsd_n_msa_ml <- function(spm_pp_mode,
   residuals <- cmp$nlrmsd_n_obs - cmp$nlrmsd_n_msa
   sigma_hat <- sqrt(mean(residuals^2))
 
+  # Goodness-of-fit primitives (flat/mean-only null; k counts sigma). D^2/AIC/BIC are
+  # derived from these by gof_lrmsd_n_msa_ml(). deviance = sum(resid^2) (= glm's
+  # residual deviance for a Gaussian, = nobs * sigma_hat^2); null_deviance vs a
+  # constant profile.
+  deviance      <- sum(residuals^2)
+  null_deviance <- calculate_null_deviance(cmp$nlrmsd_n_obs)
+
   list(
-    a1          = unname(a1_hat),
-    a2          = unname(a2_hat),
-    logLik      = -opt$value,
-    sigma_hat   = sigma_hat,
-    cov         = cov,
-    se_a1       = unname(se_a1),
-    se_a2       = unname(se_a2),
-    convergence = opt$convergence
+    a1            = unname(a1_hat),
+    a2            = unname(a2_hat),
+    logLik        = -opt$value,
+    deviance      = deviance,
+    null_deviance = null_deviance,
+    nobs          = length(residuals),
+    k             = 3L,
+    sigma_hat     = sigma_hat,
+    cov           = cov,
+    se_a1         = unname(se_a1),
+    se_a2         = unname(se_a2),
+    convergence   = opt$convergence
   )
 }
 
@@ -412,6 +452,22 @@ fit_lrmsd_i_msa_agq <- function(spm_pp,
     laplace = list(mu = mu, cov = S),
     log_evidence = log_evidence
   ), class = "msa_agq")
+}
+
+# Flat/mean-only null deviance: the residual sum of squares of a mean-centred observed
+# profile against a constant prediction. After centring, the best constant prediction
+# is zero, so the null residuals ARE the centred obs and the null deviance is
+# sum(y_centred^2) (glm's null.deviance for a Gaussian). Depends only on the data, not
+# on any model -- the same null for every model fit to that data, which is what makes
+# D^2 = 1 - deviance/null_deviance comparable. Axis-agnostic: takes the numeric centred
+# vector (caller does the centring/keying). Pure values-in / number-out.
+#' @noRd
+calculate_null_deviance <- function(y_centred) {
+  n <- length(y_centred)
+  if (n < 1L) stop("y_centred must be non-empty")
+  nd <- sum(y_centred^2)
+  if (nd <= 0) stop("null deviance is zero (centred observations are all equal)")
+  nd
 }
 
 # ---- fitting objective: profiled Gaussian log-likelihood (internal) --------------

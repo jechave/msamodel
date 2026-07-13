@@ -7,7 +7,8 @@ test_that("fit_lrmsd_n_msa_ml returns the documented list shape", {
   pp <- preprocess_spm_mode(znb_spm)
   ml <- fit_lrmsd_n_msa_ml(pp, znb_profile_n)
 
-  expect_named(ml, c("a1", "a2", "logLik", "sigma_hat", "cov",
+  expect_named(ml, c("a1", "a2", "logLik", "deviance", "null_deviance",
+                     "nobs", "k", "sigma_hat", "cov",
                      "se_a1", "se_a2", "convergence"))
   expect_length(ml$a1, 1L)
   expect_length(ml$a2, 1L)

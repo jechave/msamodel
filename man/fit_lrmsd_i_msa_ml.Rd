@@ -36,6 +36,14 @@ A list with the point estimate and asymptotic uncertainty:
 \item{a1, a2}{Point estimate of the stability (\code{a1}) and activity (\code{a2})
 selection strengths, on the natural scale (the paper's \code{aS}, \code{aA}).}
 \item{logLik}{Profiled Gaussian log-likelihood at the optimum.}
+\item{deviance}{Residual deviance \code{sum(residuals^2)} (= \code{nobs * sigma_hat^2}).
+A goodness-of-fit primitive; consumed by \code{\link[=gof_lrmsd_i_msa_ml]{gof_lrmsd_i_msa_ml()}}.}
+\item{null_deviance}{Deviance of the flat/mean-only null (a constant profile),
+\code{sum((observed - mean(observed))^2)}. With \code{deviance}, gives
+\code{D2 = 1 - deviance/null_deviance}.}
+\item{nobs}{Number of matched (observed) sites the likelihood scores.}
+\item{k}{Free-parameter count for AIC/BIC: \code{a1}, \code{a2}, and the profiled \code{sigma}
+(\code{3}), matching the \code{logLik.lm}/\code{broom} convention.}
 \item{sigma_hat}{Profiled noise scale \code{sqrt(mean(residuals^2))} at the optimum.}
 \item{cov}{2×2 covariance matrix on the \verb{(a1, log2(a2+1))} scale.}
 \item{se_a1, se_a2}{Standard errors; \code{se_a2} via the delta method.}
@@ -68,6 +76,7 @@ c(a1 = ml$a1, a2 = ml$a2)
 }
 \seealso{
 \code{\link[=fit_lrmsd_i_msa_agq]{fit_lrmsd_i_msa_agq()}} (the Bayesian/posterior counterpart),
+\code{\link[=gof_lrmsd_i_msa_ml]{gof_lrmsd_i_msa_ml()}} (goodness-of-fit from this fit),
 \code{calculate_loglik_lrmsd_i_msa()} (the shared objective).
 
 Other fitting:

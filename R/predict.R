@@ -216,3 +216,105 @@ predict_decomposition_i_msa_agq <- function(object, spm_pp, level = 0.95) {
 
   dplyr::bind_cols(first[c("i", "pdb_site")], bands)
 }
+
+# ---- goodness of fit -------------------------------------------------------------
+# Absolute (single-model) goodness of fit for the _ml fits, glm/broom-patterned: the
+# fitter stores raw primitives (logLik, logLik_null, nobs, k), these accessors derive
+# the reportable row. Comparative AIC/BIC across nested models needs those models fit
+# at their own maxima (a future fix_a1/fix_a2 fitter) -- not built here.
+
+# Derive the glance-style GoF row from stored primitives. Pure arithmetic, shared by
+# the site and mode accessors so the formulas live in one place. D2 is deviance-
+# explained (= 1 - Var(resid)/Var(obs) since both deviances are sums of squares on
+# the same n); AIC/BIC use the full profiled Gaussian logLik.
+#' @noRd
+gof_from_primitives <- function(logLik, deviance, null_deviance, nobs, k) {
+  tibble::tibble(
+    D2            = 1 - deviance / null_deviance,
+    AIC           = -2 * logLik + 2 * k,
+    BIC           = -2 * logLik + k * log(nobs),
+    logLik        = logLik,
+    deviance      = deviance,
+    null_deviance = null_deviance,
+    nobs          = nobs,
+    k             = k
+  )
+}
+
+# Shared validator: an _ml fit must carry every GoF primitive. Fail loud on a raw
+# (pre-GoF) or wrong-type object rather than returning a silent NA.
+#' @noRd
+validate_gof_fit <- function(fit, producer) {
+  needed <- c("logLik", "deviance", "null_deviance", "nobs", "k")
+  if (!is.list(fit) || !all(needed %in% names(fit))) {
+    stop("fit must be a list carrying the goodness-of-fit primitives (",
+         paste(needed, collapse = ", "), "); got an object without them. ",
+         "Pass a fit from ", producer, ".")
+  }
+  invisible(fit)
+}
+
+#' Goodness of fit of an lrmsd_i ML fit
+#'
+#' Absolute goodness-of-fit summary for a maximum-likelihood site fit
+#' ([fit_lrmsd_i_msa_ml()]), in the style of [broom::glance()] for a `glm`. Reports
+#' the deviance-explained `D2` against a flat / mean-only null, together with `AIC`
+#' and `BIC` and the primitives they derive from. Because the fit mean-centres the
+#' profile, `D2 = 1 - deviance/null_deviance` is exactly the fraction of profile
+#' variance explained, `1 - Var(residuals)/Var(observed)`.
+#'
+#' `D2` is at most `1` but has **no lower bound**: it is negative whenever the
+#' prediction is worse than the flat null (`Var(residuals) > Var(observed)`), which
+#' happens for parameter values that inflate the predicted amplitude. It is returned
+#' unclamped -- a negative `D2` is a real signal that the fit is poor, not an error.
+#'
+#' `AIC`/`BIC` here are per-fit numbers; they are only meaningful *compared* against
+#' another model fit at its own maximum. Comparing nested variants (MS/MA) requires
+#' fitting them independently, which this package does not yet do.
+#'
+#' @param fit A list from [fit_lrmsd_i_msa_ml()] (carrying `logLik`, `deviance`,
+#'   `null_deviance`, `nobs`, `k`).
+#' @return A one-row tibble: `D2` (deviance explained vs the flat null,
+#'   `1 - deviance/null_deviance`), `AIC` (`-2*logLik + 2*k`), `BIC`
+#'   (`-2*logLik + k*log(nobs)`), and the primitives `logLik`, `deviance`,
+#'   `null_deviance`, `nobs`, `k`.
+#' @seealso [fit_lrmsd_i_msa_ml()] (produces the fit), [gof_lrmsd_n_msa_ml()] (mode
+#'   counterpart).
+#' @family prediction
+#' @examples
+#' \dontrun{
+#' pp <- preprocess_spm(znb_spm)
+#' ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
+#' gof_lrmsd_i_msa_ml(ml)
+#' }
+#' @export
+gof_lrmsd_i_msa_ml <- function(fit) {
+  validate_gof_fit(fit, "fit_lrmsd_i_msa_ml()")
+  gof_from_primitives(fit$logLik, fit$deviance, fit$null_deviance, fit$nobs, fit$k)
+}
+
+#' Goodness of fit of an lrmsd_n ML fit (mode form)
+#'
+#' Mode counterpart of [gof_lrmsd_i_msa_ml()]: absolute goodness-of-fit summary for a
+#' maximum-likelihood mode fit ([fit_lrmsd_n_msa_ml()]). Identical machinery and
+#' output; see [gof_lrmsd_i_msa_ml()] for the interpretation of `D2` (unbounded below,
+#' capped at `1`) and the caveat on per-fit `AIC`/`BIC`.
+#'
+#' @param fit A list from [fit_lrmsd_n_msa_ml()] (carrying `logLik`, `deviance`,
+#'   `null_deviance`, `nobs`, `k`).
+#' @return A one-row tibble with the same columns as [gof_lrmsd_i_msa_ml()]: `D2`,
+#'   `AIC`, `BIC`, `logLik`, `deviance`, `null_deviance`, `nobs`, `k`.
+#' @seealso [fit_lrmsd_n_msa_ml()] (produces the fit), [gof_lrmsd_i_msa_ml()] (site
+#'   counterpart).
+#' @family prediction
+#' @examples
+#' \dontrun{
+#' pp <- preprocess_spm_mode(znb_spm)
+#' ml <- fit_lrmsd_n_msa_ml(pp, znb_profile_n)
+#' gof_lrmsd_n_msa_ml(ml)
+#' }
+#' @export
+gof_lrmsd_n_msa_ml <- function(fit) {
+  validate_gof_fit(fit, "fit_lrmsd_n_msa_ml()")
+  gof_from_primitives(fit$logLik, fit$deviance, fit$null_deviance, fit$nobs, fit$k)
+}
