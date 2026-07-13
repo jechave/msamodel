@@ -48,7 +48,13 @@ counterpart).
 Other prediction:
 \code{\link[=gof_lrmsd_n_msa_ml]{gof_lrmsd_n_msa_ml()}},
 \code{\link[=predict_decomposition_i_msa_agq]{predict_decomposition_i_msa_agq()}},
+\code{\link[=predict_decomposition_i_msa_ml]{predict_decomposition_i_msa_ml()}},
+\code{\link[=predict_decomposition_n_msa_ml]{predict_decomposition_n_msa_ml()}},
 \code{\link[=predict_lrmsd_i_msa_agq]{predict_lrmsd_i_msa_agq()}},
-\code{\link[=predict_lrmsd_i_nested_models_agq]{predict_lrmsd_i_nested_models_agq()}}
+\code{\link[=predict_lrmsd_i_msa_ml]{predict_lrmsd_i_msa_ml()}},
+\code{\link[=predict_lrmsd_i_nested_models_agq]{predict_lrmsd_i_nested_models_agq()}},
+\code{\link[=predict_lrmsd_i_nested_models_ml]{predict_lrmsd_i_nested_models_ml()}},
+\code{\link[=predict_lrmsd_n_msa_ml]{predict_lrmsd_n_msa_ml()}},
+\code{\link[=predict_lrmsd_n_nested_models_ml]{predict_lrmsd_n_nested_models_ml()}}
 }
 \concept{prediction}
