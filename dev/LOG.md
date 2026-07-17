@@ -12,6 +12,41 @@ One short entry per working session.
 The current state and what's next. Keep this current as slices finish; it is the
 one place the live state lives (no separate PROGRESS file as of 2026-06-26).
 
+- **DECIDED 2026-07-17 — SPM-sampling error band = DELTA METHOD, not bootstrap.** After a
+  long investigation (scratch in `dev/tmp2/`), the conclusion for the SPM-sampling arm of
+  the divergence-profile band: **use the delta method, drop bootstrapping (naive AND
+  stratified).** Rationale, demonstrated not asserted:
+  - The SPM table is the (near-)complete table of single-point-mutation perturbations at
+    t→0; for a model `(a1,a2)` the profile is the *exact* weighted integral
+    `dr2_i = Σ w_r·dr2_ijm` — an analytic framework, not a sample.
+  - The delta variance `sd(lrmsd_i) = sqrt(Σ w_r²(dr2_ijm[,i]−dr2_i)²)/(2·dr2_i)` (=`Vd` in
+    the old `dev/tmp/compare.R`, weighted with **w²**) **equals the naive bootstrap** SD
+    (measured: delta≈naive across all 4 variants, e.g. MSA ~1.21×, MM ~1.35×). Delta is the
+    deterministic/analytic form of what naive resampling does stochastically.
+  - The apparent "naive/delta over-estimate the truth by ~15–35%" was an ARTIFACT of how
+    "truth" was defined: 500 fresh `generate_spm_data` ensembles impose a **fixed
+    n_mut-per-site design** (balanced). Demonstrated by a reshuffle test on site 10 (all
+    without-replacement, weight-free): real balanced seeds sd=0.0357, random *unbalanced*
+    partition 0.0455, balanced partition 0.0338 → **the gap is per-site COUNT BALANCE, not
+    replacement, not between-seed variation, not the partition function** (Z_k varies <1.3%
+    and is 0% for MM which has the biggest gap → both those hypotheses killed by MM).
+  - Naive bootstrap = "draw mutations uniformly (pick j, then m)" = the realistic
+    *evolutionary-sampling* ensemble (unbalanced counts). Stratified = artificial fixed
+    design. So if bootstrapping, user would pick **naive** — but prefers the analytic delta:
+    deterministic, no seed noise, clean for nested-model comparison (same formula on the
+    fixed table), and errs slightly WIDE (conservative, which user prefers).
+  - **NEXT SESSION = build the band-estimation code using delta.** Combine with parameter
+    `(a1,a2)` uncertainty in the SAME delta framework: `Var_total = Var_SPM + g_i^T Σ_a g_i`
+    (+ small cross-term; adding variances is conservative). The parameter arm already exists
+    in the `predict_*_ml` delta-band functions (`grad_t + delta_band`, [[scale_convention_transformed_params]]).
+    Both arms on the lrmsd/log scale via the `1/(2·dr2)` derivative → same currency, just add.
+    This SUPERSEDES the bootstrap SPM-arm in [[project_two_error_sources_band]].
+  - Caveat: delta gives a SYMMETRIC Gaussian band; true lrmsd sampling dist is mildly skewed
+    (~0.4). Fine for an SD/band; not for asymmetric intervals. Scratch data (276 n_mut=19 pp
+    files ~2GB) is in the LOCAL session scratchpad (`.../scratchpad/pp19`), NOT synced/committed;
+    `dev/tmp2/` has the scripts + PNGs (git-ignored). `dev/tmp2/data/D_site10_long.csv` is the
+    per-mutant dr2 at site 10 across seeds used for the demonstrations.
+
 - **ACTIVE WORK ITEM: inference rework** (`dev/plan.md` "Inference rework"). AGQ loop 1
   shipped (`00ea45a`); remaining slices planned per-loop (agile, not waterfall). Still
   at `0.3.0.9000` (dev); NOT releasing now — a release waits until the inference rework
