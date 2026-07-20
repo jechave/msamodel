@@ -136,7 +136,7 @@ fit_lrmsd_i_msa_ml <- function(spm_pp,
   # residual deviance for a Gaussian, = nobs * sigma_hat^2); null_deviance vs a
   # constant profile.
   deviance      <- sum(residuals^2)
-  null_deviance <- calculate_null_deviance(cmp$nlrmsd_i_obs)
+  null_deviance <- calculate_null_deviance(cmp$lrmsd_i_obs)
 
   list(
     a1            = unname(a1_hat),
@@ -287,7 +287,7 @@ fit_lrmsd_n_msa_ml <- function(spm_pp_mode,
   # residual deviance for a Gaussian, = nobs * sigma_hat^2); null_deviance vs a
   # constant profile.
   deviance      <- sum(residuals^2)
-  null_deviance <- calculate_null_deviance(cmp$nlrmsd_n_obs)
+  null_deviance <- calculate_null_deviance(cmp$lrmsd_n_obs)
 
   list(
     a1            = unname(a1_hat),
@@ -305,19 +305,18 @@ fit_lrmsd_n_msa_ml <- function(spm_pp_mode,
   )
 }
 
-# Flat/mean-only null deviance: the residual sum of squares of a mean-centred observed
-# profile against a constant prediction. After centring, the best constant prediction
-# is zero, so the null residuals ARE the centred obs and the null deviance is
-# sum(y_centred^2) (glm's null.deviance for a Gaussian). Depends only on the data, not
+# Flat/mean-only null deviance: the total sum of squares of the observed profile about
+# its mean, sum((y - mean(y))^2) (glm's null.deviance for a Gaussian; = (n-1)*var(y)).
+# It is the deviance of the best constant prediction, so it depends only on the data, not
 # on any model -- the same null for every model fit to that data, which is what makes
-# D^2 = 1 - deviance/null_deviance comparable. Axis-agnostic: takes the numeric centred
-# vector (caller does the centring/keying). Pure values-in / number-out.
+# D^2 = 1 - deviance/null_deviance comparable. Centres internally, so the result is the
+# same whether the caller passes raw or already-centred y. Axis-agnostic, pure.
 #' @noRd
-calculate_null_deviance <- function(y_centred) {
-  n <- length(y_centred)
-  if (n < 1L) stop("y_centred must be non-empty")
-  nd <- sum(y_centred^2)
-  if (nd <= 0) stop("null deviance is zero (centred observations are all equal)")
+calculate_null_deviance <- function(y) {
+  n <- length(y)
+  if (n < 1L) stop("y must be non-empty")
+  nd <- sum((y - mean(y))^2)
+  if (nd <= 0) stop("null deviance is zero (observations are all equal)")
   nd
 }
 
