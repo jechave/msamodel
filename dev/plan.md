@@ -114,36 +114,33 @@ per-version detail is written when each version starts.
          `fit_<quantity>_<axis>_<model>_<method>`. **Completes the 0.3.0 fit work** and
          the site+mode structural suite.
 
-- **Inference rework — adaptive quadrature + model/fit/analysis layering** (IN
-  FLIGHT, goal decided 2026-06-25; AGQ loop 1 shipped `00ea45a`; remaining slices
-  planned per-loop, agile not waterfall — see the NOW block in `dev/LOG.md`). Two
-  durable decisions:
-  1. **AGQ-primary inference.** The `(a1,a2)` posterior is near-Gaussian in
-     `(a1, log2(a2+1))` (measured on `znb_profile`: skew +0.17/−0.24, cor ≈ 0.06).
-     **Adaptive Gauss–Hermite quadrature referenced to the Laplace approximation**
-     (the ML arm's MAP + `optimHess` covariance, as a *quadrature reference* — change
-     of measure, NOT a prior) reproduces the posterior moments essentially exactly at
-     **~25 deterministic evaluations** (5×5), vs the hand-rolled M-H needing thousands
-     and still off (E[a2] err 2.0 at 2500/500; AGQ 5×5 err 0.013). AGQ becomes the
-     primary fitter. **M-H / MCMC was REMOVED 2026-07-03** (user decision 2026-07-01;
-     unblocked once AGQ reproduced its last unique output — the node-propagated phi
-     decomposition bands, `predict_decomposition_i_msa_agq`, shipped 2026-07-02). The
-     whole sample-averaging chain went with it (`fit_lrmsd_i_msa_mcmc`,
-     `run_msa_bayesian_analysis`, `calculate_prediction_samples`,
-     `calculate_parameter_summary`, `calculate_prediction_summary`,
-     `calculate_decomposition_samples`, `calculate_decomposition_summary`); AGQ +
-     `predict_*_agq` is now the sole band-producing path (ML stays the point arm). No
-     generic posterior-sample propagator kept — built fresh when a real second consumer
-     exists. The future non-star tree will need a
-     *stochastic* sampler (expensive AND stochastic likelihood → pseudo-marginal), but
-     that is built fresh at v0.5, not preserved from this M-H. Free to change: no
-     obligation to reproduce the paper's MCMC draws (agreement within noise suffices).
-     The cheap-now vs expensive-stochastic-later split is *why* inference must not be
-     hard-wired to the likelihood — keep the objective pluggable. Pluggability lives at
-     the *function seam* (the fitter calls a swappable `calculate_loglik_*`), not in a
-     separate file/export: as of 2026-07-07 the loglik is an **internal (`@noRd`) helper
-     folded into `R/fitting.R`** — users never call the raw likelihood (a future
-     goodness-of-fit surface, AIC etc., will be separate public functions). The old
+- **Inference rework — ML/delta bands + model/fit/prediction layering** (IN
+  FLIGHT, goal decided 2026-06-25; refocused 2026-07-20; remaining slices planned
+  per-loop, agile not waterfall — see the NOW block in `dev/LOG.md`). Two durable
+  decisions:
+  1. **ML point estimate + delta-method bands is the inference path.** The `(a1,a2)`
+     posterior is near-Gaussian in `(a1, log2(a2+1))` (measured on `znb_profile`: skew
+     +0.17/−0.24, cor ≈ 0.06), so a maximum-likelihood point estimate with its
+     `optimHess` covariance, propagated to profiles by the delta method (gradient ×
+     covariance on the log/t scale), gives the uncertainty band directly and
+     deterministically. **M-H / MCMC was REMOVED 2026-07-03** (user decision
+     2026-07-01). **The AGQ arm was REMOVED 2026-07-20** (user decision): adaptive
+     Gauss–Hermite quadrature had been built as a posterior-moment fitter + node-weighted
+     band path (`fit_lrmsd_i_msa_agq`, `predict_*_agq`, `gauss_hermite`,
+     `weighted_quantile`, `agq_node_weights`, `agq_band`), but its credible bands came
+     out wrong (a diagnosed method mismatch — the adaptive grid is optimal for the
+     *integral*, not for *tail quantiles*), the moment-based fix was never built, and the
+     next real work item — the two-error-source delta band — does not use it. Removed to
+     simplify; cleanly re-developable from git history if wanted. **The delta path
+     (`predict_*_ml`, `grad_t`, `delta_band`) is now the sole band-producing path**; ML
+     stays the point arm. The future non-star tree will need a *stochastic* sampler
+     (expensive AND stochastic likelihood → pseudo-marginal), built fresh at v0.5, not
+     preserved from the removed M-H. The cheap-now vs expensive-stochastic-later split is
+     *why* inference must not be hard-wired to the likelihood — keep the objective
+     pluggable. Pluggability lives at the *function seam* (the fitter calls a swappable
+     `calculate_loglik_*`), not a separate file/export: as of 2026-07-07 the loglik is an
+     **internal (`@noRd`) helper folded into `R/fitting.R`** — users never call the raw
+     likelihood (goodness-of-fit `gof_*_ml` are separate public functions). The old
      `R/objective.R` file was deleted.
   2. **Three-layer split, by INPUT TYPE (model / fitting / prediction).** Decided
      2026-07-07. The layer of a function is fixed by *what it takes as input* — the one
@@ -158,19 +155,16 @@ per-version detail is written when each version starts.
          analysis-flavored. (Corrects the earlier "nested-models and decomposition move
          to the analysis layer" — they stay put.)
        - **fitting** (`@family fitting`, `R/fitting.R`) — input = observed data.
-         `fit_*_ml`, `fit_*_agq`; internal loglik + `gauss_hermite` live here as `@noRd`.
+         `fit_*_ml`; internal loglik lives here as `@noRd`.
        - **prediction** (`@family prediction`, `R/predict.R`) — input = a **fit object**.
-         `predict_*_agq` (mean + credible band by node-weighting the model over the
-         stored posterior nodes). The only fit-consuming layer.
-     ONE generic uncertainty-propagator idea still holds (an AGQ posterior propagates by
-     node-weighting; a future draw-based posterior would average) — deferred: a shared
-     `posterior_average(nodes, values)` helper is a follow-up, not built yet. The
-     decomposition stays a **pure function of predictions** (4 vectors in → 3 phi out),
-     so "decompose four separately-fitted models" remains *architecturally allowed*
+         `predict_*_ml` (mean + delta-method band) and `gof_*_ml`. The only fit-consuming
+         layer.
+     The decomposition stays a **pure function of predictions** (4 vectors in → 3 phi
+     out), so "decompose four separately-fitted models" remains *architecturally allowed*
      (caller's choice) without being built. The prediction layer is splittable into its
      own package later if it churns or gains an independent consumer — distinct from the
      observed-profile "patterns" package (that's a different *input*; this is a different
-     *output of the same fit*). Default band = **posterior credible interval**.
+     *output of the same fit*). Default band = **delta-method confidence interval**.
   3. **Forward-model layer has three rungs (design decided 2026-07-01).** The current
      forward map is missing its middle rungs, and *the MSA model itself is not a
      function* — the four lines defining per-mutant fixation probability were inlined
@@ -193,7 +187,7 @@ per-version detail is written when each version starts.
      and the decomposition are **analysis** (downstream), the decomposition running
      `nested_models` internally so a user wanting only phi need not run nested_models
      first (the pure `calculate_msa_decomposition(mm,ms,ma,msa)` kernel stays). Once the
-     rungs exist, predictors/band-analyzers (incl. AGQ phi-with-bands) are trivial. This
+     rungs exist, predictors/band-analyzers (incl. the delta phi-with-bands) are trivial. This
      is a **pure refactor** — every step reproduces current numbers to machine precision.
 
 - **v0.4 — motion arm (`dh_ijm`, then `dh_njm` + `nh_njm`).** Each adds the new
