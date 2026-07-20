@@ -47,39 +47,30 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
     `dev/tmp2/` has the scripts + PNGs (git-ignored). `dev/tmp2/data/D_site10_long.csv` is the
     per-mutant dr2 at site 10 across seeds used for the demonstrations.
 
-- **ACTIVE WORK ITEM: inference rework** (`dev/plan.md` "Inference rework"). AGQ loop 1
-  shipped (`00ea45a`); remaining slices planned per-loop (agile, not waterfall). Still
-  at `0.3.0.9000` (dev); NOT releasing now — a release waits until the inference rework
+- **ACTIVE WORK ITEM: inference rework** (`dev/plan.md` "Inference rework"). Still at
+  `0.3.0.9000` (dev); NOT releasing now — a release waits until the inference rework
   reaches a coherent stopping point (user decision 2026-06-30). **NEXT ACTIVE ITEM =
-  moment-based AGQ credible bands** (design agreed 2026-07-13; see the AGQ-band entry
-  below and the detailed note in `~/.claude/plans/what-are-we-working-composed-lagoon.md`).
-  Then the deferred cleanup: extract `posterior_average(nodes, values)` (the 3×
-  `log_weight`-normalization dup across fit + predictors).
+  build the delta-based two-error-source band** (SPM-sampling ⊕ `(a1,a2)` parameter
+  uncertainty, one delta framework `Var_total = Var_SPM + gᵀΣ_a g`; SPM arm decided
+  DELTA 2026-07-17, see the top bullet). The parameter arm already exists in
+  `predict_*_ml`; the SPM arm is what's left to add.
 
-- **AGQ BAND ISSUE — root cause found 2026-07-13, fix DESIGNED, not built.** The
-  `predict_*_agq` bands (and the fitter's `ci_a1`/`ci_a2`) come out too narrow / wrong
-  slope vs the ML delta bands. **This is a METHOD MISMATCH, not a code bug.** Adaptive
-  Gauss-Hermite places nodes where they are optimal for the *integral* (posterior mass
-  high) → moments (mean/sd/skew/kurtosis, all `Σ(x−μ)^k·w`) converge fast and are accurate;
-  but a credible interval is a *tail quantile*, and the tails are exactly where the
-  adaptive grid puts fewest points. Reading the .025/.975 band off `weighted_quantile` of
-  the nodes is the wrong tool: measured ML/AGQ width slope does NOT converge as n_nodes
-  grows (MS 1.137→0.988→0.964 and MA 1.104→0.992→0.960 for 7/15/21 — monotone drift, no
-  settling; more nodes keep exposing further-out tail nodes). **DEAD ENDS ruled out (do
-  not revisit):** it is NOT a `weighted_quantile` "tie bug" — a fix along those lines was
-  written, tested only against its own premise, and REVERTED (it broke MS convergence and
-  rested on wrong theories); it is NOT fixed by more nodes. **AGREED FIX:** give the AGQ
-  band function a `method` argument computing the band FROM MOMENTS (the grid's strength):
-  `method="moment"` (default, 2-moment `mean ± z·sd`) and `method="cornish_fisher"`
-  (4-moment: skewness + excess kurtosis via the Cornish–Fisher quantile expansion). User
-  runs both, sees whether higher moments matter for their data (no arbitrary "too-skewed"
-  threshold to defend). For the `znb` fixture the posterior is nearly symmetric → the two
-  nearly coincide; the 4-moment option is for skewed datasets. Open questions to settle
-  first (scope across predictors + `ci_a1/a2`; keep old node-quantile path as opt-in
-  `method="quantile"`?; do `_ml` delta predictors get `method` too?) + the verify step
-  (compare both methods against a dense-grid TRUTH band, not just against ML) are in the
-  `~/.claude/plans/` note. `R/utils.R` `weighted_quantile` is back to its original
-  committed form (reverted fix is gone); tree clean at `main`.
+- **AGQ ARM REMOVED 2026-07-20** (`897ffd4`; plan `piped-hatching-fern.md`). The whole
+  adaptive Gauss-Hermite quadrature branch is deleted — `fit_lrmsd_i_msa_agq`,
+  `gauss_hermite`, `predict_{lrmsd_i_msa,lrmsd_i_nested_models,decomposition_i_msa}_agq`,
+  `agq_node_weights`, `agq_band`, and `weighted_quantile` (its only user; `R/utils.R`
+  removed). Kept the shared `calculate_loglik_lrmsd_i_msa` (ML maximises it). Scrubbed the
+  AGQ `\link{}`/`@seealso`/prose cross-refs from surviving ML roxygen; `document()`
+  dropped 4 exports (29→25) + 4 `man/*_agq.Rd`; deleted `test-fit-agq.R`. `test()`
+  149/0F/2skip. **Why removed:** its credible bands were wrong and the fix was never
+  built — a diagnosed METHOD MISMATCH (adaptive GH places nodes optimal for the
+  *integral*, not for the *tail quantile* a credible interval needs; reading a
+  `weighted_quantile` band off the nodes had a non-converging width slope). The designed
+  moment-based fix (`method="moment"`/`"cornish_fisher"`) is now moot: the real gap was
+  never that band but the missing SPM-sampling arm (top bullet), and the delta path
+  (`predict_*_ml`) is the sole band path going forward. Cleanly re-developable from git
+  history if ever wanted. (The deferred `posterior_average(nodes,values)` cleanup dies
+  with AGQ — there is no longer a 3× node-weighting dup to extract.)
 
 - **DONE 2026-07-13 — delta-method ML predictors, both axes** (`c1723b2` + `d7b8950`
   globalVariables fix; plan `~/.claude/plans/what-are-we-working-composed-lagoon.md`). Six
@@ -355,6 +346,30 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   unchanged: the **diff-rule** still decides whether the full `test()` runs — fire it
   before a code/data/roxygen commit; skip it for docs/vignette-only diffs.
 <!-- /NOW -->
+
+### 2026-07-20 — Removed the AGQ inference arm
+
+Deleted the adaptive Gauss-Hermite quadrature branch to simplify the codebase (user
+decision). It was on stand-by: its credible bands came out wrong (a diagnosed method
+mismatch — the adaptive grid is optimal for the integral, not for the tail quantile a
+credible interval needs) and the designed moment-based fix was never built. The next
+real work item, the delta-based two-error-source band, does not use AGQ. Cleanly
+re-developable from git history if wanted.
+
+Removed 8 functions across three commits (`52f927d` plan, `897ffd4` code): the fitter
+`fit_lrmsd_i_msa_agq` + `gauss_hermite`; the three `predict_*_agq` predictors +
+`agq_node_weights`, `agq_band`; and `weighted_quantile` (AGQ's only user — `R/utils.R`
+removed). Kept the shared `calculate_loglik_lrmsd_i_msa` (the ML fitter maximises it;
+AGQ had integrated it — the single dependency trap, avoided). Scrubbed the AGQ
+`\link{}`/`@seealso`/prose cross-refs from the surviving ML roxygen (predict.R,
+fitting.R, data-doc.R, msa_decomposition.R) so `document()` regenerated NAMESPACE +
+man/ clean: exports 29→25, 4 `man/*_agq.Rd` gone. Deleted `test-fit-agq.R` wholesale;
+the one AGQ mention in `test-fit-ml.R` was a comment, tidied. `dev/plan.md` roadmap
+updated first (plan-is-source-of-truth). `NEWS.md`/`CLAUDE.md` updated. Full
+`devtools::test()` 149/0F/2skip (was 185 with AGQ). `check()` deferred to the work-item
+milestone (with the vignette re-knit). The deferred `posterior_average` cleanup dies
+with AGQ (no node-weighting dup left). **Vignette rewrite (inference-methods ML-only)
+is a separate slice held behind the user HTML-approval gate.**
 
 ### 2026-07-02 — Working-environment overhaul: work-item cadence, slim CLAUDE.md, three skills
 

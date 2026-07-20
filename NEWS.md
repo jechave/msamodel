@@ -7,7 +7,7 @@
   given `(a1, a2)`, in one tibble (`i`, `pdb_site`, `lrmsd_i_mm`, `lrmsd_i_ms`,
   `lrmsd_i_ma`, `lrmsd_i_msa`). It is the single source of truth for the
   four-variant recipe used by the fixed-`(a1, a2)` decomposition (e.g. in the site
-  analysis vignette) and, node by node, by the AGQ banded predictors.
+  analysis vignette) and by the ML delta-method banded predictors.
 
 * **Mode-form structural divergence.** Structural divergence is now also predicted
   **per normal mode**, not only per site (the first slice of the motion/mode arm).
@@ -30,17 +30,19 @@
 
 ## Breaking changes
 
-* **Removed the Metropolis–Hastings MCMC fitter and its sample-averaging analysis
-  chain.** The exported functions `fit_lrmsd_i_msa_mcmc()`,
-  `run_msa_bayesian_analysis()`, `calculate_prediction_samples()`,
-  `calculate_parameter_summary()`, `calculate_prediction_summary()`,
-  `calculate_decomposition_samples()`, and `calculate_decomposition_summary()` are
-  gone. Bayesian inference is now done by adaptive Gauss–Hermite quadrature
-  (`fit_lrmsd_i_msa_agq()`), and posterior profiles/decompositions with credible
-  bands come from `predict_lrmsd_i_msa_agq()`,
-  `predict_lrmsd_i_nested_models_agq()`, and `predict_decomposition_i_msa_agq()` —
-  deterministic, with no seed, burn-in, or draw-averaging. `fit_lrmsd_i_msa_ml()`
-  remains the point-estimate arm.
+* **Inference is maximum-likelihood point estimation with delta-method error
+  bands.** The Metropolis–Hastings MCMC fitter and its sample-averaging analysis
+  chain were removed (`fit_lrmsd_i_msa_mcmc()`, `run_msa_bayesian_analysis()`,
+  `calculate_prediction_samples()`, `calculate_parameter_summary()`,
+  `calculate_prediction_summary()`, `calculate_decomposition_samples()`,
+  `calculate_decomposition_summary()`), and so was the adaptive Gauss–Hermite
+  quadrature arm that briefly replaced it (`fit_lrmsd_i_msa_agq()`,
+  `predict_lrmsd_i_msa_agq()`, `predict_lrmsd_i_nested_models_agq()`,
+  `predict_decomposition_i_msa_agq()`). `fit_lrmsd_i_msa_ml()` is the fitter, and
+  profiles/decompositions with error bands come from `predict_lrmsd_i_msa_ml()`,
+  `predict_lrmsd_i_nested_models_ml()`, and `predict_decomposition_i_msa_ml()` (plus
+  their `_n_` mode forms) — deterministic delta-method confidence bands, no seed,
+  burn-in, or draw-averaging.
 
 * **`dr2`-family names now follow one index-signature convention:**
   `dr2_<indices>` — one underscore, then the free indices the object spans
