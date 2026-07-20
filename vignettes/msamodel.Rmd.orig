@@ -174,9 +174,9 @@ Same evolutionary divergence, read per residue and per mode.
   decompose into mutation / stability / activity contributions, sweep `a1`/`a2`,
   fit, and decompose the fitted profile.
 - **[Mode analysis](mode-analysis.html)** — the same arc per normal mode.
-- **[Inference methods](inference-methods.html)** — maximum likelihood is the
-  standard fit shown here; `msamodel` also offers a deterministic-posterior fit
-  (adaptive Gauss–Hermite quadrature), compared with ML side by side there.
+- **[Inference methods](inference-methods.html)** — the maximum-likelihood fit end
+  to end, with delta-method confidence bands on the predicted profile and its
+  decomposition.
 
 ## Session info
 

@@ -1,8 +1,8 @@
 ---
-title: "Inference methods: ML vs adaptive quadrature"
+title: "Fitting the model: maximum likelihood with error bands"
 output: rmarkdown::html_vignette
 vignette: >
-  %\VignetteIndexEntry{Inference methods: ML vs adaptive quadrature}
+  %\VignetteIndexEntry{Fitting the model: maximum likelihood with error bands}
   %\VignetteEngine{knitr::rmarkdown}
   %\VignetteEncoding{UTF-8}
 ---
@@ -38,8 +38,8 @@ knitr::opts_chunk$set(
 # plotting chunks are skipped.
 has_ggplot <- requireNamespace("ggplot2", quietly = TRUE)
 
-# Both fits here are deterministic; the seed is harmless but kept for a stable
-# committed render (and for generate_spm_data below).
+# The fit is deterministic; the seed is harmless but kept for a stable committed
+# render (and for generate_spm_data below).
 set.seed(1024)
 ```
 
@@ -55,22 +55,18 @@ if (has_ggplot) {
 }
 ```
 
-`msamodel` ships two **deterministic** ways to fit the per-residue `lrmsd_i` MSA
-model to an observed divergence profile. This vignette runs both on the same data
-and compares them. Its siblings, the [site analysis](site-analysis.html) and
+`msamodel` fits the per-residue `lrmsd_i` MSA model to an observed divergence
+profile by **maximum likelihood**, and propagates the fit's uncertainty to every
+predicted quantity as a **delta-method error band**. This vignette walks through
+that fit end to end: estimate the selection parameters, score the fit against the
+data, and put a confidence band on the predicted profile and its decomposition.
+Its siblings, the [site analysis](site-analysis.html) and
 [mode analysis](mode-analysis.html) vignettes, develop the model itself; here we
-hold the model fixed and vary the *fitting method*.
+hold the model fixed and focus on **fitting it to data and quantifying uncertainty**.
 
-- **Maximum likelihood** (`fit_lrmsd_i_msa_ml()`) returns a **point estimate** of
-  the selection parameters `(a1, a2)` plus an asymptotic standard error from the
-  Hessian at the optimum — a fast Gaussian (Laplace) summary.
-- **Adaptive Gauss–Hermite quadrature** (`fit_lrmsd_i_msa_agq()`) returns a
-  **deterministic posterior**: posterior means, standard deviations and credible
-  intervals, computed by placing a handful of quadrature nodes at the locations
-  the ML Laplace approximation suggests. No chain, no seed, no burn-in.
-
-The question this vignette answers: do the two agree, and what does the posterior
-buy you over the point estimate?
+The fit is fully deterministic — a numerical optimisation of the likelihood, with
+no chain, seed, or burn-in — so the same data always gives the same estimate and
+the same bands.
 
 ## 1. Setup
 
@@ -101,7 +97,7 @@ spm <- generate_spm_data(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
 
 (`spm` is identical to the shipped `znb_spm`; to skim without running the scan,
 `data("znb_spm")` loads the prebuilt object instead.) From the scan we precompute
-the energy/displacement matrices once; both fits below reuse them:
+the energy/displacement matrices once; the fit reuses them:
 
 ```{r preprocess}
 pp <- preprocess_spm(spm)   # list: energy_data, dr2_ijm, site_map
@@ -118,199 +114,95 @@ data("znb_profile")   # the example observed data; supply your own in this shape
 head(znb_profile)
 ```
 
-## 2. The two fits
+## 2. The fit
 
 `fit_lrmsd_i_msa_ml()` maximises the profiled Gaussian log-likelihood
-(`calculate_loglik_lrmsd_i_msa()`) over `(a1, a2)` and returns the estimate plus an
-asymptotic covariance from the Hessian at the optimum. It is fast and deterministic:
+(`calculate_loglik_lrmsd_i_msa()`) over the selection parameters `(a1, a2)` and
+returns the point estimate plus an asymptotic covariance from the Hessian at the
+optimum. It is fast and deterministic:
 
 ```{r ml-fit}
 ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)   # pp from section 1; znb_profile is the target
 c(a1 = ml$a1, a2 = ml$a2)
 ```
 
-`fit_lrmsd_i_msa_agq()` approximates the **posterior** of `(a1, a2)` under the same
-likelihood, *deterministically*, by adaptive Gauss–Hermite quadrature — placing
-nodes at the locations the ML Laplace (Gaussian) approximation suggests. For this
-protein the posterior is near-Gaussian in `(a1, log2(a2 + 1))`, so the default 7×7
-grid (49 likelihood evaluations) reproduces it essentially exactly. It reports
-posterior means, standard deviations and credible intervals on the natural
-`(a1, a2)` scale:
+The fit object also carries the asymptotic standard errors of the two parameters —
+the square roots of the covariance diagonal, `se_a2` mapped to the natural `a2`
+scale by the delta method:
 
-```{r agq-fit}
-agq <- fit_lrmsd_i_msa_agq(pp, znb_profile)   # default n_nodes = 7
-c(a1 = agq$a1, a2 = agq$a2)
+```{r ml-se}
+c(se_a1 = ml$se_a1, se_a2 = ml$se_a2)
 ```
 
-## 3. Do they agree on the parameters?
+## 3. How well does it fit?
 
-To score each fit against the data, we predict the MSA profile at a single
-`(a1, a2)` — the ML point estimate and the AGQ posterior mean — using the same
-forward map (`calculate_lrmsd_i_nested_models()`), then mean-center it
-(`nlrmsd = lrmsd - mean(lrmsd)`). Predicting at a single point keeps the only
-difference between the two arms the *estimate* of `(a1, a2)`, not how the profile is
-summarised:
+`gof_lrmsd_i_msa_ml()` reports an absolute goodness-of-fit summary in the style of
+`broom::glance()` for a `glm`: the deviance-explained `D2` against a flat / mean-only
+null, together with `AIC`, `BIC`, and the primitives they derive from. Because the
+fit mean-centres the profile, `D2 = 1 - deviance/null_deviance` is exactly the
+fraction of profile variance the model explains:
 
-```{r prep}
-# Goodness-of-fit helper. msamodel does not export an R^2 (the fit-assessment
-# layer is deferred to a later version), so we define it here for the comparison.
-r2 <- function(obs, pred) 1 - sum((obs - pred)^2) / sum((obs - mean(obs))^2)
-
-ml_msa <- calculate_lrmsd_i_nested_models(pp, ml$a1, ml$a2) |>
-  transmute(pdb_site, lrmsd_ml = lrmsd_i_msa)
-
-agq_msa <- calculate_lrmsd_i_nested_models(pp, agq$a1, agq$a2) |>
-  transmute(pdb_site, lrmsd_agq = lrmsd_i_msa)
-
-cmp <- znb_profile |>
-  inner_join(ml_msa,  by = "pdb_site") |>
-  inner_join(agq_msa, by = "pdb_site") |>
-  mutate(
-    nlrmsd_i_obs = lrmsd_i_obs - mean(lrmsd_i_obs),
-    nlrmsd_ml    = lrmsd_ml    - mean(lrmsd_ml),
-    nlrmsd_agq   = lrmsd_agq   - mean(lrmsd_agq)
-  )
-
-r2_ml  <- r2(cmp$nlrmsd_i_obs, cmp$nlrmsd_ml)
-r2_agq <- r2(cmp$nlrmsd_i_obs, cmp$nlrmsd_agq)
+```{r gof}
+gof <- gof_lrmsd_i_msa_ml(ml)
+gof
 ```
 
-The two arms land on essentially the same `(a1, a2)`, with comparable uncertainty
-(the ML asymptotic standard error vs the AGQ posterior sd), and explain the observed
-profile equally well:
+`D2` is at most `1` but has no lower bound — a negative value would signal a fit
+worse than the flat null. The `AIC`/`BIC` here are per-fit numbers, meaningful only
+*compared* against another model fit at its own maximum (comparing nested variants
+requires fitting them independently, which the package does not yet do).
 
-```{r method-table, echo = FALSE}
-method_tbl <- tibble::tibble(
-  method = c("ML (point estimate)", "AGQ (posterior mean)"),
-  a1     = c(ml$a1, agq$a1),
-  a1_unc = c(ml$se_a1, agq$sd_a1),
-  a2     = c(ml$a2, agq$a2),
-  a2_unc = c(ml$se_a2, agq$sd_a2),
-  R2     = c(r2_ml, r2_agq)
-)
-knitr::kable(
-  method_tbl, digits = 3,
-  col.names = c("method", "a1", "a1 (se/sd)", "a2", "a2 (se/sd)", "R²"),
-  caption = "ML and AGQ estimates of the selection parameters (uncertainty is the ML asymptotic standard error or the AGQ posterior sd)"
-)
-```
+## 4. The predicted profile, with an error band
 
-## 4. Do they agree on the predicted profile?
+`predict_lrmsd_i_msa_ml()` propagates the fit's covariance through the forward map
+to a **delta-method confidence band**: it linearises the model prediction about the
+fit's `(a1, a2)` and sandwiches the gradient with the fit's covariance, giving a
+symmetric band around the predicted profile at every residue. The point estimate
+gives a single line; this gives that line plus a band around it:
 
-The parameters agree; so do the profiles they predict. Observed, ML-fitted and
-AGQ-fitted profiles along the chain (all mean-centered):
-
-```{r method-long, include = FALSE}
-methods_long <- cmp |>
-  tidyr::pivot_longer(c(nlrmsd_i_obs, nlrmsd_ml, nlrmsd_agq),
-                      names_to = "source", values_to = "nlrmsd") |>
-  mutate(source = dplyr::recode(source,
-                                nlrmsd_i_obs = "observed",
-                                nlrmsd_ml    = "fitted (ML)",
-                                nlrmsd_agq   = "fitted (AGQ)"))
-method_cols <- c("observed" = "grey25",
-                 "fitted (ML)" = "steelblue",
-                 "fitted (AGQ)" = "seagreen")
-```
-
-```{r method-profile, echo = FALSE, eval = has_ggplot}
-ggplot(methods_long, aes(pdb_site, nlrmsd, colour = source)) +
-  geom_line(alpha = 0.8) +
-  scale_colour_manual(values = method_cols) +
-  labs(title = "Observed vs. ML- and AGQ-fitted divergence profiles",
-       x = "Residue (PDB numbering)", y = "nlrmsd (mean-centered)", colour = NULL) +
-  theme(legend.position = "top")
-```
-
-Fitted vs observed, one panel per method (the goodness-of-fit view); points on the
-dashed 1:1 line fit perfectly, and the R² scores the fit to data:
-
-```{r method-scatter, echo = FALSE, eval = has_ggplot}
-scatter_df <- dplyr::bind_rows(
-  dplyr::transmute(cmp, method = "ML",  nlrmsd_i_obs, nlrmsd_fit = nlrmsd_ml),
-  dplyr::transmute(cmp, method = "AGQ", nlrmsd_i_obs, nlrmsd_fit = nlrmsd_agq)
-)
-r2_labels <- tibble::tibble(
-  method = c("ML", "AGQ"),
-  label  = sprintf("R^2 == %.3f", c(r2_ml, r2_agq))
-)
-ggplot(scatter_df, aes(nlrmsd_i_obs, nlrmsd_fit)) +
-  geom_abline(slope = 1, intercept = 0, colour = "grey70", linetype = 2) +
-  geom_point(alpha = 0.5, colour = "steelblue") +
-  geom_text(data = r2_labels, aes(x = -Inf, y = Inf, label = label),
-            parse = TRUE, hjust = -0.15, vjust = 1.4, inherit.aes = FALSE) +
-  facet_wrap(~ method) +
-  labs(title = "Fitted vs. observed by method (mean-centered)",
-       x = "observed nlrmsd", y = "fitted nlrmsd")
-```
-
-Finally, the ML point estimate directly against the AGQ posterior mean. Points on
-the dashed 1:1 line mean the two methods predict the **same** profile site-for-site;
-the R² here measures **method-vs-method** agreement, not fit to data:
-
-```{r ml-vs-agq-r2}
-r2_methods <- r2(cmp$nlrmsd_ml, cmp$nlrmsd_agq)
-r2_methods
-```
-
-```{r ml-vs-agq, echo = FALSE, eval = has_ggplot}
-ggplot(cmp, aes(nlrmsd_ml, nlrmsd_agq)) +
-  geom_abline(slope = 1, intercept = 0, colour = "grey70", linetype = 2) +
-  geom_point(alpha = 0.5, colour = "darkorchid") +
-  annotate("text", x = -Inf, y = Inf, hjust = -0.15, vjust = 1.4,
-           label = sprintf("R^2 == %.4f", r2_methods), parse = TRUE) +
-  labs(title = "ML- vs. AGQ-fitted profile (mean-centered)",
-       x = "ML nlrmsd", y = "AGQ nlrmsd")
-```
-
-The deterministic quadrature recovers the same profile as the point estimate, at
-49 likelihood evaluations.
-
-## 5. What AGQ gives you that ML doesn't
-
-Because AGQ carries the whole `(a1, a2)` posterior, it propagates that uncertainty
-to the **predicted profile**: `predict_lrmsd_i_msa_agq()` returns, per residue, the
-posterior mean and a credible band — the model prediction integrated over the
-posterior — making no Gaussian assumption. The ML fit gives a single line; AGQ
-gives that line plus a band around it:
-
-```{r agq-predict}
-band <- predict_lrmsd_i_msa_agq(agq, pp)   # one row per residue; *_mean / *_lower / *_upper
+```{r ml-predict}
+band <- predict_lrmsd_i_msa_ml(ml, pp)   # one row per residue; *_mean / *_lower / *_upper
 head(band)
 ```
 
-Plotted against the observed profile (the band and observed both mean-centered):
+Plotted against the observed profile (the band and observed both mean-centered, via
+the `nlrmsd_*` columns the predictor returns):
 
-```{r agq-band, echo = FALSE, eval = has_ggplot}
+```{r obs-centred, include = FALSE}
+obs_centred <- znb_profile |>
+  mutate(nlrmsd_i_obs = lrmsd_i_obs - mean(lrmsd_i_obs)) |>
+  select(pdb_site, nlrmsd_i_obs)
+```
+
+```{r ml-band, echo = FALSE, eval = has_ggplot}
 band_obs <- band |>
-  inner_join(dplyr::select(cmp, pdb_site, nlrmsd_i_obs), by = "pdb_site")
+  inner_join(obs_centred, by = "pdb_site")
 
 ggplot(band_obs, aes(pdb_site)) +
   geom_ribbon(aes(ymin = nlrmsd_i_msa_lower, ymax = nlrmsd_i_msa_upper),
-              fill = "seagreen", alpha = 0.25) +
-  geom_line(aes(y = nlrmsd_i_msa_mean), colour = "seagreen") +
+              fill = "steelblue", alpha = 0.25) +
+  geom_line(aes(y = nlrmsd_i_msa_mean), colour = "steelblue") +
   geom_point(aes(y = nlrmsd_i_obs), colour = "grey25", size = 0.7, alpha = 0.7) +
-  labs(title = "AGQ posterior profile with 95% credible band vs. observed",
+  labs(title = "ML profile with 95% confidence band vs. observed",
        x = "Residue (PDB numbering)", y = "nlrmsd (mean-centered)")
 ```
 
-The band is read off the node masses as weighted quantiles, so its tails are only
-as fine as the node grid; on this protein it is already stable at the default
-`n_nodes`. To sharpen it (e.g. at `level = 0.99`), refit with a larger `n_nodes`.
+The band width is the delta-method standard error scaled to the 95% level; widen it
+(e.g. `level = 0.99`) with the `level` argument.
 
-The same posterior propagation applies to any per-residue quantity the model
-produces, not just the full profile. Two companions band the analysis outputs.
+The same propagation applies to any per-residue quantity the model produces, not
+just the full profile. Two companions band the analysis outputs.
 
-First, `predict_lrmsd_i_nested_models_agq()` bands each of the four nested variants
+First, `predict_lrmsd_i_nested_models_ml()` bands each of the four nested variants
 — from no selection (MM) through stability-only (MS) and activity-only (MA) to the
-full model (MSA) — returning a posterior mean and credible interval for every one:
+full model (MSA) — returning a mean and confidence interval for every one:
 
-```{r agq-nested}
-nested_band <- predict_lrmsd_i_nested_models_agq(agq, pp)  # lrmsd_i_{mm,ms,ma,msa}_{mean,lower,upper}
+```{r ml-nested}
+nested_band <- predict_lrmsd_i_nested_models_ml(ml, pp)  # lrmsd_i_{mm,ms,ma,msa}_{mean,lower,upper}
 head(nested_band[, 1:8])   # i, pdb_site, then the MM and MS bands
 ```
 
-```{r agq-nested-plot, echo = FALSE, eval = has_ggplot}
+```{r ml-nested-plot, echo = FALSE, eval = has_ggplot}
 # Same model colours as the site-analysis vignette; MA omitted to keep the panel
 # readable (MM baseline, MS stability-only, MSA full model).
 model_cols <- c(MM = "#FF8C00", MS = "#0000CD", MSA = "#C41E3A")
@@ -329,23 +221,23 @@ ggplot(nested_long, aes(pdb_site, colour = model, fill = model)) +
   geom_line(aes(y = mean), alpha = 0.85) +
   scale_colour_manual(values = model_cols) +
   scale_fill_manual(values = model_cols) +
-  labs(title = "Nested-model profiles with 95% credible bands (AGQ)",
+  labs(title = "Nested-model profiles with 95% confidence bands (ML)",
        x = "Residue (PDB numbering)", y = "lrmsd", colour = "model", fill = "model")
 ```
 
 The MM band is a flat line with no width: with both selection strengths off it does
-not depend on `(a1, a2)`, so the posterior leaves it unchanged. The bands widen as
-selection is switched on.
+not depend on `(a1, a2)`, so the fit's uncertainty leaves it unchanged. The bands
+widen as selection is switched on.
 
-Second, `predict_decomposition_i_msa_agq()` bands the mutation / stability / activity
-decomposition — each contribution gets a posterior mean and a credible interval:
+Second, `predict_decomposition_i_msa_ml()` bands the mutation / stability / activity
+decomposition — each contribution gets a mean and a confidence interval:
 
-```{r agq-decomposition}
-phi_band <- predict_decomposition_i_msa_agq(agq, pp)  # phi_{mut,stab,act}_{mean,lower,upper}
+```{r ml-decomposition}
+phi_band <- predict_decomposition_i_msa_ml(ml, pp)  # phi_{mut,stab,act}_{mean,lower,upper}
 head(phi_band)
 ```
 
-```{r agq-decomposition-plot, echo = FALSE, eval = has_ggplot}
+```{r ml-decomposition-plot, echo = FALSE, eval = has_ggplot}
 # Same component colours as the site-analysis vignette.
 comp_labs <- c(mut = "mutation", stab = "stability selection", act = "activity selection")
 comp_cols <- c("mutation" = "#FF8C00", "stability selection" = "#0000CD",
@@ -372,18 +264,18 @@ ggplot(phi_long, aes(pdb_site, colour = component, fill = component)) +
   geom_line(aes(y = mean)) +
   scale_colour_manual(values = comp_cols) +
   scale_fill_manual(values = comp_cols) +
-  labs(title = "Mean-centered decomposition contributions with 95% credible bands (AGQ)",
+  labs(title = "Mean-centered decomposition contributions with 95% confidence bands (ML)",
        x = "Residue (PDB numbering)", y = "nphi (phi - mean, log-divergence units)",
        colour = NULL, fill = NULL)
 ```
 
-The three contributions' posterior *means* still add up to the full-model profile
-(the decomposition is exact at every node, so it holds in the posterior mean); the
-per-contribution bands are read off the same quadrature. This is the deterministic
-replacement for the credible bands the Markov chain used to provide. (The figure
-above centres each contribution on its residue mean, `nphi = phi - mean(phi)`, so the
-site-to-site *shape* of the three contributions can be compared on one panel; this
-shift does not change the band widths.)
+The three contributions' *means* add up to the full-model profile (the
+decomposition is exact at the fit's `(a1, a2)`); the per-contribution bands are the
+delta method applied to each contribution in turn. The `phi_mut` (MM) band is
+zero-width — that term does not depend on the parameters. (The figure above centres
+each contribution on its residue mean, `nphi = phi - mean(phi)`, so the site-to-site
+*shape* of the three contributions can be compared on one panel; this shift does not
+change the band widths.)
 
 ## Where to next
 

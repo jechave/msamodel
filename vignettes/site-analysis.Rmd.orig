@@ -354,9 +354,9 @@ knitr::kable(
 )
 ```
 
-`msamodel` also provides a deterministic-posterior fit (adaptive Gauss–Hermite
-quadrature, `fit_lrmsd_i_msa_agq()`); the [inference methods
-vignette](inference-methods.html) compares it with the ML fit side by side.
+The [inference methods vignette](inference-methods.html) walks through this fit end
+to end and puts delta-method confidence bands on the predicted profile and its
+decomposition.
 
 ### Fitted vs. observed
 
