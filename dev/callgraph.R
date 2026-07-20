@@ -53,26 +53,79 @@ axis[nm == "preprocess_spm_mode"] <- "mode"   # named mode, no _n token
 
 pen  <- c(site = "#216b62", mode = "#9a6f14", agnostic = "#3a3f4b")[axis]
 fill <- c(site = "#e6f1ef", mode = "#f6ecd6", agnostic = "#eceae6")[axis]
+names(pen) <- names(fill) <- nm
+
+# --- twin pairing: the site/mode symmetry the layout must SHOW ----------------------
+# A site fn and its mode fn share a "twin key" once the axis token is normalised out
+# (`_i_`/`_n_` -> `_@_`, trailing `_i`/`_n` -> `_@`; preprocess_spm/-_mode paired by hand).
+# Twins are rank-aligned (same row) with site pinned left of mode, so the two arms read
+# as two parallel columns instead of dot's crossing-minimised tangle.
+twin_key <- nm
+twin_key <- sub("_i_", "_@_", twin_key); twin_key <- sub("_i$", "_@", twin_key)
+twin_key <- sub("_n_", "_@_", twin_key); twin_key <- sub("_n$", "_@", twin_key)
+twin_key[nm == "preprocess_spm"]      <- "preprocess_@"
+twin_key[nm == "preprocess_spm_mode"] <- "preprocess_@"
+
+# Node groups. A node is site-arm / mode-arm only if it has a twin on the other side;
+# everything else (shared helpers, generators, agnostic) is the centre spine. This keeps
+# the two clusters strictly mirror-image and leaves genuinely-shared code between them.
+pairs <- Filter(function(k) sum(twin_key == k & (axis == "site" | nm == "preprocess_spm")) == 1 &&
+                            sum(twin_key == k & axis == "mode") == 1,
+                unique(twin_key))
+paired     <- twin_key %in% pairs
+site_arm <- nm[paired & (axis == "site" | nm == "preprocess_spm")]
+mode_arm <- nm[paired & axis == "mode"]
+spine    <- setdiff(nm, c(site_arm, mode_arm))
 
 # --- assemble the DOT source --------------------------------------------------------
+node_line <- function(x, indent = "  ") {
+  is_exp <- x %in% exported
+  sprintf("%s\"%s\" [shape=box, style=\"filled,%s\", color=\"%s\", fillcolor=\"%s\", fontcolor=\"%s\"];",
+          indent, x, if (is_exp) "solid" else "dashed",
+          pen[x], if (is_exp) fill[x] else "#f2f1ee", pen[x])
+}
+
 L <- c(
   "digraph msamodel {",
   "  labelloc=\"t\";",
-  "  label=\"msamodel — function call graph  (arrow: A calls B; row = call depth; ",
-  "          colour = axis: teal site / amber mode / grey agnostic; dashed box = @noRd internal)\";",
+  "  label=\"msamodel — function call graph  (arrow: A calls B; LEFT box = site arm, RIGHT box = mode arm,",
+  "          centre = shared; twins are rank-aligned across the two arms; dashed = @noRd internal)\";",
   "  fontname=\"Helvetica\"; fontsize=13;",
-  "  rankdir=TB;",
-  "  graph [splines=true, nodesep=0.35, ranksep=0.75];",
+  "  rankdir=TB; newrank=true; compound=true; clusterrank=global;",
+  "  graph [splines=true, nodesep=0.4, ranksep=0.85];",
   "  node  [fontname=\"Courier\", fontsize=11, margin=\"0.12,0.06\"];",
   "  edge  [color=\"#9aa0aa\", arrowsize=0.7];"
 )
-for (i in seq_along(nm)) {
-  is_exp <- nm[i] %in% exported
-  L <- c(L, sprintf(
-    "  \"%s\" [shape=box, style=\"filled,%s\", color=\"%s\", fillcolor=\"%s\", fontcolor=\"%s\"];",
-    nm[i], if (is_exp) "solid" else "dashed",
-    pen[i], if (is_exp) fill[i] else "#f2f1ee", pen[i]))
+
+# Left cluster: the site arm.
+L <- c(L,
+  "  subgraph cluster_site {",
+  "    label=\"site arm (i)\"; labeljust=\"l\"; fontcolor=\"#216b62\";",
+  "    color=\"#216b62\"; style=\"rounded\"; penwidth=1.4; margin=12;")
+for (x in site_arm) L <- c(L, node_line(x, "    "))
+L <- c(L, "  }")
+
+# Right cluster: the mode arm.
+L <- c(L,
+  "  subgraph cluster_mode {",
+  "    label=\"mode arm (n)\"; labeljust=\"r\"; fontcolor=\"#9a6f14\";",
+  "    color=\"#9a6f14\"; style=\"rounded\"; penwidth=1.4; margin=12;")
+for (x in mode_arm) L <- c(L, node_line(x, "    "))
+L <- c(L, "  }")
+
+# Centre spine: shared / agnostic nodes, declared outside both clusters.
+for (x in spine) L <- c(L, node_line(x))
+
+# Twin rows: rank-align each site fn with its mode twin, site pinned left.
+for (k in pairs) {
+  s <- nm[twin_key == k & (axis == "site" | nm == "preprocess_spm")]
+  mo<- nm[twin_key == k & axis == "mode"]
+  L <- c(L,
+    sprintf("  { rank=same; \"%s\"; \"%s\"; }", s, mo),
+    sprintf("  \"%s\" -> \"%s\" [style=invis, constraint=false];", s, mo))
 }
+
+# Real call edges.
 for (a in nm) for (b in colnames(m)[m[a, ] > 0]) {
   L <- c(L, sprintf("  \"%s\" -> \"%s\";", a, b))
 }
