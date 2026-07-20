@@ -21,7 +21,7 @@ znb_profile
 \description{
 The per-site observed divergence used as the fitting target for the example
 protein. This is the template for the \code{observed_data} argument of the
-fitters \code{\link{fit_lrmsd_i_msa_ml}} and \code{\link{fit_lrmsd_i_msa_agq}}.
+fitter \code{\link{fit_lrmsd_i_msa_ml}}.
 }
 \details{
 The fit is keyed by \code{pdb_site}: the package maps it internally to
@@ -31,7 +31,7 @@ recomputable from \code{znb_wt} (see \code{add_site_properties}; log RMSF is
 \code{log(sqrt(get_msf_site(wt)))}).
 }
 \seealso{
-\code{\link{fit_lrmsd_i_msa_ml}}, \code{\link{fit_lrmsd_i_msa_agq}}, \code{\link{add_site_properties}}
+\code{\link{fit_lrmsd_i_msa_ml}}, \code{\link{add_site_properties}}
 
 Other datasets:
 \code{\link{znb_dataset}},

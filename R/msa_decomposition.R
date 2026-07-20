@@ -15,9 +15,9 @@
 #'
 #' The public entry points that own the four-variant evaluation and attach the
 #' result are [calculate_decomposition_i_msa()] / [calculate_decomposition_n_msa()]
-#' (forward, at one `(a1, a2)`) and [predict_decomposition_i_msa_agq()] (posterior
-#' bands, propagated across quadrature nodes); this kernel is the pure math they
-#' share and is internal.
+#' (forward, at one `(a1, a2)`) and [predict_decomposition_i_msa_ml()] /
+#' [predict_decomposition_n_msa_ml()] (delta-method bands from a fit); this kernel is
+#' the pure math they share and is internal.
 #'
 #' @param mm,ms,ma,msa Numeric vectors of equal length giving the divergence under
 #'   the four model variants: mutation-only (`mm`), plus-stability (`ms`),

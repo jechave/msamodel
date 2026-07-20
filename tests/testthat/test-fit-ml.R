@@ -24,8 +24,8 @@ test_that("ML sits at a local max of its own objective (consistency)", {
   # Replaces the retired 81x81 grid search (~58 s). Evaluate the SAME objective the
   # ML fit optimises on a tiny grid centred on the fit's own (a1, a2): optim's logLik
   # must be no worse than any nearby point, i.e. it sits at a local max. Self-
-  # contained -- depends only on fit_lrmsd_i_msa_ml + calculate_loglik_lrmsd_i_msa,
-  # NOT on AGQ or any other function. Honest scope: this is a local-max CONSISTENCY
+  # contained -- depends only on fit_lrmsd_i_msa_ml + calculate_loglik_lrmsd_i_msa.
+  # Honest scope: this is a local-max CONSISTENCY
   # check on the ML path, NOT an independent-correctness proof (the grid recomputes
   # the same objective). WHERE the optimum is, is pinned by the frozen-reference test
   # below; THAT it is a max there, is pinned here.

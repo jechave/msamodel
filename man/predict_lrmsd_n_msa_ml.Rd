@@ -23,7 +23,7 @@ mean-centred counterparts (\code{nlrmsd_n_msa_mean}, \code{nlrmsd_n_msa_lower},
 Mode counterpart of \code{\link[=predict_lrmsd_i_msa_ml]{predict_lrmsd_i_msa_ml()}}: propagates a mode ML fit
 (\code{\link[=fit_lrmsd_n_msa_ml]{fit_lrmsd_n_msa_ml()}}) to the predicted per-mode divergence profile with a
 symmetric delta-method band. Modes are not residue-anchored, so there is no
-\code{pdb_site} column and no AGQ counterpart (AGQ is site-only).
+\code{pdb_site} column.
 }
 \examples{
 \dontrun{
@@ -39,12 +39,9 @@ head(predict_lrmsd_n_msa_ml(ml, pp))
 Other prediction:
 \code{\link[=gof_lrmsd_i_msa_ml]{gof_lrmsd_i_msa_ml()}},
 \code{\link[=gof_lrmsd_n_msa_ml]{gof_lrmsd_n_msa_ml()}},
-\code{\link[=predict_decomposition_i_msa_agq]{predict_decomposition_i_msa_agq()}},
 \code{\link[=predict_decomposition_i_msa_ml]{predict_decomposition_i_msa_ml()}},
 \code{\link[=predict_decomposition_n_msa_ml]{predict_decomposition_n_msa_ml()}},
-\code{\link[=predict_lrmsd_i_msa_agq]{predict_lrmsd_i_msa_agq()}},
 \code{\link[=predict_lrmsd_i_msa_ml]{predict_lrmsd_i_msa_ml()}},
-\code{\link[=predict_lrmsd_i_nested_models_agq]{predict_lrmsd_i_nested_models_agq()}},
 \code{\link[=predict_lrmsd_i_nested_models_ml]{predict_lrmsd_i_nested_models_ml()}},
 \code{\link[=predict_lrmsd_n_nested_models_ml]{predict_lrmsd_n_nested_models_ml()}}
 }

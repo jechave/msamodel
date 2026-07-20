@@ -20,12 +20,11 @@ triple for each variant -- \verb{lrmsd_i_mm_\{mean,lower,upper\}},
 \verb{lrmsd_i_msa_\{mean,lower,upper\}} (12 band columns).
 }
 \description{
-Maximum-likelihood counterpart of \code{\link[=predict_lrmsd_i_nested_models_agq]{predict_lrmsd_i_nested_models_agq()}}: the four
-nested variants (MM, MS, MA, MSA) of the predicted per-site profile, each with a
-symmetric delta-method band, from a point ML fit (\code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}}). Each
-variant's band linearizes \code{\link[=calculate_lrmsd_i_nested_models]{calculate_lrmsd_i_nested_models()}} about the fit's
+The four nested variants (MM, MS, MA, MSA) of the predicted per-site profile, each
+with a symmetric delta-method band, from a point ML fit (\code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}}).
+Each variant's band linearizes \code{\link[=calculate_lrmsd_i_nested_models]{calculate_lrmsd_i_nested_models()}} about the fit's
 \verb{(a1, a2)}; MM \verb{(0, 0)} does not depend on the parameters, so its band is
-zero-width (as in the AGQ version).
+zero-width.
 }
 \examples{
 \dontrun{
@@ -35,18 +34,15 @@ head(predict_lrmsd_i_nested_models_ml(ml, pp))
 }
 }
 \seealso{
-\code{\link[=predict_lrmsd_i_nested_models_agq]{predict_lrmsd_i_nested_models_agq()}} (the Bayesian counterpart);
+\code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}} (produces the fit);
 \code{\link[=calculate_lrmsd_i_nested_models]{calculate_lrmsd_i_nested_models()}} (the forward map).
 
 Other prediction:
 \code{\link[=gof_lrmsd_i_msa_ml]{gof_lrmsd_i_msa_ml()}},
 \code{\link[=gof_lrmsd_n_msa_ml]{gof_lrmsd_n_msa_ml()}},
-\code{\link[=predict_decomposition_i_msa_agq]{predict_decomposition_i_msa_agq()}},
 \code{\link[=predict_decomposition_i_msa_ml]{predict_decomposition_i_msa_ml()}},
 \code{\link[=predict_decomposition_n_msa_ml]{predict_decomposition_n_msa_ml()}},
-\code{\link[=predict_lrmsd_i_msa_agq]{predict_lrmsd_i_msa_agq()}},
 \code{\link[=predict_lrmsd_i_msa_ml]{predict_lrmsd_i_msa_ml()}},
-\code{\link[=predict_lrmsd_i_nested_models_agq]{predict_lrmsd_i_nested_models_agq()}},
 \code{\link[=predict_lrmsd_n_msa_ml]{predict_lrmsd_n_msa_ml()}},
 \code{\link[=predict_lrmsd_n_nested_models_ml]{predict_lrmsd_n_nested_models_ml()}}
 }

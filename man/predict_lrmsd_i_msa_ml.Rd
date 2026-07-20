@@ -21,14 +21,13 @@ mean-centred counterparts (\code{nlrmsd_i_msa_mean}, \code{nlrmsd_i_msa_lower},
 \code{nlrmsd_i_msa_upper}).
 }
 \description{
-Maximum-likelihood counterpart of \code{\link[=predict_lrmsd_i_msa_agq]{predict_lrmsd_i_msa_agq()}}: propagates the
-asymptotic covariance of a point ML fit (\code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}}) to the predicted
-per-site divergence profile, returning the point profile and a symmetric error band
-at every residue. The band is the delta method -- the forward map
-\code{\link[=calculate_lrmsd_i_msa]{calculate_lrmsd_i_msa()}} linearized about the fit's \verb{(a1, a2)}, its gradient
+Propagates the asymptotic covariance of a point ML fit (\code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}}) to
+the predicted per-site divergence profile, returning the point profile and a
+symmetric error band at every residue. The band is the delta method -- the forward
+map \code{\link[=calculate_lrmsd_i_msa]{calculate_lrmsd_i_msa()}} linearized about the fit's \verb{(a1, a2)}, its gradient
 sandwiched with the fit's covariance -- so it is deterministic and Gaussian
-(symmetric), consistent with the fit's own standard errors. Where the AGQ predictor
-returns a posterior credible band, this returns a frequentist confidence band.
+(symmetric), a frequentist confidence band consistent with the fit's own standard
+errors.
 }
 \examples{
 \dontrun{
@@ -38,18 +37,14 @@ head(predict_lrmsd_i_msa_ml(ml, pp))
 }
 }
 \seealso{
-\code{\link[=predict_lrmsd_i_msa_agq]{predict_lrmsd_i_msa_agq()}} (the Bayesian/posterior counterpart);
-\code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}} (produces the fit); \code{\link[=calculate_lrmsd_i_msa]{calculate_lrmsd_i_msa()}} (the forward
-map linearized).
+\code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}} (produces the fit); \code{\link[=calculate_lrmsd_i_msa]{calculate_lrmsd_i_msa()}} (the
+forward map linearized).
 
 Other prediction:
 \code{\link[=gof_lrmsd_i_msa_ml]{gof_lrmsd_i_msa_ml()}},
 \code{\link[=gof_lrmsd_n_msa_ml]{gof_lrmsd_n_msa_ml()}},
-\code{\link[=predict_decomposition_i_msa_agq]{predict_decomposition_i_msa_agq()}},
 \code{\link[=predict_decomposition_i_msa_ml]{predict_decomposition_i_msa_ml()}},
 \code{\link[=predict_decomposition_n_msa_ml]{predict_decomposition_n_msa_ml()}},
-\code{\link[=predict_lrmsd_i_msa_agq]{predict_lrmsd_i_msa_agq()}},
-\code{\link[=predict_lrmsd_i_nested_models_agq]{predict_lrmsd_i_nested_models_agq()}},
 \code{\link[=predict_lrmsd_i_nested_models_ml]{predict_lrmsd_i_nested_models_ml()}},
 \code{\link[=predict_lrmsd_n_msa_ml]{predict_lrmsd_n_msa_ml()}},
 \code{\link[=predict_lrmsd_n_nested_models_ml]{predict_lrmsd_n_nested_models_ml()}}

@@ -70,7 +70,7 @@ NULL
 #'
 #' The per-site observed divergence used as the fitting target for the example
 #' protein. This is the template for the \code{observed_data} argument of the
-#' fitters \code{\link{fit_lrmsd_i_msa_ml}} and \code{\link{fit_lrmsd_i_msa_agq}}.
+#' fitter \code{\link{fit_lrmsd_i_msa_ml}}.
 #'
 #' @format A tibble with 225 rows and 2 columns:
 #' \describe{
@@ -84,7 +84,7 @@ NULL
 #'   \code{log(sqrt(get_msf_site(wt)))}).
 #' @source Echave & Carpentier (2024) dataset, filtered to pdb_chain == "1znb_A".
 #'   See \code{data-raw/prepare_znb_data.R}.
-#' @seealso \code{\link{fit_lrmsd_i_msa_ml}}, \code{\link{fit_lrmsd_i_msa_agq}}, \code{\link{add_site_properties}}
+#' @seealso \code{\link{fit_lrmsd_i_msa_ml}}, \code{\link{add_site_properties}}
 #' @family datasets
 "znb_profile"
 

@@ -51,17 +51,13 @@ A goodness-of-fit primitive; consumed by \code{\link[=gof_lrmsd_i_msa_ml]{gof_lr
 }
 }
 \description{
-Point-estimation counterpart of \code{\link[=fit_lrmsd_i_msa_agq]{fit_lrmsd_i_msa_agq()}}: maximises the same
-profiled Gaussian log-likelihood (\code{calculate_loglik_lrmsd_i_msa()}) over \verb{(a1, a2)}
-by numerical
-optimisation, returning a point estimate plus an asymptotic covariance from the
-Hessian at the optimum. Where AGQ returns a full posterior over the selection
-strengths, this returns a single point plus asymptotic errors; intended for large
-proteins and path simulations. This is \strong{not} a Bayesian fit and returns no
-posterior sample.
+Maximises the profiled Gaussian log-likelihood (\code{calculate_loglik_lrmsd_i_msa()})
+over \verb{(a1, a2)} by numerical optimisation, returning a point estimate plus an
+asymptotic covariance from the Hessian at the optimum. Intended for large proteins
+and path simulations.
 }
 \details{
-The optimiser works in the same coordinates as the AGQ fit: \code{a1} and
+The optimiser works in the coordinates \code{a1} and
 \code{log2(a2 + 1)} (so \code{a2 = 2^(log2(a2+1)) - 1 >= 0}), on the box \code{a1_range} ×
 \code{log2_a2_plus1_range} — the coordinates in which the prior is uniform. The
 returned covariance \code{cov} is on the \verb{(a1, log2(a2+1))} scale; the standard error
@@ -75,12 +71,11 @@ c(a1 = ml$a1, a2 = ml$a2)
 }
 }
 \seealso{
-\code{\link[=fit_lrmsd_i_msa_agq]{fit_lrmsd_i_msa_agq()}} (the Bayesian/posterior counterpart),
 \code{\link[=gof_lrmsd_i_msa_ml]{gof_lrmsd_i_msa_ml()}} (goodness-of-fit from this fit),
-\code{calculate_loglik_lrmsd_i_msa()} (the shared objective).
+\code{\link[=predict_lrmsd_i_msa_ml]{predict_lrmsd_i_msa_ml()}} (propagate the fit to a banded profile),
+\code{calculate_loglik_lrmsd_i_msa()} (the objective).
 
 Other fitting:
-\code{\link[=fit_lrmsd_i_msa_agq]{fit_lrmsd_i_msa_agq()}},
 \code{\link[=fit_lrmsd_n_msa_ml]{fit_lrmsd_n_msa_ml()}}
 }
 \concept{fitting}

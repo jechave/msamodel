@@ -21,7 +21,7 @@ contribution -- \verb{phi_mut_\{mean,lower,upper\}}, \verb{phi_stab_\{mean,lower
 \description{
 Mode counterpart of \code{\link[=predict_decomposition_i_msa_ml]{predict_decomposition_i_msa_ml()}}: the three contributions of
 the predicted per-mode profile, each with a symmetric delta-method band, from a mode
-ML fit (\code{\link[=fit_lrmsd_n_msa_ml]{fit_lrmsd_n_msa_ml()}}). No \code{pdb_site} and no AGQ counterpart.
+ML fit (\code{\link[=fit_lrmsd_n_msa_ml]{fit_lrmsd_n_msa_ml()}}). No \code{pdb_site} (modes are not residue-anchored).
 }
 \examples{
 \dontrun{
@@ -37,11 +37,8 @@ head(predict_decomposition_n_msa_ml(ml, pp))
 Other prediction:
 \code{\link[=gof_lrmsd_i_msa_ml]{gof_lrmsd_i_msa_ml()}},
 \code{\link[=gof_lrmsd_n_msa_ml]{gof_lrmsd_n_msa_ml()}},
-\code{\link[=predict_decomposition_i_msa_agq]{predict_decomposition_i_msa_agq()}},
 \code{\link[=predict_decomposition_i_msa_ml]{predict_decomposition_i_msa_ml()}},
-\code{\link[=predict_lrmsd_i_msa_agq]{predict_lrmsd_i_msa_agq()}},
 \code{\link[=predict_lrmsd_i_msa_ml]{predict_lrmsd_i_msa_ml()}},
-\code{\link[=predict_lrmsd_i_nested_models_agq]{predict_lrmsd_i_nested_models_agq()}},
 \code{\link[=predict_lrmsd_i_nested_models_ml]{predict_lrmsd_i_nested_models_ml()}},
 \code{\link[=predict_lrmsd_n_msa_ml]{predict_lrmsd_n_msa_ml()}},
 \code{\link[=predict_lrmsd_n_nested_models_ml]{predict_lrmsd_n_nested_models_ml()}}

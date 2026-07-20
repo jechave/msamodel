@@ -57,8 +57,7 @@ Mode counterpart of \code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}}: max
 Gaussian log-likelihood (\code{calculate_loglik_lrmsd_n_msa()}) over \verb{(a1, a2)} by
 numerical optimisation, returning a point estimate plus an asymptotic covariance
 from the Hessian at the optimum. Identical machinery to the site fit; the response
-index is the mode \code{n} (no \code{site_map} / \code{pdb_site}). There is no Bayesian mode
-counterpart.
+index is the mode \code{n} (no \code{site_map} / \code{pdb_site}).
 }
 \details{
 The optimiser works in the same coordinates as the site fit: \code{a1} and
@@ -80,7 +79,6 @@ c(a1 = ml$a1, a2 = ml$a2)
 \code{calculate_loglik_lrmsd_n_msa()} (the objective).
 
 Other fitting:
-\code{\link[=fit_lrmsd_i_msa_agq]{fit_lrmsd_i_msa_agq()}},
 \code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}}
 }
 \concept{fitting}

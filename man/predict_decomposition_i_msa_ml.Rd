@@ -19,9 +19,8 @@ triple for each contribution -- \verb{phi_mut_\{mean,lower,upper\}},
 \verb{phi_stab_\{mean,lower,upper\}}, \verb{phi_act_\{mean,lower,upper\}} (9 band columns).
 }
 \description{
-Maximum-likelihood counterpart of \code{\link[=predict_decomposition_i_msa_agq]{predict_decomposition_i_msa_agq()}}: the three
-contributions (\code{phi_mut}, \code{phi_stab}, \code{phi_act}) of the predicted per-site profile,
-each with a symmetric delta-method band, from a point ML fit
+The three contributions (\code{phi_mut}, \code{phi_stab}, \code{phi_act}) of the predicted per-site
+profile, each with a symmetric delta-method band, from a point ML fit
 (\code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}}). Each band linearizes \code{\link[=calculate_decomposition_i_msa]{calculate_decomposition_i_msa()}}
 about the fit's \verb{(a1, a2)}; \code{phi_mut} (the MM term) does not depend on the
 parameters, so its band is zero-width. The three \verb{*_mean} columns sum to the
@@ -35,17 +34,14 @@ head(predict_decomposition_i_msa_ml(ml, pp))
 }
 }
 \seealso{
-\code{\link[=predict_decomposition_i_msa_agq]{predict_decomposition_i_msa_agq()}} (the Bayesian counterpart);
+\code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}} (produces the fit);
 \code{\link[=calculate_decomposition_i_msa]{calculate_decomposition_i_msa()}} (the forward map).
 
 Other prediction:
 \code{\link[=gof_lrmsd_i_msa_ml]{gof_lrmsd_i_msa_ml()}},
 \code{\link[=gof_lrmsd_n_msa_ml]{gof_lrmsd_n_msa_ml()}},
-\code{\link[=predict_decomposition_i_msa_agq]{predict_decomposition_i_msa_agq()}},
 \code{\link[=predict_decomposition_n_msa_ml]{predict_decomposition_n_msa_ml()}},
-\code{\link[=predict_lrmsd_i_msa_agq]{predict_lrmsd_i_msa_agq()}},
 \code{\link[=predict_lrmsd_i_msa_ml]{predict_lrmsd_i_msa_ml()}},
-\code{\link[=predict_lrmsd_i_nested_models_agq]{predict_lrmsd_i_nested_models_agq()}},
 \code{\link[=predict_lrmsd_i_nested_models_ml]{predict_lrmsd_i_nested_models_ml()}},
 \code{\link[=predict_lrmsd_n_msa_ml]{predict_lrmsd_n_msa_ml()}},
 \code{\link[=predict_lrmsd_n_nested_models_ml]{predict_lrmsd_n_nested_models_ml()}}
