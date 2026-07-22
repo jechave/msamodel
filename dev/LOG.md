@@ -12,6 +12,43 @@ One short entry per working session.
 The current state and what's next. Keep this current as slices finish; it is the
 one place the live state lives (no separate PROGRESS file as of 2026-06-26).
 
+- **DIRECTION DECIDED 2026-07-22 — handle the profile LEVEL with an explicit `a0` parameter, NOT
+  by mean-centring (`nlrmsd`).** The two-error-source band work stalled on a deeper problem: the
+  model level `f(a1,a2)` (constant across residues) is a nuisance for fitting but signal for
+  forward exploration. An `nlrmsd = lrmsd − mean(lrmsd)` approach was explored in depth and
+  **ABANDONED** because mean-subtraction has no canonical support: `mean()` over all model sites
+  (228 for znb) vs over the observed-matched sites (225) gives different values, so `nlrmsd(i)`
+  is ill-defined — it would name TWO different quantities (forward vs fit) and reintroduce the
+  band ambiguity it was meant to fix. **The clean fix (author, 2026-07-22): fit
+  `lrmsd_obs(i) = a0 + lrmsd_model(i; a1,a2) + noise` with `a0` an explicit level parameter.**
+  No mean is ever subtracted → no support question → `lrmsd` stays the one well-defined model
+  quantity on all sites. `a0` is estimated from whatever sites are observed (like any regression
+  intercept). The BAND becomes the delta method on `lrmsd(i)` with a **3-parameter** covariance
+  `(a0, a1, a2)` (`a0` = uniform vertical uncertainty, `a1,a2` = shape) — no slide, no
+  ill-defined quantity. For Gaussian noise, profiling `a0` out === the old centred fit, so the
+  point estimate `(â1,â2)` is unchanged; the gain is a correct level-uncertainty band and no
+  ambiguity. Site-mismatch (znb: model 228 vs obs 225; the 3 unmatched = pdb_site 243/244/245,
+  absent from the source profile CSV) is what proved centring untenable and `a0` clean.
+
+- **`nlrmsd` restructure work was RESET AWAY (2026-07-22).** Branch `nlrmsd-first-class` was
+  `git reset --hard main`. Two committed Phase-A commits (SHAs `a5656db`, `375ec36` — recoverable
+  via reflog) plus an uncommitted Phase-B (inference rename + band de-slide) are discarded: all
+  built on the mean-centring premise now rejected. Tree is back at `main` (`1937268`), 149 tests
+  green. ONE salvageable idea if wanted: `rmsd2lrmsd()` (a plain `log()` obs-side helper) is still
+  sensible; the `lrmsd2nlrmsd`/`rmsd2nlrmsd`/`calculate_nlrmsd_*` centring functions are NOT.
+
+- **NEXT SESSION = re-plan the `a0` design from scratch (do NOT re-code yet).** Open design
+  questions to think through before implementing: (1) fit object + optimiser go 2→3 params
+  `(a0,a1,a2)`; box/init/Hessian/`cov` become 3×3; `validate_ml_fit`'s 2×2 check widens. (2) The
+  band on `lrmsd(i)` uses the 3×3 cov — decide whether to report the `lrmsd` band, an
+  `a0`-removed "shape" band, or both, and how that reads against observed points. (3) Decomposition
+  `phi_*`: does `a0` sit outside the decomposition (phi on raw `lrmsd`, level separate) or enter
+  it? (4) The SPM two-error-source arm (the ORIGINAL goal — see [[project_two_error_sources_band]])
+  layers on the `lrmsd` band once `a0` lands. (5) Naming: fit/predict stay `*_lrmsd_*` (they ARE
+  lrmsd now, honestly) — no rename needed, unlike the abandoned `nlrmsd` plan. The old plan file
+  `~/.claude/plans/indexed-splashing-stardust.md` is SUPERSEDED (it plans the abandoned `nlrmsd`
+  restructure); write a fresh plan.
+
 - **DECIDED 2026-07-17 — SPM-sampling error band = DELTA METHOD, not bootstrap.** After a
   long investigation (scratch in `dev/tmp2/`), the conclusion for the SPM-sampling arm of
   the divergence-profile band: **use the delta method, drop bootstrapping (naive AND
