@@ -144,6 +144,28 @@ delta_band <- function(f, t_hat, cov_t, level, name) {
   tibble::as_tibble(cols)
 }
 
+# Delta-method mean + symmetric band of the MEAN-CENTRED quantity nq = q - mean_S(q),
+# where S is the full model support (all rows f returns). Because mean_S(q) is itself a
+# function of the parameters, the gradient of nq is the COLUMN-CENTRED Jacobian
+# g_i - mean_S(g), NOT the raw g_i -- so the centred band differs from delta_band()'s,
+# it is not delta_band() shifted by a constant. `name` should already carry its centred
+# (n-prefixed) form; returns <name>_mean/_lower/_upper. Same cov_t and level handling as
+# delta_band(); the mean subtraction and the gradient centring are one operation on one
+# quantity over one support.
+#' @noRd
+delta_band_centred <- function(f, t_hat, cov_t, level, name) {
+  v      <- f(t_hat)
+  mean_v <- v - mean(v)                       # centred over the full model support
+  J      <- grad_t(f, t_hat)                  # [nsite x 2]
+  Jc     <- sweep(J, 2, colMeans(J))          # g_i - mean_S(g), per column
+  var_v  <- rowSums((Jc %*% cov_t) * Jc)      # diag(Jc cov_t Jc^T)
+  se_v   <- sqrt(pmax(var_v, 0))              # pmax guards tiny negative round-off only
+  z      <- stats::qnorm(1 - (1 - level) / 2)
+  cols <- list(mean_v, mean_v - z * se_v, mean_v + z * se_v)
+  names(cols) <- paste0(name, c("_mean", "_lower", "_upper"))
+  tibble::as_tibble(cols)
+}
+
 # An _ml fit must carry the point estimate + t-scale covariance the delta method needs.
 # Fail loud on a wrong-type object rather than propagating an NA band.
 #' @noRd
@@ -169,18 +191,20 @@ ml_t_hat <- function(fit) c(fit$a1, log2(fit$a2 + 1))
 #' map [calculate_lrmsd_i_msa()] linearized about the fit's `(a1, a2)`, its gradient
 #' sandwiched with the fit's covariance -- so it is deterministic and Gaussian
 #' (symmetric), a frequentist confidence band consistent with the fit's own standard
-#' errors.
+#' errors. This is the band on the *uncentred* `lrmsd`: the uncertainty in the model's
+#' predicted `lrmsd` induced by uncertainty in `(a1, a2)`, holding the model's own
+#' predicted level. For the mean-centred quantity that compares to observations, use
+#' [predict_nlrmsd_i_msa_ml()].
 #'
 #' @param fit A list from [fit_lrmsd_i_msa_ml()] (carrying `a1`, `a2`, and the 2x2
 #'   `cov` on the `(a1, log2(a2+1))` scale).
 #' @param spm_pp Preprocessed data from [preprocess_spm()] (the same used for the fit).
 #' @param level Confidence-band coverage (default 0.95).
-#' @return A tibble with one row per model residue: `i`, `pdb_site`, the profile
-#'   summary (`lrmsd_i_msa_mean`, `lrmsd_i_msa_lower`, `lrmsd_i_msa_upper`), and their
-#'   mean-centred counterparts (`nlrmsd_i_msa_mean`, `nlrmsd_i_msa_lower`,
-#'   `nlrmsd_i_msa_upper`).
-#' @seealso [fit_lrmsd_i_msa_ml()] (produces the fit); [calculate_lrmsd_i_msa()] (the
-#'   forward map linearized).
+#' @return A tibble with one row per model residue: `i`, `pdb_site`, and the profile
+#'   summary `lrmsd_i_msa_mean`, `lrmsd_i_msa_lower`, `lrmsd_i_msa_upper`.
+#' @seealso [predict_nlrmsd_i_msa_ml()] (the mean-centred counterpart);
+#'   [fit_lrmsd_i_msa_ml()] (produces the fit); [calculate_lrmsd_i_msa()] (the forward
+#'   map linearized).
 #' @family prediction
 #' @examples
 #' \dontrun{
@@ -198,33 +222,69 @@ predict_lrmsd_i_msa_ml <- function(fit, spm_pp, level = 0.95) {
     dplyr::left_join(spm_pp$site_map, by = "i")
   f <- function(t) calculate_lrmsd_i_msa(spm_pp, t[1], 2^t[2] - 1)$lrmsd_i_msa
   band <- delta_band(f, ml_t_hat(fit), fit$cov, level, "lrmsd_i_msa")
+  dplyr::bind_cols(tibble(i = keys$i, pdb_site = keys$pdb_site), band)
+}
 
-  out <- dplyr::bind_cols(tibble(i = keys$i, pdb_site = keys$pdb_site), band)
-  # Mean-centre by a single shift so the band stays a band.
-  shift <- mean(out$lrmsd_i_msa_mean)
-  out %>%
-    mutate(
-      nlrmsd_i_msa_mean  = lrmsd_i_msa_mean  - shift,
-      nlrmsd_i_msa_lower = lrmsd_i_msa_lower - shift,
-      nlrmsd_i_msa_upper = lrmsd_i_msa_upper - shift
-    )
+#' Predicted mean-centred nlrmsd_i profile with delta-method error bands from an ML fit
+#'
+#' Mean-centred counterpart of [predict_lrmsd_i_msa_ml()]: the per-site profile
+#' centred by its own mean over the **full model support** (all model residues),
+#' `nlrmsd_i = lrmsd_i - mean_S(lrmsd)`, with a symmetric delta-method band. Because
+#' `mean_S(lrmsd)` is itself a function of `(a1, a2)`, the band uses the column-centred
+#' gradient `g_i - mean_S(g)`; it is therefore **narrower** than (not a vertical shift
+#' of) the [predict_lrmsd_i_msa_ml()] band. This is the quantity the ML fit is on: the
+#' likelihood centres both sides, so `nlrmsd` is what the fit has information about.
+#'
+#' Support note: prediction centres over all model residues, deliberately agnostic to
+#' which residues a given dataset happens to observe. The fit itself centres over the
+#' observation-matched residues (its `fitted.values`), so predicted and fitted `nlrmsd`
+#' sit at slightly different levels **by design**. When overlaying observations, centre
+#' them on their own matched support -- that is the comparison being made.
+#'
+#' @param fit A list from [fit_lrmsd_i_msa_ml()] (carrying `a1`, `a2`, and the 2x2
+#'   `cov` on the `(a1, log2(a2+1))` scale).
+#' @param spm_pp Preprocessed data from [preprocess_spm()] (the same used for the fit).
+#' @param level Confidence-band coverage (default 0.95).
+#' @return A tibble with one row per model residue: `i`, `pdb_site`, and the centred
+#'   profile summary `nlrmsd_i_msa_mean`, `nlrmsd_i_msa_lower`, `nlrmsd_i_msa_upper`.
+#' @seealso [predict_lrmsd_i_msa_ml()] (the uncentred counterpart);
+#'   [fit_lrmsd_i_msa_ml()] (produces the fit); [calculate_lrmsd_i_msa()] (the forward
+#'   map linearized).
+#' @family prediction
+#' @examples
+#' \dontrun{
+#' pp <- preprocess_spm(znb_spm)
+#' ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
+#' head(predict_nlrmsd_i_msa_ml(ml, pp))
+#' }
+#' @export
+predict_nlrmsd_i_msa_ml <- function(fit, spm_pp, level = 0.95) {
+  validate_ml_fit(fit, "fit_lrmsd_i_msa_ml()")
+  if (length(level) != 1 || level <= 0 || level >= 1) {
+    stop("level must be a single number in (0, 1)")
+  }
+  keys <- calculate_lrmsd_i_msa(spm_pp, fit$a1, fit$a2) %>%
+    dplyr::left_join(spm_pp$site_map, by = "i")
+  f <- function(t) calculate_lrmsd_i_msa(spm_pp, t[1], 2^t[2] - 1)$lrmsd_i_msa
+  band <- delta_band_centred(f, ml_t_hat(fit), fit$cov, level, "nlrmsd_i_msa")
+  dplyr::bind_cols(tibble(i = keys$i, pdb_site = keys$pdb_site), band)
 }
 
 #' Predicted lrmsd_n profile with delta-method error bands from an ML fit (mode form)
 #'
 #' Mode counterpart of [predict_lrmsd_i_msa_ml()]: propagates a mode ML fit
 #' ([fit_lrmsd_n_msa_ml()]) to the predicted per-mode divergence profile with a
-#' symmetric delta-method band. Modes are not residue-anchored, so there is no
-#' `pdb_site` column.
+#' symmetric delta-method band on the *uncentred* `lrmsd`. Modes are not
+#' residue-anchored, so there is no `pdb_site` column. For the mean-centred quantity,
+#' use [predict_nlrmsd_n_msa_ml()].
 #'
 #' @param fit A list from [fit_lrmsd_n_msa_ml()] (carrying `a1`, `a2`, `cov`).
 #' @param spm_pp_mode Preprocessed data from [preprocess_spm_mode()].
 #' @param level Confidence-band coverage (default 0.95).
-#' @return A tibble with one row per mode: `n`, the profile summary
-#'   (`lrmsd_n_msa_mean`, `lrmsd_n_msa_lower`, `lrmsd_n_msa_upper`), and their
-#'   mean-centred counterparts (`nlrmsd_n_msa_mean`, `nlrmsd_n_msa_lower`,
-#'   `nlrmsd_n_msa_upper`).
-#' @seealso [fit_lrmsd_n_msa_ml()] (produces the fit); [predict_lrmsd_i_msa_ml()]
+#' @return A tibble with one row per mode: `n`, and the profile summary
+#'   `lrmsd_n_msa_mean`, `lrmsd_n_msa_lower`, `lrmsd_n_msa_upper`.
+#' @seealso [predict_nlrmsd_n_msa_ml()] (the mean-centred counterpart);
+#'   [fit_lrmsd_n_msa_ml()] (produces the fit); [predict_lrmsd_i_msa_ml()]
 #'   (site counterpart); [calculate_lrmsd_n_msa()] (the forward map linearized).
 #' @family prediction
 #' @examples
@@ -242,24 +302,54 @@ predict_lrmsd_n_msa_ml <- function(fit, spm_pp_mode, level = 0.95) {
   keys <- calculate_lrmsd_n_msa(spm_pp_mode, fit$a1, fit$a2)
   f <- function(t) calculate_lrmsd_n_msa(spm_pp_mode, t[1], 2^t[2] - 1)$lrmsd_n_msa
   band <- delta_band(f, ml_t_hat(fit), fit$cov, level, "lrmsd_n_msa")
+  dplyr::bind_cols(tibble(n = keys$n), band)
+}
 
-  out <- dplyr::bind_cols(tibble(n = keys$n), band)
-  shift <- mean(out$lrmsd_n_msa_mean)
-  out %>%
-    mutate(
-      nlrmsd_n_msa_mean  = lrmsd_n_msa_mean  - shift,
-      nlrmsd_n_msa_lower = lrmsd_n_msa_lower - shift,
-      nlrmsd_n_msa_upper = lrmsd_n_msa_upper - shift
-    )
+#' Predicted mean-centred nlrmsd_n profile with delta-method error bands (mode form)
+#'
+#' Mode counterpart of [predict_nlrmsd_i_msa_ml()]: the per-mode profile centred by its
+#' own mean over the full model support (all modes), with a symmetric delta-method band
+#' using the column-centred gradient. No `pdb_site` (modes are not residue-anchored).
+#' See [predict_nlrmsd_i_msa_ml()] for the support note (predict centres over all modes;
+#' the fit centres over the observation-matched modes, so the two levels differ by
+#' design).
+#'
+#' @param fit A list from [fit_lrmsd_n_msa_ml()] (carrying `a1`, `a2`, `cov`).
+#' @param spm_pp_mode Preprocessed data from [preprocess_spm_mode()].
+#' @param level Confidence-band coverage (default 0.95).
+#' @return A tibble with one row per mode: `n`, and the centred profile summary
+#'   `nlrmsd_n_msa_mean`, `nlrmsd_n_msa_lower`, `nlrmsd_n_msa_upper`.
+#' @seealso [predict_lrmsd_n_msa_ml()] (the uncentred counterpart);
+#'   [predict_nlrmsd_i_msa_ml()] (site counterpart); [fit_lrmsd_n_msa_ml()] (produces
+#'   the fit); [calculate_lrmsd_n_msa()] (the forward map linearized).
+#' @family prediction
+#' @examples
+#' \dontrun{
+#' pp <- preprocess_spm_mode(znb_spm)
+#' ml <- fit_lrmsd_n_msa_ml(pp, znb_profile_n)
+#' head(predict_nlrmsd_n_msa_ml(ml, pp))
+#' }
+#' @export
+predict_nlrmsd_n_msa_ml <- function(fit, spm_pp_mode, level = 0.95) {
+  validate_ml_fit(fit, "fit_lrmsd_n_msa_ml()")
+  if (length(level) != 1 || level <= 0 || level >= 1) {
+    stop("level must be a single number in (0, 1)")
+  }
+  keys <- calculate_lrmsd_n_msa(spm_pp_mode, fit$a1, fit$a2)
+  f <- function(t) calculate_lrmsd_n_msa(spm_pp_mode, t[1], 2^t[2] - 1)$lrmsd_n_msa
+  band <- delta_band_centred(f, ml_t_hat(fit), fit$cov, level, "nlrmsd_n_msa")
+  dplyr::bind_cols(tibble(n = keys$n), band)
 }
 
 #' Nested-model divergence profiles with delta-method bands from an ML fit
 #'
-#' The four nested variants (MM, MS, MA, MSA) of the predicted per-site profile, each
-#' with a symmetric delta-method band, from a point ML fit ([fit_lrmsd_i_msa_ml()]).
-#' Each variant's band linearizes [calculate_lrmsd_i_nested_models()] about the fit's
-#' `(a1, a2)`; MM `(0, 0)` does not depend on the parameters, so its band is
-#' zero-width.
+#' The four nested variants (MM, MS, MA, MSA) of the predicted per-site *uncentred*
+#' profile, each with a symmetric delta-method band, from a point ML fit
+#' ([fit_lrmsd_i_msa_ml()]). Each variant's band linearizes
+#' [calculate_lrmsd_i_nested_models()] about the fit's `(a1, a2)`; MM `(0, 0)` does not
+#' depend on the parameters, so its (parameter-uncertainty) band is zero-width. For the
+#' mean-centred variants that compare to observations, use
+#' [predict_nlrmsd_i_nested_models_ml()].
 #'
 #' @param fit A list from [fit_lrmsd_i_msa_ml()] (carrying `a1`, `a2`, `cov`).
 #' @param spm_pp Preprocessed data from [preprocess_spm()].
@@ -268,7 +358,8 @@ predict_lrmsd_n_msa_ml <- function(fit, spm_pp_mode, level = 0.95) {
 #'   triple for each variant -- `lrmsd_i_mm_{mean,lower,upper}`,
 #'   `lrmsd_i_ms_{mean,lower,upper}`, `lrmsd_i_ma_{mean,lower,upper}`,
 #'   `lrmsd_i_msa_{mean,lower,upper}` (12 band columns).
-#' @seealso [fit_lrmsd_i_msa_ml()] (produces the fit);
+#' @seealso [predict_nlrmsd_i_nested_models_ml()] (mean-centred counterpart);
+#'   [fit_lrmsd_i_msa_ml()] (produces the fit);
 #'   [calculate_lrmsd_i_nested_models()] (the forward map).
 #' @family prediction
 #' @examples
@@ -294,12 +385,57 @@ predict_lrmsd_i_nested_models_ml <- function(fit, spm_pp, level = 0.95) {
   dplyr::bind_cols(keys[c("i", "pdb_site")], bands)
 }
 
+#' Mean-centred nested-model divergence profiles with delta-method bands from an ML fit
+#'
+#' Mean-centred counterpart of [predict_lrmsd_i_nested_models_ml()]: the four nested
+#' variants (MM, MS, MA, MSA), each centred by *its own* mean over the full model
+#' support and banded with the column-centred gradient. MM's gradient is constant in
+#' `(a1, a2)`, so its centred gradient is exactly zero and its band is zero-width (its
+#' SPM-sampling band, added later, is not). See [predict_nlrmsd_i_msa_ml()] for the
+#' support note.
+#'
+#' @param fit A list from [fit_lrmsd_i_msa_ml()] (carrying `a1`, `a2`, `cov`).
+#' @param spm_pp Preprocessed data from [preprocess_spm()].
+#' @param level Confidence-band coverage (default 0.95).
+#' @return A tibble with one row per residue: `i`, `pdb_site`, and a mean/lower/upper
+#'   triple for each centred variant -- `nlrmsd_i_mm_{mean,lower,upper}`,
+#'   `nlrmsd_i_ms_{mean,lower,upper}`, `nlrmsd_i_ma_{mean,lower,upper}`,
+#'   `nlrmsd_i_msa_{mean,lower,upper}` (12 band columns).
+#' @seealso [predict_lrmsd_i_nested_models_ml()] (uncentred counterpart);
+#'   [fit_lrmsd_i_msa_ml()] (produces the fit);
+#'   [calculate_lrmsd_i_nested_models()] (the forward map).
+#' @family prediction
+#' @examples
+#' \dontrun{
+#' pp <- preprocess_spm(znb_spm)
+#' ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
+#' head(predict_nlrmsd_i_nested_models_ml(ml, pp))
+#' }
+#' @export
+predict_nlrmsd_i_nested_models_ml <- function(fit, spm_pp, level = 0.95) {
+  validate_ml_fit(fit, "fit_lrmsd_i_msa_ml()")
+  if (length(level) != 1 || level <= 0 || level >= 1) {
+    stop("level must be a single number in (0, 1)")
+  }
+  keys     <- calculate_lrmsd_i_nested_models(spm_pp, fit$a1, fit$a2)
+  variants <- c("mm", "ms", "ma", "msa")
+  t_hat    <- ml_t_hat(fit)
+
+  bands <- lapply(variants, function(v) {
+    src <- paste0("lrmsd_i_", v)
+    f <- function(t) calculate_lrmsd_i_nested_models(spm_pp, t[1], 2^t[2] - 1)[[src]]
+    delta_band_centred(f, t_hat, fit$cov, level, paste0("nlrmsd_i_", v))
+  })
+  dplyr::bind_cols(keys[c("i", "pdb_site")], bands)
+}
+
 #' Nested-model divergence profiles with delta-method bands from an ML fit (mode form)
 #'
 #' Mode counterpart of [predict_lrmsd_i_nested_models_ml()]: the four nested variants
-#' of the predicted per-mode profile, each with a symmetric delta-method band, from a
-#' mode ML fit ([fit_lrmsd_n_msa_ml()]). No `pdb_site` (modes are not
-#' residue-anchored).
+#' of the predicted per-mode *uncentred* profile, each with a symmetric delta-method
+#' band, from a mode ML fit ([fit_lrmsd_n_msa_ml()]). No `pdb_site` (modes are not
+#' residue-anchored). For the mean-centred variants use
+#' [predict_nlrmsd_n_nested_models_ml()].
 #'
 #' @param fit A list from [fit_lrmsd_n_msa_ml()] (carrying `a1`, `a2`, `cov`).
 #' @param spm_pp_mode Preprocessed data from [preprocess_spm_mode()].
@@ -307,7 +443,8 @@ predict_lrmsd_i_nested_models_ml <- function(fit, spm_pp, level = 0.95) {
 #' @return A tibble with one row per mode: `n` and a mean/lower/upper triple for each
 #'   variant -- `lrmsd_n_mm_{mean,lower,upper}`, `lrmsd_n_ms_{mean,lower,upper}`,
 #'   `lrmsd_n_ma_{mean,lower,upper}`, `lrmsd_n_msa_{mean,lower,upper}` (12 band columns).
-#' @seealso [predict_lrmsd_i_nested_models_ml()] (site counterpart);
+#' @seealso [predict_nlrmsd_n_nested_models_ml()] (mean-centred counterpart);
+#'   [predict_lrmsd_i_nested_models_ml()] (site counterpart);
 #'   [calculate_lrmsd_n_nested_models()] (the forward map).
 #' @family prediction
 #' @examples
@@ -333,81 +470,130 @@ predict_lrmsd_n_nested_models_ml <- function(fit, spm_pp_mode, level = 0.95) {
   dplyr::bind_cols(keys["n"], bands)
 }
 
-#' Per-site divergence decomposition with delta-method bands from an ML fit
+#' Mean-centred nested-model divergence profiles with delta-method bands (mode form)
 #'
-#' The three contributions (`phi_mut`, `phi_stab`, `phi_act`) of the predicted per-site
-#' profile, each with a symmetric delta-method band, from a point ML fit
-#' ([fit_lrmsd_i_msa_ml()]). Each band linearizes [calculate_decomposition_i_msa()]
-#' about the fit's `(a1, a2)`; `phi_mut` (the MM term) does not depend on the
-#' parameters, so its band is zero-width. The three `*_mean` columns sum to the
-#' full-model mean profile, but the bands do not sum (SEs are not additive).
+#' Mode counterpart of [predict_nlrmsd_i_nested_models_ml()]: the four nested variants
+#' of the per-mode profile, each centred by its own mean over the full model support
+#' and banded with the column-centred gradient. MM's centred band is zero-width. No
+#' `pdb_site` (modes are not residue-anchored).
+#'
+#' @param fit A list from [fit_lrmsd_n_msa_ml()] (carrying `a1`, `a2`, `cov`).
+#' @param spm_pp_mode Preprocessed data from [preprocess_spm_mode()].
+#' @param level Confidence-band coverage (default 0.95).
+#' @return A tibble with one row per mode: `n` and a mean/lower/upper triple for each
+#'   centred variant -- `nlrmsd_n_mm_{mean,lower,upper}`, `nlrmsd_n_ms_{mean,lower,upper}`,
+#'   `nlrmsd_n_ma_{mean,lower,upper}`, `nlrmsd_n_msa_{mean,lower,upper}` (12 band columns).
+#' @seealso [predict_lrmsd_n_nested_models_ml()] (uncentred counterpart);
+#'   [predict_nlrmsd_i_nested_models_ml()] (site counterpart);
+#'   [calculate_lrmsd_n_nested_models()] (the forward map).
+#' @family prediction
+#' @examples
+#' \dontrun{
+#' pp <- preprocess_spm_mode(znb_spm)
+#' ml <- fit_lrmsd_n_msa_ml(pp, znb_profile_n)
+#' head(predict_nlrmsd_n_nested_models_ml(ml, pp))
+#' }
+#' @export
+predict_nlrmsd_n_nested_models_ml <- function(fit, spm_pp_mode, level = 0.95) {
+  validate_ml_fit(fit, "fit_lrmsd_n_msa_ml()")
+  if (length(level) != 1 || level <= 0 || level >= 1) {
+    stop("level must be a single number in (0, 1)")
+  }
+  keys     <- calculate_lrmsd_n_nested_models(spm_pp_mode, fit$a1, fit$a2)
+  variants <- c("mm", "ms", "ma", "msa")
+  t_hat    <- ml_t_hat(fit)
+
+  bands <- lapply(variants, function(v) {
+    src <- paste0("lrmsd_n_", v)
+    f <- function(t) calculate_lrmsd_n_nested_models(spm_pp_mode, t[1], 2^t[2] - 1)[[src]]
+    delta_band_centred(f, t_hat, fit$cov, level, paste0("nlrmsd_n_", v))
+  })
+  dplyr::bind_cols(keys["n"], bands)
+}
+
+#' Decomposition of nlrmsd_i_msa with delta-method bands from an ML fit
+#'
+#' The three contributions (`nphi_mut`, `nphi_stab`, `nphi_act`) of the *mean-centred*
+#' per-site profile `nlrmsd_i_msa`, each with a symmetric delta-method band, from a
+#' point ML fit ([fit_lrmsd_i_msa_ml()]). Each contribution is centred by its own mean
+#' over the full model support and banded with the column-centred gradient (see
+#' [predict_nlrmsd_i_msa_ml()] for the support note). The decomposition is defined only
+#' for the centred quantity; the three `*_mean` columns sum to `nlrmsd_i_msa` (centring
+#' is linear), but the bands do not sum (SEs are not additive). `nphi_mut` (the MM
+#' term) has a constant gradient, so its band is zero-width.
 #'
 #' @param fit A list from [fit_lrmsd_i_msa_ml()] (carrying `a1`, `a2`, `cov`).
 #' @param spm_pp Preprocessed data from [preprocess_spm()].
 #' @param level Confidence-band coverage (default 0.95).
 #' @return A tibble with one row per residue: `i`, `pdb_site`, and a mean/lower/upper
-#'   triple for each contribution -- `phi_mut_{mean,lower,upper}`,
-#'   `phi_stab_{mean,lower,upper}`, `phi_act_{mean,lower,upper}` (9 band columns).
-#' @seealso [fit_lrmsd_i_msa_ml()] (produces the fit);
+#'   triple for each contribution -- `nphi_mut_{mean,lower,upper}`,
+#'   `nphi_stab_{mean,lower,upper}`, `nphi_act_{mean,lower,upper}` (9 band columns).
+#' @seealso [predict_nlrmsd_i_msa_ml()] (the profile it decomposes);
+#'   [fit_lrmsd_i_msa_ml()] (produces the fit);
 #'   [calculate_decomposition_i_msa()] (the forward map).
 #' @family prediction
 #' @examples
 #' \dontrun{
 #' pp <- preprocess_spm(znb_spm)
 #' ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
-#' head(predict_decomposition_i_msa_ml(ml, pp))
+#' head(predict_nlrmsd_i_msa_decomposition_ml(ml, pp))
 #' }
 #' @export
-predict_decomposition_i_msa_ml <- function(fit, spm_pp, level = 0.95) {
+predict_nlrmsd_i_msa_decomposition_ml <- function(fit, spm_pp, level = 0.95) {
   validate_ml_fit(fit, "fit_lrmsd_i_msa_ml()")
   if (length(level) != 1 || level <= 0 || level >= 1) {
     stop("level must be a single number in (0, 1)")
   }
   keys <- calculate_decomposition_i_msa(spm_pp, fit$a1, fit$a2)
-  phis <- c("phi_mut", "phi_stab", "phi_act")
+  phis <- c("mut", "stab", "act")
   t_hat <- ml_t_hat(fit)
 
   bands <- lapply(phis, function(v) {
-    f <- function(t) calculate_decomposition_i_msa(spm_pp, t[1], 2^t[2] - 1)[[v]]
-    delta_band(f, t_hat, fit$cov, level, v)
+    src <- paste0("phi_", v)
+    f <- function(t) calculate_decomposition_i_msa(spm_pp, t[1], 2^t[2] - 1)[[src]]
+    delta_band_centred(f, t_hat, fit$cov, level, paste0("nphi_", v))
   })
   dplyr::bind_cols(keys[c("i", "pdb_site")], bands)
 }
 
-#' Per-mode divergence decomposition with delta-method bands from an ML fit (mode form)
+#' Decomposition of nlrmsd_n_msa with delta-method bands from an ML fit (mode form)
 #'
-#' Mode counterpart of [predict_decomposition_i_msa_ml()]: the three contributions of
-#' the predicted per-mode profile, each with a symmetric delta-method band, from a mode
-#' ML fit ([fit_lrmsd_n_msa_ml()]). No `pdb_site` (modes are not residue-anchored).
+#' Mode counterpart of [predict_nlrmsd_i_msa_decomposition_ml()]: the three
+#' contributions of the mean-centred per-mode profile `nlrmsd_n_msa`, each with a
+#' symmetric delta-method band. No `pdb_site` (modes are not residue-anchored). The
+#' three `*_mean` columns sum to `nlrmsd_n_msa`; the bands do not sum. `nphi_mut`'s band
+#' is zero-width.
 #'
 #' @param fit A list from [fit_lrmsd_n_msa_ml()] (carrying `a1`, `a2`, `cov`).
 #' @param spm_pp_mode Preprocessed data from [preprocess_spm_mode()].
 #' @param level Confidence-band coverage (default 0.95).
 #' @return A tibble with one row per mode: `n` and a mean/lower/upper triple for each
-#'   contribution -- `phi_mut_{mean,lower,upper}`, `phi_stab_{mean,lower,upper}`,
-#'   `phi_act_{mean,lower,upper}` (9 band columns).
-#' @seealso [predict_decomposition_i_msa_ml()] (site counterpart);
+#'   contribution -- `nphi_mut_{mean,lower,upper}`, `nphi_stab_{mean,lower,upper}`,
+#'   `nphi_act_{mean,lower,upper}` (9 band columns).
+#' @seealso [predict_nlrmsd_i_msa_decomposition_ml()] (site counterpart);
+#'   [predict_nlrmsd_n_msa_ml()] (the profile it decomposes);
 #'   [calculate_decomposition_n_msa()] (the forward map).
 #' @family prediction
 #' @examples
 #' \dontrun{
 #' pp <- preprocess_spm_mode(znb_spm)
 #' ml <- fit_lrmsd_n_msa_ml(pp, znb_profile_n)
-#' head(predict_decomposition_n_msa_ml(ml, pp))
+#' head(predict_nlrmsd_n_msa_decomposition_ml(ml, pp))
 #' }
 #' @export
-predict_decomposition_n_msa_ml <- function(fit, spm_pp_mode, level = 0.95) {
+predict_nlrmsd_n_msa_decomposition_ml <- function(fit, spm_pp_mode, level = 0.95) {
   validate_ml_fit(fit, "fit_lrmsd_n_msa_ml()")
   if (length(level) != 1 || level <= 0 || level >= 1) {
     stop("level must be a single number in (0, 1)")
   }
   keys <- calculate_decomposition_n_msa(spm_pp_mode, fit$a1, fit$a2)
-  phis <- c("phi_mut", "phi_stab", "phi_act")
+  phis <- c("mut", "stab", "act")
   t_hat <- ml_t_hat(fit)
 
   bands <- lapply(phis, function(v) {
-    f <- function(t) calculate_decomposition_n_msa(spm_pp_mode, t[1], 2^t[2] - 1)[[v]]
-    delta_band(f, t_hat, fit$cov, level, v)
+    src <- paste0("phi_", v)
+    f <- function(t) calculate_decomposition_n_msa(spm_pp_mode, t[1], 2^t[2] - 1)[[src]]
+    delta_band_centred(f, t_hat, fit$cov, level, paste0("nphi_", v))
   })
   dplyr::bind_cols(keys["n"], bands)
 }

@@ -12,42 +12,87 @@ One short entry per working session.
 The current state and what's next. Keep this current as slices finish; it is the
 one place the live state lives (no separate PROGRESS file as of 2026-06-26).
 
-- **DIRECTION DECIDED 2026-07-22 — handle the profile LEVEL with an explicit `a0` parameter, NOT
-  by mean-centring (`nlrmsd`).** The two-error-source band work stalled on a deeper problem: the
-  model level `f(a1,a2)` (constant across residues) is a nuisance for fitting but signal for
-  forward exploration. An `nlrmsd = lrmsd − mean(lrmsd)` approach was explored in depth and
-  **ABANDONED** because mean-subtraction has no canonical support: `mean()` over all model sites
-  (228 for znb) vs over the observed-matched sites (225) gives different values, so `nlrmsd(i)`
-  is ill-defined — it would name TWO different quantities (forward vs fit) and reintroduce the
-  band ambiguity it was meant to fix. **The clean fix (author, 2026-07-22): fit
-  `lrmsd_obs(i) = a0 + lrmsd_model(i; a1,a2) + noise` with `a0` an explicit level parameter.**
-  No mean is ever subtracted → no support question → `lrmsd` stays the one well-defined model
-  quantity on all sites. `a0` is estimated from whatever sites are observed (like any regression
-  intercept). The BAND becomes the delta method on `lrmsd(i)` with a **3-parameter** covariance
-  `(a0, a1, a2)` (`a0` = uniform vertical uncertainty, `a1,a2` = shape) — no slide, no
-  ill-defined quantity. For Gaussian noise, profiling `a0` out === the old centred fit, so the
-  point estimate `(â1,â2)` is unchanged; the gain is a correct level-uncertainty band and no
-  ambiguity. Site-mismatch (znb: model 228 vs obs 225; the 3 unmatched = pdb_site 243/244/245,
-  absent from the source profile CSV) is what proved centring untenable and `a0` clean.
+- **LEVEL QUESTION CLOSED 2026-07-23 — keep mean-centring; `a0` is NOT being added.** The
+  2026-07-22 direction (fit `lrmsd_obs = a0 + lrmsd_model + noise` with an explicit level
+  parameter) was worked through and **dropped**. The author's reason is decisive and worth
+  recording: **it is not known how the level is shared among the nested variants MM/MS/MA/MSA**,
+  so any level-carrying quantity (`lrmsd_mm` etc.) is uninterpretable; only the CENTRED
+  quantities (`nlrmsd_mm` …) are invariant to that unknown, whatever the sharing structure is.
+  Centring is therefore not a workaround for a missing parameter — it is the standard move of
+  reporting only quantities invariant to a nuisance you cannot pin down. Corollary: the
+  228-vs-225 "no canonical support" objection that killed `nlrmsd` on 2026-07-22 was
+  **overstated**. Needing to CHOOSE a support is not the same as being ill-defined: fix the
+  reference set once (the 225 matched sites, which the fit already uses) and `nlrmsd(i)` is
+  well-defined on all 228 — the 3 unobserved sites (pdb_site 243/244/245) simply get values
+  relative to that reference. What actually went wrong was two REAL BUGS (next two bullets),
+  not an incoherent concept.
 
-- **`nlrmsd` restructure work was RESET AWAY (2026-07-22).** Branch `nlrmsd-first-class` was
-  `git reset --hard main`. Two committed Phase-A commits (SHAs `a5656db`, `375ec36` — recoverable
-  via reflog) plus an uncommitted Phase-B (inference rename + band de-slide) are discarded: all
-  built on the mean-centring premise now rejected. Tree is back at `main` (`1937268`), 149 tests
-  green. ONE salvageable idea if wanted: `rmsd2lrmsd()` (a plain `log()` obs-side helper) is still
-  sensible; the `lrmsd2nlrmsd`/`rmsd2nlrmsd`/`calculate_nlrmsd_*` centring functions are NOT.
+- **BAND-SPLIT DONE 2026-07-23 (this session). The `predict_*` API is split into uncentred
+  (`lrmsd`) and centred (`nlrmsd`) functions, each with its own correct band.** Was BUG 1: the
+  shipped band sandwiched `fit$cov` with the RAW Jacobian of the uncentred map, then subtracted a
+  scalar `shift`, so `nlrmsd_*_lower/upper` carried `lrmsd`'s width (`sqrt(gᵀΣg)`) under an
+  `nlrmsd` label. `Var(nlrmsd) ≠ Var(lrmsd)` — a real bug, not a convention. Fixed by SPLITTING,
+  not by editing the shift:
+  - New `delta_band_centred()` helper (`R/predict.R`, beside `delta_band`) centres both the value
+    and the Jacobian columns (`Jc = sweep(J,2,colMeans(J))`) → band `sqrt((g−ḡ)ᵀΣ(g−ḡ))`.
+  - `predict_*` went 6 → **10 exports**: `predict_lrmsd_{i,n}_msa_ml` (uncentred, band unchanged)
+    + `predict_nlrmsd_{i,n}_msa_ml` (centred); `predict_lrmsd_{i,n}_nested_models_ml` +
+    `predict_nlrmsd_{i,n}_nested_models_ml`; and the renamed centred-only
+    `predict_nlrmsd_{i,n}_msa_decomposition_ml` (was `predict_decomposition_{i,n}_msa_ml`), cols
+    `phi_*` → `nphi_*`. Each function returns ONLY its own quantity (no mixed lrmsd+nlrmsd rows).
+  - **VERIFIED (`scratchpad/band_after.R`, znb):** `predict_lrmsd` band == raw band to 2.3e-16
+    (unchanged); `predict_nlrmsd` band == centred band to 8.3e-17; nlrmsd band 1.36× NARROWER
+    (mean se 0.0538 → 0.0396); nlrmsd_mean == lrmsd_mean − mean(lrmsd_mean) exactly; MM centred
+    band exactly zero-width; nphi means sum to nlrmsd_i_msa mean to 4.4e-16.
+  - `fit$cov` UNCHANGED and correct (`R/fitting.R:365` already centres both sides).
+  - **Both bands are legitimate** — bands on different quantities. `lrmsd` band = model `lrmsd`
+    uncertainty given `(a1,a2)` uncertainty (holding the model's own level). `nlrmsd` band = the
+    quantity the fit is on, the one that compares to observations. Earlier "unwarranted" framing
+    was an OVERSTATEMENT — corrected.
 
-- **NEXT SESSION = re-plan the `a0` design from scratch (do NOT re-code yet).** Open design
-  questions to think through before implementing: (1) fit object + optimiser go 2→3 params
-  `(a0,a1,a2)`; box/init/Hessian/`cov` become 3×3; `validate_ml_fit`'s 2×2 check widens. (2) The
-  band on `lrmsd(i)` uses the 3×3 cov — decide whether to report the `lrmsd` band, an
-  `a0`-removed "shape" band, or both, and how that reads against observed points. (3) Decomposition
-  `phi_*`: does `a0` sit outside the decomposition (phi on raw `lrmsd`, level separate) or enter
-  it? (4) The SPM two-error-source arm (the ORIGINAL goal — see [[project_two_error_sources_band]])
-  layers on the `lrmsd` band once `a0` lands. (5) Naming: fit/predict stay `*_lrmsd_*` (they ARE
-  lrmsd now, honestly) — no rename needed, unlike the abandoned `nlrmsd` plan. The old plan file
-  `~/.claude/plans/indexed-splashing-stardust.md` is SUPERSEDED (it plans the abandoned `nlrmsd`
-  restructure); write a fresh plan.
+- **"BUG 2" WAS NOT A BUG (settled 2026-07-23).** The fit/predict support difference is BY DESIGN:
+  fit centres over the observation-matched sites (its `fitted.values`), predict centres over the
+  FULL model support (agnostic to a dataset's gaps). Different — both valid — quantities. The
+  predict code already used the full support, which is correct; nothing to fix. (Earlier "make
+  both use 225" entry was WRONG.) The `ḡ`-derivation "UNRESOLVED" item is DISSOLVED: `ḡ` is the
+  model gradient's mean over the model's own support; the observed side enters only via `Σ`.
+
+- **Tests:** `test-predict-ml.R` rewritten to the 10-export API + two new checks WITH negative
+  controls verified RED: (a) nlrmsd band uses the centred gradient (a constant-shift bug → widths
+  equal → RED); (b) MM centred band zero-width (guarded non-vacuous by the nonzero MSA width).
+  Full `test()` 159 pass / 0 fail / 2 skip. `document()` run (NAMESPACE + man/, 6→10 predict Rd,
+  2 old decomposition Rd deleted).
+
+- **VIGNETTE PENDING (blocks nothing else): `vignettes/inference-methods.Rmd.orig` calls all three
+  changed families** — `predict_lrmsd_i_msa_ml` (no longer emits `nlrmsd_*` cols the plot uses),
+  `predict_lrmsd_i_nested_models_ml`, and the renamed `predict_decomposition_i_msa_ml` +
+  `phi_*`→`nphi_*`. It is BROKEN by this change and needs edits + re-knit + **user HTML approval**
+  (hard rule). NOT touched this session. Do this as its own step before any commit that includes
+  vignette bytes.
+
+- **DECLINED 2026-07-23 (do not reopen without a new reason).** Three things were raised this
+  session and deliberately rejected: (1) **σ in the bands** — the plotted band stays the
+  PARAMETER band `gᵀΣg`. Adding `σ²` (a prediction interval) would make it ~4× wider (σ≈0.4–0.45
+  vs mean parameter half-width ≈0.105) and dominated by σ, so ~95% of points would fall inside
+  BY CONSTRUCTION and the band would not discriminate good fit from bad. Also `geom_smooth(se=TRUE)`
+  — the convention every reader knows — shows the confidence band on the fitted curve, NOT a
+  prediction interval; matching it is the right call. Report σ as a number instead (D² already
+  carries the same information normalised). (2) **Residual autocorrelation across sites** —
+  raised by a review agent, NOT by the author, and never measured. It is a pre-existing property
+  of the 2-parameter fit, orthogonal to everything in flight, and a second-order correction to a
+  band that is already reasonable. If ever wanted, a sandwich covariance is a bolt-on that
+  disturbs nothing. (3) **The Phase-0 cross-term Monte-Carlo** (measuring Cov between the SPM and
+  parameter arms before shipping) — skip it; state the independence assumption in the docs.
+
+- **MM band:** MM has zero *parameter* gradient (`(a1,a2)=(0,0)` fixed → `g=0`), so both its
+  uncentred and centred parameter-uncertainty bands are zero-width — now stated for the correct
+  reason in the split roxygen. Its nonzero *SPM-sampling* variance is the next arm.
+
+- **NEXT = (1) fix the vignette (user HTML approval), then (2) finish the SPM arm — then STOP.**
+  That completes the inference rework. The band-split (this session) replaced the old "support
+  fix" step, which was based on the mistaken Bug 2. The old plan file `~/.claude/plans/indexed-splashing-stardust.md` is
+  SUPERSEDED (it plans an `nlrmsd` restructure that is not happening; the support fix is a
+  two-function change, not a restructure).
 
 - **DECIDED 2026-07-17 — SPM-sampling error band = DELTA METHOD, not bootstrap.** After a
   long investigation (scratch in `dev/tmp2/`), the conclusion for the SPM-sampling arm of
@@ -86,11 +131,12 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
 
 - **ACTIVE WORK ITEM: inference rework** (`dev/plan.md` "Inference rework"). Still at
   `0.3.0.9000` (dev); NOT releasing now — a release waits until the inference rework
-  reaches a coherent stopping point (user decision 2026-06-30). **NEXT ACTIVE ITEM =
-  build the delta-based two-error-source band** (SPM-sampling ⊕ `(a1,a2)` parameter
-  uncertainty, one delta framework `Var_total = Var_SPM + gᵀΣ_a g`; SPM arm decided
-  DELTA 2026-07-17, see the top bullet). The parameter arm already exists in
-  `predict_*_ml`; the SPM arm is what's left to add.
+  reaches a coherent stopping point (user decision 2026-06-30). **NEXT ACTIVE ITEMS =
+  (1) the centring-support fix, then (2) the delta-based two-error-source band**
+  (SPM-sampling ⊕ `(a1,a2)` parameter uncertainty, one delta framework
+  `Var_total = Var_SPM + gᵀΣ_a g`; SPM arm decided DELTA 2026-07-17, see the top bullet).
+  The parameter arm already exists in `predict_*_ml`; the SPM arm is what's left to add.
+  After those two, the inference rework STOPS (see the 2026-07-23 bullets above).
 
 - **AGQ ARM REMOVED 2026-07-20** (`897ffd4`; plan `piped-hatching-fern.md`). The whole
   adaptive Gauss-Hermite quadrature branch is deleted — `fit_lrmsd_i_msa_agq`,
