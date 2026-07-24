@@ -73,13 +73,15 @@ test_that("nlrmsd band uses the CENTRED gradient, not the lrmsd (raw) band", {
   # The regression the split fixes: the centred (nlrmsd) band must be computed from the
   # column-centred gradient g - mean_S(g), so it is strictly different from -- here,
   # narrower than -- the uncentred (lrmsd) band. A vertical shift would leave the width
-  # equal; that is the bug this guards against.
+  # equal; that is the bug this guards against. Pinned to the PARAMETER arm: the
+  # centred-vs-raw-gradient property is a statement about the parameter band (the SPM
+  # arm has its own separate centring, tested in test-predict-uncertainty.R).
   pp <- preprocess_spm(znb_spm)
   ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
   z  <- stats::qnorm(0.975)
 
-  pl <- predict_lrmsd_i_msa_ml(ml, pp)
-  pn <- predict_nlrmsd_i_msa_ml(ml, pp)
+  pl <- predict_lrmsd_i_msa_ml(ml, pp, uncertainty = "parameter")
+  pn <- predict_nlrmsd_i_msa_ml(ml, pp, uncertainty = "parameter")
   w_lrmsd  <- pl$lrmsd_i_msa_upper  - pl$lrmsd_i_msa_mean
   w_nlrmsd <- pn$nlrmsd_i_msa_upper - pn$nlrmsd_i_msa_mean
 
@@ -102,17 +104,19 @@ test_that("nlrmsd band uses the CENTRED gradient, not the lrmsd (raw) band", {
     (f(tp) - f(tm)) / (2 * h)
   })
   Jc <- sweep(J, 2, colMeans(J))
-  se_ref <- sqrt(rowSums((Jc %*% ml$cov) * Jc))
+  se_ref <- unname(sqrt(rowSums((Jc %*% ml$cov) * Jc)))  # J carries dr2 col names; band doesn't
   expect_equal(w_nlrmsd, z * se_ref)
 })
 
-test_that("MM's centred band is exactly zero-width (constant gradient)", {
-  # MM = (a1,a2)=(0,0) is fixed, so its gradient is identically zero and centring
-  # leaves it zero: the nlrmsd_i_mm band has no width. Negative control: nlrmsd_i_msa
-  # (the full model) has a nonzero band, so a "0 == 0" tautology cannot be what passes.
+test_that("MM's centred PARAMETER band is exactly zero-width (constant gradient)", {
+  # MM = (a1,a2)=(0,0) is fixed, so its parameter gradient is identically zero and
+  # centring leaves it zero: the nlrmsd_i_mm PARAMETER band has no width. Pinned to
+  # uncertainty="parameter" -- under the default "both" MM's band is nonzero (its SPM
+  # arm), which is tested in test-predict-uncertainty.R. Negative control: nlrmsd_i_msa
+  # (the full model) has a nonzero parameter band, so a "0 == 0" tautology cannot pass.
   pp <- preprocess_spm(znb_spm)
   ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
-  nn <- predict_nlrmsd_i_nested_models_ml(ml, pp)
+  nn <- predict_nlrmsd_i_nested_models_ml(ml, pp, uncertainty = "parameter")
 
   expect_equal(nn$nlrmsd_i_mm_upper, nn$nlrmsd_i_mm_lower)   # zero-width
   expect_gt(max(abs(nn$nlrmsd_i_msa_upper - nn$nlrmsd_i_msa_lower)), 1e-6)  # not vacuous

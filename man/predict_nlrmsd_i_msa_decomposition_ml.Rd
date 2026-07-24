@@ -4,7 +4,12 @@
 \alias{predict_nlrmsd_i_msa_decomposition_ml}
 \title{Decomposition of nlrmsd_i_msa with delta-method bands from an ML fit}
 \usage{
-predict_nlrmsd_i_msa_decomposition_ml(fit, spm_pp, level = 0.95)
+predict_nlrmsd_i_msa_decomposition_ml(
+  fit,
+  spm_pp,
+  level = 0.95,
+  uncertainty = c("both", "spm", "parameter", "none")
+)
 }
 \arguments{
 \item{fit}{A list from \code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}} (carrying \code{a1}, \code{a2}, \code{cov}).}
@@ -12,6 +17,9 @@ predict_nlrmsd_i_msa_decomposition_ml(fit, spm_pp, level = 0.95)
 \item{spm_pp}{Preprocessed data from \code{\link[=preprocess_spm]{preprocess_spm()}}.}
 
 \item{level}{Confidence-band coverage (default 0.95).}
+
+\item{uncertainty}{Which error sources enter the band: \code{"both"} (default), \code{"spm"},
+\code{"parameter"}, or \code{"none"}. See \code{\link[=predict_lrmsd_i_msa_ml]{predict_lrmsd_i_msa_ml()}}.}
 }
 \value{
 A tibble with one row per residue: \code{i}, \code{pdb_site}, and a mean/lower/upper
@@ -25,8 +33,16 @@ point ML fit (\code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}}). Each con
 over the full model support and banded with the column-centred gradient (see
 \code{\link[=predict_nlrmsd_i_msa_ml]{predict_nlrmsd_i_msa_ml()}} for the support note). The decomposition is defined only
 for the centred quantity; the three \verb{*_mean} columns sum to \code{nlrmsd_i_msa} (centring
-is linear), but the bands do not sum (SEs are not additive). \code{nphi_mut} (the MM
-term) has a constant gradient, so its band is zero-width.
+is linear), but the bands do not sum (SEs are not additive). \code{nphi_mut} (the MM term)
+has a constant \emph{parameter} gradient, so its parameter band is zero-width -- but its
+SPM-sampling band is not (it equals the \code{nlrmsd_mm} SPM band, since \code{nphi_mut = nlrmsd_mm}).
+}
+\details{
+The SPM arm of each contribution is a \emph{difference} of two nested models evaluated on
+the \strong{same} mutant scan (\code{nphi_stab = nlrmsd_ms - nlrmsd_mm},
+\code{nphi_act = nlrmsd_msa - nlrmsd_ms}), so its sampling variance is computed from the
+per-mutant contributions of both models jointly -- retaining the between-model
+covariance, not summing the two variances.
 }
 \examples{
 \dontrun{

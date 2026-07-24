@@ -12,6 +12,37 @@ One short entry per working session.
 The current state and what's next. Keep this current as slices finish; it is the
 one place the live state lives (no separate PROGRESS file as of 2026-06-26).
 
+- **SPM ERROR ARM DONE 2026-07-24 (this session) — code + tests + validation, but NOT committed
+  and the inference rework is NOT "complete" yet: a naming rename is DEFERRED to next session.**
+  The finite-mutation SPM sampling error is now combined with the `(a1,a2)` parameter arm in every
+  `predict_*_ml` band, selected by a new `uncertainty = c("both","spm","parameter","none")` arg
+  (default `both`; `none` = zero-width, stable schema; arms summed under independence). New
+  `spm_hmat` + `calculate_{lrmsd,nlrmsd}_{i,n}_msa_var_spm` in `R/model.R`; `delta_band` refactored
+  to a pure variance-combiner + `var_param_delta` added + `delta_band_centred` deleted (`R/predict.R`).
+  Roxygen updated, `document()` run (10 predict Rd). Tests: `test-predict-uncertainty.R` (cheap
+  deterministic wiring + a FROZEN pre-refactor parameter-arm regression lock in
+  `helper-preref-band.R`) + updated `test-predict-ml.R`; bootstrap kept OUT of the suite (too slow,
+  stochastic). Full `test()` 178P/0F/2skip (ran once as the code-commit gate). Formula VALIDATED vs
+  an independent uniform-resample bootstrap, site AND mode, all quantities ~1% — see
+  `dev/reports/spm_band_validation.Rmd`→`.pdf`. Product showcase (all new banded fns, both axes, 4 options):
+  `dev/predict_uncertainty_showcase.Rmd`→`.html`. Formula/method in [[project_spm_band_formula]].
+- **DEFERRED to next session — a NAMING rename that is essential before this is "done".** The helper
+  internals are named in a terse math style the author rejects (`spm_hmat`, and `M`/`G`/`Gc`/`h`/`w`
+  inside it) — inconsistent with the package's descriptive `snake_case`/`dr2_<indices>` convention.
+  The `spm_band_validation.pdf` notation MIRRORS those bad names, so it is also poor and NOT
+  approved. BOTH get fixed together next session (rename code first, deliberately so it does not
+  break the validated behavior; then the PDF notation follows, in CODE notation not invented math
+  symbols). Do NOT treat the inference rework as finished until this lands. Public API
+  (`predict_*`, `calculate_*_var_spm`, the `uncertainty` arg, column names) is FINE — only helper
+  internals + PDF notation change.
+- **Two general naming rules re-confirmed this session (both recorded in memory):** (1) a
+  `calculate_*` is named for the EXACT quantity it produces — never a `centred=TRUE/FALSE` flag that
+  flips `lrmsd`↔`nlrmsd`; (2) site and mode are kept SEPARATE everywhere incl. tests and dev scripts
+  — no axis-parametrized helper. Also: no transient process trivia in durable artifacts
+  ([[feedback_no_process_trivia_in_artifacts]]).
+- **`dev/tmp2/` is stale throwaway scratch (untracked, ~28MB)** — leave for now; a cleanup pass is
+  planned soon.
+
 - **LEVEL QUESTION CLOSED 2026-07-23 — keep mean-centring; `a0` is NOT being added.** The
   2026-07-22 direction (fit `lrmsd_obs = a0 + lrmsd_model + noise` with an explicit level
   parameter) was worked through and **dropped**. The author's reason is decisive and worth

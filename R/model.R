@@ -115,6 +115,66 @@ calculate_lrmsd_i_msa <- function(spm_pp, a1, a2) {
   tibble(i = dr2$i, lrmsd_i_msa = log(sqrt(dr2$dr2_i)))
 }
 
+# ---- SPM-sampling error: per-mutant contribution primitive -----------------------
+# The finite-mutation sampling error of the lrmsd profile. Each response value
+# lrmsd_v = 1/2 log(msd_v), with msd_v = sum_k w_k dr2[k, ] a weighted mean over the
+# finite mutant ensemble (rows k of dr2_mat). spm_hmat() returns the per-mutant
+# CONTRIBUTION matrix h[k, ] whose column-wise sum of squares is the delta-method
+# sampling variance of the response:
+#   G   = dr2_mat / (2 msd)                          # log-sensitivity d[1/2 log dr2]
+#   G   = G - rowMeans(G)          (centred only)    # d(nlrmsd)/d(cells): subtract the
+#                                                    #   support mean this mutant drives
+#   Gc  = G - colSums(G * w)                         # deviate from the w-weighted mean
+#   h   = Gc * w                                     # contribution of mutant k
+# Then Var_SPM(lrmsd_v[i]) = sum_k h[k,i]^2, and for a difference of two models on the
+# SAME ensemble (a phi contrast) Var = sum_k (h_A - h_B)[k,i]^2 -- the shared-sample
+# cross term is automatic because the same mutant k appears in both h's. Validated to
+# ~1% against a naive uniform-resample bootstrap across all profile and phi families
+# (see dev/reports/spm_band_validation.Rmd). Pure: dr2_mat is [mutant k x response], weights is
+# length-nmutant (need not sum to 1; only used as given). `centred` selects lrmsd (FALSE)
+# vs nlrmsd (TRUE, mean-centred over the response support).
+#' @noRd
+spm_hmat <- function(dr2_mat, weights, centred) {
+  if (nrow(dr2_mat) != length(weights)) {
+    stop("spm_hmat: nrow(dr2_mat) (", nrow(dr2_mat), ") must equal length(weights) (",
+         length(weights), "); the mutant axes are misaligned.")
+  }
+  w   <- weights / sum(weights)                 # normalise (msd is a self-normalised mean)
+  msd <- colSums(dr2_mat * w)
+  G   <- sweep(dr2_mat, 2, 2 * msd, "/")        # dr2 / (2 msd)
+  if (centred) G <- G - rowMeans(G)             # support-centre per mutant (nlrmsd)
+  Gc  <- sweep(G, 2, colSums(G * w))            # deviate from w-weighted per-response mean
+  Gc * w
+}
+
+# Per-response SPM-sampling variance of the UNCENTRED lrmsd profile (Var_SPM). Pure;
+# returns a bare numeric vector in the column order of dr2_ijm. The difference (phi)
+# variance is NOT built here -- callers form it from two spm_hmat() matrices so the
+# shared-sample covariance is retained. Named for the exact quantity it produces
+# (lrmsd, uncentred); the mean-centred quantity is calculate_nlrmsd_i_msa_var_spm().
+#' @noRd
+calculate_lrmsd_i_msa_var_spm <- function(dr2_ijm, weights) {
+  colSums(spm_hmat(dr2_ijm, weights, centred = FALSE)^2)
+}
+
+# SPM-sampling variance of the mean-centred nlrmsd_i profile (Var_SPM). Same primitive,
+# support-centred contribution.
+#' @noRd
+calculate_nlrmsd_i_msa_var_spm <- function(dr2_ijm, weights) {
+  colSums(spm_hmat(dr2_ijm, weights, centred = TRUE)^2)
+}
+
+# Mode-form counterparts: identical math on the per-mode divergence matrix dr2_njm.
+#' @noRd
+calculate_lrmsd_n_msa_var_spm <- function(dr2_njm, weights) {
+  colSums(spm_hmat(dr2_njm, weights, centred = FALSE)^2)
+}
+
+#' @noRd
+calculate_nlrmsd_n_msa_var_spm <- function(dr2_njm, weights) {
+  colSums(spm_hmat(dr2_njm, weights, centred = TRUE)^2)
+}
+
 #' Predicted per-mode structural divergence at one selection strength
 #'
 #' Mode-indexed counterpart of [calculate_dr2_i_msa()]: instead of a divergence

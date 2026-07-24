@@ -2,6 +2,18 @@
 
 ## New features
 
+* **SPM sampling error in the prediction bands.** The `predict_*_ml` bands now combine
+  two sources of uncertainty: the `(a1, a2)` parameter uncertainty (as before) and the
+  **SPM sampling error** — each divergence value is a mean over a *finite* mutant scan,
+  not the infinite limit. A new `uncertainty` argument on all ten banded predictors
+  selects which sources enter the band: `"both"` (default), `"spm"`, `"parameter"`, or
+  `"none"` (zero-width). The two arms are added as variances under an independence
+  assumption. The band-column schema is identical in every mode. A consequence: the MM
+  variant, which has no parameter-uncertainty band, now carries its (nonzero) SPM band,
+  so `predict_*_nested_models_ml()` and the `nphi_mut` decomposition term report a real
+  band for MM. The SPM delta-method formula is validated against a naive bootstrap for
+  every band quantity (see `dev/reports/spm_band_validation.Rmd`).
+
 * **`calculate_lrmsd_i_nested_models()`** — new exported function returning the
   per-site lrmsd profiles of the four nested model variants (MM/MS/MA/MSA) at a
   given `(a1, a2)`, in one tibble (`i`, `pdb_site`, `lrmsd_i_mm`, `lrmsd_i_ms`,

@@ -4,7 +4,12 @@
 \alias{predict_nlrmsd_n_msa_decomposition_ml}
 \title{Decomposition of nlrmsd_n_msa with delta-method bands from an ML fit (mode form)}
 \usage{
-predict_nlrmsd_n_msa_decomposition_ml(fit, spm_pp_mode, level = 0.95)
+predict_nlrmsd_n_msa_decomposition_ml(
+  fit,
+  spm_pp_mode,
+  level = 0.95,
+  uncertainty = c("both", "spm", "parameter", "none")
+)
 }
 \arguments{
 \item{fit}{A list from \code{\link[=fit_lrmsd_n_msa_ml]{fit_lrmsd_n_msa_ml()}} (carrying \code{a1}, \code{a2}, \code{cov}).}
@@ -12,6 +17,9 @@ predict_nlrmsd_n_msa_decomposition_ml(fit, spm_pp_mode, level = 0.95)
 \item{spm_pp_mode}{Preprocessed data from \code{\link[=preprocess_spm_mode]{preprocess_spm_mode()}}.}
 
 \item{level}{Confidence-band coverage (default 0.95).}
+
+\item{uncertainty}{Which error sources enter the band: \code{"both"} (default), \code{"spm"},
+\code{"parameter"}, or \code{"none"}. See \code{\link[=predict_lrmsd_i_msa_ml]{predict_lrmsd_i_msa_ml()}}.}
 }
 \value{
 A tibble with one row per mode: \code{n} and a mean/lower/upper triple for each
@@ -22,8 +30,9 @@ contribution -- \verb{nphi_mut_\{mean,lower,upper\}}, \verb{nphi_stab_\{mean,low
 Mode counterpart of \code{\link[=predict_nlrmsd_i_msa_decomposition_ml]{predict_nlrmsd_i_msa_decomposition_ml()}}: the three
 contributions of the mean-centred per-mode profile \code{nlrmsd_n_msa}, each with a
 symmetric delta-method band. No \code{pdb_site} (modes are not residue-anchored). The
-three \verb{*_mean} columns sum to \code{nlrmsd_n_msa}; the bands do not sum. \code{nphi_mut}'s band
-is zero-width.
+three \verb{*_mean} columns sum to \code{nlrmsd_n_msa}; the bands do not sum. \code{nphi_mut}'s
+\emph{parameter} band is zero-width, but its SPM-sampling band is not. See
+\code{\link[=predict_nlrmsd_i_msa_decomposition_ml]{predict_nlrmsd_i_msa_decomposition_ml()}} for the shared-scan SPM contrast note.
 }
 \examples{
 \dontrun{

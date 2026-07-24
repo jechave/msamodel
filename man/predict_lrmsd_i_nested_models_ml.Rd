@@ -4,7 +4,12 @@
 \alias{predict_lrmsd_i_nested_models_ml}
 \title{Nested-model divergence profiles with delta-method bands from an ML fit}
 \usage{
-predict_lrmsd_i_nested_models_ml(fit, spm_pp, level = 0.95)
+predict_lrmsd_i_nested_models_ml(
+  fit,
+  spm_pp,
+  level = 0.95,
+  uncertainty = c("both", "spm", "parameter", "none")
+)
 }
 \arguments{
 \item{fit}{A list from \code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}} (carrying \code{a1}, \code{a2}, \code{cov}).}
@@ -12,6 +17,9 @@ predict_lrmsd_i_nested_models_ml(fit, spm_pp, level = 0.95)
 \item{spm_pp}{Preprocessed data from \code{\link[=preprocess_spm]{preprocess_spm()}}.}
 
 \item{level}{Confidence-band coverage (default 0.95).}
+
+\item{uncertainty}{Which error sources enter the band: \code{"both"} (default), \code{"spm"},
+\code{"parameter"}, or \code{"none"}. See \code{\link[=predict_lrmsd_i_msa_ml]{predict_lrmsd_i_msa_ml()}}.}
 }
 \value{
 A tibble with one row per residue: \code{i}, \code{pdb_site}, and a mean/lower/upper
@@ -24,9 +32,15 @@ The four nested variants (MM, MS, MA, MSA) of the predicted per-site \emph{uncen
 profile, each with a symmetric delta-method band, from a point ML fit
 (\code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}}). Each variant's band linearizes
 \code{\link[=calculate_lrmsd_i_nested_models]{calculate_lrmsd_i_nested_models()}} about the fit's \verb{(a1, a2)}; MM \verb{(0, 0)} does not
-depend on the parameters, so its (parameter-uncertainty) band is zero-width. For the
-mean-centred variants that compare to observations, use
+depend on the parameters, so its \emph{parameter-uncertainty} band is zero-width -- but its
+SPM-sampling band is not, so MM has a nonzero total band whenever \code{uncertainty}
+includes the SPM arm. For the mean-centred variants that compare to observations, use
 \code{\link[=predict_nlrmsd_i_nested_models_ml]{predict_nlrmsd_i_nested_models_ml()}}.
+}
+\details{
+Each variant carries its own selection strengths (MM \verb{(0,0)}, MS \verb{(a1,0)}, MA
+\verb{(0,a2)}, MSA \verb{(a1,a2)}), so its SPM sampling weights -- and therefore its SPM band --
+are computed at that variant's own point.
 }
 \examples{
 \dontrun{

@@ -128,42 +128,36 @@ grad_t <- function(f, t, h = 1e-5) {
   matrix(J, nrow = n)
 }
 
-# Delta-method mean + symmetric band of one per-site quantity. f(t) returns the
-# per-site vector at parameter t; cov_t is the 2x2 covariance on the t-scale. Per-site
-# variance is the sandwich diag(J cov_t J^T), computed row-wise as
-# rowSums((J %*% cov_t) * J). Returns a tibble with <name>_mean/_lower/_upper.
+# Pure band assembler: given the point profile mean_v and its TOTAL per-element variance
+# var_v (already summed across whatever uncertainty arms the caller chose -- parameter,
+# SPM, both, or neither), build the symmetric band mean_v +/- z*sqrt(var_v). No arm is
+# privileged here: the caller decides which variances to add before calling. Returns a
+# tibble with <name>_mean/_lower/_upper. var_v = 0 gives a zero-width band (the "none"
+# uncertainty mode), which keeps the column schema stable across modes.
 #' @noRd
-delta_band <- function(f, t_hat, cov_t, level, name) {
-  mean_v <- f(t_hat)
-  J      <- grad_t(f, t_hat)              # [nsite x 2]
-  var_v  <- rowSums((J %*% cov_t) * J)    # diag(J cov_t J^T)
-  se_v   <- sqrt(pmax(var_v, 0))          # pmax guards tiny negative round-off only
-  z      <- stats::qnorm(1 - (1 - level) / 2)
+delta_band <- function(mean_v, var_v, level, name) {
+  se_v <- sqrt(pmax(var_v, 0))            # pmax guards tiny negative round-off only
+  z    <- stats::qnorm(1 - (1 - level) / 2)
+  # unname: the forward maps / var_spm carry stray per-element names (dr2 column names)
+  # that would otherwise leak onto the band columns. A row-indexed band carries none.
+  mean_v <- unname(mean_v); se_v <- unname(se_v)
   cols <- list(mean_v, mean_v - z * se_v, mean_v + z * se_v)
   names(cols) <- paste0(name, c("_mean", "_lower", "_upper"))
   tibble::as_tibble(cols)
 }
 
-# Delta-method mean + symmetric band of the MEAN-CENTRED quantity nq = q - mean_S(q),
-# where S is the full model support (all rows f returns). Because mean_S(q) is itself a
-# function of the parameters, the gradient of nq is the COLUMN-CENTRED Jacobian
-# g_i - mean_S(g), NOT the raw g_i -- so the centred band differs from delta_band()'s,
-# it is not delta_band() shifted by a constant. `name` should already carry its centred
-# (n-prefixed) form; returns <name>_mean/_lower/_upper. Same cov_t and level handling as
-# delta_band(); the mean subtraction and the gradient centring are one operation on one
-# quantity over one support.
+# Parameter-uncertainty arm: per-element variance of f(t) induced by the fit's t-scale
+# covariance cov_t, by the delta method. f(t) returns the per-element vector at parameter
+# t. Uncentred (centred = FALSE): var = diag(J cov_t J^T) with J the raw Jacobian. Centred
+# (centred = TRUE, for an nlrmsd quantity nq = q - mean_S(q)): because mean_S(q) is itself
+# a function of the parameters, the gradient of nq is the COLUMN-CENTRED Jacobian
+# g_i - mean_S(g), so var uses Jc = J - colMeans(J) -- NOT the raw J shifted by a constant.
+# Returns a bare per-element numeric vector (a variance), to be summed with the SPM arm.
 #' @noRd
-delta_band_centred <- function(f, t_hat, cov_t, level, name) {
-  v      <- f(t_hat)
-  mean_v <- v - mean(v)                       # centred over the full model support
-  J      <- grad_t(f, t_hat)                  # [nsite x 2]
-  Jc     <- sweep(J, 2, colMeans(J))          # g_i - mean_S(g), per column
-  var_v  <- rowSums((Jc %*% cov_t) * Jc)      # diag(Jc cov_t Jc^T)
-  se_v   <- sqrt(pmax(var_v, 0))              # pmax guards tiny negative round-off only
-  z      <- stats::qnorm(1 - (1 - level) / 2)
-  cols <- list(mean_v, mean_v - z * se_v, mean_v + z * se_v)
-  names(cols) <- paste0(name, c("_mean", "_lower", "_upper"))
-  tibble::as_tibble(cols)
+var_param_delta <- function(f, t_hat, cov_t, centred) {
+  J <- grad_t(f, t_hat)                   # [nelement x 2]
+  if (centred) J <- sweep(J, 2, colMeans(J))
+  rowSums((J %*% cov_t) * J)              # diag(J cov_t J^T)
 }
 
 # An _ml fit must carry the point estimate + t-scale covariance the delta method needs.
@@ -183,23 +177,46 @@ validate_ml_fit <- function(fit, producer) {
 #' @noRd
 ml_t_hat <- function(fit) c(fit$a1, log2(fit$a2 + 1))
 
+# The four uncertainty modes and their arm gates. `both` = SPM + parameter; `spm` /
+# `parameter` = that arm alone; `none` = zero-width band (same columns, no width). The
+# predictors compute each arm's variance only when its gate is TRUE, then sum. Returns a
+# list(param=, spm=) of logicals. Validate `level` here too (shared by all predictors).
+#' @noRd
+uncertainty_gates <- function(uncertainty, level) {
+  uncertainty <- match.arg(uncertainty, c("both", "spm", "parameter", "none"))
+  if (length(level) != 1 || level <= 0 || level >= 1) {
+    stop("level must be a single number in (0, 1)")
+  }
+  list(param = uncertainty %in% c("both", "parameter"),
+       spm   = uncertainty %in% c("both", "spm"))
+}
+
 #' Predicted lrmsd_i profile with delta-method error bands from an ML fit
 #'
-#' Propagates the asymptotic covariance of a point ML fit ([fit_lrmsd_i_msa_ml()]) to
-#' the predicted per-site divergence profile, returning the point profile and a
-#' symmetric error band at every residue. The band is the delta method -- the forward
-#' map [calculate_lrmsd_i_msa()] linearized about the fit's `(a1, a2)`, its gradient
-#' sandwiched with the fit's covariance -- so it is deterministic and Gaussian
-#' (symmetric), a frequentist confidence band consistent with the fit's own standard
-#' errors. This is the band on the *uncentred* `lrmsd`: the uncertainty in the model's
-#' predicted `lrmsd` induced by uncertainty in `(a1, a2)`, holding the model's own
-#' predicted level. For the mean-centred quantity that compares to observations, use
-#' [predict_nlrmsd_i_msa_ml()].
+#' Propagates the uncertainty of a point ML fit ([fit_lrmsd_i_msa_ml()]) to the
+#' predicted per-site divergence profile, returning the point profile and a symmetric
+#' error band at every residue. The band is by the delta method -- deterministic and
+#' Gaussian (symmetric), a frequentist confidence band consistent with the fit's own
+#' standard errors. This is the band on the *uncentred* `lrmsd`, holding the model's
+#' own predicted level. For the mean-centred quantity that compares to observations,
+#' use [predict_nlrmsd_i_msa_ml()].
+#'
+#' The band combines two uncertainty sources: the `(a1, a2)` parameter uncertainty
+#' (delta method, above) and the SPM sampling error (each `lrmsd` is a mean over a
+#' *finite* mutant scan, not the infinite limit). `uncertainty` selects which are
+#' included; the total variance is their sum under an independence assumption (the
+#' cross-term is dropped -- the two arms share the SPM table, so their covariance is
+#' plausibly positive and the band may then very slightly under-cover). The column
+#' schema is the same in every mode: `"none"` returns a zero-width band, not fewer
+#' columns.
 #'
 #' @param fit A list from [fit_lrmsd_i_msa_ml()] (carrying `a1`, `a2`, and the 2x2
 #'   `cov` on the `(a1, log2(a2+1))` scale).
 #' @param spm_pp Preprocessed data from [preprocess_spm()] (the same used for the fit).
 #' @param level Confidence-band coverage (default 0.95).
+#' @param uncertainty Which error sources enter the band: `"both"` (default, parameter
+#'   + SPM sampling), `"spm"` (SPM sampling only), `"parameter"` (`(a1, a2)` only), or
+#'   `"none"` (zero-width). The output columns are identical in every mode.
 #' @return A tibble with one row per model residue: `i`, `pdb_site`, and the profile
 #'   summary `lrmsd_i_msa_mean`, `lrmsd_i_msa_lower`, `lrmsd_i_msa_upper`.
 #' @seealso [predict_nlrmsd_i_msa_ml()] (the mean-centred counterpart);
@@ -213,15 +230,23 @@ ml_t_hat <- function(fit) c(fit$a1, log2(fit$a2 + 1))
 #' head(predict_lrmsd_i_msa_ml(ml, pp))
 #' }
 #' @export
-predict_lrmsd_i_msa_ml <- function(fit, spm_pp, level = 0.95) {
+predict_lrmsd_i_msa_ml <- function(fit, spm_pp, level = 0.95,
+                                   uncertainty = c("both", "spm", "parameter", "none")) {
   validate_ml_fit(fit, "fit_lrmsd_i_msa_ml()")
-  if (length(level) != 1 || level <= 0 || level >= 1) {
-    stop("level must be a single number in (0, 1)")
-  }
+  use <- uncertainty_gates(uncertainty, level)
+
   keys <- calculate_lrmsd_i_msa(spm_pp, fit$a1, fit$a2) %>%
     dplyr::left_join(spm_pp$site_map, by = "i")
-  f <- function(t) calculate_lrmsd_i_msa(spm_pp, t[1], 2^t[2] - 1)$lrmsd_i_msa
-  band <- delta_band(f, ml_t_hat(fit), fit$cov, level, "lrmsd_i_msa")
+  mean_v <- keys$lrmsd_i_msa
+  vp <- if (use$param) {
+    f <- function(t) calculate_lrmsd_i_msa(spm_pp, t[1], 2^t[2] - 1)$lrmsd_i_msa
+    var_param_delta(f, ml_t_hat(fit), fit$cov, centred = FALSE)
+  } else 0
+  vs <- if (use$spm) {
+    w <- weights_jm_spm(spm_pp, fit$a1, fit$a2)
+    calculate_lrmsd_i_msa_var_spm(spm_pp$dr2_ijm, w)
+  } else 0
+  band <- delta_band(mean_v, vp + vs, level, "lrmsd_i_msa")
   dplyr::bind_cols(tibble(i = keys$i, pdb_site = keys$pdb_site), band)
 }
 
@@ -241,10 +266,16 @@ predict_lrmsd_i_msa_ml <- function(fit, spm_pp, level = 0.95) {
 #' sit at slightly different levels **by design**. When overlaying observations, centre
 #' them on their own matched support -- that is the comparison being made.
 #'
+#' Like [predict_lrmsd_i_msa_ml()], the band combines the `(a1, a2)` parameter arm and
+#' the SPM sampling arm (summed under independence), selected by `uncertainty`; the
+#' column schema is stable across modes.
+#'
 #' @param fit A list from [fit_lrmsd_i_msa_ml()] (carrying `a1`, `a2`, and the 2x2
 #'   `cov` on the `(a1, log2(a2+1))` scale).
 #' @param spm_pp Preprocessed data from [preprocess_spm()] (the same used for the fit).
 #' @param level Confidence-band coverage (default 0.95).
+#' @param uncertainty Which error sources enter the band: `"both"` (default), `"spm"`,
+#'   `"parameter"`, or `"none"`. See [predict_lrmsd_i_msa_ml()].
 #' @return A tibble with one row per model residue: `i`, `pdb_site`, and the centred
 #'   profile summary `nlrmsd_i_msa_mean`, `nlrmsd_i_msa_lower`, `nlrmsd_i_msa_upper`.
 #' @seealso [predict_lrmsd_i_msa_ml()] (the uncentred counterpart);
@@ -258,15 +289,23 @@ predict_lrmsd_i_msa_ml <- function(fit, spm_pp, level = 0.95) {
 #' head(predict_nlrmsd_i_msa_ml(ml, pp))
 #' }
 #' @export
-predict_nlrmsd_i_msa_ml <- function(fit, spm_pp, level = 0.95) {
+predict_nlrmsd_i_msa_ml <- function(fit, spm_pp, level = 0.95,
+                                    uncertainty = c("both", "spm", "parameter", "none")) {
   validate_ml_fit(fit, "fit_lrmsd_i_msa_ml()")
-  if (length(level) != 1 || level <= 0 || level >= 1) {
-    stop("level must be a single number in (0, 1)")
-  }
+  use <- uncertainty_gates(uncertainty, level)
+
   keys <- calculate_lrmsd_i_msa(spm_pp, fit$a1, fit$a2) %>%
     dplyr::left_join(spm_pp$site_map, by = "i")
-  f <- function(t) calculate_lrmsd_i_msa(spm_pp, t[1], 2^t[2] - 1)$lrmsd_i_msa
-  band <- delta_band_centred(f, ml_t_hat(fit), fit$cov, level, "nlrmsd_i_msa")
+  mean_v <- keys$lrmsd_i_msa - mean(keys$lrmsd_i_msa)   # centred over full model support
+  vp <- if (use$param) {
+    f <- function(t) calculate_lrmsd_i_msa(spm_pp, t[1], 2^t[2] - 1)$lrmsd_i_msa
+    var_param_delta(f, ml_t_hat(fit), fit$cov, centred = TRUE)
+  } else 0
+  vs <- if (use$spm) {
+    w <- weights_jm_spm(spm_pp, fit$a1, fit$a2)
+    calculate_nlrmsd_i_msa_var_spm(spm_pp$dr2_ijm, w)
+  } else 0
+  band <- delta_band(mean_v, vp + vs, level, "nlrmsd_i_msa")
   dplyr::bind_cols(tibble(i = keys$i, pdb_site = keys$pdb_site), band)
 }
 
@@ -278,9 +317,14 @@ predict_nlrmsd_i_msa_ml <- function(fit, spm_pp, level = 0.95) {
 #' residue-anchored, so there is no `pdb_site` column. For the mean-centred quantity,
 #' use [predict_nlrmsd_n_msa_ml()].
 #'
+#' Like the site form, the band combines the `(a1, a2)` parameter arm and the SPM
+#' sampling arm (summed under independence), selected by `uncertainty`.
+#'
 #' @param fit A list from [fit_lrmsd_n_msa_ml()] (carrying `a1`, `a2`, `cov`).
 #' @param spm_pp_mode Preprocessed data from [preprocess_spm_mode()].
 #' @param level Confidence-band coverage (default 0.95).
+#' @param uncertainty Which error sources enter the band: `"both"` (default), `"spm"`,
+#'   `"parameter"`, or `"none"`. See [predict_lrmsd_i_msa_ml()].
 #' @return A tibble with one row per mode: `n`, and the profile summary
 #'   `lrmsd_n_msa_mean`, `lrmsd_n_msa_lower`, `lrmsd_n_msa_upper`.
 #' @seealso [predict_nlrmsd_n_msa_ml()] (the mean-centred counterpart);
@@ -294,14 +338,22 @@ predict_nlrmsd_i_msa_ml <- function(fit, spm_pp, level = 0.95) {
 #' head(predict_lrmsd_n_msa_ml(ml, pp))
 #' }
 #' @export
-predict_lrmsd_n_msa_ml <- function(fit, spm_pp_mode, level = 0.95) {
+predict_lrmsd_n_msa_ml <- function(fit, spm_pp_mode, level = 0.95,
+                                   uncertainty = c("both", "spm", "parameter", "none")) {
   validate_ml_fit(fit, "fit_lrmsd_n_msa_ml()")
-  if (length(level) != 1 || level <= 0 || level >= 1) {
-    stop("level must be a single number in (0, 1)")
-  }
+  use <- uncertainty_gates(uncertainty, level)
+
   keys <- calculate_lrmsd_n_msa(spm_pp_mode, fit$a1, fit$a2)
-  f <- function(t) calculate_lrmsd_n_msa(spm_pp_mode, t[1], 2^t[2] - 1)$lrmsd_n_msa
-  band <- delta_band(f, ml_t_hat(fit), fit$cov, level, "lrmsd_n_msa")
+  mean_v <- keys$lrmsd_n_msa
+  vp <- if (use$param) {
+    f <- function(t) calculate_lrmsd_n_msa(spm_pp_mode, t[1], 2^t[2] - 1)$lrmsd_n_msa
+    var_param_delta(f, ml_t_hat(fit), fit$cov, centred = FALSE)
+  } else 0
+  vs <- if (use$spm) {
+    w <- weights_jm_spm(spm_pp_mode, fit$a1, fit$a2)
+    calculate_lrmsd_n_msa_var_spm(spm_pp_mode$dr2_njm, w)
+  } else 0
+  band <- delta_band(mean_v, vp + vs, level, "lrmsd_n_msa")
   dplyr::bind_cols(tibble(n = keys$n), band)
 }
 
@@ -314,9 +366,14 @@ predict_lrmsd_n_msa_ml <- function(fit, spm_pp_mode, level = 0.95) {
 #' the fit centres over the observation-matched modes, so the two levels differ by
 #' design).
 #'
+#' Like the site form, the band combines the `(a1, a2)` parameter arm and the SPM
+#' sampling arm (summed under independence), selected by `uncertainty`.
+#'
 #' @param fit A list from [fit_lrmsd_n_msa_ml()] (carrying `a1`, `a2`, `cov`).
 #' @param spm_pp_mode Preprocessed data from [preprocess_spm_mode()].
 #' @param level Confidence-band coverage (default 0.95).
+#' @param uncertainty Which error sources enter the band: `"both"` (default), `"spm"`,
+#'   `"parameter"`, or `"none"`. See [predict_lrmsd_i_msa_ml()].
 #' @return A tibble with one row per mode: `n`, and the centred profile summary
 #'   `nlrmsd_n_msa_mean`, `nlrmsd_n_msa_lower`, `nlrmsd_n_msa_upper`.
 #' @seealso [predict_lrmsd_n_msa_ml()] (the uncentred counterpart);
@@ -330,14 +387,22 @@ predict_lrmsd_n_msa_ml <- function(fit, spm_pp_mode, level = 0.95) {
 #' head(predict_nlrmsd_n_msa_ml(ml, pp))
 #' }
 #' @export
-predict_nlrmsd_n_msa_ml <- function(fit, spm_pp_mode, level = 0.95) {
+predict_nlrmsd_n_msa_ml <- function(fit, spm_pp_mode, level = 0.95,
+                                    uncertainty = c("both", "spm", "parameter", "none")) {
   validate_ml_fit(fit, "fit_lrmsd_n_msa_ml()")
-  if (length(level) != 1 || level <= 0 || level >= 1) {
-    stop("level must be a single number in (0, 1)")
-  }
+  use <- uncertainty_gates(uncertainty, level)
+
   keys <- calculate_lrmsd_n_msa(spm_pp_mode, fit$a1, fit$a2)
-  f <- function(t) calculate_lrmsd_n_msa(spm_pp_mode, t[1], 2^t[2] - 1)$lrmsd_n_msa
-  band <- delta_band_centred(f, ml_t_hat(fit), fit$cov, level, "nlrmsd_n_msa")
+  mean_v <- keys$lrmsd_n_msa - mean(keys$lrmsd_n_msa)
+  vp <- if (use$param) {
+    f <- function(t) calculate_lrmsd_n_msa(spm_pp_mode, t[1], 2^t[2] - 1)$lrmsd_n_msa
+    var_param_delta(f, ml_t_hat(fit), fit$cov, centred = TRUE)
+  } else 0
+  vs <- if (use$spm) {
+    w <- weights_jm_spm(spm_pp_mode, fit$a1, fit$a2)
+    calculate_nlrmsd_n_msa_var_spm(spm_pp_mode$dr2_njm, w)
+  } else 0
+  band <- delta_band(mean_v, vp + vs, level, "nlrmsd_n_msa")
   dplyr::bind_cols(tibble(n = keys$n), band)
 }
 
@@ -347,13 +412,20 @@ predict_nlrmsd_n_msa_ml <- function(fit, spm_pp_mode, level = 0.95) {
 #' profile, each with a symmetric delta-method band, from a point ML fit
 #' ([fit_lrmsd_i_msa_ml()]). Each variant's band linearizes
 #' [calculate_lrmsd_i_nested_models()] about the fit's `(a1, a2)`; MM `(0, 0)` does not
-#' depend on the parameters, so its (parameter-uncertainty) band is zero-width. For the
-#' mean-centred variants that compare to observations, use
+#' depend on the parameters, so its *parameter-uncertainty* band is zero-width -- but its
+#' SPM-sampling band is not, so MM has a nonzero total band whenever `uncertainty`
+#' includes the SPM arm. For the mean-centred variants that compare to observations, use
 #' [predict_nlrmsd_i_nested_models_ml()].
+#'
+#' Each variant carries its own selection strengths (MM `(0,0)`, MS `(a1,0)`, MA
+#' `(0,a2)`, MSA `(a1,a2)`), so its SPM sampling weights -- and therefore its SPM band --
+#' are computed at that variant's own point.
 #'
 #' @param fit A list from [fit_lrmsd_i_msa_ml()] (carrying `a1`, `a2`, `cov`).
 #' @param spm_pp Preprocessed data from [preprocess_spm()].
 #' @param level Confidence-band coverage (default 0.95).
+#' @param uncertainty Which error sources enter the band: `"both"` (default), `"spm"`,
+#'   `"parameter"`, or `"none"`. See [predict_lrmsd_i_msa_ml()].
 #' @return A tibble with one row per residue: `i`, `pdb_site`, and a mean/lower/upper
 #'   triple for each variant -- `lrmsd_i_mm_{mean,lower,upper}`,
 #'   `lrmsd_i_ms_{mean,lower,upper}`, `lrmsd_i_ma_{mean,lower,upper}`,
@@ -369,18 +441,28 @@ predict_nlrmsd_n_msa_ml <- function(fit, spm_pp_mode, level = 0.95) {
 #' head(predict_lrmsd_i_nested_models_ml(ml, pp))
 #' }
 #' @export
-predict_lrmsd_i_nested_models_ml <- function(fit, spm_pp, level = 0.95) {
+predict_lrmsd_i_nested_models_ml <- function(fit, spm_pp, level = 0.95,
+                                             uncertainty = c("both", "spm", "parameter", "none")) {
   validate_ml_fit(fit, "fit_lrmsd_i_msa_ml()")
-  if (length(level) != 1 || level <= 0 || level >= 1) {
-    stop("level must be a single number in (0, 1)")
-  }
-  keys     <- calculate_lrmsd_i_nested_models(spm_pp, fit$a1, fit$a2)
-  variants <- c("lrmsd_i_mm", "lrmsd_i_ms", "lrmsd_i_ma", "lrmsd_i_msa")
-  t_hat    <- ml_t_hat(fit)
+  use   <- uncertainty_gates(uncertainty, level)
+  keys  <- calculate_lrmsd_i_nested_models(spm_pp, fit$a1, fit$a2)
+  t_hat <- ml_t_hat(fit)
+  # variant -> (a1, a2) for the per-variant SPM weights.
+  variant_a <- list(mm = c(0, 0), ms = c(fit$a1, 0), ma = c(0, fit$a2), msa = c(fit$a1, fit$a2))
 
-  bands <- lapply(variants, function(v) {
-    f <- function(t) calculate_lrmsd_i_nested_models(spm_pp, t[1], 2^t[2] - 1)[[v]]
-    delta_band(f, t_hat, fit$cov, level, v)
+  bands <- lapply(names(variant_a), function(v) {
+    col <- paste0("lrmsd_i_", v)
+    mean_v <- keys[[col]]
+    vp <- if (use$param) {
+      f <- function(t) calculate_lrmsd_i_nested_models(spm_pp, t[1], 2^t[2] - 1)[[col]]
+      var_param_delta(f, t_hat, fit$cov, centred = FALSE)
+    } else 0
+    vs <- if (use$spm) {
+      a <- variant_a[[v]]
+      w <- weights_jm_spm(spm_pp, a[1], a[2])
+      calculate_lrmsd_i_msa_var_spm(spm_pp$dr2_ijm, w)
+    } else 0
+    delta_band(mean_v, vp + vs, level, col)
   })
   dplyr::bind_cols(keys[c("i", "pdb_site")], bands)
 }
@@ -390,13 +472,18 @@ predict_lrmsd_i_nested_models_ml <- function(fit, spm_pp, level = 0.95) {
 #' Mean-centred counterpart of [predict_lrmsd_i_nested_models_ml()]: the four nested
 #' variants (MM, MS, MA, MSA), each centred by *its own* mean over the full model
 #' support and banded with the column-centred gradient. MM's gradient is constant in
-#' `(a1, a2)`, so its centred gradient is exactly zero and its band is zero-width (its
-#' SPM-sampling band, added later, is not). See [predict_nlrmsd_i_msa_ml()] for the
-#' support note.
+#' `(a1, a2)`, so its centred *parameter* band is exactly zero -- but its SPM-sampling
+#' band is not, so MM has a nonzero total band whenever `uncertainty` includes the SPM
+#' arm. See [predict_nlrmsd_i_msa_ml()] for the support note.
+#'
+#' Each variant's SPM band is computed at its own selection strengths (MM `(0,0)`, MS
+#' `(a1,0)`, MA `(0,a2)`, MSA `(a1,a2)`).
 #'
 #' @param fit A list from [fit_lrmsd_i_msa_ml()] (carrying `a1`, `a2`, `cov`).
 #' @param spm_pp Preprocessed data from [preprocess_spm()].
 #' @param level Confidence-band coverage (default 0.95).
+#' @param uncertainty Which error sources enter the band: `"both"` (default), `"spm"`,
+#'   `"parameter"`, or `"none"`. See [predict_lrmsd_i_msa_ml()].
 #' @return A tibble with one row per residue: `i`, `pdb_site`, and a mean/lower/upper
 #'   triple for each centred variant -- `nlrmsd_i_mm_{mean,lower,upper}`,
 #'   `nlrmsd_i_ms_{mean,lower,upper}`, `nlrmsd_i_ma_{mean,lower,upper}`,
@@ -412,19 +499,27 @@ predict_lrmsd_i_nested_models_ml <- function(fit, spm_pp, level = 0.95) {
 #' head(predict_nlrmsd_i_nested_models_ml(ml, pp))
 #' }
 #' @export
-predict_nlrmsd_i_nested_models_ml <- function(fit, spm_pp, level = 0.95) {
+predict_nlrmsd_i_nested_models_ml <- function(fit, spm_pp, level = 0.95,
+                                              uncertainty = c("both", "spm", "parameter", "none")) {
   validate_ml_fit(fit, "fit_lrmsd_i_msa_ml()")
-  if (length(level) != 1 || level <= 0 || level >= 1) {
-    stop("level must be a single number in (0, 1)")
-  }
-  keys     <- calculate_lrmsd_i_nested_models(spm_pp, fit$a1, fit$a2)
-  variants <- c("mm", "ms", "ma", "msa")
-  t_hat    <- ml_t_hat(fit)
+  use   <- uncertainty_gates(uncertainty, level)
+  keys  <- calculate_lrmsd_i_nested_models(spm_pp, fit$a1, fit$a2)
+  t_hat <- ml_t_hat(fit)
+  variant_a <- list(mm = c(0, 0), ms = c(fit$a1, 0), ma = c(0, fit$a2), msa = c(fit$a1, fit$a2))
 
-  bands <- lapply(variants, function(v) {
-    src <- paste0("lrmsd_i_", v)
-    f <- function(t) calculate_lrmsd_i_nested_models(spm_pp, t[1], 2^t[2] - 1)[[src]]
-    delta_band_centred(f, t_hat, fit$cov, level, paste0("nlrmsd_i_", v))
+  bands <- lapply(names(variant_a), function(v) {
+    src    <- paste0("lrmsd_i_", v)
+    mean_v <- keys[[src]] - mean(keys[[src]])
+    vp <- if (use$param) {
+      f <- function(t) calculate_lrmsd_i_nested_models(spm_pp, t[1], 2^t[2] - 1)[[src]]
+      var_param_delta(f, t_hat, fit$cov, centred = TRUE)
+    } else 0
+    vs <- if (use$spm) {
+      a <- variant_a[[v]]
+      w <- weights_jm_spm(spm_pp, a[1], a[2])
+      calculate_nlrmsd_i_msa_var_spm(spm_pp$dr2_ijm, w)
+    } else 0
+    delta_band(mean_v, vp + vs, level, paste0("nlrmsd_i_", v))
   })
   dplyr::bind_cols(keys[c("i", "pdb_site")], bands)
 }
@@ -453,19 +548,30 @@ predict_nlrmsd_i_nested_models_ml <- function(fit, spm_pp, level = 0.95) {
 #' ml <- fit_lrmsd_n_msa_ml(pp, znb_profile_n)
 #' head(predict_lrmsd_n_nested_models_ml(ml, pp))
 #' }
+#' @param uncertainty Which error sources enter the band: `"both"` (default), `"spm"`,
+#'   `"parameter"`, or `"none"`. See [predict_lrmsd_i_msa_ml()].
 #' @export
-predict_lrmsd_n_nested_models_ml <- function(fit, spm_pp_mode, level = 0.95) {
+predict_lrmsd_n_nested_models_ml <- function(fit, spm_pp_mode, level = 0.95,
+                                             uncertainty = c("both", "spm", "parameter", "none")) {
   validate_ml_fit(fit, "fit_lrmsd_n_msa_ml()")
-  if (length(level) != 1 || level <= 0 || level >= 1) {
-    stop("level must be a single number in (0, 1)")
-  }
-  keys     <- calculate_lrmsd_n_nested_models(spm_pp_mode, fit$a1, fit$a2)
-  variants <- c("lrmsd_n_mm", "lrmsd_n_ms", "lrmsd_n_ma", "lrmsd_n_msa")
-  t_hat    <- ml_t_hat(fit)
+  use   <- uncertainty_gates(uncertainty, level)
+  keys  <- calculate_lrmsd_n_nested_models(spm_pp_mode, fit$a1, fit$a2)
+  t_hat <- ml_t_hat(fit)
+  variant_a <- list(mm = c(0, 0), ms = c(fit$a1, 0), ma = c(0, fit$a2), msa = c(fit$a1, fit$a2))
 
-  bands <- lapply(variants, function(v) {
-    f <- function(t) calculate_lrmsd_n_nested_models(spm_pp_mode, t[1], 2^t[2] - 1)[[v]]
-    delta_band(f, t_hat, fit$cov, level, v)
+  bands <- lapply(names(variant_a), function(v) {
+    col    <- paste0("lrmsd_n_", v)
+    mean_v <- keys[[col]]
+    vp <- if (use$param) {
+      f <- function(t) calculate_lrmsd_n_nested_models(spm_pp_mode, t[1], 2^t[2] - 1)[[col]]
+      var_param_delta(f, t_hat, fit$cov, centred = FALSE)
+    } else 0
+    vs <- if (use$spm) {
+      a <- variant_a[[v]]
+      w <- weights_jm_spm(spm_pp_mode, a[1], a[2])
+      calculate_lrmsd_n_msa_var_spm(spm_pp_mode$dr2_njm, w)
+    } else 0
+    delta_band(mean_v, vp + vs, level, col)
   })
   dplyr::bind_cols(keys["n"], bands)
 }
@@ -474,12 +580,15 @@ predict_lrmsd_n_nested_models_ml <- function(fit, spm_pp_mode, level = 0.95) {
 #'
 #' Mode counterpart of [predict_nlrmsd_i_nested_models_ml()]: the four nested variants
 #' of the per-mode profile, each centred by its own mean over the full model support
-#' and banded with the column-centred gradient. MM's centred band is zero-width. No
-#' `pdb_site` (modes are not residue-anchored).
+#' and banded with the column-centred gradient. MM's centred *parameter* band is
+#' zero-width, but its SPM-sampling band is not (so MM's total band is nonzero when
+#' `uncertainty` includes the SPM arm). No `pdb_site` (modes are not residue-anchored).
 #'
 #' @param fit A list from [fit_lrmsd_n_msa_ml()] (carrying `a1`, `a2`, `cov`).
 #' @param spm_pp_mode Preprocessed data from [preprocess_spm_mode()].
 #' @param level Confidence-band coverage (default 0.95).
+#' @param uncertainty Which error sources enter the band: `"both"` (default), `"spm"`,
+#'   `"parameter"`, or `"none"`. See [predict_lrmsd_i_msa_ml()].
 #' @return A tibble with one row per mode: `n` and a mean/lower/upper triple for each
 #'   centred variant -- `nlrmsd_n_mm_{mean,lower,upper}`, `nlrmsd_n_ms_{mean,lower,upper}`,
 #'   `nlrmsd_n_ma_{mean,lower,upper}`, `nlrmsd_n_msa_{mean,lower,upper}` (12 band columns).
@@ -494,19 +603,27 @@ predict_lrmsd_n_nested_models_ml <- function(fit, spm_pp_mode, level = 0.95) {
 #' head(predict_nlrmsd_n_nested_models_ml(ml, pp))
 #' }
 #' @export
-predict_nlrmsd_n_nested_models_ml <- function(fit, spm_pp_mode, level = 0.95) {
+predict_nlrmsd_n_nested_models_ml <- function(fit, spm_pp_mode, level = 0.95,
+                                              uncertainty = c("both", "spm", "parameter", "none")) {
   validate_ml_fit(fit, "fit_lrmsd_n_msa_ml()")
-  if (length(level) != 1 || level <= 0 || level >= 1) {
-    stop("level must be a single number in (0, 1)")
-  }
-  keys     <- calculate_lrmsd_n_nested_models(spm_pp_mode, fit$a1, fit$a2)
-  variants <- c("mm", "ms", "ma", "msa")
-  t_hat    <- ml_t_hat(fit)
+  use   <- uncertainty_gates(uncertainty, level)
+  keys  <- calculate_lrmsd_n_nested_models(spm_pp_mode, fit$a1, fit$a2)
+  t_hat <- ml_t_hat(fit)
+  variant_a <- list(mm = c(0, 0), ms = c(fit$a1, 0), ma = c(0, fit$a2), msa = c(fit$a1, fit$a2))
 
-  bands <- lapply(variants, function(v) {
-    src <- paste0("lrmsd_n_", v)
-    f <- function(t) calculate_lrmsd_n_nested_models(spm_pp_mode, t[1], 2^t[2] - 1)[[src]]
-    delta_band_centred(f, t_hat, fit$cov, level, paste0("nlrmsd_n_", v))
+  bands <- lapply(names(variant_a), function(v) {
+    src    <- paste0("lrmsd_n_", v)
+    mean_v <- keys[[src]] - mean(keys[[src]])
+    vp <- if (use$param) {
+      f <- function(t) calculate_lrmsd_n_nested_models(spm_pp_mode, t[1], 2^t[2] - 1)[[src]]
+      var_param_delta(f, t_hat, fit$cov, centred = TRUE)
+    } else 0
+    vs <- if (use$spm) {
+      a <- variant_a[[v]]
+      w <- weights_jm_spm(spm_pp_mode, a[1], a[2])
+      calculate_nlrmsd_n_msa_var_spm(spm_pp_mode$dr2_njm, w)
+    } else 0
+    delta_band(mean_v, vp + vs, level, paste0("nlrmsd_n_", v))
   })
   dplyr::bind_cols(keys["n"], bands)
 }
@@ -519,12 +636,21 @@ predict_nlrmsd_n_nested_models_ml <- function(fit, spm_pp_mode, level = 0.95) {
 #' over the full model support and banded with the column-centred gradient (see
 #' [predict_nlrmsd_i_msa_ml()] for the support note). The decomposition is defined only
 #' for the centred quantity; the three `*_mean` columns sum to `nlrmsd_i_msa` (centring
-#' is linear), but the bands do not sum (SEs are not additive). `nphi_mut` (the MM
-#' term) has a constant gradient, so its band is zero-width.
+#' is linear), but the bands do not sum (SEs are not additive). `nphi_mut` (the MM term)
+#' has a constant *parameter* gradient, so its parameter band is zero-width -- but its
+#' SPM-sampling band is not (it equals the `nlrmsd_mm` SPM band, since `nphi_mut = nlrmsd_mm`).
+#'
+#' The SPM arm of each contribution is a *difference* of two nested models evaluated on
+#' the **same** mutant scan (`nphi_stab = nlrmsd_ms - nlrmsd_mm`,
+#' `nphi_act = nlrmsd_msa - nlrmsd_ms`), so its sampling variance is computed from the
+#' per-mutant contributions of both models jointly -- retaining the between-model
+#' covariance, not summing the two variances.
 #'
 #' @param fit A list from [fit_lrmsd_i_msa_ml()] (carrying `a1`, `a2`, `cov`).
 #' @param spm_pp Preprocessed data from [preprocess_spm()].
 #' @param level Confidence-band coverage (default 0.95).
+#' @param uncertainty Which error sources enter the band: `"both"` (default), `"spm"`,
+#'   `"parameter"`, or `"none"`. See [predict_lrmsd_i_msa_ml()].
 #' @return A tibble with one row per residue: `i`, `pdb_site`, and a mean/lower/upper
 #'   triple for each contribution -- `nphi_mut_{mean,lower,upper}`,
 #'   `nphi_stab_{mean,lower,upper}`, `nphi_act_{mean,lower,upper}` (9 band columns).
@@ -539,19 +665,36 @@ predict_nlrmsd_n_nested_models_ml <- function(fit, spm_pp_mode, level = 0.95) {
 #' head(predict_nlrmsd_i_msa_decomposition_ml(ml, pp))
 #' }
 #' @export
-predict_nlrmsd_i_msa_decomposition_ml <- function(fit, spm_pp, level = 0.95) {
+predict_nlrmsd_i_msa_decomposition_ml <- function(fit, spm_pp, level = 0.95,
+                                                  uncertainty = c("both", "spm", "parameter", "none")) {
   validate_ml_fit(fit, "fit_lrmsd_i_msa_ml()")
-  if (length(level) != 1 || level <= 0 || level >= 1) {
-    stop("level must be a single number in (0, 1)")
-  }
-  keys <- calculate_decomposition_i_msa(spm_pp, fit$a1, fit$a2)
-  phis <- c("mut", "stab", "act")
+  use   <- uncertainty_gates(uncertainty, level)
+  keys  <- calculate_decomposition_i_msa(spm_pp, fit$a1, fit$a2)
   t_hat <- ml_t_hat(fit)
 
-  bands <- lapply(phis, function(v) {
-    src <- paste0("phi_", v)
-    f <- function(t) calculate_decomposition_i_msa(spm_pp, t[1], 2^t[2] - 1)[[src]]
-    delta_band_centred(f, t_hat, fit$cov, level, paste0("nphi_", v))
+  # SPM arm: each phi is a linear contrast of nested models on the SAME scan. Build the
+  # centred per-mutant contribution matrix h for MM/MS/MSA once, then form the contrast's
+  # sampling variance from the differenced contributions (shared-sample covariance kept).
+  spm_var <- NULL
+  if (use$spm) {
+    hmat_v <- function(a1, a2) spm_hmat(spm_pp$dr2_ijm, weights_jm_spm(spm_pp, a1, a2), centred = TRUE)
+    h_mm  <- hmat_v(0, 0); h_ms <- hmat_v(fit$a1, 0); h_msa <- hmat_v(fit$a1, fit$a2)
+    spm_var <- list(
+      mut  = colSums(h_mm^2),               # nphi_mut  = nlrmsd_mm
+      stab = colSums((h_ms  - h_mm)^2),     # nphi_stab = nlrmsd_ms  - nlrmsd_mm
+      act  = colSums((h_msa - h_ms)^2)      # nphi_act  = nlrmsd_msa - nlrmsd_ms
+    )
+  }
+
+  bands <- lapply(c("mut", "stab", "act"), function(v) {
+    src    <- paste0("phi_", v)
+    mean_v <- keys[[src]] - mean(keys[[src]])
+    vp <- if (use$param) {
+      f <- function(t) calculate_decomposition_i_msa(spm_pp, t[1], 2^t[2] - 1)[[src]]
+      var_param_delta(f, t_hat, fit$cov, centred = TRUE)
+    } else 0
+    vs <- if (use$spm) spm_var[[v]] else 0
+    delta_band(mean_v, vp + vs, level, paste0("nphi_", v))
   })
   dplyr::bind_cols(keys[c("i", "pdb_site")], bands)
 }
@@ -561,12 +704,15 @@ predict_nlrmsd_i_msa_decomposition_ml <- function(fit, spm_pp, level = 0.95) {
 #' Mode counterpart of [predict_nlrmsd_i_msa_decomposition_ml()]: the three
 #' contributions of the mean-centred per-mode profile `nlrmsd_n_msa`, each with a
 #' symmetric delta-method band. No `pdb_site` (modes are not residue-anchored). The
-#' three `*_mean` columns sum to `nlrmsd_n_msa`; the bands do not sum. `nphi_mut`'s band
-#' is zero-width.
+#' three `*_mean` columns sum to `nlrmsd_n_msa`; the bands do not sum. `nphi_mut`'s
+#' *parameter* band is zero-width, but its SPM-sampling band is not. See
+#' [predict_nlrmsd_i_msa_decomposition_ml()] for the shared-scan SPM contrast note.
 #'
 #' @param fit A list from [fit_lrmsd_n_msa_ml()] (carrying `a1`, `a2`, `cov`).
 #' @param spm_pp_mode Preprocessed data from [preprocess_spm_mode()].
 #' @param level Confidence-band coverage (default 0.95).
+#' @param uncertainty Which error sources enter the band: `"both"` (default), `"spm"`,
+#'   `"parameter"`, or `"none"`. See [predict_lrmsd_i_msa_ml()].
 #' @return A tibble with one row per mode: `n` and a mean/lower/upper triple for each
 #'   contribution -- `nphi_mut_{mean,lower,upper}`, `nphi_stab_{mean,lower,upper}`,
 #'   `nphi_act_{mean,lower,upper}` (9 band columns).
@@ -581,19 +727,33 @@ predict_nlrmsd_i_msa_decomposition_ml <- function(fit, spm_pp, level = 0.95) {
 #' head(predict_nlrmsd_n_msa_decomposition_ml(ml, pp))
 #' }
 #' @export
-predict_nlrmsd_n_msa_decomposition_ml <- function(fit, spm_pp_mode, level = 0.95) {
+predict_nlrmsd_n_msa_decomposition_ml <- function(fit, spm_pp_mode, level = 0.95,
+                                                  uncertainty = c("both", "spm", "parameter", "none")) {
   validate_ml_fit(fit, "fit_lrmsd_n_msa_ml()")
-  if (length(level) != 1 || level <= 0 || level >= 1) {
-    stop("level must be a single number in (0, 1)")
-  }
-  keys <- calculate_decomposition_n_msa(spm_pp_mode, fit$a1, fit$a2)
-  phis <- c("mut", "stab", "act")
+  use   <- uncertainty_gates(uncertainty, level)
+  keys  <- calculate_decomposition_n_msa(spm_pp_mode, fit$a1, fit$a2)
   t_hat <- ml_t_hat(fit)
 
-  bands <- lapply(phis, function(v) {
-    src <- paste0("phi_", v)
-    f <- function(t) calculate_decomposition_n_msa(spm_pp_mode, t[1], 2^t[2] - 1)[[src]]
-    delta_band_centred(f, t_hat, fit$cov, level, paste0("nphi_", v))
+  spm_var <- NULL
+  if (use$spm) {
+    hmat_v <- function(a1, a2) spm_hmat(spm_pp_mode$dr2_njm, weights_jm_spm(spm_pp_mode, a1, a2), centred = TRUE)
+    h_mm  <- hmat_v(0, 0); h_ms <- hmat_v(fit$a1, 0); h_msa <- hmat_v(fit$a1, fit$a2)
+    spm_var <- list(
+      mut  = colSums(h_mm^2),
+      stab = colSums((h_ms  - h_mm)^2),
+      act  = colSums((h_msa - h_ms)^2)
+    )
+  }
+
+  bands <- lapply(c("mut", "stab", "act"), function(v) {
+    src    <- paste0("phi_", v)
+    mean_v <- keys[[src]] - mean(keys[[src]])
+    vp <- if (use$param) {
+      f <- function(t) calculate_decomposition_n_msa(spm_pp_mode, t[1], 2^t[2] - 1)[[src]]
+      var_param_delta(f, t_hat, fit$cov, centred = TRUE)
+    } else 0
+    vs <- if (use$spm) spm_var[[v]] else 0
+    delta_band(mean_v, vp + vs, level, paste0("nphi_", v))
   })
   dplyr::bind_cols(keys["n"], bands)
 }

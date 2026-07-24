@@ -4,7 +4,12 @@
 \alias{predict_nlrmsd_i_msa_ml}
 \title{Predicted mean-centred nlrmsd_i profile with delta-method error bands from an ML fit}
 \usage{
-predict_nlrmsd_i_msa_ml(fit, spm_pp, level = 0.95)
+predict_nlrmsd_i_msa_ml(
+  fit,
+  spm_pp,
+  level = 0.95,
+  uncertainty = c("both", "spm", "parameter", "none")
+)
 }
 \arguments{
 \item{fit}{A list from \code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}} (carrying \code{a1}, \code{a2}, and the 2x2
@@ -13,6 +18,9 @@ predict_nlrmsd_i_msa_ml(fit, spm_pp, level = 0.95)
 \item{spm_pp}{Preprocessed data from \code{\link[=preprocess_spm]{preprocess_spm()}} (the same used for the fit).}
 
 \item{level}{Confidence-band coverage (default 0.95).}
+
+\item{uncertainty}{Which error sources enter the band: \code{"both"} (default), \code{"spm"},
+\code{"parameter"}, or \code{"none"}. See \code{\link[=predict_lrmsd_i_msa_ml]{predict_lrmsd_i_msa_ml()}}.}
 }
 \value{
 A tibble with one row per model residue: \code{i}, \code{pdb_site}, and the centred
@@ -33,6 +41,10 @@ which residues a given dataset happens to observe. The fit itself centres over t
 observation-matched residues (its \code{fitted.values}), so predicted and fitted \code{nlrmsd}
 sit at slightly different levels \strong{by design}. When overlaying observations, centre
 them on their own matched support -- that is the comparison being made.
+
+Like \code{\link[=predict_lrmsd_i_msa_ml]{predict_lrmsd_i_msa_ml()}}, the band combines the \verb{(a1, a2)} parameter arm and
+the SPM sampling arm (summed under independence), selected by \code{uncertainty}; the
+column schema is stable across modes.
 }
 \examples{
 \dontrun{

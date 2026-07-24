@@ -4,7 +4,12 @@
 \alias{predict_nlrmsd_n_nested_models_ml}
 \title{Mean-centred nested-model divergence profiles with delta-method bands (mode form)}
 \usage{
-predict_nlrmsd_n_nested_models_ml(fit, spm_pp_mode, level = 0.95)
+predict_nlrmsd_n_nested_models_ml(
+  fit,
+  spm_pp_mode,
+  level = 0.95,
+  uncertainty = c("both", "spm", "parameter", "none")
+)
 }
 \arguments{
 \item{fit}{A list from \code{\link[=fit_lrmsd_n_msa_ml]{fit_lrmsd_n_msa_ml()}} (carrying \code{a1}, \code{a2}, \code{cov}).}
@@ -12,6 +17,9 @@ predict_nlrmsd_n_nested_models_ml(fit, spm_pp_mode, level = 0.95)
 \item{spm_pp_mode}{Preprocessed data from \code{\link[=preprocess_spm_mode]{preprocess_spm_mode()}}.}
 
 \item{level}{Confidence-band coverage (default 0.95).}
+
+\item{uncertainty}{Which error sources enter the band: \code{"both"} (default), \code{"spm"},
+\code{"parameter"}, or \code{"none"}. See \code{\link[=predict_lrmsd_i_msa_ml]{predict_lrmsd_i_msa_ml()}}.}
 }
 \value{
 A tibble with one row per mode: \code{n} and a mean/lower/upper triple for each
@@ -21,8 +29,9 @@ centred variant -- \verb{nlrmsd_n_mm_\{mean,lower,upper\}}, \verb{nlrmsd_n_ms_\{
 \description{
 Mode counterpart of \code{\link[=predict_nlrmsd_i_nested_models_ml]{predict_nlrmsd_i_nested_models_ml()}}: the four nested variants
 of the per-mode profile, each centred by its own mean over the full model support
-and banded with the column-centred gradient. MM's centred band is zero-width. No
-\code{pdb_site} (modes are not residue-anchored).
+and banded with the column-centred gradient. MM's centred \emph{parameter} band is
+zero-width, but its SPM-sampling band is not (so MM's total band is nonzero when
+\code{uncertainty} includes the SPM arm). No \code{pdb_site} (modes are not residue-anchored).
 }
 \examples{
 \dontrun{

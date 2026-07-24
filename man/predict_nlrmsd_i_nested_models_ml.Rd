@@ -4,7 +4,12 @@
 \alias{predict_nlrmsd_i_nested_models_ml}
 \title{Mean-centred nested-model divergence profiles with delta-method bands from an ML fit}
 \usage{
-predict_nlrmsd_i_nested_models_ml(fit, spm_pp, level = 0.95)
+predict_nlrmsd_i_nested_models_ml(
+  fit,
+  spm_pp,
+  level = 0.95,
+  uncertainty = c("both", "spm", "parameter", "none")
+)
 }
 \arguments{
 \item{fit}{A list from \code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}} (carrying \code{a1}, \code{a2}, \code{cov}).}
@@ -12,6 +17,9 @@ predict_nlrmsd_i_nested_models_ml(fit, spm_pp, level = 0.95)
 \item{spm_pp}{Preprocessed data from \code{\link[=preprocess_spm]{preprocess_spm()}}.}
 
 \item{level}{Confidence-band coverage (default 0.95).}
+
+\item{uncertainty}{Which error sources enter the band: \code{"both"} (default), \code{"spm"},
+\code{"parameter"}, or \code{"none"}. See \code{\link[=predict_lrmsd_i_msa_ml]{predict_lrmsd_i_msa_ml()}}.}
 }
 \value{
 A tibble with one row per residue: \code{i}, \code{pdb_site}, and a mean/lower/upper
@@ -23,9 +31,13 @@ triple for each centred variant -- \verb{nlrmsd_i_mm_\{mean,lower,upper\}},
 Mean-centred counterpart of \code{\link[=predict_lrmsd_i_nested_models_ml]{predict_lrmsd_i_nested_models_ml()}}: the four nested
 variants (MM, MS, MA, MSA), each centred by \emph{its own} mean over the full model
 support and banded with the column-centred gradient. MM's gradient is constant in
-\verb{(a1, a2)}, so its centred gradient is exactly zero and its band is zero-width (its
-SPM-sampling band, added later, is not). See \code{\link[=predict_nlrmsd_i_msa_ml]{predict_nlrmsd_i_msa_ml()}} for the
-support note.
+\verb{(a1, a2)}, so its centred \emph{parameter} band is exactly zero -- but its SPM-sampling
+band is not, so MM has a nonzero total band whenever \code{uncertainty} includes the SPM
+arm. See \code{\link[=predict_nlrmsd_i_msa_ml]{predict_nlrmsd_i_msa_ml()}} for the support note.
+}
+\details{
+Each variant's SPM band is computed at its own selection strengths (MM \verb{(0,0)}, MS
+\verb{(a1,0)}, MA \verb{(0,a2)}, MSA \verb{(a1,a2)}).
 }
 \examples{
 \dontrun{

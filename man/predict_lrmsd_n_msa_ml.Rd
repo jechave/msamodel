@@ -4,7 +4,12 @@
 \alias{predict_lrmsd_n_msa_ml}
 \title{Predicted lrmsd_n profile with delta-method error bands from an ML fit (mode form)}
 \usage{
-predict_lrmsd_n_msa_ml(fit, spm_pp_mode, level = 0.95)
+predict_lrmsd_n_msa_ml(
+  fit,
+  spm_pp_mode,
+  level = 0.95,
+  uncertainty = c("both", "spm", "parameter", "none")
+)
 }
 \arguments{
 \item{fit}{A list from \code{\link[=fit_lrmsd_n_msa_ml]{fit_lrmsd_n_msa_ml()}} (carrying \code{a1}, \code{a2}, \code{cov}).}
@@ -12,6 +17,9 @@ predict_lrmsd_n_msa_ml(fit, spm_pp_mode, level = 0.95)
 \item{spm_pp_mode}{Preprocessed data from \code{\link[=preprocess_spm_mode]{preprocess_spm_mode()}}.}
 
 \item{level}{Confidence-band coverage (default 0.95).}
+
+\item{uncertainty}{Which error sources enter the band: \code{"both"} (default), \code{"spm"},
+\code{"parameter"}, or \code{"none"}. See \code{\link[=predict_lrmsd_i_msa_ml]{predict_lrmsd_i_msa_ml()}}.}
 }
 \value{
 A tibble with one row per mode: \code{n}, and the profile summary
@@ -23,6 +31,10 @@ Mode counterpart of \code{\link[=predict_lrmsd_i_msa_ml]{predict_lrmsd_i_msa_ml(
 symmetric delta-method band on the \emph{uncentred} \code{lrmsd}. Modes are not
 residue-anchored, so there is no \code{pdb_site} column. For the mean-centred quantity,
 use \code{\link[=predict_nlrmsd_n_msa_ml]{predict_nlrmsd_n_msa_ml()}}.
+}
+\details{
+Like the site form, the band combines the \verb{(a1, a2)} parameter arm and the SPM
+sampling arm (summed under independence), selected by \code{uncertainty}.
 }
 \examples{
 \dontrun{

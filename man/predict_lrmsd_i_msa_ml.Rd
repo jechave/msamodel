@@ -4,7 +4,12 @@
 \alias{predict_lrmsd_i_msa_ml}
 \title{Predicted lrmsd_i profile with delta-method error bands from an ML fit}
 \usage{
-predict_lrmsd_i_msa_ml(fit, spm_pp, level = 0.95)
+predict_lrmsd_i_msa_ml(
+  fit,
+  spm_pp,
+  level = 0.95,
+  uncertainty = c("both", "spm", "parameter", "none")
+)
 }
 \arguments{
 \item{fit}{A list from \code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}} (carrying \code{a1}, \code{a2}, and the 2x2
@@ -13,22 +18,35 @@ predict_lrmsd_i_msa_ml(fit, spm_pp, level = 0.95)
 \item{spm_pp}{Preprocessed data from \code{\link[=preprocess_spm]{preprocess_spm()}} (the same used for the fit).}
 
 \item{level}{Confidence-band coverage (default 0.95).}
+
+\item{uncertainty}{Which error sources enter the band: \code{"both"} (default, parameter
+\itemize{
+\item SPM sampling), \code{"spm"} (SPM sampling only), \code{"parameter"} (\verb{(a1, a2)} only), or
+\code{"none"} (zero-width). The output columns are identical in every mode.
+}}
 }
 \value{
 A tibble with one row per model residue: \code{i}, \code{pdb_site}, and the profile
 summary \code{lrmsd_i_msa_mean}, \code{lrmsd_i_msa_lower}, \code{lrmsd_i_msa_upper}.
 }
 \description{
-Propagates the asymptotic covariance of a point ML fit (\code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}}) to
-the predicted per-site divergence profile, returning the point profile and a
-symmetric error band at every residue. The band is the delta method -- the forward
-map \code{\link[=calculate_lrmsd_i_msa]{calculate_lrmsd_i_msa()}} linearized about the fit's \verb{(a1, a2)}, its gradient
-sandwiched with the fit's covariance -- so it is deterministic and Gaussian
-(symmetric), a frequentist confidence band consistent with the fit's own standard
-errors. This is the band on the \emph{uncentred} \code{lrmsd}: the uncertainty in the model's
-predicted \code{lrmsd} induced by uncertainty in \verb{(a1, a2)}, holding the model's own
-predicted level. For the mean-centred quantity that compares to observations, use
-\code{\link[=predict_nlrmsd_i_msa_ml]{predict_nlrmsd_i_msa_ml()}}.
+Propagates the uncertainty of a point ML fit (\code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}}) to the
+predicted per-site divergence profile, returning the point profile and a symmetric
+error band at every residue. The band is by the delta method -- deterministic and
+Gaussian (symmetric), a frequentist confidence band consistent with the fit's own
+standard errors. This is the band on the \emph{uncentred} \code{lrmsd}, holding the model's
+own predicted level. For the mean-centred quantity that compares to observations,
+use \code{\link[=predict_nlrmsd_i_msa_ml]{predict_nlrmsd_i_msa_ml()}}.
+}
+\details{
+The band combines two uncertainty sources: the \verb{(a1, a2)} parameter uncertainty
+(delta method, above) and the SPM sampling error (each \code{lrmsd} is a mean over a
+\emph{finite} mutant scan, not the infinite limit). \code{uncertainty} selects which are
+included; the total variance is their sum under an independence assumption (the
+cross-term is dropped -- the two arms share the SPM table, so their covariance is
+plausibly positive and the band may then very slightly under-cover). The column
+schema is the same in every mode: \code{"none"} returns a zero-width band, not fewer
+columns.
 }
 \examples{
 \dontrun{
