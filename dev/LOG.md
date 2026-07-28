@@ -36,6 +36,17 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   flips `lrmsd`↔`nlrmsd`; (2) site and mode are kept SEPARATE everywhere incl. tests and dev scripts
   — no axis-parametrized helper. Also: no transient process trivia in durable artifacts
   ([[feedback_no_process_trivia_in_artifacts]]).
+- **`calculate_nlrmsd_*` FAMILY DONE + COMMITTED 2026-07-28 (`ddb0971`).** Six new exported forward
+  maps (both arms: `_msa`, `_nested_models`, `_msa_decomposition`→`nphi_*`) close the
+  forward-map/predictor asymmetry; predictors rewired to their twins, byte-identical. Full detail in
+  the dated history entry below.
+- **IN FLIGHT NOW — the `dr2` colname wart.** `preprocess_spm*` names `dr2_ijm/njm` columns with the
+  internal `1:n` site/mode index (spm.R:176,231), which leaks as element-names onto every
+  `calculate_*` value vector (predictors already `unname()` in `delta_band`). Confirmed original +
+  redundant with column position. FIX: drop the two `colnames<-` lines, switch the 4
+  `as.integer(colnames(...))` readers (model.R:83,190,302,466) to `seq_len(ncol(...))`, verify numbers
+  identical, then drop the `unname()` stopgaps in the two new nlrmsd tests. Needs its own quick plan
+  (touches `spm.R` + frozen-fixture readers).
 - **`dev/tmp2/` is stale throwaway scratch (untracked, ~28MB)** — leave for now; a cleanup pass is
   planned soon.
 
@@ -456,6 +467,35 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   unchanged: the **diff-rule** still decides whether the full `test()` runs — fire it
   before a code/data/roxygen commit; skip it for docs/vignette-only diffs.
 <!-- /NOW -->
+
+### 2026-07-28 — `calculate_nlrmsd_*` forward-map family (predictor symmetry)
+
+The `calculate_*` (forward maps) and `predict_*_ml` (banded, from a fit) layers were
+asymmetric: every predictor over an *uncentred* quantity had a `calculate_` twin, but the
+mean-centred (`nlrmsd`) predictors did not — the centring (`x - mean(x)` over the full model
+support) was inlined inside `predict_nlrmsd_*_ml`, so the centred profile existed only on the
+fit path (no way to get it for a bare scenario `(a1,a2)`).
+
+Added the six missing exported forward maps, both arms:
+`calculate_nlrmsd_{i,n}_msa`, `calculate_nlrmsd_{i,n}_nested_models`,
+`calculate_nlrmsd_{i,n}_msa_decomposition` (the last emits `nphi_*`, matching the predictor
+name/columns). Each is a thin skin over its uncentred twin + centring. Every `nlrmsd`
+predictor now gets its point profile by calling its twin (was: centre inline) — output
+**byte-identical** (existing `predict` tests pass unchanged). New value-pinning tests
+(`test-msa-evaluate.R`, `test-msa-mode.R`) with all four negative controls confirmed red.
+`check()` 0E/1W/2N baseline. Committed `ddb0971`.
+
+These new maps call their uncentred twins (a `calculate_→calculate_` edge) — the peer /
+private-core cleanup of that whole chain is a deliberately deferred separate item.
+
+**Surfaced (not fixed here): the `dr2` colname wart.** `preprocess_spm*` sets
+`colnames(dr2_ijm/njm) <- site/mode` (spm.R:176,231) — the *internal* `1:n` index, redundant
+with column position (the gappy `pdb_site` is carried separately in `site_map`). Those names
+leak as element-names onto every `colSums`-derived value vector (`calculate_*` value columns
+carry `c("1"=…,"2"=…)`); the predictors already `unname()` them in `delta_band`. Confirmed
+original (migrated from `tmp_src`), `1:n` by penm construction, not necessary. NEXT: remove the
+colname assignments at source and switch the 4 readers (`as.integer(colnames)`) to
+`seq_len(ncol())`; then drop the two `unname()` stopgaps in the new tests.
 
 ### 2026-07-28 — `var_spm` rename + decomposition-variance extraction
 
