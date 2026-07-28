@@ -3,11 +3,14 @@ test_that("preprocess_spm returns energy_data, dr2_ijm, and site_map", {
   expect_named(pp, c("energy_data", "dr2_ijm", "site_map"))
 })
 
-test_that("dr2_ijm has the expected shape and site-index column names", {
+test_that("dr2_ijm has the expected shape and carries no column names", {
   pp <- preprocess_spm(znb_spm)
   # 228 sites x 10 mutations (m > 0 rows) = 2280 rows; 228 site columns.
   expect_equal(dim(pp$dr2_ijm), c(2280L, 228L))
-  expect_equal(as.integer(colnames(pp$dr2_ijm)), znb_spm$site[[1]])
+  # The site index is the column POSITION, carried explicitly in site_map -- NOT as
+  # matrix colnames, which would leak onto every colSums-derived value vector. Guard
+  # that the names stay absent (negative control: the old code set them from site).
+  expect_null(colnames(pp$dr2_ijm))
 })
 
 test_that("site_map maps the internal index i to pdb_site as in the SPM", {

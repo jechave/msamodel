@@ -80,7 +80,7 @@ calculate_dr2_i_msa <- function(spm_pp, a1, a2) {
   # Weighted average over the mutant (j,m) axis: (dr2_ijm) -> (dr2_i)
   dr2_i <- colSums(dr2_ijm * weights_jm)
 
-  tibble(i = as.integer(colnames(dr2_ijm)), dr2_i = dr2_i)
+  tibble(i = seq_len(ncol(dr2_ijm)), dr2_i = dr2_i)
 }
 
 #' Predicted per-site log structural divergence at one selection strength
@@ -187,7 +187,7 @@ calculate_dr2_n_msa <- function(spm_pp, a1, a2) {
   # Weighted average over the mutant (j,m) axis: (dr2_njm) -> (dr2_n)
   dr2_n <- colSums(dr2_njm * weights_jm)
 
-  tibble(n = as.integer(colnames(dr2_njm)), dr2_n = dr2_n)
+  tibble(n = seq_len(ncol(dr2_njm)), dr2_n = dr2_n)
 }
 
 #' Predicted per-mode log structural divergence at one selection strength
@@ -299,7 +299,7 @@ calculate_lrmsd_i_nested_models <- function(spm_pp, a1, a2) {
   lrmsd <- function(p1, p2) calculate_lrmsd_i_msa(spm_pp, p1, p2)$lrmsd_i_msa
 
   tibble(
-    i           = as.integer(colnames(spm_pp$dr2_ijm)),
+    i           = seq_len(ncol(spm_pp$dr2_ijm)),
     lrmsd_i_mm  = lrmsd(0,  0),
     lrmsd_i_ms  = lrmsd(a1, 0),
     lrmsd_i_ma  = lrmsd(0,  a2),
@@ -463,7 +463,7 @@ calculate_lrmsd_n_nested_models <- function(spm_pp, a1, a2) {
   lrmsd <- function(p1, p2) calculate_lrmsd_n_msa(spm_pp, p1, p2)$lrmsd_n_msa
 
   tibble(
-    n           = as.integer(colnames(spm_pp$dr2_njm)),
+    n           = seq_len(ncol(spm_pp$dr2_njm)),
     lrmsd_n_mm  = lrmsd(0,  0),
     lrmsd_n_ms  = lrmsd(a1, 0),
     lrmsd_n_ma  = lrmsd(0,  a2),

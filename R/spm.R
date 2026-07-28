@@ -173,11 +173,12 @@ preprocess_spm <- function(spm) {
   for (i in 1:n_rows) {
     dr2_ijm[i, ] <- spm_filtered$dr2_ijm[[i]]
   }
-  colnames(dr2_ijm) <- spm_filtered$site[[1]]  # Site numbers as column names
 
-  # Map internal site index i (= dr2_ijm column names) to structure-anchored
-  # pdb_site. The site / pdb_site list-columns are per-row parallel vectors;
-  # the first row carries the full ordered mapping.
+  # Map internal site index i to structure-anchored pdb_site. The site index is the
+  # dr2_ijm column position (site[[1]] is 1:n_cols by construction); it is carried here
+  # explicitly rather than as matrix colnames (which would leak onto colSums results).
+  # The site / pdb_site list-columns are per-row parallel vectors; the first row carries
+  # the full ordered mapping.
   site_map <- tibble(
     i = as.integer(spm_filtered$site[[1]]),
     pdb_site = as.integer(spm_filtered$pdb_site[[1]])
@@ -228,7 +229,8 @@ preprocess_spm_mode <- function(spm) {
   for (k in 1:n_rows) {
     dr2_njm[k, ] <- spm_filtered$dr2_njm[[k]]
   }
-  colnames(dr2_njm) <- spm_filtered$mode[[1]]  # Mode numbers as column names
+  # Mode index n is the dr2_njm column position (mode[[1]] is 1:n_cols); not stored as
+  # matrix colnames, which would leak onto colSums results.
 
   list(energy_data = energy_data, dr2_njm = dr2_njm)
 }

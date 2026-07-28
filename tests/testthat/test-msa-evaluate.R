@@ -45,14 +45,11 @@ test_that("calculate_nlrmsd_i_msa agrees with predict_nlrmsd_i_msa_ml's point pr
   # point of the twin). uncertainty='none' strips the band so only the mean remains.
   # Negative control: if the twin centred over the wrong support (or not at all), the
   # predictor -- which centres over the full model support -- would disagree.
-  # Compare VALUES: the forward map carries the dr2 column names on the value vector
-  # (existing convention), whereas the predictor's band assembler unname()s them --
-  # an intended difference in the names attribute, not the numbers.
   pp <- preprocess_spm(znb_spm)
   ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
   fwd  <- calculate_nlrmsd_i_msa(pp, ml$a1, ml$a2)
   pred <- predict_nlrmsd_i_msa_ml(ml, pp, uncertainty = "none")
-  expect_equal(unname(fwd$nlrmsd_i_msa), pred$nlrmsd_i_msa_mean)
+  expect_equal(fwd$nlrmsd_i_msa, pred$nlrmsd_i_msa_mean)
 })
 
 test_that("calculate_nlrmsd_i_msa_decomposition contributions sum to the centred profile", {

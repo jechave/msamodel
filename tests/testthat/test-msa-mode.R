@@ -7,7 +7,9 @@ test_that("preprocess_spm_mode returns energy_data and a [mutant x mode] dr2_njm
   expect_named(pp$energy_data, c("j", "m", "ddg_jm", "ddgact_jm"))
   # 228 sites x 10 mutations (m > 0 rows) = 2280 rows; 678 modes (= 3*228 - 6).
   expect_equal(dim(pp$dr2_njm), c(2280L, 678L))
-  expect_equal(as.integer(colnames(pp$dr2_njm)), 1:678)
+  # Mode index is the column position, not stored as colnames (which would leak onto
+  # colSums-derived value vectors); calculate_dr2_n_msa recovers n via seq_len(ncol).
+  expect_null(colnames(pp$dr2_njm))
 })
 
 test_that("calculate_dr2_n_msa returns one finite, positive dr2_n per mode", {
@@ -63,14 +65,10 @@ test_that("calculate_nlrmsd_n_msa centres the uncentred profile and agrees with 
   expect_equal(nc$nlrmsd_n_msa, lr - mean(lr))
 
   # Forward map == predictor point profile (uncertainty='none' strips the band).
-  # Compare VALUES: the mode forward maps carry the dr2 column names on the value
-  # vector (existing convention, shared by calculate_lrmsd_n_msa), whereas the
-  # predictor's band assembler unname()s them -- an intended difference in the names
-  # attribute, not the numbers.
   mln  <- fit_lrmsd_n_msa_ml(pp, znb_profile_n)
   fwd  <- calculate_nlrmsd_n_msa(pp, mln$a1, mln$a2)
   pred <- predict_nlrmsd_n_msa_ml(mln, pp, uncertainty = "none")
-  expect_equal(unname(fwd$nlrmsd_n_msa), pred$nlrmsd_n_msa_mean)
+  expect_equal(fwd$nlrmsd_n_msa, pred$nlrmsd_n_msa_mean)
 })
 
 test_that("calculate_nlrmsd_n_msa_decomposition contributions sum to the centred profile", {
