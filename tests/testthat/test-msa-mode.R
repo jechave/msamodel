@@ -49,6 +49,42 @@ test_that("calculate_lrmsd_n_nested_models builds the four variants at the right
   expect_equal(nested$lrmsd_n_msa, log(sqrt(calculate_dr2_n_msa(pp, a1, a2)$dr2_n)))
 })
 
+test_that("calculate_nlrmsd_n_msa centres the uncentred profile and agrees with its predictor", {
+  pp <- preprocess_spm_mode(znb_spm)
+  a1 <- 2; a2 <- 5
+  nc <- calculate_nlrmsd_n_msa(pp, a1, a2)
+
+  expect_named(nc, c("n", "nlrmsd_n_msa"))
+  expect_equal(nrow(nc), 678L)
+
+  # Independent route: centred == uncentred lrmsd minus its full-support mean.
+  # Negative control: an uncentred return would fail (profile mean far from zero).
+  lr <- calculate_lrmsd_n_msa(pp, a1, a2)$lrmsd_n_msa
+  expect_equal(nc$nlrmsd_n_msa, lr - mean(lr))
+
+  # Forward map == predictor point profile (uncertainty='none' strips the band).
+  # Compare VALUES: the mode forward maps carry the dr2 column names on the value
+  # vector (existing convention, shared by calculate_lrmsd_n_msa), whereas the
+  # predictor's band assembler unname()s them -- an intended difference in the names
+  # attribute, not the numbers.
+  mln  <- fit_lrmsd_n_msa_ml(pp, znb_profile_n)
+  fwd  <- calculate_nlrmsd_n_msa(pp, mln$a1, mln$a2)
+  pred <- predict_nlrmsd_n_msa_ml(mln, pp, uncertainty = "none")
+  expect_equal(unname(fwd$nlrmsd_n_msa), pred$nlrmsd_n_msa_mean)
+})
+
+test_that("calculate_nlrmsd_n_msa_decomposition contributions sum to the centred profile", {
+  pp <- preprocess_spm_mode(znb_spm)
+  a1 <- 2; a2 <- 5
+  d <- calculate_nlrmsd_n_msa_decomposition(pp, a1, a2)
+
+  expect_named(d, c("n", "nphi_mut", "nphi_stab", "nphi_act"))
+  # Independent route: nlrmsd_n_msa from its own twin. Negative control: dropping the
+  # centring on any nphi term breaks the equality.
+  prof <- calculate_nlrmsd_n_msa(pp, a1, a2)$nlrmsd_n_msa
+  expect_equal(d$nphi_mut + d$nphi_stab + d$nphi_act, prof)
+})
+
 test_that("dr2_n reweighting collapses the mutant axis with the same weights as the site form", {
   # Independent-route check: build the same fixation weights by hand and apply
   # colSums(dr2_njm * w). Confirms calculate_dr2_n_msa uses the axis-agnostic

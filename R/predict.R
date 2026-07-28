@@ -246,9 +246,9 @@ predict_nlrmsd_i_msa_ml <- function(fit, spm_pp, level = 0.95,
   validate_ml_fit(fit, "fit_lrmsd_i_msa_ml()")
   use <- uncertainty_gates(uncertainty, level)
 
-  keys <- calculate_lrmsd_i_msa(spm_pp, fit$a1, fit$a2) %>%
+  keys <- calculate_nlrmsd_i_msa(spm_pp, fit$a1, fit$a2) %>%
     dplyr::left_join(spm_pp$site_map, by = "i")
-  mean_v <- keys$lrmsd_i_msa - mean(keys$lrmsd_i_msa)   # centred over full model support
+  mean_v <- keys$nlrmsd_i_msa                          # centred over full model support
   vp <- if (use$param) {
     f <- function(t) calculate_lrmsd_i_msa(spm_pp, t[1], 2^t[2] - 1)$lrmsd_i_msa
     var_param_delta(f, ml_t_hat(fit), fit$cov, centred = TRUE)
@@ -344,8 +344,8 @@ predict_nlrmsd_n_msa_ml <- function(fit, spm_pp_mode, level = 0.95,
   validate_ml_fit(fit, "fit_lrmsd_n_msa_ml()")
   use <- uncertainty_gates(uncertainty, level)
 
-  keys <- calculate_lrmsd_n_msa(spm_pp_mode, fit$a1, fit$a2)
-  mean_v <- keys$lrmsd_n_msa - mean(keys$lrmsd_n_msa)
+  keys <- calculate_nlrmsd_n_msa(spm_pp_mode, fit$a1, fit$a2)
+  mean_v <- keys$nlrmsd_n_msa
   vp <- if (use$param) {
     f <- function(t) calculate_lrmsd_n_msa(spm_pp_mode, t[1], 2^t[2] - 1)$lrmsd_n_msa
     var_param_delta(f, ml_t_hat(fit), fit$cov, centred = TRUE)
@@ -455,15 +455,14 @@ predict_nlrmsd_i_nested_models_ml <- function(fit, spm_pp, level = 0.95,
                                               uncertainty = c("both", "spm", "parameter", "none")) {
   validate_ml_fit(fit, "fit_lrmsd_i_msa_ml()")
   use   <- uncertainty_gates(uncertainty, level)
-  keys  <- calculate_lrmsd_i_nested_models(spm_pp, fit$a1, fit$a2)
+  keys  <- calculate_nlrmsd_i_nested_models(spm_pp, fit$a1, fit$a2)
   t_hat <- ml_t_hat(fit)
   variant_a <- list(mm = c(0, 0), ms = c(fit$a1, 0), ma = c(0, fit$a2), msa = c(fit$a1, fit$a2))
 
   bands <- lapply(names(variant_a), function(v) {
-    src    <- paste0("lrmsd_i_", v)
-    mean_v <- keys[[src]] - mean(keys[[src]])
+    mean_v <- keys[[paste0("nlrmsd_i_", v)]]
     vp <- if (use$param) {
-      f <- function(t) calculate_lrmsd_i_nested_models(spm_pp, t[1], 2^t[2] - 1)[[src]]
+      f <- function(t) calculate_lrmsd_i_nested_models(spm_pp, t[1], 2^t[2] - 1)[[paste0("lrmsd_i_", v)]]
       var_param_delta(f, t_hat, fit$cov, centred = TRUE)
     } else 0
     vs <- if (use$spm) {
@@ -559,15 +558,14 @@ predict_nlrmsd_n_nested_models_ml <- function(fit, spm_pp_mode, level = 0.95,
                                               uncertainty = c("both", "spm", "parameter", "none")) {
   validate_ml_fit(fit, "fit_lrmsd_n_msa_ml()")
   use   <- uncertainty_gates(uncertainty, level)
-  keys  <- calculate_lrmsd_n_nested_models(spm_pp_mode, fit$a1, fit$a2)
+  keys  <- calculate_nlrmsd_n_nested_models(spm_pp_mode, fit$a1, fit$a2)
   t_hat <- ml_t_hat(fit)
   variant_a <- list(mm = c(0, 0), ms = c(fit$a1, 0), ma = c(0, fit$a2), msa = c(fit$a1, fit$a2))
 
   bands <- lapply(names(variant_a), function(v) {
-    src    <- paste0("lrmsd_n_", v)
-    mean_v <- keys[[src]] - mean(keys[[src]])
+    mean_v <- keys[[paste0("nlrmsd_n_", v)]]
     vp <- if (use$param) {
-      f <- function(t) calculate_lrmsd_n_nested_models(spm_pp_mode, t[1], 2^t[2] - 1)[[src]]
+      f <- function(t) calculate_lrmsd_n_nested_models(spm_pp_mode, t[1], 2^t[2] - 1)[[paste0("lrmsd_n_", v)]]
       var_param_delta(f, t_hat, fit$cov, centred = TRUE)
     } else 0
     vs <- if (use$spm) {
@@ -621,7 +619,7 @@ predict_nlrmsd_i_msa_decomposition_ml <- function(fit, spm_pp, level = 0.95,
                                                   uncertainty = c("both", "spm", "parameter", "none")) {
   validate_ml_fit(fit, "fit_lrmsd_i_msa_ml()")
   use   <- uncertainty_gates(uncertainty, level)
-  keys  <- calculate_decomposition_i_msa(spm_pp, fit$a1, fit$a2)
+  keys  <- calculate_nlrmsd_i_msa_decomposition(spm_pp, fit$a1, fit$a2)
   t_hat <- ml_t_hat(fit)
 
   # SPM arm: each phi is a linear contrast of nested models on the SAME scan; the helper
@@ -629,10 +627,9 @@ predict_nlrmsd_i_msa_decomposition_ml <- function(fit, spm_pp, level = 0.95,
   spm_var <- if (use$spm) var_spm_nphi_i_msa(spm_pp, fit$a1, fit$a2) else NULL
 
   bands <- lapply(c("mut", "stab", "act"), function(v) {
-    src    <- paste0("phi_", v)
-    mean_v <- keys[[src]] - mean(keys[[src]])
+    mean_v <- keys[[paste0("nphi_", v)]]
     vp <- if (use$param) {
-      f <- function(t) calculate_decomposition_i_msa(spm_pp, t[1], 2^t[2] - 1)[[src]]
+      f <- function(t) calculate_decomposition_i_msa(spm_pp, t[1], 2^t[2] - 1)[[paste0("phi_", v)]]
       var_param_delta(f, t_hat, fit$cov, centred = TRUE)
     } else 0
     vs <- if (use$spm) spm_var[[v]] else 0
@@ -673,16 +670,15 @@ predict_nlrmsd_n_msa_decomposition_ml <- function(fit, spm_pp_mode, level = 0.95
                                                   uncertainty = c("both", "spm", "parameter", "none")) {
   validate_ml_fit(fit, "fit_lrmsd_n_msa_ml()")
   use   <- uncertainty_gates(uncertainty, level)
-  keys  <- calculate_decomposition_n_msa(spm_pp_mode, fit$a1, fit$a2)
+  keys  <- calculate_nlrmsd_n_msa_decomposition(spm_pp_mode, fit$a1, fit$a2)
   t_hat <- ml_t_hat(fit)
 
   spm_var <- if (use$spm) var_spm_nphi_n_msa(spm_pp_mode, fit$a1, fit$a2) else NULL
 
   bands <- lapply(c("mut", "stab", "act"), function(v) {
-    src    <- paste0("phi_", v)
-    mean_v <- keys[[src]] - mean(keys[[src]])
+    mean_v <- keys[[paste0("nphi_", v)]]
     vp <- if (use$param) {
-      f <- function(t) calculate_decomposition_n_msa(spm_pp_mode, t[1], 2^t[2] - 1)[[src]]
+      f <- function(t) calculate_decomposition_n_msa(spm_pp_mode, t[1], 2^t[2] - 1)[[paste0("phi_", v)]]
       var_param_delta(f, t_hat, fit$cov, centred = TRUE)
     } else 0
     vs <- if (use$spm) spm_var[[v]] else 0

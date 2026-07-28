@@ -115,6 +115,40 @@ calculate_lrmsd_i_msa <- function(spm_pp, a1, a2) {
   tibble(i = dr2$i, lrmsd_i_msa = log(sqrt(dr2$dr2_i)))
 }
 
+#' Predicted mean-centred per-site log structural divergence at one selection strength
+#'
+#' Mean-centred counterpart of [calculate_lrmsd_i_msa()]: the per-site profile centred by
+#' its own mean over the **full model support** (all model residues),
+#' `nlrmsd_i = lrmsd_i - mean_S(lrmsd_i)`. This is the quantity the site ML fit is on -- the
+#' likelihood centres both sides -- so it is the natural forward map for exploring a
+#' scenario `(a1, a2)` on the same scale the fit reports, without fitting. It is also the
+#' point profile that [predict_nlrmsd_i_msa_ml()] bands: the two agree exactly (the
+#' predictor's `_mean` column is this function's `nlrmsd_i_msa`).
+#'
+#' Centring is over all model residues, deliberately agnostic to which residues a dataset
+#' happens to observe. The fit instead centres over the observation-matched residues, so a
+#' fitted profile sits at a slightly different level by design; see [predict_nlrmsd_i_msa_ml()].
+#'
+#' @param spm_pp Preprocessed single-point-mutation data, the output of [preprocess_spm()].
+#' @param a1 Stability selection strength (non-negative). `0` disables stability selection.
+#' @param a2 Activity selection strength (non-negative). `0` disables activity selection.
+#' @return A tibble with one row per site: the site index `i` and the mean-centred profile
+#'   `nlrmsd_i_msa`.
+#' @seealso [calculate_lrmsd_i_msa()] (the uncentred profile it centres);
+#'   [predict_nlrmsd_i_msa_ml()] (the same quantity with delta-method bands from a fit);
+#'   [calculate_nlrmsd_n_msa()] (the mode-indexed counterpart).
+#' @family model
+#' @examples
+#' \dontrun{
+#' pp <- preprocess_spm(znb_spm)
+#' head(calculate_nlrmsd_i_msa(pp, a1 = 1, a2 = 1))
+#' }
+#' @export
+calculate_nlrmsd_i_msa <- function(spm_pp, a1, a2) {
+  lrmsd <- calculate_lrmsd_i_msa(spm_pp, a1, a2)
+  tibble(i = lrmsd$i, nlrmsd_i_msa = lrmsd$lrmsd_i_msa - mean(lrmsd$lrmsd_i_msa))
+}
+
 #' Predicted per-mode structural divergence at one selection strength
 #'
 #' Mode-indexed counterpart of [calculate_dr2_i_msa()]: instead of a divergence
@@ -190,6 +224,37 @@ calculate_lrmsd_n_msa <- function(spm_pp, a1, a2) {
   tibble(n = dr2$n, lrmsd_n_msa = log(sqrt(dr2$dr2_n)))
 }
 
+#' Predicted mean-centred per-mode log structural divergence at one selection strength
+#'
+#' Mode-indexed counterpart of [calculate_nlrmsd_i_msa()]: the per-mode profile centred by
+#' its own mean over the full model support (all modes),
+#' `nlrmsd_n = lrmsd_n - mean_S(lrmsd_n)`. This is the quantity the mode ML fit is on and the
+#' point profile that [predict_nlrmsd_n_msa_ml()] bands (the two agree exactly). Modes are
+#' not residue-anchored, so there is no `pdb_site` column. See [calculate_nlrmsd_i_msa()] for
+#' the support note (predict/scenario centres over all modes; the fit centres over the
+#' observation-matched modes, so the two levels differ by design).
+#'
+#' @param spm_pp Preprocessed single-point-mutation data in mode form, the output of
+#'   [preprocess_spm_mode()].
+#' @param a1 Stability selection strength (non-negative). `0` disables stability selection.
+#' @param a2 Activity selection strength (non-negative). `0` disables activity selection.
+#' @return A tibble with one row per mode: the mode index `n` and the mean-centred profile
+#'   `nlrmsd_n_msa`.
+#' @seealso [calculate_lrmsd_n_msa()] (the uncentred profile it centres);
+#'   [predict_nlrmsd_n_msa_ml()] (the same quantity with delta-method bands from a fit);
+#'   [calculate_nlrmsd_i_msa()] (the residue-indexed counterpart).
+#' @family model
+#' @examples
+#' \dontrun{
+#' pp <- preprocess_spm_mode(znb_spm)
+#' head(calculate_nlrmsd_n_msa(pp, a1 = 1, a2 = 1))
+#' }
+#' @export
+calculate_nlrmsd_n_msa <- function(spm_pp, a1, a2) {
+  lrmsd <- calculate_lrmsd_n_msa(spm_pp, a1, a2)
+  tibble(n = lrmsd$n, nlrmsd_n_msa = lrmsd$lrmsd_n_msa - mean(lrmsd$lrmsd_n_msa))
+}
+
 #' Per-site divergence profiles under all four model variants (MM, MS, MA, MSA)
 #'
 #' The MSA model has two selection pressures, stability and activity, each of
@@ -244,6 +309,42 @@ calculate_lrmsd_i_nested_models <- function(spm_pp, a1, a2) {
     select(i, pdb_site, everything())
 }
 
+#' Mean-centred per-site divergence profiles under all four model variants (MM, MS, MA, MSA)
+#'
+#' Mean-centred counterpart of [calculate_lrmsd_i_nested_models()]: the same four nested
+#' variants, but each centred by **its own** mean over the full model support (all model
+#' residues), `nlrmsd_i_v = lrmsd_i_v - mean_S(lrmsd_i_v)`. Each variant is centred
+#' independently -- MM by the MM mean, MSA by the MSA mean -- matching how the fit and
+#' [predict_nlrmsd_i_nested_models_ml()] treat them. This is the natural scenario forward map
+#' for comparing the centred variants without fitting.
+#'
+#' @param spm_pp Preprocessed single-point-mutation data, the output of [preprocess_spm()].
+#' @param a1 Stability selection strength used for the MS and MSA variants (non-negative).
+#' @param a2 Activity selection strength used for the MA and MSA variants (non-negative).
+#' @return A tibble with one row per site: `i`, `pdb_site`, and the four mean-centred profiles
+#'   `nlrmsd_i_mm`, `nlrmsd_i_ms`, `nlrmsd_i_ma`, `nlrmsd_i_msa`.
+#' @seealso [calculate_lrmsd_i_nested_models()] (the uncentred variants it centres);
+#'   [predict_nlrmsd_i_nested_models_ml()] (the same variants with delta-method bands);
+#'   [calculate_nlrmsd_n_nested_models()] (the mode-indexed counterpart).
+#' @family model
+#' @examples
+#' \dontrun{
+#' pp <- preprocess_spm(znb_spm)
+#' head(calculate_nlrmsd_i_nested_models(pp, a1 = 1, a2 = 1))
+#' }
+#' @export
+calculate_nlrmsd_i_nested_models <- function(spm_pp, a1, a2) {
+  nm <- calculate_lrmsd_i_nested_models(spm_pp, a1, a2)
+  tibble(
+    i           = nm$i,
+    pdb_site    = nm$pdb_site,
+    nlrmsd_i_mm  = nm$lrmsd_i_mm  - mean(nm$lrmsd_i_mm),
+    nlrmsd_i_ms  = nm$lrmsd_i_ms  - mean(nm$lrmsd_i_ms),
+    nlrmsd_i_ma  = nm$lrmsd_i_ma  - mean(nm$lrmsd_i_ma),
+    nlrmsd_i_msa = nm$lrmsd_i_msa - mean(nm$lrmsd_i_msa)
+  )
+}
+
 #' Per-site divergence decomposition at one (a1, a2)
 #'
 #' Forward decomposition on the site axis: at a single pair of selection strengths
@@ -282,6 +383,42 @@ calculate_decomposition_i_msa <- function(spm_pp, a1, a2) {
     nm$lrmsd_i_mm, nm$lrmsd_i_ms, nm$lrmsd_i_ma, nm$lrmsd_i_msa
   )
   dplyr::bind_cols(nm[c("i", "pdb_site")], tibble::as_tibble(phi))
+}
+
+#' Mean-centred per-site divergence decomposition at one (a1, a2)
+#'
+#' Mean-centred counterpart of [calculate_decomposition_i_msa()]: the three contributions of
+#' the *centred* per-site profile `nlrmsd_i_msa`, each centred by its own mean over the full
+#' model support and emitted as `nphi_mut`, `nphi_stab`, `nphi_act`. The decomposition is
+#' defined on the centred quantity (the one the fit is on); the three columns sum exactly to
+#' `nlrmsd_i_msa` (centring is linear). This is the point decomposition that
+#' [predict_nlrmsd_i_msa_decomposition_ml()] bands (the two agree exactly).
+#'
+#' @param spm_pp Preprocessed single-point-mutation data, the output of [preprocess_spm()].
+#' @param a1 Stability selection strength (non-negative).
+#' @param a2 Activity selection strength (non-negative).
+#' @return A tibble with one row per site: `i`, `pdb_site`, and the three mean-centred
+#'   contributions `nphi_mut`, `nphi_stab`, `nphi_act`.
+#' @seealso [calculate_decomposition_i_msa()] (the uncentred `phi_*` decomposition);
+#'   [calculate_nlrmsd_i_msa()] (the centred profile these sum to);
+#'   [predict_nlrmsd_i_msa_decomposition_ml()] (the same contributions with delta-method
+#'   bands); [calculate_nlrmsd_n_msa_decomposition()] (the mode-indexed counterpart).
+#' @family model
+#' @examples
+#' \dontrun{
+#' pp <- preprocess_spm(znb_spm)
+#' head(calculate_nlrmsd_i_msa_decomposition(pp, a1 = 1, a2 = 1))
+#' }
+#' @export
+calculate_nlrmsd_i_msa_decomposition <- function(spm_pp, a1, a2) {
+  d <- calculate_decomposition_i_msa(spm_pp, a1, a2)
+  tibble(
+    i         = d$i,
+    pdb_site  = d$pdb_site,
+    nphi_mut  = d$phi_mut  - mean(d$phi_mut),
+    nphi_stab = d$phi_stab - mean(d$phi_stab),
+    nphi_act  = d$phi_act  - mean(d$phi_act)
+  )
 }
 
 #' Per-mode divergence profiles under all four model variants (MM, MS, MA, MSA)
@@ -334,6 +471,40 @@ calculate_lrmsd_n_nested_models <- function(spm_pp, a1, a2) {
   )
 }
 
+#' Mean-centred per-mode divergence profiles under all four model variants (MM, MS, MA, MSA)
+#'
+#' Mode-indexed counterpart of [calculate_nlrmsd_i_nested_models()]: the four nested variants
+#' of the per-mode profile, each centred by its own mean over the full model support (all
+#' modes). Modes are not residue-anchored, so there is no `pdb_site` column. Each variant is
+#' centred independently, matching [predict_nlrmsd_n_nested_models_ml()].
+#'
+#' @param spm_pp Preprocessed single-point-mutation data in mode form, the output of
+#'   [preprocess_spm_mode()].
+#' @param a1 Stability selection strength used for the MS and MSA variants (non-negative).
+#' @param a2 Activity selection strength used for the MA and MSA variants (non-negative).
+#' @return A tibble with one row per mode: `n` and the four mean-centred profiles
+#'   `nlrmsd_n_mm`, `nlrmsd_n_ms`, `nlrmsd_n_ma`, `nlrmsd_n_msa`.
+#' @seealso [calculate_lrmsd_n_nested_models()] (the uncentred variants it centres);
+#'   [predict_nlrmsd_n_nested_models_ml()] (the same variants with delta-method bands);
+#'   [calculate_nlrmsd_i_nested_models()] (the residue-indexed counterpart).
+#' @family model
+#' @examples
+#' \dontrun{
+#' pp <- preprocess_spm_mode(znb_spm)
+#' head(calculate_nlrmsd_n_nested_models(pp, a1 = 1, a2 = 1))
+#' }
+#' @export
+calculate_nlrmsd_n_nested_models <- function(spm_pp, a1, a2) {
+  nm <- calculate_lrmsd_n_nested_models(spm_pp, a1, a2)
+  tibble(
+    n           = nm$n,
+    nlrmsd_n_mm  = nm$lrmsd_n_mm  - mean(nm$lrmsd_n_mm),
+    nlrmsd_n_ms  = nm$lrmsd_n_ms  - mean(nm$lrmsd_n_ms),
+    nlrmsd_n_ma  = nm$lrmsd_n_ma  - mean(nm$lrmsd_n_ma),
+    nlrmsd_n_msa = nm$lrmsd_n_msa - mean(nm$lrmsd_n_msa)
+  )
+}
+
 #' Per-mode divergence decomposition at one (a1, a2)
 #'
 #' Mode-indexed counterpart of [calculate_decomposition_i_msa()]: at a single pair
@@ -371,4 +542,40 @@ calculate_decomposition_n_msa <- function(spm_pp, a1, a2) {
     nm$lrmsd_n_mm, nm$lrmsd_n_ms, nm$lrmsd_n_ma, nm$lrmsd_n_msa
   )
   dplyr::bind_cols(nm["n"], tibble::as_tibble(phi))
+}
+
+#' Mean-centred per-mode divergence decomposition at one (a1, a2)
+#'
+#' Mode-indexed counterpart of [calculate_nlrmsd_i_msa_decomposition()]: the three
+#' contributions of the centred per-mode profile `nlrmsd_n_msa`, each centred by its own mean
+#' over the full model support and emitted as `nphi_mut`, `nphi_stab`, `nphi_act`. The three
+#' columns sum exactly to `nlrmsd_n_msa`. Modes are not residue-anchored, so there is no
+#' `pdb_site` column. This is the point decomposition that
+#' [predict_nlrmsd_n_msa_decomposition_ml()] bands.
+#'
+#' @param spm_pp Preprocessed single-point-mutation data in mode form, the output of
+#'   [preprocess_spm_mode()].
+#' @param a1 Stability selection strength (non-negative).
+#' @param a2 Activity selection strength (non-negative).
+#' @return A tibble with one row per mode: `n` and the three mean-centred contributions
+#'   `nphi_mut`, `nphi_stab`, `nphi_act`.
+#' @seealso [calculate_decomposition_n_msa()] (the uncentred `phi_*` decomposition);
+#'   [calculate_nlrmsd_n_msa()] (the centred profile these sum to);
+#'   [predict_nlrmsd_n_msa_decomposition_ml()] (the same contributions with delta-method
+#'   bands); [calculate_nlrmsd_i_msa_decomposition()] (the residue-indexed counterpart).
+#' @family model
+#' @examples
+#' \dontrun{
+#' pp <- preprocess_spm_mode(znb_spm)
+#' head(calculate_nlrmsd_n_msa_decomposition(pp, a1 = 1, a2 = 1))
+#' }
+#' @export
+calculate_nlrmsd_n_msa_decomposition <- function(spm_pp, a1, a2) {
+  d <- calculate_decomposition_n_msa(spm_pp, a1, a2)
+  tibble(
+    n         = d$n,
+    nphi_mut  = d$phi_mut  - mean(d$phi_mut),
+    nphi_stab = d$phi_stab - mean(d$phi_stab),
+    nphi_act  = d$phi_act  - mean(d$phi_act)
+  )
 }

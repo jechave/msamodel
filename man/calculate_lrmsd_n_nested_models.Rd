@@ -59,6 +59,12 @@ Other model:
 \code{\link[=calculate_lrmsd_i_msa]{calculate_lrmsd_i_msa()}},
 \code{\link[=calculate_lrmsd_i_nested_models]{calculate_lrmsd_i_nested_models()}},
 \code{\link[=calculate_lrmsd_n_msa]{calculate_lrmsd_n_msa()}},
+\code{\link[=calculate_nlrmsd_i_msa]{calculate_nlrmsd_i_msa()}},
+\code{\link[=calculate_nlrmsd_i_msa_decomposition]{calculate_nlrmsd_i_msa_decomposition()}},
+\code{\link[=calculate_nlrmsd_i_nested_models]{calculate_nlrmsd_i_nested_models()}},
+\code{\link[=calculate_nlrmsd_n_msa]{calculate_nlrmsd_n_msa()}},
+\code{\link[=calculate_nlrmsd_n_msa_decomposition]{calculate_nlrmsd_n_msa_decomposition()}},
+\code{\link[=calculate_nlrmsd_n_nested_models]{calculate_nlrmsd_n_nested_models()}},
 \code{\link[=pfix_msa]{pfix_msa()}}
 }
 \concept{model}
