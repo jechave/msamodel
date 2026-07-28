@@ -40,13 +40,10 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   maps (both arms: `_msa`, `_nested_models`, `_msa_decomposition`→`nphi_*`) close the
   forward-map/predictor asymmetry; predictors rewired to their twins, byte-identical. Full detail in
   the dated history entry below.
-- **IN FLIGHT NOW — the `dr2` colname wart.** `preprocess_spm*` names `dr2_ijm/njm` columns with the
-  internal `1:n` site/mode index (spm.R:176,231), which leaks as element-names onto every
-  `calculate_*` value vector (predictors already `unname()` in `delta_band`). Confirmed original +
-  redundant with column position. FIX: drop the two `colnames<-` lines, switch the 4
-  `as.integer(colnames(...))` readers (model.R:83,190,302,466) to `seq_len(ncol(...))`, verify numbers
-  identical, then drop the `unname()` stopgaps in the two new nlrmsd tests. Needs its own quick plan
-  (touches `spm.R` + frozen-fixture readers).
+- **`dr2` COLNAME WART FIXED + COMMITTED 2026-07-28 (`5ca5bd7`).** Dropped the two
+  `colnames(dr2_ijm/njm) <-` assignments in `preprocess_spm*`; the 4 readers now use
+  `seq_len(ncol(...))`. `calculate_*` value columns are no longer polluted with stray element-names.
+  Regenerated `znb_profile_n` (values byte-identical, names-only drop). Detail in history entry.
 - **`dev/tmp2/` is stale throwaway scratch (untracked, ~28MB)** — leave for now; a cleanup pass is
   planned soon.
 
@@ -468,6 +465,24 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   before a code/data/roxygen commit; skip it for docs/vignette-only diffs.
 <!-- /NOW -->
 
+### 2026-07-28 — drop the `dr2` matrix colname leak
+
+The `calculate_nlrmsd_*` work (below) surfaced this. `preprocess_spm*` set
+`colnames(dr2_ijm/njm) <- site/mode` — the *internal* `1:n` site/mode index. `colSums`
+then stamped those names onto every derived value vector, so all `calculate_*` value
+columns came out as `c("1"=…, "2"=…)`; the predictors already stripped them in
+`delta_band`. Confirmed original (migrated from `tmp_src`), and the index is redundant
+with column position (the gappy `pdb_site` identity is carried separately in `site_map`).
+
+Removed the two `colnames<-` assignments (`R/spm.R`); the four readers switched
+`as.integer(colnames(...))` → `seq_len(ncol(...))` (`R/model.R`). Regenerated
+`znb_profile_n` (its `lrmsd_n_obs` had baked-in stale names): all datasets **values
+byte-identical** (tolerance=0, `znb_wt` digest unchanged, tmp_src generation-validation
+passed), only the names attribute dropped. Tests updated to pin the new contract
+(`expect_null(colnames(...))`); names-only profile-invariance snapshot accepted (serialized
+doubles byte-identical); the two `unname()` stopgaps in the nlrmsd tests removed.
+`test()` 194P/0F/2skip, `check()` 0E/1W/2N. Committed `5ca5bd7`.
+
 ### 2026-07-28 — `calculate_nlrmsd_*` forward-map family (predictor symmetry)
 
 The `calculate_*` (forward maps) and `predict_*_ml` (banded, from a fit) layers were
@@ -493,9 +508,8 @@ private-core cleanup of that whole chain is a deliberately deferred separate ite
 with column position (the gappy `pdb_site` is carried separately in `site_map`). Those names
 leak as element-names onto every `colSums`-derived value vector (`calculate_*` value columns
 carry `c("1"=…,"2"=…)`); the predictors already `unname()` them in `delta_band`. Confirmed
-original (migrated from `tmp_src`), `1:n` by penm construction, not necessary. NEXT: remove the
-colname assignments at source and switch the 4 readers (`as.integer(colnames)`) to
-`seq_len(ncol())`; then drop the two `unname()` stopgaps in the new tests.
+original (migrated from `tmp_src`), `1:n` by penm construction, not necessary. FIXED in the
+`5ca5bd7` entry above (colname assignments removed, readers use `seq_len(ncol())`, stopgaps dropped).
 
 ### 2026-07-28 — `var_spm` rename + decomposition-variance extraction
 
