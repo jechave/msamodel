@@ -305,12 +305,17 @@ fit_lrmsd_n_msa_ml <- function(spm_pp_mode,
   )
 }
 
-# Flat/mean-only null deviance: the total sum of squares of the observed profile about
-# its mean, sum((y - mean(y))^2) (glm's null.deviance for a Gaussian; = (n-1)*var(y)).
-# It is the deviance of the best constant prediction, so it depends only on the data, not
-# on any model -- the same null for every model fit to that data, which is what makes
-# D^2 = 1 - deviance/null_deviance comparable. Centres internally, so the result is the
-# same whether the caller passes raw or already-centred y. Axis-agnostic, pure.
+#' Flat/mean-only null deviance of an observed profile
+#'
+#' The total sum of squares of the observed profile about its mean,
+#' `sum((y - mean(y))^2)` (glm's `null.deviance` for a Gaussian; `= (n-1)*var(y)`). It
+#' is the deviance of the best constant prediction, so it depends only on the data, not
+#' on any model -- the same null for every model fit to that data, which is what makes
+#' `D^2 = 1 - deviance/null_deviance` comparable. Centres internally, so the result is
+#' the same whether the caller passes raw or already-centred `y`. Axis-agnostic, pure.
+#'
+#' @param y Numeric vector of observed profile values (raw or already mean-centred).
+#' @return A single numeric: the null deviance. Stops if `y` is empty or all-equal.
 #' @noRd
 calculate_null_deviance <- function(y) {
   n <- length(y)
@@ -326,11 +331,17 @@ calculate_null_deviance <- function(y) {
 # Kept a distinct function so the criterion stays swappable (a future
 # stochastic-likelihood tree plugs in here without touching the fitter).
 
-# Log-likelihood of an observed per-site divergence profile at (a1, a2): mean-centre
-# model prediction and observations, compare under a Gaussian noise model whose scale
-# is profiled out (sigma = sqrt(mean(r^2))). Maximised by fit_lrmsd_i_msa_ml.
-# spm_pp: preprocess_spm() output; observed_data:
-# a tibble {pdb_site, lrmsd_i_obs}. Returns one numeric log-likelihood.
+#' Profiled Gaussian log-likelihood of a per-site divergence profile
+#'
+#' Log-likelihood of an observed per-site divergence profile at `(a1, a2)`: mean-centre
+#' the model prediction and observations, compare under a Gaussian noise model whose
+#' scale is profiled out (`sigma = sqrt(mean(r^2))`). Maximised by [fit_lrmsd_i_msa_ml()].
+#'
+#' @param spm_pp Preprocessed data from [preprocess_spm()] (must include `site_map`).
+#' @param observed_data Tibble with columns `pdb_site` and `lrmsd_i_obs`.
+#' @param a1 Stability selection strength.
+#' @param a2 Activity selection strength.
+#' @return A single numeric log-likelihood.
 #' @noRd
 calculate_loglik_lrmsd_i_msa <- function(spm_pp, observed_data, a1, a2) {
 
@@ -377,9 +388,17 @@ calculate_loglik_lrmsd_i_msa <- function(spm_pp, observed_data, a1, a2) {
   return(log_lik)
 }
 
-# Mode-form counterpart of calculate_loglik_lrmsd_i_msa: scores over normal modes,
-# no pdb_site mapping (mode index n used directly). spm_pp_mode: preprocess_spm_mode()
-# output; observed_data: a tibble {n, lrmsd_n_obs}. Maximised by fit_lrmsd_n_msa_ml.
+#' Profiled Gaussian log-likelihood of a per-mode divergence profile
+#'
+#' Mode-form counterpart of `calculate_loglik_lrmsd_i_msa()`: scores over normal modes,
+#' with no `pdb_site` mapping (the mode index `n` is used directly). Maximised by
+#' [fit_lrmsd_n_msa_ml()].
+#'
+#' @param spm_pp_mode Preprocessed data from [preprocess_spm_mode()].
+#' @param observed_data Tibble with columns `n` (mode index) and `lrmsd_n_obs`.
+#' @param a1 Stability selection strength.
+#' @param a2 Activity selection strength.
+#' @return A single numeric log-likelihood.
 #' @noRd
 calculate_loglik_lrmsd_n_msa <- function(spm_pp_mode, observed_data, a1, a2) {
 

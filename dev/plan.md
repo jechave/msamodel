@@ -147,7 +147,8 @@ per-version detail is written when each version starts.
      mechanical, unambiguous criterion (the earlier "forward/analysis" vocabulary is
      retired: "forward" is fit-relative and doesn't apply to `_ml`; "analysis" wrongly
      swept in `calculate_decomposition_*`, which takes bare params). The three layers,
-     one `@family` and one `R/` file each:
+     one `@family` each (a layer is defined by its `@family` tag, not by living in a
+     single file — the prediction layer spans two `R/` files):
        - **model** (`@family model`, `R/model.R`) — input = bare `(a1, a2)` + `spm_pp`.
          `pfix_msa`, all `calculate_*` **including** `calculate_*_nested_models` and
          `calculate_decomposition_*`. These ARE the model, full stop — they take
@@ -156,9 +157,11 @@ per-version detail is written when each version starts.
          to the analysis layer" — they stay put.)
        - **fitting** (`@family fitting`, `R/fitting.R`) — input = observed data.
          `fit_*_ml`; internal loglik lives here as `@noRd`.
-       - **prediction** (`@family prediction`, `R/predict.R`) — input = a **fit object**.
-         `predict_*_ml` (mean + delta-method band) and `gof_*_ml`. The only fit-consuming
-         layer.
+       - **prediction** (`@family prediction`, `R/predict.R` + `R/predict_band_helpers.R`)
+         — input = a **fit object**. `predict_*_ml` (mean + delta-method band) and
+         `gof_*_ml`. The only fit-consuming layer. The band-calculation `@noRd` helpers
+         live in `R/predict_band_helpers.R`; the public predictors and `gof_*_ml` in
+         `R/predict.R`.
      The decomposition stays a **pure function of predictions** (4 vectors in → 3 phi
      out), so "decompose four separately-fitted models" remains *architecturally allowed*
      (caller's choice) without being built. The prediction layer is splittable into its

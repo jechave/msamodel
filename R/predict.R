@@ -9,10 +9,20 @@
 # the reportable row. Comparative AIC/BIC across nested models needs those models fit
 # at their own maxima (a future fix_a1/fix_a2 fitter) -- not built here.
 
-# Derive the glance-style GoF row from stored primitives. Pure arithmetic, shared by
-# the site and mode accessors so the formulas live in one place. D2 is deviance-
-# explained (= 1 - Var(resid)/Var(obs) since both deviances are sums of squares on
-# the same n); AIC/BIC use the full profiled Gaussian logLik.
+#' Derive the glance-style goodness-of-fit row from stored primitives
+#'
+#' Pure arithmetic, shared by the site and mode accessors so the formulas live in one
+#' place. `D2` is deviance-explained (`= 1 - Var(resid)/Var(obs)` since both deviances
+#' are sums of squares on the same `n`); `AIC`/`BIC` use the full profiled Gaussian
+#' `logLik`.
+#'
+#' @param logLik The profiled Gaussian log-likelihood at the fit.
+#' @param deviance The model deviance (residual sum of squares).
+#' @param null_deviance The flat/mean-only null deviance.
+#' @param nobs Number of observations.
+#' @param k Number of estimated parameters.
+#' @return A one-row tibble: `D2`, `AIC`, `BIC`, and the primitives (`logLik`,
+#'   `deviance`, `null_deviance`, `nobs`, `k`).
 #' @noRd
 gof_from_primitives <- function(logLik, deviance, null_deviance, nobs, k) {
   tibble::tibble(
@@ -27,8 +37,15 @@ gof_from_primitives <- function(logLik, deviance, null_deviance, nobs, k) {
   )
 }
 
-# Shared validator: an _ml fit must carry every GoF primitive. Fail loud on a raw
-# (pre-GoF) or wrong-type object rather than returning a silent NA.
+#' Validate that a fit carries the goodness-of-fit primitives
+#'
+#' Shared validator: an `_ml` fit must carry every GoF primitive. Fails loud on a raw
+#' (pre-GoF) or wrong-type object rather than returning a silent `NA`.
+#'
+#' @param fit The object to validate; must be a list carrying `logLik`, `deviance`,
+#'   `null_deviance`, `nobs`, `k`.
+#' @param producer Name of the producing function, used in the error message.
+#' @return Invisibly returns `fit`; stops with a clear message if a primitive is missing.
 #' @noRd
 validate_gof_fit <- function(fit, producer) {
   needed <- c("logLik", "deviance", "null_deviance", "nobs", "k")
@@ -105,63 +122,16 @@ gof_lrmsd_n_msa_ml <- function(fit) {
   gof_from_primitives(fit$logLik, fit$deviance, fit$null_deviance, fit$nobs, fit$k)
 }
 
-# ---- ML delta-method prediction ---------------------------------------------------
-# Predict from an _ml fit: evaluate the forward maps (calculate_*) at the fit's point
-# estimate and propagate the fit's asymptotic covariance through the forward map by the
-# delta method to a symmetric error band. The fit carries `cov` on the
-# t = (a1, b = log2(a2+1)) scale, so we differentiate g(t) = calc(a1=t1, a2=2^t2-1)
-# w.r.t. t directly and sandwich with `cov` -- no covariance transform. Bands are
-# symmetric on the reported scale (g(t_hat) +/- z*se), mirroring the fit's own SEs.
-
-# Central-difference gradient of a vector-valued f (returns a per-site numeric vector)
-# w.r.t. the 2-vector t. Returns an [nrow(f) x 2] Jacobian: column j is the partial
-# derivative w.r.t. t[j]. Two f-evaluations per dimension (4 forward-map calls).
-#' @noRd
-grad_t <- function(f, t, h = 1e-5) {
-  n <- length(f(t))
-  J <- vapply(seq_along(t), function(j) {
-    tp <- t; tp[j] <- tp[j] + h
-    tm <- t; tm[j] <- tm[j] - h
-    (f(tp) - f(tm)) / (2 * h)
-  }, numeric(n))
-  # vapply collapses to a bare length-length(t) vector when n == 1; force [n x length(t)].
-  matrix(J, nrow = n)
-}
-
-# Pure band assembler: given the point profile mean_v and its TOTAL per-element variance
-# var_v (already summed across whatever uncertainty arms the caller chose -- parameter,
-# SPM, both, or neither), build the symmetric band mean_v +/- z*sqrt(var_v). No arm is
-# privileged here: the caller decides which variances to add before calling. Returns a
-# tibble with <name>_mean/_lower/_upper. var_v = 0 gives a zero-width band (the "none"
-# uncertainty mode), which keeps the column schema stable across modes.
-#' @noRd
-delta_band <- function(mean_v, var_v, level, name) {
-  se_v <- sqrt(pmax(var_v, 0))            # pmax guards tiny negative round-off only
-  z    <- stats::qnorm(1 - (1 - level) / 2)
-  # unname: the forward maps / var_spm carry stray per-element names (dr2 column names)
-  # that would otherwise leak onto the band columns. A row-indexed band carries none.
-  mean_v <- unname(mean_v); se_v <- unname(se_v)
-  cols <- list(mean_v, mean_v - z * se_v, mean_v + z * se_v)
-  names(cols) <- paste0(name, c("_mean", "_lower", "_upper"))
-  tibble::as_tibble(cols)
-}
-
-# Parameter-uncertainty arm: per-element variance of f(t) induced by the fit's t-scale
-# covariance cov_t, by the delta method. f(t) returns the per-element vector at parameter
-# t. Uncentred (centred = FALSE): var = diag(J cov_t J^T) with J the raw Jacobian. Centred
-# (centred = TRUE, for an nlrmsd quantity nq = q - mean_S(q)): because mean_S(q) is itself
-# a function of the parameters, the gradient of nq is the COLUMN-CENTRED Jacobian
-# g_i - mean_S(g), so var uses Jc = J - colMeans(J) -- NOT the raw J shifted by a constant.
-# Returns a bare per-element numeric vector (a variance), to be summed with the SPM arm.
-#' @noRd
-var_param_delta <- function(f, t_hat, cov_t, centred) {
-  J <- grad_t(f, t_hat)                   # [nelement x 2]
-  if (centred) J <- sweep(J, 2, colMeans(J))
-  rowSums((J %*% cov_t) * J)              # diag(J cov_t J^T)
-}
-
-# An _ml fit must carry the point estimate + t-scale covariance the delta method needs.
-# Fail loud on a wrong-type object rather than propagating an NA band.
+#' Validate that a fit carries the delta-method inputs
+#'
+#' An `_ml` fit must carry the point estimate + `t`-scale covariance the delta method
+#' needs. Fails loud on a wrong-type object rather than propagating an `NA` band.
+#'
+#' @param fit The object to validate; must be a list carrying `a1`, `a2`, and a 2x2
+#'   `cov` matrix.
+#' @param producer Name of the producing function, used in the error message.
+#' @return Invisibly returns `fit`; stops with a clear message if an input is missing
+#'   or malformed.
 #' @noRd
 validate_ml_fit <- function(fit, producer) {
   needed <- c("a1", "a2", "cov")
@@ -171,24 +141,6 @@ validate_ml_fit <- function(fit, producer) {
          "got an object without them. Pass a fit from ", producer, ".")
   }
   invisible(fit)
-}
-
-# t = (a1, log2(a2+1)) from an _ml fit's natural-scale point estimate.
-#' @noRd
-ml_t_hat <- function(fit) c(fit$a1, log2(fit$a2 + 1))
-
-# The four uncertainty modes and their arm gates. `both` = SPM + parameter; `spm` /
-# `parameter` = that arm alone; `none` = zero-width band (same columns, no width). The
-# predictors compute each arm's variance only when its gate is TRUE, then sum. Returns a
-# list(param=, spm=) of logicals. Validate `level` here too (shared by all predictors).
-#' @noRd
-uncertainty_gates <- function(uncertainty, level) {
-  uncertainty <- match.arg(uncertainty, c("both", "spm", "parameter", "none"))
-  if (length(level) != 1 || level <= 0 || level >= 1) {
-    stop("level must be a single number in (0, 1)")
-  }
-  list(param = uncertainty %in% c("both", "parameter"),
-       spm   = uncertainty %in% c("both", "spm"))
 }
 
 #' Predicted lrmsd_i profile with delta-method error bands from an ML fit
