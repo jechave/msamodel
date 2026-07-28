@@ -12,29 +12,25 @@ One short entry per working session.
 The current state and what's next. Keep this current as slices finish; it is the
 one place the live state lives (no separate PROGRESS file as of 2026-06-26).
 
-- **SPM ERROR ARM DONE 2026-07-24 (this session) — code + tests + validation, but NOT committed
-  and the inference rework is NOT "complete" yet: a naming rename is DEFERRED to next session.**
-  The finite-mutation SPM sampling error is now combined with the `(a1,a2)` parameter arm in every
-  `predict_*_ml` band, selected by a new `uncertainty = c("both","spm","parameter","none")` arg
-  (default `both`; `none` = zero-width, stable schema; arms summed under independence). New
-  `spm_hmat` + `calculate_{lrmsd,nlrmsd}_{i,n}_msa_var_spm` in `R/model.R`; `delta_band` refactored
-  to a pure variance-combiner + `var_param_delta` added + `delta_band_centred` deleted (`R/predict.R`).
-  Roxygen updated, `document()` run (10 predict Rd). Tests: `test-predict-uncertainty.R` (cheap
-  deterministic wiring + a FROZEN pre-refactor parameter-arm regression lock in
-  `helper-preref-band.R`) + updated `test-predict-ml.R`; bootstrap kept OUT of the suite (too slow,
-  stochastic). Full `test()` 178P/0F/2skip (ran once as the code-commit gate). Formula VALIDATED vs
-  an independent uniform-resample bootstrap, site AND mode, all quantities ~1% — see
-  `dev/reports/spm_band_validation.Rmd`→`.pdf`. Product showcase (all new banded fns, both axes, 4 options):
-  `dev/predict_uncertainty_showcase.Rmd`→`.html`. Formula/method in [[project_spm_band_formula]].
-- **DEFERRED to next session — a NAMING rename that is essential before this is "done".** The helper
-  internals are named in a terse math style the author rejects (`spm_hmat`, and `M`/`G`/`Gc`/`h`/`w`
-  inside it) — inconsistent with the package's descriptive `snake_case`/`dr2_<indices>` convention.
-  The `spm_band_validation.pdf` notation MIRRORS those bad names, so it is also poor and NOT
-  approved. BOTH get fixed together next session (rename code first, deliberately so it does not
-  break the validated behavior; then the PDF notation follows, in CODE notation not invented math
-  symbols). Do NOT treat the inference rework as finished until this lands. Public API
-  (`predict_*`, `calculate_*_var_spm`, the `uncertainty` arg, column names) is FINE — only helper
-  internals + PDF notation change.
+- **SPM ERROR ARM DONE + COMMITTED. Band-split, SPM-sampling arm, and the `var_spm` rename all
+  landed.** The finite-mutation SPM sampling error is combined with the `(a1,a2)` parameter arm in
+  every `predict_*_ml` band, selected by `uncertainty = c("both","spm","parameter","none")` (default
+  `both`; `none` = zero-width, stable schema). The band machinery lives in `R/predict_band_helpers.R`
+  (relocated out of `model.R`/`predict.R`). Formula VALIDATED vs an independent uniform-resample
+  bootstrap, site AND mode, all quantities ~1% — see `dev/reports/spm_band_validation.Rmd`→`.pdf`.
+  Formula/method in [[project_spm_band_formula]].
+- **`var_spm` RENAME DONE 2026-07-28 (this session).** The SPM-variance calculators were renamed
+  `calculate_*_var_spm` → `var_spm_*` (`calculate_` reserved for public forward maps; `var_spm_<col>`
+  is the function, `<col>_var_spm` the value — the `x_mean = mean(x)` split). AND the inline
+  `spm_hmat` logic in the two decomposition predictors was extracted into `var_spm_nphi_{i,n}_msa`,
+  so every predictor now routes through a `var_spm_*` helper (no `predict_*` calls `spm_hmat`
+  directly). Behaviour byte-identical to baseline; `test()` 178P/0F/2skip. Committed `30c250a`.
+- **STILL DEFERRED — the terse band-machinery rename.** `spm_hmat`, `grad_t`, `delta_band`,
+  `var_param_delta`, `ml_t_hat`, `uncertainty_gates` are named in a terse style the author rejects
+  (and `M`/`G`/`Gc`/`h`/`w` inside `spm_hmat`). The `spm_band_validation.pdf` notation MIRRORS those
+  names, so it is also NOT approved. BOTH get fixed together (rename code first so validated
+  behaviour is preserved; PDF notation follows, in CODE notation). Note: `dev/reports/spm_band_validation.Rmd`
+  calls `spm_hmat` by name under `load_all()` — that rename must update those call sites.
 - **Two general naming rules re-confirmed this session (both recorded in memory):** (1) a
   `calculate_*` is named for the EXACT quantity it produces — never a `centred=TRUE/FALSE` flag that
   flips `lrmsd`↔`nlrmsd`; (2) site and mode are kept SEPARATE everywhere incl. tests and dev scripts
@@ -460,6 +456,25 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   unchanged: the **diff-rule** still decides whether the full `test()` runs — fire it
   before a code/data/roxygen commit; skip it for docs/vignette-only diffs.
 <!-- /NOW -->
+
+### 2026-07-28 — `var_spm` rename + decomposition-variance extraction
+
+The call graph (`dev/callgraph.R`, regenerated) exposed a structural inconsistency: every
+profile `predict_*_ml` delegated its SPM-sampling variance to a `calculate_*_var_spm` helper
+that called `spm_hmat`, but the two decomposition predictors called `spm_hmat` directly, inline.
+
+Fixed both naming and structure. (1) Renamed the 4 SPM-variance calculators
+`calculate_*_var_spm` → `var_spm_*` — `calculate_` is reserved for public forward maps producing a
+model column; these `@noRd` helpers compute an *error* quantity. `var_spm_<col>` is the function
+name, `<col>_var_spm` the value name (the `x_mean = mean(x)` split; memory
+[[feedback_calculate_matches_column_name]] updated to record it). (2) Extracted the inline
+decomposition logic into fully-documented `var_spm_nphi_{i,n}_msa`, so every predictor now routes
+through a `var_spm_*` helper — `spm_hmat` is called only by the six helpers, no `predict_*` directly.
+
+Behaviour byte-identical to a pre-refactor baseline (max diff 0, both arms); `document()` zero
+NAMESPACE/man churn; `test()` 178P/0F/2skip. Also: `dev/callgraph.R` now renders the two per-arm
+branch subgraphs (one landscape page each) rather than the wide combined graph. Committed `30c250a`.
+The terse band-machinery rename (`spm_hmat`, `grad_t`, …) remains deferred (see NOW block).
 
 ### 2026-07-20 — Removed the AGQ inference arm
 
