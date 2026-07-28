@@ -196,7 +196,7 @@ predict_lrmsd_i_msa_ml <- function(fit, spm_pp, level = 0.95,
   } else 0
   vs <- if (use$spm) {
     w <- weights_jm_spm(spm_pp, fit$a1, fit$a2)
-    calculate_lrmsd_i_msa_var_spm(spm_pp$dr2_ijm, w)
+    var_spm_lrmsd_i_msa(spm_pp$dr2_ijm, w)
   } else 0
   band <- delta_band(mean_v, vp + vs, level, "lrmsd_i_msa")
   dplyr::bind_cols(tibble(i = keys$i, pdb_site = keys$pdb_site), band)
@@ -255,7 +255,7 @@ predict_nlrmsd_i_msa_ml <- function(fit, spm_pp, level = 0.95,
   } else 0
   vs <- if (use$spm) {
     w <- weights_jm_spm(spm_pp, fit$a1, fit$a2)
-    calculate_nlrmsd_i_msa_var_spm(spm_pp$dr2_ijm, w)
+    var_spm_nlrmsd_i_msa(spm_pp$dr2_ijm, w)
   } else 0
   band <- delta_band(mean_v, vp + vs, level, "nlrmsd_i_msa")
   dplyr::bind_cols(tibble(i = keys$i, pdb_site = keys$pdb_site), band)
@@ -303,7 +303,7 @@ predict_lrmsd_n_msa_ml <- function(fit, spm_pp_mode, level = 0.95,
   } else 0
   vs <- if (use$spm) {
     w <- weights_jm_spm(spm_pp_mode, fit$a1, fit$a2)
-    calculate_lrmsd_n_msa_var_spm(spm_pp_mode$dr2_njm, w)
+    var_spm_lrmsd_n_msa(spm_pp_mode$dr2_njm, w)
   } else 0
   band <- delta_band(mean_v, vp + vs, level, "lrmsd_n_msa")
   dplyr::bind_cols(tibble(n = keys$n), band)
@@ -352,7 +352,7 @@ predict_nlrmsd_n_msa_ml <- function(fit, spm_pp_mode, level = 0.95,
   } else 0
   vs <- if (use$spm) {
     w <- weights_jm_spm(spm_pp_mode, fit$a1, fit$a2)
-    calculate_nlrmsd_n_msa_var_spm(spm_pp_mode$dr2_njm, w)
+    var_spm_nlrmsd_n_msa(spm_pp_mode$dr2_njm, w)
   } else 0
   band <- delta_band(mean_v, vp + vs, level, "nlrmsd_n_msa")
   dplyr::bind_cols(tibble(n = keys$n), band)
@@ -412,7 +412,7 @@ predict_lrmsd_i_nested_models_ml <- function(fit, spm_pp, level = 0.95,
     vs <- if (use$spm) {
       a <- variant_a[[v]]
       w <- weights_jm_spm(spm_pp, a[1], a[2])
-      calculate_lrmsd_i_msa_var_spm(spm_pp$dr2_ijm, w)
+      var_spm_lrmsd_i_msa(spm_pp$dr2_ijm, w)
     } else 0
     delta_band(mean_v, vp + vs, level, col)
   })
@@ -469,7 +469,7 @@ predict_nlrmsd_i_nested_models_ml <- function(fit, spm_pp, level = 0.95,
     vs <- if (use$spm) {
       a <- variant_a[[v]]
       w <- weights_jm_spm(spm_pp, a[1], a[2])
-      calculate_nlrmsd_i_msa_var_spm(spm_pp$dr2_ijm, w)
+      var_spm_nlrmsd_i_msa(spm_pp$dr2_ijm, w)
     } else 0
     delta_band(mean_v, vp + vs, level, paste0("nlrmsd_i_", v))
   })
@@ -521,7 +521,7 @@ predict_lrmsd_n_nested_models_ml <- function(fit, spm_pp_mode, level = 0.95,
     vs <- if (use$spm) {
       a <- variant_a[[v]]
       w <- weights_jm_spm(spm_pp_mode, a[1], a[2])
-      calculate_lrmsd_n_msa_var_spm(spm_pp_mode$dr2_njm, w)
+      var_spm_lrmsd_n_msa(spm_pp_mode$dr2_njm, w)
     } else 0
     delta_band(mean_v, vp + vs, level, col)
   })
@@ -573,7 +573,7 @@ predict_nlrmsd_n_nested_models_ml <- function(fit, spm_pp_mode, level = 0.95,
     vs <- if (use$spm) {
       a <- variant_a[[v]]
       w <- weights_jm_spm(spm_pp_mode, a[1], a[2])
-      calculate_nlrmsd_n_msa_var_spm(spm_pp_mode$dr2_njm, w)
+      var_spm_nlrmsd_n_msa(spm_pp_mode$dr2_njm, w)
     } else 0
     delta_band(mean_v, vp + vs, level, paste0("nlrmsd_n_", v))
   })
@@ -624,19 +624,9 @@ predict_nlrmsd_i_msa_decomposition_ml <- function(fit, spm_pp, level = 0.95,
   keys  <- calculate_decomposition_i_msa(spm_pp, fit$a1, fit$a2)
   t_hat <- ml_t_hat(fit)
 
-  # SPM arm: each phi is a linear contrast of nested models on the SAME scan. Build the
-  # centred per-mutant contribution matrix h for MM/MS/MSA once, then form the contrast's
-  # sampling variance from the differenced contributions (shared-sample covariance kept).
-  spm_var <- NULL
-  if (use$spm) {
-    hmat_v <- function(a1, a2) spm_hmat(spm_pp$dr2_ijm, weights_jm_spm(spm_pp, a1, a2), centred = TRUE)
-    h_mm  <- hmat_v(0, 0); h_ms <- hmat_v(fit$a1, 0); h_msa <- hmat_v(fit$a1, fit$a2)
-    spm_var <- list(
-      mut  = colSums(h_mm^2),               # nphi_mut  = nlrmsd_mm
-      stab = colSums((h_ms  - h_mm)^2),     # nphi_stab = nlrmsd_ms  - nlrmsd_mm
-      act  = colSums((h_msa - h_ms)^2)      # nphi_act  = nlrmsd_msa - nlrmsd_ms
-    )
-  }
+  # SPM arm: each phi is a linear contrast of nested models on the SAME scan; the helper
+  # builds the differenced per-mutant contributions (shared-sample covariance kept).
+  spm_var <- if (use$spm) var_spm_nphi_i_msa(spm_pp, fit$a1, fit$a2) else NULL
 
   bands <- lapply(c("mut", "stab", "act"), function(v) {
     src    <- paste0("phi_", v)
@@ -686,16 +676,7 @@ predict_nlrmsd_n_msa_decomposition_ml <- function(fit, spm_pp_mode, level = 0.95
   keys  <- calculate_decomposition_n_msa(spm_pp_mode, fit$a1, fit$a2)
   t_hat <- ml_t_hat(fit)
 
-  spm_var <- NULL
-  if (use$spm) {
-    hmat_v <- function(a1, a2) spm_hmat(spm_pp_mode$dr2_njm, weights_jm_spm(spm_pp_mode, a1, a2), centred = TRUE)
-    h_mm  <- hmat_v(0, 0); h_ms <- hmat_v(fit$a1, 0); h_msa <- hmat_v(fit$a1, fit$a2)
-    spm_var <- list(
-      mut  = colSums(h_mm^2),
-      stab = colSums((h_ms  - h_mm)^2),
-      act  = colSums((h_msa - h_ms)^2)
-    )
-  }
+  spm_var <- if (use$spm) var_spm_nphi_n_msa(spm_pp_mode, fit$a1, fit$a2) else NULL
 
   bands <- lapply(c("mut", "stab", "act"), function(v) {
     src    <- paste0("phi_", v)

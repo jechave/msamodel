@@ -4,15 +4,25 @@
 #   Rscript dev/callgraph.R
 #
 # Produces (git-ignored, in dev/preview/):
-#   callgraph.png   — open/embed anywhere
-#   callgraph.pdf   — vector, for printing
+#   callgraph.pdf   — a 2-page vector document, one arm per page, each sized to
+#                     print legibly on a single Letter sheet (portrait):
+#                       p1  site branch   (site fns + everything they call)
+#                       p2  mode branch   (mode fns + everything they call)
 #
 # HOW IT WORKS (no hand-drawn edges): mvbutils::foodweb does static analysis of the
 # loaded package's function bodies to get the real caller -> callee edges; those are
-# written to a temporary Graphviz DOT file and rendered with `dot`. Every arrow means
-# "A calls B". Re-run after any change to R/ to refresh the picture.
+# written to Graphviz DOT and rendered with `dot`. Every arrow means "A calls B". Each
+# page is an induced subgraph: an arm's own functions plus their transitive callees (so
+# the shared spine each arm reaches is shown, coloured grey). Re-run after any change to
+# R/ to refresh the picture.
 #
-# Requires: mvbutils (R pkg) and graphviz's `dot` on PATH (`brew install graphviz`).
+# PRINT-LEGIBLE by design: high-contrast (black text, black arrows, saturated fills),
+# and each page is scaled UP to fill a Letter sheet at a readable font. The whole-graph
+# view was dropped — at 47 nodes it cannot be both on one sheet and legible; the two arm
+# pages together already cover every function.
+#
+# Requires: mvbutils + qpdf (R pkgs) and graphviz's `dot` on PATH
+# (`brew install graphviz`).
 
 suppressMessages({
   library(mvbutils)
@@ -23,9 +33,12 @@ here <- tryCatch(dirname(sys.frame(1)$ofile), error = function(e) NULL)
 root <- if (!is.null(here)) normalizePath(file.path(here, "..")) else getwd()
 if (!file.exists(file.path(root, "DESCRIPTION"))) root <- getwd()
 
-# --- fail loud if graphviz is missing (don't silently produce nothing) -------------
+# --- fail loud if a dependency is missing (don't silently produce nothing) ----------
 if (nzchar(Sys.which("dot")) == FALSE) {
   stop("graphviz `dot` not found on PATH. Install it first: brew install graphviz")
+}
+if (!requireNamespace("qpdf", quietly = TRUE)) {
+  stop("R package `qpdf` not installed (needed to merge the pages). install.packages('qpdf')")
 }
 
 # --- load the package under development ---------------------------------------------
@@ -45,103 +58,102 @@ unlink(.tmpdev)
 m  <- fw$funmat
 nm <- rownames(m)
 
-# --- node styling: colour = axis, border = export status ----------------------------
+# --- classify each node by axis; export status decides the border -------------------
 exported <- getNamespaceExports("msamodel")
 axis <- ifelse(grepl("_i(_|$)", nm), "site",
         ifelse(grepl("_n(_|$)", nm), "mode", "agnostic"))
 axis[nm == "preprocess_spm_mode"] <- "mode"   # named mode, no _n token
 
-pen  <- c(site = "#216b62", mode = "#9a6f14", agnostic = "#3a3f4b")[axis]
-fill <- c(site = "#e6f1ef", mode = "#f6ecd6", agnostic = "#eceae6")[axis]
-names(pen) <- names(fill) <- nm
-
-# --- twin pairing: the site/mode symmetry the layout must SHOW ----------------------
-# A site fn and its mode fn share a "twin key" once the axis token is normalised out
-# (`_i_`/`_n_` -> `_@_`, trailing `_i`/`_n` -> `_@`; preprocess_spm/-_mode paired by hand).
-# Twins are rank-aligned (same row) with site pinned left of mode, so the two arms read
-# as two parallel columns instead of dot's crossing-minimised tangle.
-twin_key <- nm
-twin_key <- sub("_i_", "_@_", twin_key); twin_key <- sub("_i$", "_@", twin_key)
-twin_key <- sub("_n_", "_@_", twin_key); twin_key <- sub("_n$", "_@", twin_key)
-twin_key[nm == "preprocess_spm"]      <- "preprocess_@"
-twin_key[nm == "preprocess_spm_mode"] <- "preprocess_@"
-
-# Node groups. A node is site-arm / mode-arm only if it has a twin on the other side;
-# everything else (shared helpers, generators, agnostic) is the centre spine. This keeps
-# the two clusters strictly mirror-image and leaves genuinely-shared code between them.
-pairs <- Filter(function(k) sum(twin_key == k & (axis == "site" | nm == "preprocess_spm")) == 1 &&
-                            sum(twin_key == k & axis == "mode") == 1,
-                unique(twin_key))
-paired     <- twin_key %in% pairs
-site_arm <- nm[paired & (axis == "site" | nm == "preprocess_spm")]
-mode_arm <- nm[paired & axis == "mode"]
-spine    <- setdiff(nm, c(site_arm, mode_arm))
-
-# --- assemble the DOT source --------------------------------------------------------
-node_line <- function(x, indent = "  ") {
-  is_exp <- x %in% exported
-  sprintf("%s\"%s\" [shape=box, style=\"filled,%s\", color=\"%s\", fillcolor=\"%s\", fontcolor=\"%s\"];",
-          indent, x, if (is_exp) "solid" else "dashed",
-          pen[x], if (is_exp) fill[x] else "#f2f1ee", pen[x])
-}
-
-L <- c(
-  "digraph msamodel {",
-  "  labelloc=\"t\";",
-  "  label=\"msamodel — function call graph  (arrow: A calls B; LEFT box = site arm, RIGHT box = mode arm,",
-  "          centre = shared; twins are rank-aligned across the two arms; dashed = @noRd internal)\";",
-  "  fontname=\"Helvetica\"; fontsize=13;",
-  "  rankdir=TB; newrank=true; compound=true; clusterrank=global;",
-  "  graph [splines=true, nodesep=0.4, ranksep=0.85];",
-  "  node  [fontname=\"Courier\", fontsize=11, margin=\"0.12,0.06\"];",
-  "  edge  [color=\"#9aa0aa\", arrowsize=0.7];"
+# --- high-contrast, print-first palette --------------------------------------------
+# Saturated arm fills, BLACK node text and BLACK arrows so it survives a b/w laser and
+# holds contrast in colour. Shared (non-arm) nodes are a solid mid-grey on branch pages.
+# dashed border = @noRd internal; solid = exported.
+ARM <- list(
+  site = list(fill = "#bfe0d8", border = "#0f4b41"),   # teal
+  mode = list(fill = "#f2dca6", border = "#7a4e00")     # gold
 )
+GREY <- list(fill = "#d9d7d2", border = "#3a3f4b")      # shared spine
 
-# Left cluster: the site arm.
-L <- c(L,
-  "  subgraph cluster_site {",
-  "    label=\"site arm (i)\"; labeljust=\"l\"; fontcolor=\"#216b62\";",
-  "    color=\"#216b62\"; style=\"rounded\"; penwidth=1.4; margin=12;")
-for (x in site_arm) L <- c(L, node_line(x, "    "))
-L <- c(L, "  }")
-
-# Right cluster: the mode arm.
-L <- c(L,
-  "  subgraph cluster_mode {",
-  "    label=\"mode arm (n)\"; labeljust=\"r\"; fontcolor=\"#9a6f14\";",
-  "    color=\"#9a6f14\"; style=\"rounded\"; penwidth=1.4; margin=12;")
-for (x in mode_arm) L <- c(L, node_line(x, "    "))
-L <- c(L, "  }")
-
-# Centre spine: shared / agnostic nodes, declared outside both clusters.
-for (x in spine) L <- c(L, node_line(x))
-
-# Twin rows: rank-align each site fn with its mode twin, site pinned left.
-for (k in pairs) {
-  s <- nm[twin_key == k & (axis == "site" | nm == "preprocess_spm")]
-  mo<- nm[twin_key == k & axis == "mode"]
-  L <- c(L,
-    sprintf("  { rank=same; \"%s\"; \"%s\"; }", s, mo),
-    sprintf("  \"%s\" -> \"%s\" [style=invis, constraint=false];", s, mo))
+# One node-declaration line. `grey` overrides the arm colour for shared nodes.
+node_line <- function(x, arm_axis, grey = FALSE, indent = "  ") {
+  is_exp <- x %in% exported
+  col    <- if (grey) GREY else ARM[[arm_axis]]
+  sprintf(paste0("%s\"%s\" [shape=box, style=\"filled,%s\", color=\"%s\", penwidth=1.6, ",
+                 "fillcolor=\"%s\", fontcolor=\"black\"];"),
+          indent, x, if (is_exp) "solid" else "dashed", col$border, col$fill)
 }
 
-# Real call edges.
-for (a in nm) for (b in colnames(m)[m[a, ] > 0]) {
-  L <- c(L, sprintf("  \"%s\" -> \"%s\";", a, b))
+# Transitive closure: all functions reachable from `roots` via the call matrix.
+reachable <- function(roots) {
+  seen <- character(0)
+  frontier <- intersect(roots, nm)
+  while (length(frontier)) {
+    seen <- union(seen, frontier)
+    nxt  <- character(0)
+    for (a in frontier) nxt <- union(nxt, colnames(m)[m[a, ] > 0])
+    frontier <- setdiff(nxt, seen)
+  }
+  seen
 }
-L <- c(L, "}")
 
-# --- render: DOT is a throwaway temp; the PNG + PDF are the deliverables ------------
+# Induced-subgraph DOT for one arm, sized to fill a Letter portrait sheet.
+# `roots` = the arm's own functions; nodes NOT in `roots` are shared spine, drawn grey.
+arm_dot <- function(roots, title, arm_axis) {
+  keep <- reachable(roots)
+  L <- c(
+    "digraph arm {",
+    # These arm graphs are inherently WIDE and SHALLOW (many roots across the top, only
+    # a few ranks deep), so left alone dot renders a thin horizontal strip that scales
+    # to a tiny band on the sheet. ratio="fill" with an explicit size FORCES the drawing
+    # to the box's proportions -- it stretches the few ranks apart vertically to fill a
+    # landscape-Letter sheet, so nodes and text are large on paper. nodesep/ranksep set
+    # generous minimums so the fill has room to work.
+    "  size=\"10,7.5\"; ratio=fill; margin=0;",
+    "  labelloc=\"t\";",
+    sprintf("  label=\"%s\";", title),
+    "  fontname=\"Helvetica-Bold\"; fontsize=16;",
+    "  rankdir=TB;",
+    "  graph [splines=true, nodesep=0.5, ranksep=1.0];",
+    "  node  [fontname=\"Courier-Bold\", fontsize=15, margin=\"0.18,0.10\"];",
+    "  edge  [color=\"black\", penwidth=1.2, arrowsize=0.9];"
+  )
+  for (x in keep) L <- c(L, node_line(x, arm_axis, grey = !(x %in% roots)))
+  for (a in keep) for (b in intersect(colnames(m)[m[a, ] > 0], keep)) {
+    L <- c(L, sprintf("  \"%s\" -> \"%s\";", a, b))
+  }
+  c(L, "}")
+}
+
+site_roots <- nm[axis == "site" | nm == "preprocess_spm"]
+mode_roots <- nm[axis == "mode"]
+
+# --- render each page to its own temp PDF, then merge --------------------------------
 outdir <- file.path(root, "dev", "preview")
 dir.create(outdir, showWarnings = FALSE, recursive = TRUE)
-dotfile <- tempfile(fileext = ".dot")
-on.exit(unlink(dotfile), add = TRUE)
-writeLines(L, dotfile)
 
-png_out <- file.path(outdir, "callgraph.png")
+render_pdf <- function(dot_lines) {
+  dotfile <- tempfile(fileext = ".dot")
+  pdffile <- tempfile(fileext = ".pdf")
+  writeLines(dot_lines, dotfile)
+  # -Gsize is already in the DOT; force Letter media box so the sheet is standard.
+  ok <- system2("dot", c("-Tpdf", shQuote(dotfile), "-o", shQuote(pdffile)))
+  unlink(dotfile)
+  if (ok != 0) stop("dot failed to render a page")
+  pdffile
+}
+
+pages <- c(
+  render_pdf(arm_dot(site_roots,
+                     "msamodel — site arm (i) + everything it calls   (arrow: A calls B; teal = site, grey = shared; dashed = @noRd)",
+                     "site")),
+  render_pdf(arm_dot(mode_roots,
+                     "msamodel — mode arm (n) + everything it calls   (arrow: A calls B; gold = mode, grey = shared; dashed = @noRd)",
+                     "mode"))
+)
+on.exit(unlink(pages), add = TRUE)
+
 pdf_out <- file.path(outdir, "callgraph.pdf")
-stopifnot(system2("dot", c("-Tpng", "-Gdpi=160", shQuote(dotfile), "-o", shQuote(png_out))) == 0)
-stopifnot(system2("dot", c("-Tpdf",              shQuote(dotfile), "-o", shQuote(pdf_out))) == 0)
+qpdf::pdf_combine(pages, output = pdf_out)
 
-cat(sprintf("call graph: %d functions, %d edges\n  %s\n  %s\n",
-            length(nm), sum(m > 0), png_out, pdf_out))
+cat(sprintf("call graph: %d functions, %d edges — 2-page print-legible PDF\n  %s\n",
+            length(nm), sum(m > 0), pdf_out))

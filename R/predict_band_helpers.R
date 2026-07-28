@@ -172,51 +172,91 @@ spm_hmat <- function(dr2_mat, weights, centred) {
 #' in the column order of `dr2_ijm`. The difference (phi) variance is NOT built here
 #' -- callers form it from two `spm_hmat()` matrices so the shared-sample covariance is
 #' retained. Named for the exact quantity it produces (lrmsd, uncentred); the
-#' mean-centred quantity is `calculate_nlrmsd_i_msa_var_spm()`.
+#' mean-centred quantity is `var_spm_nlrmsd_i_msa()`.
 #'
 #' @param dr2_ijm Numeric `[mutant x site]` divergence matrix.
 #' @param weights Length-`nmutant` numeric weights.
 #' @return A bare numeric vector of per-site SPM-sampling variances.
 #' @noRd
-calculate_lrmsd_i_msa_var_spm <- function(dr2_ijm, weights) {
+var_spm_lrmsd_i_msa <- function(dr2_ijm, weights) {
   colSums(spm_hmat(dr2_ijm, weights, centred = FALSE)^2)
 }
 
 #' Per-response SPM-sampling variance of the centred site nlrmsd profile
 #'
 #' `Var_SPM` of the mean-centred `nlrmsd_i` profile. Same primitive as
-#' `calculate_lrmsd_i_msa_var_spm()`, support-centred contribution.
+#' `var_spm_lrmsd_i_msa()`, support-centred contribution.
 #'
 #' @param dr2_ijm Numeric `[mutant x site]` divergence matrix.
 #' @param weights Length-`nmutant` numeric weights.
 #' @return A bare numeric vector of per-site SPM-sampling variances.
 #' @noRd
-calculate_nlrmsd_i_msa_var_spm <- function(dr2_ijm, weights) {
+var_spm_nlrmsd_i_msa <- function(dr2_ijm, weights) {
   colSums(spm_hmat(dr2_ijm, weights, centred = TRUE)^2)
 }
 
 #' Per-response SPM-sampling variance of the uncentred mode lrmsd profile
 #'
-#' Mode-form counterpart of `calculate_lrmsd_i_msa_var_spm()`: identical math on the
+#' Mode-form counterpart of `var_spm_lrmsd_i_msa()`: identical math on the
 #' per-mode divergence matrix `dr2_njm`.
 #'
 #' @param dr2_njm Numeric `[mutant x mode]` divergence matrix.
 #' @param weights Length-`nmutant` numeric weights.
 #' @return A bare numeric vector of per-mode SPM-sampling variances.
 #' @noRd
-calculate_lrmsd_n_msa_var_spm <- function(dr2_njm, weights) {
+var_spm_lrmsd_n_msa <- function(dr2_njm, weights) {
   colSums(spm_hmat(dr2_njm, weights, centred = FALSE)^2)
 }
 
 #' Per-response SPM-sampling variance of the centred mode nlrmsd profile
 #'
-#' Mode-form counterpart of `calculate_nlrmsd_i_msa_var_spm()`: identical math on the
+#' Mode-form counterpart of `var_spm_nlrmsd_i_msa()`: identical math on the
 #' per-mode divergence matrix `dr2_njm`.
 #'
 #' @param dr2_njm Numeric `[mutant x mode]` divergence matrix.
 #' @param weights Length-`nmutant` numeric weights.
 #' @return A bare numeric vector of per-mode SPM-sampling variances.
 #' @noRd
-calculate_nlrmsd_n_msa_var_spm <- function(dr2_njm, weights) {
+var_spm_nlrmsd_n_msa <- function(dr2_njm, weights) {
   colSums(spm_hmat(dr2_njm, weights, centred = TRUE)^2)
+}
+
+#' SPM-sampling variance of the three nlrmsd decomposition contrasts (site)
+#'
+#' Each phi contribution is a linear contrast of nested models (MM/MS/MSA) on the SAME
+#' scan. Builds the centred per-mutant contribution matrix `h` for each model via
+#' `spm_hmat()`, then forms each contrast's sampling variance from the DIFFERENCED
+#' contributions, so the shared-sample covariance (cross term) is retained. Mirrors how
+#' the profile helpers own their `spm_hmat` call, but needs the fit parameters to build
+#' the MM/MS/MSA weights and returns three variances rather than one.
+#'
+#' @param spm_pp Preprocessed data from [preprocess_spm()] (provides `dr2_ijm`).
+#' @param a1 Stability selection strength (the fit's point estimate).
+#' @param a2 Activity selection strength (the fit's point estimate).
+#' @return A named list `mut`/`stab`/`act`, each a per-site numeric variance vector.
+#' @noRd
+var_spm_nphi_i_msa <- function(spm_pp, a1, a2) {
+  hmat_v <- function(A1, A2) spm_hmat(spm_pp$dr2_ijm, weights_jm_spm(spm_pp, A1, A2), centred = TRUE)
+  h_mm  <- hmat_v(0, 0); h_ms <- hmat_v(a1, 0); h_msa <- hmat_v(a1, a2)
+  list(mut  = colSums(h_mm^2),               # nphi_mut  = nlrmsd_mm
+       stab = colSums((h_ms  - h_mm)^2),     # nphi_stab = nlrmsd_ms  - nlrmsd_mm
+       act  = colSums((h_msa - h_ms)^2))     # nphi_act  = nlrmsd_msa - nlrmsd_ms
+}
+
+#' SPM-sampling variance of the three nlrmsd decomposition contrasts (mode)
+#'
+#' Mode-form counterpart of `var_spm_nphi_i_msa()`: identical math on the per-mode
+#' divergence matrix `dr2_njm`.
+#'
+#' @param spm_pp_mode Preprocessed data from [preprocess_spm_mode()] (provides `dr2_njm`).
+#' @param a1 Stability selection strength (the fit's point estimate).
+#' @param a2 Activity selection strength (the fit's point estimate).
+#' @return A named list `mut`/`stab`/`act`, each a per-mode numeric variance vector.
+#' @noRd
+var_spm_nphi_n_msa <- function(spm_pp_mode, a1, a2) {
+  hmat_v <- function(A1, A2) spm_hmat(spm_pp_mode$dr2_njm, weights_jm_spm(spm_pp_mode, A1, A2), centred = TRUE)
+  h_mm  <- hmat_v(0, 0); h_ms <- hmat_v(a1, 0); h_msa <- hmat_v(a1, a2)
+  list(mut  = colSums(h_mm^2),
+       stab = colSums((h_ms  - h_mm)^2),
+       act  = colSums((h_msa - h_ms)^2))
 }
