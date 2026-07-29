@@ -4,11 +4,10 @@
 \alias{calculate_lrmsd_i_msa}
 \title{Predicted per-site log structural divergence at one selection strength}
 \usage{
-calculate_lrmsd_i_msa(spm_pp, a1, a2)
+calculate_lrmsd_i_msa(spm, a1, a2)
 }
 \arguments{
-\item{spm_pp}{Preprocessed single-point-mutation data, the output of
-\code{\link[=preprocess_spm]{preprocess_spm()}}.}
+\item{spm}{A single-point-mutation \code{spm} object from \code{\link[=generate_spm_data]{generate_spm_data()}}.}
 
 \item{a1}{Stability selection strength (non-negative). \code{0} disables stability
 selection.}
@@ -19,7 +18,7 @@ selection.}
 \value{
 A tibble with one row per site: the site index \code{i} and the predicted
 profile \code{lrmsd_i_msa}. Callers needing the PDB residue number join
-\code{spm_pp$site_map} themselves (as \code{\link[=calculate_lrmsd_i_nested_models]{calculate_lrmsd_i_nested_models()}} does).
+\code{spm$site_map} themselves (as \code{\link[=calculate_lrmsd_i_nested_models]{calculate_lrmsd_i_nested_models()}} does).
 }
 \description{
 The model's forward prediction in the units the fit works in: the per-site log
@@ -31,8 +30,8 @@ re-applying \code{log(sqrt(.))} by hand.
 }
 \examples{
 \dontrun{
-pp <- preprocess_spm(znb_spm)
-head(calculate_lrmsd_i_msa(pp, a1 = 1, a2 = 1))
+spm <- generate_spm_data(znb_wt, seed = 1024)
+head(calculate_lrmsd_i_msa(spm, a1 = 1, a2 = 1))
 }
 }
 \seealso{

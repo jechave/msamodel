@@ -4,11 +4,10 @@
 \alias{calculate_nlrmsd_n_msa}
 \title{Predicted mean-centred per-mode log structural divergence at one selection strength}
 \usage{
-calculate_nlrmsd_n_msa(spm_pp, a1, a2)
+calculate_nlrmsd_n_msa(spm, a1, a2)
 }
 \arguments{
-\item{spm_pp}{Preprocessed single-point-mutation data in mode form, the output of
-\code{\link[=preprocess_spm_mode]{preprocess_spm_mode()}}.}
+\item{spm}{A single-point-mutation \code{spm} object from \code{\link[=generate_spm_data]{generate_spm_data()}}.}
 
 \item{a1}{Stability selection strength (non-negative). \code{0} disables stability selection.}
 
@@ -29,8 +28,8 @@ observation-matched modes, so the two levels differ by design).
 }
 \examples{
 \dontrun{
-pp <- preprocess_spm_mode(znb_spm)
-head(calculate_nlrmsd_n_msa(pp, a1 = 1, a2 = 1))
+spm <- generate_spm_data(znb_wt, seed = 1024)
+head(calculate_nlrmsd_n_msa(spm, a1 = 1, a2 = 1))
 }
 }
 \seealso{

@@ -4,11 +4,10 @@
 \alias{calculate_lrmsd_i_nested_models}
 \title{Per-site divergence profiles under all four model variants (MM, MS, MA, MSA)}
 \usage{
-calculate_lrmsd_i_nested_models(spm_pp, a1, a2)
+calculate_lrmsd_i_nested_models(spm, a1, a2)
 }
 \arguments{
-\item{spm_pp}{Preprocessed single-point-mutation data, the output of
-\code{\link[=preprocess_spm]{preprocess_spm()}}.}
+\item{spm}{A single-point-mutation \code{spm} object from \code{\link[=generate_spm_data]{generate_spm_data()}}.}
 
 \item{a1}{Stability selection strength used for the MS and MSA variants
 (non-negative).}
@@ -44,8 +43,8 @@ divergence into its mutation, stability, and activity contributions.
 }
 \examples{
 \dontrun{
-pp <- preprocess_spm(znb_spm)
-head(calculate_lrmsd_i_nested_models(pp, a1 = 1, a2 = 1))
+spm <- generate_spm_data(znb_wt, seed = 1024)
+head(calculate_lrmsd_i_nested_models(spm, a1 = 1, a2 = 1))
 }
 }
 \seealso{

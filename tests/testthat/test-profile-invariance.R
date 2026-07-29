@@ -20,19 +20,19 @@
 # (json2 is NOT -- ~3e-15 error).
 
 test_that("dr2 site profile is unchanged by the rename", {
-  pp <- preprocess_spm(znb_spm)
+  pp <- znb_spm
   prof <- calculate_dr2_i_msa(pp, a1 = 2, a2 = 5)$dr2_i
   expect_snapshot_value(prof, style = "serialize")
 })
 
 test_that("dr2 mode profile is unchanged by the rename", {
-  pp_mode <- preprocess_spm_mode(znb_spm)
+  pp_mode <- znb_spm
   prof_n <- calculate_dr2_n_msa(pp_mode, a1 = 2, a2 = 5)$dr2_n
   expect_snapshot_value(prof_n, style = "serialize")
 })
 
 test_that("loglik is unchanged by the rename", {
-  pp <- preprocess_spm(znb_spm)
+  pp <- znb_spm
   expect_snapshot_value(
     msamodel:::calculate_loglik_lrmsd_i_msa(pp, znb_profile, a1 = 2, a2 = 5),
     style = "serialize"

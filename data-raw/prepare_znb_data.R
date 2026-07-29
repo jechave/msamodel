@@ -83,24 +83,30 @@ znb_spm <- generate_spm_data(
 orig_rds <- here("tmp_src", "data", "spm", paste0(pdb_chain, "_spm.rds"))
 if (file.exists(orig_rds)) {
   orig <- readRDS(orig_rds)
-  # v0.3a: znb_spm now carries mode-form columns (`mode`, `dr2n`) the 2021
-  # original lacks. Compare only the columns the original has (a subset of
-  # ours) -- the migration-correctness question is "do the SHARED columns
-  # match", which is what this one-time check is for. Drift of the new columns
-  # is guarded permanently by tests/testthat/test-spm-generate.R.
-  # v0.3b: the per-site list-column was renamed `dr2` -> `dr2_ijm` (index-
-  # signature convention). The 2021 original still calls it `dr2`; rename orig's
-  # column so the shared-column comparison checks CONTENTS, not the old name.
+  # The public znb_spm is now the model-ready `spm` list, not the per-mutant scan
+  # tibble the 2021 original is shaped like. Compare against the RAW scan
+  # (generate_spm_core) -- the same numbers that feed the assembled object -- so the
+  # shared-column, per-mutant contents check still holds.
+  # v0.3a: the raw scan carries mode-form columns (`mode`, `dr2n`) the 2021 original
+  # lacks; compare only the columns the original has (a subset of ours). Drift of the
+  # new columns is guarded permanently by tests/testthat/test-spm-generate.R.
+  # v0.3b: the per-site list-column was renamed `dr2` -> `dr2_ijm` (index-signature
+  # convention). The 2021 original still calls it `dr2`; rename orig's column so the
+  # shared-column comparison checks CONTENTS, not the old name.
+  scan_raw <- generate_spm_core(
+    znb_wt, n_mutations = SPM_N_MUTATIONS, model = SPM_MODEL, sigma = SPM_SIGMA,
+    min_sd = SPM_MIN_SD, pdb_site_active = pdb_site_active, seed = SPM_SEED
+  )
   names(orig)[names(orig) == "dr2"] <- "dr2_ijm"
   shared <- names(orig)
-  stopifnot(all(shared %in% names(znb_spm)))
-  cmp <- all.equal(znb_spm[shared], orig, tolerance = 1e-8)
+  stopifnot(all(shared %in% names(scan_raw)))
+  cmp <- all.equal(scan_raw[shared], orig, tolerance = 1e-8)
   if (!isTRUE(cmp)) {
     message("VALIDATION FAILED -- generated SPM differs from tmp_src original (shared columns):")
     print(cmp)
     stop("Generated znb_spm does not match tmp_src/", pdb_chain, "_spm.rds")
   }
-  message("Validation OK: generated znb_spm matches tmp_src original on shared columns (tol 1e-8).")
+  message("Validation OK: generated SPM scan matches tmp_src original on shared columns (tol 1e-8).")
 } else {
   message("NOTE: tmp_src original not found; skipping one-time validation.")
 }
@@ -115,11 +121,9 @@ if (file.exists(orig_rds)) {
 SYN_PROFILE_N_SEED     <- 2025
 SYN_PROFILE_N_NOISE_SD <- 0.30
 
-spm_pp_site <- preprocess_spm(znb_spm)
-site_fit    <- fit_lrmsd_i_msa_ml(spm_pp_site, znb_profile)   # deterministic truth (a1,a2)
+site_fit    <- fit_lrmsd_i_msa_ml(znb_spm, znb_profile)   # deterministic truth (a1,a2)
 
-spm_pp_mode <- preprocess_spm_mode(znb_spm)
-lrmsd_n_true <- calculate_dr2_n_msa(spm_pp_mode, site_fit$a1, site_fit$a2) %>%
+lrmsd_n_true <- calculate_dr2_n_msa(znb_spm, site_fit$a1, site_fit$a2) %>%
   dplyr::transmute(n, lrmsd_n_true = log(sqrt(dr2_n)))
 
 set.seed(SYN_PROFILE_N_SEED)
@@ -131,7 +135,7 @@ znb_profile_n <- lrmsd_n_true %>%
 
 # Sanity check (message only): the mode fit on the synthetic data should recover
 # the truth (a1,a2) closely. NOT an assertion -- the drift guard is the test.
-mode_fit_check <- fit_lrmsd_n_msa_ml(spm_pp_mode, znb_profile_n)
+mode_fit_check <- fit_lrmsd_n_msa_ml(znb_spm, znb_profile_n)
 message(sprintf(
   "znb_profile_n: truth (a1=%.4f, a2=%.4f) -> mode-fit recovers (a1=%.4f, a2=%.4f)",
   site_fit$a1, site_fit$a2, mode_fit_check$a1, mode_fit_check$a2))

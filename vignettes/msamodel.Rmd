@@ -31,15 +31,18 @@ evolution: it predicts how much each part of the structure **diverges** under
 neutral evolution, fits that prediction to an observed divergence profile, and
 tells you how stability and activity selection shape the result.
 
-The model has two selection parameters: `a1` (selection on **stability**) and `a2`
-(selection on **activity**, proximity to the active site). The same predicted
-divergence can be read along **two axes** — per residue and per normal mode — and
-this overview shows both, end to end.
+The model has two selection parameters: `a1` (strength of selection on **stability**)
+and `a2` (strength of selection on **activity**, i.e. proximity to the active site).
+Both are non-negative; `0` means that pressure is off, and larger values mean stronger
+selection. You do not have to guess them — the usual workflow **estimates them from
+your data** by fitting, which is what this overview does. The predicted divergence can
+then be read along **two axes** — per residue and per normal mode — and this overview
+shows both, end to end.
 
 |                              | what it is                                              |
 |------------------------------|--------------------------------------------------------|
 | **You provide**              | a PDB file; a vector of active-site residue numbers; (to fit) an observed divergence table `{pdb_site, lrmsd_i_obs}` |
-| **`msamodel` computes**      | the elastic network model (`setup_enm`), the mutation scan (`generate_spm_data`), the divergence profiles (`calculate_*`), and the fit (`fit_*`) |
+| **`msamodel` computes**      | the elastic network model (`setup_enm`), the mutation scan (`generate_spm_data`), the fit of `(a1, a2)` to your data (`fit_*`), and the predicted divergence profiles (`predict_*`) |
 
 ## From your structure to a mutation scan
 
@@ -50,7 +53,8 @@ the two marked lines:
 
 ```r
 library(msamodel)
-library(dplyr)    # data-wrangling verbs (mutate, left_join, ...) used below
+library(dplyr)      # data-wrangling verbs (mutate, left_join, ...) used below
+library(ggplot2)    # the two figures; optional
 ```
 
 
@@ -68,47 +72,27 @@ pdb <- bio3d::read.pdb(pdb_file)
 wt  <- setup_enm(pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
 spm <- generate_spm_data(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
                          min_sd = 2, pdb_site_active = pdb_site_active, seed = 1024)
-#> Processing site 10 of 228 
-#> Processing site 20 of 228 
-#> Processing site 30 of 228 
-#> Processing site 40 of 228 
-#> Processing site 50 of 228 
-#> Processing site 60 of 228 
-#> Processing site 70 of 228 
-#> Processing site 80 of 228 
-#> Processing site 90 of 228 
-#> Processing site 100 of 228 
-#> Processing site 110 of 228 
-#> Processing site 120 of 228 
-#> Processing site 130 of 228 
-#> Processing site 140 of 228 
-#> Processing site 150 of 228 
-#> Processing site 160 of 228 
-#> Processing site 170 of 228 
-#> Processing site 180 of 228 
-#> Processing site 190 of 228 
-#> Processing site 200 of 228 
-#> Processing site 210 of 228 
-#> Processing site 220 of 228
 ```
 
-(`wt` and `spm` here are identical to the `znb_wt` / `znb_spm` datasets shipped with
-the package; if you only want to skim, `data("znb_spm")` loads the prebuilt scan
-instead of running the line above.) From the scan we precompute once, for each axis:
+The arguments to `setup_enm()` and `generate_spm_data()` are the model's defaults; you
+can leave them as-is for a first run and revisit them later (the [site
+analysis](site-analysis.html) vignette explains what each controls). The scan takes a
+minute or two; for this worked example the result also ships prebuilt as `znb_spm`, so
+`data("znb_spm")` loads it if you would rather skip the wait.
 
-
-```r
-pp      <- preprocess_spm(spm)        # per-residue (site) axis
-pp_mode <- preprocess_spm_mode(spm)   # per-mode axis
-```
+`spm` is what the model works from: for every mutant it records the energy change and
+the structural divergence it causes, measured two ways — per residue and per normal
+mode. The functions below read whichever they need from it.
 
 ## Fit the model, then read divergence two ways
 
 To fit, you supply an **observed** per-residue divergence profile — this is **your**
-data, not something `msamodel` computes. The observed divergence (`lrmsd_i_obs`)
-comes from comparing homologous structures over an alignment, which is out of scope
-for `msamodel`; you bring it as a table with columns `pdb_site` and `lrmsd_i_obs`.
-The package ships one for the worked example, `znb_profile`:
+data, not something `msamodel` computes. You obtain it upstream by superimposing a set
+of homologous structures onto your protein over a sequence alignment and measuring, at
+each residue, how much its position varies across the family; `lrmsd_i_obs` is the log
+of that per-residue variation. `msamodel` does not do this step — you bring the result
+as a table with columns `pdb_site` and `lrmsd_i_obs`. The package ships one for the
+worked example, `znb_profile`:
 
 
 ```r
@@ -129,45 +113,89 @@ We fit the two selection parameters to that observed profile by maximum likeliho
 
 
 ```r
-ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
+ml <- fit_lrmsd_i_msa_ml(spm, znb_profile)
 c(a1 = ml$a1, a2 = ml$a2)
 #>         a1         a2 
 #>  0.4580022 42.3021911
 ```
 
-At that fitted `(a1, a2)`, the model predicts a divergence profile along **each**
-axis. The per-residue prediction has an observed counterpart to check against; the
-per-mode prediction reads the *same* selection in the normal-mode basis.
+The fit returns a point estimate of `(a1, a2)`. To turn that estimate into a divergence
+profile you can plot, you pass the fit to a `predict_*` function: it evaluates the model
+at the fitted parameters and returns the profile as `_mean`, with a `_lower`/`_upper`
+confidence band that carries the fit's uncertainty through to each point. `predict_*`
+comes in a per-residue form (`_i`) and a per-mode form (`_n`), so from this one fit you
+can read the profile on either axis.
+
+The `nlrmsd` in the function name is the profile with its average subtracted off
+(`nlrmsd = lrmsd - mean`), i.e. its *shape*. An observed divergence profile pins down
+shape but not overall level, so shape is what you compare against data.
+
+Each `predict_*` returns one row per point with a `_mean` and its `_lower`/`_upper` band:
 
 
 ```r
-# Per-residue: fitted profile vs the observed data
-site <- calculate_lrmsd_i_nested_models(pp, ml$a1, ml$a2) |>
-  transmute(pdb_site, lrmsd_fit = lrmsd_i_msa) |>
-  inner_join(znb_profile, by = "pdb_site") |>
-  mutate(nlrmsd_obs = lrmsd_i_obs - mean(lrmsd_i_obs),
-         nlrmsd_fit = lrmsd_fit   - mean(lrmsd_fit))
-
-# Per-mode: predicted divergence at the same fitted (a1, a2)
-mode <- calculate_dr2_n_msa(pp_mode, ml$a1, ml$a2) |>
-  mutate(lrmsd_n = log(sqrt(dr2_n)))
+predict_nlrmsd_i_msa_ml(ml, spm) |> head()
+#> # A tibble: 6 × 5
+#>       i pdb_site nlrmsd_i_msa_mean nlrmsd_i_msa_lower nlrmsd_i_msa_upper
+#>   <int>    <int>             <dbl>              <dbl>              <dbl>
+#> 1     1       20             1.82               1.60               2.03 
+#> 2     2       21             0.852              0.648              1.06 
+#> 3     3       22             0.927              0.743              1.11 
+#> 4     4       23             0.599              0.371              0.827
+#> 5     5       24             0.501              0.303              0.700
+#> 6     6       25             0.605              0.426              0.784
 ```
 
-**Per residue** — the fitted profile (red) tracks the observed one (grey) along the
-chain; this is the model fit to real data. Both are the mean-centered log-RMSD
-(`nlrmsd`): the fit constrains the divergence *shape*, not its overall level, so we
-compare shapes.
+We join that to the observed data to compare shapes, and read the mode axis the same way:
+
+
+```r
+# Per-residue profile from the fit, joined to the observed data
+site <- predict_nlrmsd_i_msa_ml(ml, spm) |>
+  inner_join(znb_profile, by = "pdb_site") |>
+  mutate(nlrmsd_obs = lrmsd_i_obs - mean(lrmsd_i_obs))
+
+# Per-mode profile: the fitted (a1, a2) read on the normal-mode axis
+mode <- predict_nlrmsd_n_msa_ml(ml, spm)
+```
+
+**Per residue** — the fitted profile (red, with its band) tracked against the observed
+shape (grey). This is the model compared to real data along the chain.
+
+
+```r
+ggplot(site, aes(pdb_site)) +
+  geom_ribbon(aes(ymin = nlrmsd_i_msa_lower, ymax = nlrmsd_i_msa_upper),
+              fill = "firebrick", alpha = 0.2) +
+  geom_line(aes(y = nlrmsd_i_msa_mean, colour = "fitted (MSA)")) +
+  geom_line(aes(y = nlrmsd_obs, colour = "observed"), alpha = 0.8) +
+  scale_colour_manual(values = c("observed" = "grey25", "fitted (MSA)" = "firebrick")) +
+  labs(title = "Per residue: observed vs. fitted divergence",
+       x = "Residue (PDB numbering)", y = "nlrmsd (shape)", colour = NULL) +
+  theme(legend.position = "top")
+```
 
 ![plot of chunk panel-site](msamodel_files/figure-html/panel-site-1.png)
 
-**Per normal mode** — the *same* fitted model, predicted in the normal-mode basis:
-the per-mode log-RMSD (`lrmsd_n`) is largest for the softest (lowest-index) modes,
-so a handful of collective motions carry most of the predicted divergence. (This is
-a point prediction; no observed mode profile exists to fit against yet.)
+**Per normal mode** — the fitted `(a1, a2)` read on the normal-mode axis instead of per
+residue. Divergence is largest for the softest (lowest-index) modes, so a handful of
+collective motions carry most of it. There is no observed profile to compare against
+here — this panel is a prediction from the fit we already have. (The mode axis can also
+be fit to its own data; see the [mode analysis](mode-analysis.html) vignette.)
+
+
+```r
+ggplot(mode, aes(n)) +
+  geom_ribbon(aes(ymin = nlrmsd_n_msa_lower, ymax = nlrmsd_n_msa_upper),
+              fill = "grey70", alpha = 0.4) +
+  geom_line(aes(y = nlrmsd_n_msa_mean), colour = "grey30") +
+  labs(title = "Per mode: predicted divergence (from the site fit)",
+       x = "Normal-mode index n", y = "nlrmsd (shape)")
+```
 
 ![plot of chunk panel-mode](msamodel_files/figure-html/panel-mode-1.png)
 
-Same evolutionary divergence, read per residue and per mode.
+The same evolutionary divergence, read per residue and per mode.
 
 ## Where to next
 
@@ -201,13 +229,13 @@ Same evolutionary divergence, read per residue and per mode.
 #> [1] ggplot2_4.0.1       dplyr_1.1.4         msamodel_0.3.0.9000
 #> 
 #> loaded via a namespace (and not attached):
-#>  [1] Rcpp_1.1.0         rstudioapi_0.16.0  knitr_1.43         magrittr_2.0.4    
-#>  [5] tidyselect_1.2.1   lattice_0.22-5     R6_2.6.1           rlang_1.1.6       
-#>  [9] highr_0.11         jefuns_0.1.0       tools_4.2.1        parallel_4.2.1    
-#> [13] grid_4.2.1         gtable_0.3.6       xfun_0.41          cli_3.6.5         
-#> [17] withr_3.0.2        bio3d_2.4-5        tibble_3.3.0       lifecycle_1.0.4   
-#> [21] S7_0.2.1           Matrix_1.5-4.1     tidyr_1.3.1        purrr_1.2.0       
-#> [25] RColorBrewer_1.1-3 farver_2.1.2       vctrs_0.6.5        glue_1.8.0        
-#> [29] evaluate_0.24.0    labeling_0.4.3     compiler_4.2.1     pillar_1.11.1     
-#> [33] generics_0.1.4     scales_1.4.0       penm_0.2.0.9000    pkgconfig_2.0.3
+#>  [1] Rcpp_1.1.0         knitr_1.43         magrittr_2.0.4     tidyselect_1.2.1  
+#>  [5] lattice_0.22-5     R6_2.6.1           rlang_1.1.6        highr_0.11        
+#>  [9] jefuns_0.1.0       tools_4.2.1        parallel_4.2.1     grid_4.2.1        
+#> [13] gtable_0.3.6       xfun_0.41          cli_3.6.5          withr_3.0.2       
+#> [17] bio3d_2.4-5        tibble_3.3.0       lifecycle_1.0.4    S7_0.2.1          
+#> [21] Matrix_1.5-4.1     tidyr_1.3.1        purrr_1.2.0        RColorBrewer_1.1-3
+#> [25] farver_2.1.2       vctrs_0.6.5        glue_1.8.0         evaluate_0.24.0   
+#> [29] labeling_0.4.3     compiler_4.2.1     pillar_1.11.1      generics_0.1.4    
+#> [33] scales_1.4.0       penm_0.2.0.9000    pkgconfig_2.0.3
 ```

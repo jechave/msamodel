@@ -42,8 +42,8 @@ particular ensemble of mutants is a separate, ensemble-specific step.
 # One mutant:
 pfix_msa(ddg = 1.2, ddgact = 0.4, a1 = 1, a2 = 1)
 # A whole scan:
-pp <- preprocess_spm(znb_spm)
-pfix_msa(pp$energy_data$ddg_jm, pp$energy_data$ddgact_jm, a1 = 1, a2 = 1)
+spm <- generate_spm_data(znb_wt, seed = 1024)
+pfix_msa(spm$energy_data$ddg_jm, spm$energy_data$ddgact_jm, a1 = 1, a2 = 1)
 }
 }
 \seealso{

@@ -5,7 +5,7 @@
 \title{Maximum-likelihood point fit of the lrmsd_i MSA model}
 \usage{
 fit_lrmsd_i_msa_ml(
-  spm_pp,
+  spm,
   observed_data,
   a1_range = c(0, 10),
   log2_a2_plus1_range = c(0, 13),
@@ -14,7 +14,7 @@ fit_lrmsd_i_msa_ml(
 )
 }
 \arguments{
-\item{spm_pp}{Preprocessed data from \code{\link[=preprocess_spm]{preprocess_spm()}} (must include \code{site_map}).}
+\item{spm}{A single-point-mutation \code{spm} object from \code{\link[=generate_spm_data]{generate_spm_data()}} (its \code{site_map} keys the fit to PDB residues).}
 
 \item{observed_data}{Tibble with columns \code{pdb_site} and \code{lrmsd_i_obs} (the fit
 target), as documented for \code{calculate_loglik_lrmsd_i_msa()}.}
@@ -65,8 +65,8 @@ of \code{a2} is obtained by the delta method (\verb{da2/d(log2(a2+1)) = 2^(log2(
 }
 \examples{
 \dontrun{
-pp <- preprocess_spm(znb_spm)
-ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
+spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
+ml <- fit_lrmsd_i_msa_ml(spm, znb_profile)
 c(a1 = ml$a1, a2 = ml$a2)
 }
 }

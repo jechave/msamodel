@@ -4,7 +4,7 @@
 # correct.
 
 test_that("fit_lrmsd_i_msa_ml returns the documented list shape", {
-  pp <- preprocess_spm(znb_spm)
+  pp <- znb_spm
   ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
 
   expect_named(ml, c("a1", "a2", "logLik", "deviance", "null_deviance",
@@ -29,7 +29,7 @@ test_that("ML sits at a local max of its own objective (consistency)", {
   # check on the ML path, NOT an independent-correctness proof (the grid recomputes
   # the same objective). WHERE the optimum is, is pinned by the frozen-reference test
   # below; THAT it is a max there, is pinned here.
-  pp <- preprocess_spm(znb_spm)
+  pp <- znb_spm
   ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
 
   a1g <- ml$a1 + c(-0.1, -0.05, 0, 0.05, 0.1)
@@ -44,7 +44,7 @@ test_that("ML sits at a local max of its own objective (consistency)", {
 test_that("fit_lrmsd_i_msa_ml matches frozen reference values", {
   # Frozen literals captured once from the current implementation (devtools state,
   # 2026-06-24). Catches drift in the fit math / optimiser path, not a re-derivation.
-  pp <- preprocess_spm(znb_spm)
+  pp <- znb_spm
   ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
 
   expect_equal(ml$a1,     0.458002, tolerance = 1e-4)
@@ -56,7 +56,7 @@ test_that("fit_lrmsd_i_msa_ml matches frozen reference values", {
 })
 
 test_that("fit_lrmsd_i_msa_ml validates box bounds (fail loud)", {
-  pp <- preprocess_spm(znb_spm)
+  pp <- znb_spm
   expect_error(fit_lrmsd_i_msa_ml(pp, znb_profile, a1_range = c(5)),
                "a1_range must be a vector of length 2")
   expect_error(fit_lrmsd_i_msa_ml(pp, znb_profile, a1_range = c(10, 0)),
@@ -70,7 +70,7 @@ test_that("fit_lrmsd_i_msa_ml validates box bounds (fail loud)", {
 })
 
 test_that("fit_lrmsd_i_msa_ml inherits the pdb_site contract from the likelihood", {
-  pp <- preprocess_spm(znb_spm)
+  pp <- znb_spm
 
   # Unknown pdb_site -> error (not a silent drop), inherited from calculate_loglik_lrmsd_i_msa.
   bad <- znb_profile

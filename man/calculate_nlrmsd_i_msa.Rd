@@ -4,10 +4,10 @@
 \alias{calculate_nlrmsd_i_msa}
 \title{Predicted mean-centred per-site log structural divergence at one selection strength}
 \usage{
-calculate_nlrmsd_i_msa(spm_pp, a1, a2)
+calculate_nlrmsd_i_msa(spm, a1, a2)
 }
 \arguments{
-\item{spm_pp}{Preprocessed single-point-mutation data, the output of \code{\link[=preprocess_spm]{preprocess_spm()}}.}
+\item{spm}{A single-point-mutation \code{spm} object from \code{\link[=generate_spm_data]{generate_spm_data()}}.}
 
 \item{a1}{Stability selection strength (non-negative). \code{0} disables stability selection.}
 
@@ -33,8 +33,8 @@ fitted profile sits at a slightly different level by design; see \code{\link[=pr
 }
 \examples{
 \dontrun{
-pp <- preprocess_spm(znb_spm)
-head(calculate_nlrmsd_i_msa(pp, a1 = 1, a2 = 1))
+spm <- generate_spm_data(znb_wt, seed = 1024)
+head(calculate_nlrmsd_i_msa(spm, a1 = 1, a2 = 1))
 }
 }
 \seealso{

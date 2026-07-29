@@ -16,14 +16,16 @@ delta_structure_dr <- function(wt, mut) {
   mut$node$xyz - wt$node$xyz
 }
 
-#' Generate single-point-mutation (SPM) scan data
+#' Run the raw single-point-mutation scan (per-mutant record)
 #'
-#' Runs a single-point-mutation scan over a protein structure: for every site it
-#' generates `n_mutations` mutants and records each mutant's measured effects (the
-#' energy changes and the per-site / per-mode squared displacement profiles),
-#' returning one row per mutant. Mutants are processed one at a time and only the
-#' metrics are kept (never a tibble of full mutant structures), so the scan stays
-#' memory-efficient on large proteins.
+#' The lossless SPM primitive: for every site it generates `n_mutations` mutants and
+#' records each mutant's measured effects, returning one **row per mutant**. Mutants are
+#' processed one at a time and only the metrics are kept (never a tibble of full mutant
+#' structures), so the scan stays memory-efficient on large proteins. This is the
+#' internal core that [generate_spm_data()] wraps: it keeps the full record -- including
+#' the raw Cartesian displacement `dr` -- so a future Cartesian/motion calculation can
+#' obtain it without re-running the scan. The public [generate_spm_data()] reshapes this
+#' record into the lean, model-ready `spm` object and does not surface `dr`.
 #'
 #' @param wt Wild-type protein structure with an elastic network model, as
 #'   returned by [setup_enm()].
@@ -42,16 +44,8 @@ delta_structure_dr <- function(wt, mut) {
 #'   over response sites `i` for that mutant), `mode` (the normal-mode index
 #'   `1:nmodes`), and `dr2_njm` (per-mode squared contribution; each cell a `dr2_n`
 #'   vector over response modes `n`).
-#' @seealso [setup_enm()] (builds the `wt` input); [preprocess_spm()] and
-#'   [preprocess_spm_mode()] (reshape this output for the model).
-#' @family spm
-#' @examples
-#' \dontrun{
-#' spm <- generate_spm_data(znb_wt, n_mutations = 10, seed = 1024)
-#' head(spm[c("j", "m")])
-#' }
-#' @export
-generate_spm_data <- function(wt, n_mutations = 10,
+#' @noRd
+generate_spm_core <- function(wt, n_mutations = 10,
                              model = "lfenm", sigma = 0.3,
                              min_sd = 2, pdb_site_active = NULL,
                              seed = NULL) {
@@ -60,16 +54,12 @@ generate_spm_data <- function(wt, n_mutations = 10,
   # Get site information once
   site_vector <- get_site(wt)
   pdb_site_vector <- get_pdb_site(wt)
-  n_sites <- length(site_vector)
 
   # Initialize empty results tibble
   results <- tibble()
 
   # Process each site and mutation state
   for (j in site_vector) {
-    # Create a progress indicator
-    if (j %% 10 == 0) cat("Processing site", j, "of", n_sites, "\n")
-
     for (m in 0:n_mutations) {
       # Generate single mutant (m=0 is wild type)
       mut <- get_mutant_site(wt, j, m,
@@ -128,32 +118,84 @@ generate_spm_data <- function(wt, n_mutations = 10,
   return(results)
 }
 
-#' Reshape a mutation scan into model-ready arrays (site form)
+#' Generate single-point-mutation (SPM) scan data
 #'
-#' Converts the raw single-point-mutation scan into the compact arrays the
-#' site-form prediction and fitting functions expect. It combines the energy
-#' columns into per-mutant stability and activity changes, stacks the per-site
-#' squared displacements into a mutant-by-site matrix, and builds the map between
-#' the internal site index and the PDB residue number. Wild-type rows are dropped.
-#' Run this once and reuse the result across many `(a1, a2)` evaluations.
+#' Runs a single-point-mutation scan over a protein structure and returns the
+#' **model-ready** `spm` object: for every site it generates `n_mutations` mutants,
+#' records each mutant's energy changes and squared structural divergence, and packs the
+#' result into the compact arrays every `calculate_*`, `fit_*`, and `predict_*` function
+#' consumes. This is the single object the rest of the package works from -- there is no
+#' separate preprocessing step.
 #'
-#' @param spm A single-point-mutation scan, as returned by [generate_spm_data()]
-#'   (with the energy columns and the `site`, `pdb_site`, and `dr2_ijm`
-#'   list-columns).
+#' The returned object carries, computed once, both response axes at the same time: the
+#' per-site divergence matrix `dr2_ijm` (each site value is the squared displacement of a
+#' residue) and the per-mode divergence matrix `dr2_njm` (each value is the squared
+#' contribution of a normal mode). A calculation picks the axis it needs; the object does
+#' not have to be regenerated to switch between them.
+#'
+#' @param wt Wild-type protein structure with an elastic network model, as
+#'   returned by [setup_enm()].
+#' @param n_mutations Number of mutant replicates to generate per site.
+#' @param model Name of the mutation model to apply (passed to the ENM machinery).
+#' @param sigma Mutation strength (the perturbation magnitude).
+#' @param min_sd Minimum sequence separation between coupled sites.
+#' @param pdb_site_active Optional integer vector of active-site residue numbers
+#'   (PDB numbering).
+#' @param seed Optional random seed, for a reproducible scan.
+#' @return An `spm` object: a list with four elements -- `energy_data` (a tibble of
+#'   per-mutant stability and activity energy changes, `j`, `m`, `ddg_jm`, `ddgact_jm`,
+#'   wild-type rows dropped), `dr2_ijm` (the mutant-by-site squared-divergence matrix),
+#'   `dr2_njm` (the mutant-by-mode squared-divergence matrix), and `site_map` (a tibble
+#'   mapping the site index `i` to its PDB residue number `pdb_site`).
+#' @seealso [setup_enm()] (builds the `wt` input); [calculate_dr2_i_msa()] /
+#'   [calculate_dr2_n_msa()] and [fit_lrmsd_i_msa_ml()] (consume the returned object).
+#' @family spm
+#' @examples
+#' \dontrun{
+#' spm <- generate_spm_data(znb_wt, n_mutations = 10, seed = 1024)
+#' dim(spm$dr2_ijm)
+#' dim(spm$dr2_njm)
+#' }
+#' @export
+generate_spm_data <- function(wt, n_mutations = 10,
+                             model = "lfenm", sigma = 0.3,
+                             min_sd = 2, pdb_site_active = NULL,
+                             seed = NULL) {
+  scan <- generate_spm_core(wt, n_mutations = n_mutations, model = model,
+                            sigma = sigma, min_sd = min_sd,
+                            pdb_site_active = pdb_site_active, seed = seed)
+
+  # Reshape into the model-ready arrays. Both reshapers share the same energy_data
+  # (weights are axis-agnostic); we take it once from the site form.
+  site <- preprocess_spm(scan)
+  mode <- preprocess_spm_mode(scan)
+
+  spm <- list(
+    energy_data = site$energy_data,
+    dr2_ijm     = site$dr2_ijm,
+    dr2_njm     = mode$dr2_njm,
+    site_map    = site$site_map
+  )
+  class(spm) <- "spm"
+  spm
+}
+
+#' Reshape a core scan into model-ready arrays (site form)
+#'
+#' Internal helper: converts the raw per-mutant scan from `generate_spm_core()` into the
+#' compact site-form arrays. It combines the energy columns into per-mutant stability and
+#' activity changes, stacks the per-site squared displacements into a mutant-by-site
+#' matrix, and builds the map between the internal site index and the PDB residue number.
+#' Wild-type rows are dropped. Called once by [generate_spm_data()], which bundles this
+#' output (and the mode form) into the public `spm` object.
+#'
+#' @param spm A raw single-point-mutation scan, as returned by `generate_spm_core()`
+#'   (with the energy columns and the `site`, `pdb_site`, and `dr2_ijm` list-columns).
 #' @return A list with three elements: `energy_data` (a tibble of per-mutant
 #'   stability and activity energy changes), `dr2_ijm` (the mutant-by-site matrix
 #'   of per-site squared displacements; columns are sites), and `site_map` (a
 #'   tibble mapping the site index `i` to its PDB residue number `pdb_site`).
-#' @seealso [generate_spm_data()] (produces the input); [calculate_dr2_i_msa()]
-#'   and [fit_lrmsd_i_msa_ml()] (consume the output); [preprocess_spm_mode()] for
-#'   the mode form.
-#' @family spm
-#' @examples
-#' \dontrun{
-#' pp <- preprocess_spm(znb_spm)
-#' dim(pp$dr2_ijm)
-#' }
-#' @export
+#' @noRd
 preprocess_spm <- function(spm) {
   # Filter out no-mutation cases (m = 0) to align outputs
   spm_filtered <- spm %>% filter(m > 0)
@@ -187,29 +229,20 @@ preprocess_spm <- function(spm) {
   list(energy_data = energy_data, dr2_ijm = dr2_ijm, site_map = site_map)
 }
 
-#' Reshape a mutation scan into model-ready arrays (mode form)
+#' Reshape a core scan into model-ready arrays (mode form)
 #'
-#' Mode-indexed counterpart of [preprocess_spm()]: it produces the arrays the
-#' mode-form prediction and fitting functions expect. The per-mutant energy table
-#' is the same; the difference is that the squared displacements are stacked into a
-#' mutant-by-mode matrix rather than mutant-by-site. Because modes are not anchored
-#' to residues, there is no PDB-residue map.
+#' Internal helper, the mode-indexed counterpart of `preprocess_spm()`: it stacks the
+#' per-mutant squared displacements into a mutant-by-mode matrix rather than
+#' mutant-by-site. The per-mutant energy table is the same as the site form. Because
+#' modes are not anchored to residues, there is no PDB-residue map. Called once by
+#' [generate_spm_data()].
 #'
-#' @param spm A single-point-mutation scan, as returned by [generate_spm_data()]
+#' @param spm A raw single-point-mutation scan, as returned by `generate_spm_core()`
 #'   (with the `mode` and `dr2_njm` list-columns).
 #' @return A list with two elements: `energy_data` (a tibble with `j`, `m`,
 #'   `ddg_jm`, `ddgact_jm`) and `dr2_njm` (the mutant-by-mode matrix of per-mode
 #'   squared displacements; columns are mode indices).
-#' @seealso [generate_spm_data()] (produces the input); [calculate_dr2_n_msa()]
-#'   and [fit_lrmsd_n_msa_ml()] (consume the output); [preprocess_spm()] for the
-#'   site form.
-#' @family spm
-#' @examples
-#' \dontrun{
-#' pp <- preprocess_spm_mode(znb_spm)
-#' dim(pp$dr2_njm)
-#' }
-#' @export
+#' @noRd
 preprocess_spm_mode <- function(spm) {
   # Filter out no-mutation cases (m = 0) to align outputs
   spm_filtered <- spm %>% filter(m > 0)
@@ -252,25 +285,24 @@ preprocess_spm_mode <- function(spm) {
 #' The weights depend on `(a1, a2)` and so must be recomputed whenever the selection
 #' strengths change; they cannot be precomputed once from the scan.
 #'
-#' @param spm_pp Preprocessed single-point-mutation data, the output of
-#'   [preprocess_spm()] or [preprocess_spm_mode()] (only its `energy_data` is used,
-#'   so either form works).
+#' @param spm A single-point-mutation `spm` object, the output of
+#'   [generate_spm_data()] (only its `energy_data` is used).
 #' @param a1 Stability selection strength (non-negative).
 #' @param a2 Activity selection strength (non-negative).
 #' @return A numeric vector of averaging weights over mutants, one per row of
-#'   `spm_pp$energy_data`, summing to one.
+#'   `spm$energy_data`, summing to one.
 #' @seealso [pfix_msa()] (the unnormalised model probabilities);
 #'   [calculate_dr2_i_msa()] and [calculate_dr2_n_msa()] (average with these weights).
 #' @family spm
 #' @examples
 #' \dontrun{
-#' pp <- preprocess_spm(znb_spm)
-#' w <- weights_jm_spm(pp, a1 = 1, a2 = 1)
+#' spm <- generate_spm_data(znb_wt, seed = 1024)
+#' w <- weights_jm_spm(spm, a1 = 1, a2 = 1)
 #' sum(w)  # 1
 #' }
 #' @export
-weights_jm_spm <- function(spm_pp, a1, a2) {
-  energy_data <- spm_pp$energy_data
+weights_jm_spm <- function(spm, a1, a2) {
+  energy_data <- spm$energy_data
   pfix_jm <- pfix_msa(energy_data$ddg_jm, energy_data$ddgact_jm, a1, a2)
   pfix_jm / sum(pfix_jm)
 }

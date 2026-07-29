@@ -6,7 +6,7 @@
 \usage{
 predict_nlrmsd_n_msa_ml(
   fit,
-  spm_pp_mode,
+  spm,
   level = 0.95,
   uncertainty = c("both", "spm", "parameter", "none")
 )
@@ -14,7 +14,7 @@ predict_nlrmsd_n_msa_ml(
 \arguments{
 \item{fit}{A list from \code{\link[=fit_lrmsd_n_msa_ml]{fit_lrmsd_n_msa_ml()}} (carrying \code{a1}, \code{a2}, \code{cov}).}
 
-\item{spm_pp_mode}{Preprocessed data from \code{\link[=preprocess_spm_mode]{preprocess_spm_mode()}}.}
+\item{spm}{The \code{spm} object from \code{\link[=generate_spm_data]{generate_spm_data()}} (the same one used for the fit).}
 
 \item{level}{Confidence-band coverage (default 0.95).}
 
@@ -39,9 +39,9 @@ sampling arm (summed under independence), selected by \code{uncertainty}.
 }
 \examples{
 \dontrun{
-pp <- preprocess_spm_mode(znb_spm)
-ml <- fit_lrmsd_n_msa_ml(pp, znb_profile_n)
-head(predict_nlrmsd_n_msa_ml(ml, pp))
+spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
+ml <- fit_lrmsd_n_msa_ml(spm, znb_profile_n)
+head(predict_nlrmsd_n_msa_ml(ml, spm))
 }
 }
 \seealso{

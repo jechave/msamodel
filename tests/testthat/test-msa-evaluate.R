@@ -1,5 +1,5 @@
 test_that("calculate_dr2_i_msa returns one finite, positive dr2_i per site", {
-  pp <- preprocess_spm(znb_spm)
+  pp <- znb_spm
   d <- calculate_dr2_i_msa(pp, a1 = 2, a2 = 5)
   expect_named(d, c("i", "dr2_i"))
   expect_equal(nrow(d), 228L)
@@ -8,7 +8,7 @@ test_that("calculate_dr2_i_msa returns one finite, positive dr2_i per site", {
 })
 
 test_that("calculate_lrmsd_i_nested_models builds the four variants at the right (a1,a2)", {
-  pp <- preprocess_spm(znb_spm)
+  pp <- znb_spm
   a1 <- 2; a2 <- 5
   nested <- calculate_lrmsd_i_nested_models(pp, a1, a2)
 
@@ -25,7 +25,7 @@ test_that("calculate_lrmsd_i_nested_models builds the four variants at the right
 })
 
 test_that("calculate_nlrmsd_i_msa centres the uncentred profile over the full support", {
-  pp <- preprocess_spm(znb_spm)
+  pp <- znb_spm
   a1 <- 2; a2 <- 5
   nc <- calculate_nlrmsd_i_msa(pp, a1, a2)
 
@@ -45,7 +45,7 @@ test_that("calculate_nlrmsd_i_msa agrees with predict_nlrmsd_i_msa_ml's point pr
   # point of the twin). uncertainty='none' strips the band so only the mean remains.
   # Negative control: if the twin centred over the wrong support (or not at all), the
   # predictor -- which centres over the full model support -- would disagree.
-  pp <- preprocess_spm(znb_spm)
+  pp <- znb_spm
   ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
   fwd  <- calculate_nlrmsd_i_msa(pp, ml$a1, ml$a2)
   pred <- predict_nlrmsd_i_msa_ml(ml, pp, uncertainty = "none")
@@ -53,7 +53,7 @@ test_that("calculate_nlrmsd_i_msa agrees with predict_nlrmsd_i_msa_ml's point pr
 })
 
 test_that("calculate_nlrmsd_i_msa_decomposition contributions sum to the centred profile", {
-  pp <- preprocess_spm(znb_spm)
+  pp <- znb_spm
   a1 <- 2; a2 <- 5
   d <- calculate_nlrmsd_i_msa_decomposition(pp, a1, a2)
 
@@ -66,7 +66,7 @@ test_that("calculate_nlrmsd_i_msa_decomposition contributions sum to the centred
 })
 
 test_that("calculate_nlrmsd_i_nested_models centres each variant independently", {
-  pp <- preprocess_spm(znb_spm)
+  pp <- znb_spm
   a1 <- 2; a2 <- 5
   nc <- calculate_nlrmsd_i_nested_models(pp, a1, a2)
 
@@ -85,7 +85,7 @@ test_that("calculate_loglik_lrmsd_i_msa matches a frozen reference value", {
   # join, not a re-derivation. (Updated 2026-06-24 when sigma was corrected from
   # sd(residuals) to the profile MLE sqrt(mean(residuals^2)); the value shifted by
   # a constant ~+0.0011 and the (a1,a2) argmax is unchanged.)
-  pp <- preprocess_spm(znb_spm)
+  pp <- znb_spm
   ll <- msamodel:::calculate_loglik_lrmsd_i_msa(pp, znb_profile, a1 = 2, a2 = 5)
   expect_equal(ll, -184.3230779142, tolerance = 1e-6)
 })

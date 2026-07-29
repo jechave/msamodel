@@ -36,8 +36,8 @@ fitting them independently, which this package does not yet do.
 }
 \examples{
 \dontrun{
-pp <- preprocess_spm(znb_spm)
-ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
+spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
+ml <- fit_lrmsd_i_msa_ml(spm, znb_profile)
 gof_lrmsd_i_msa_ml(ml)
 }
 }

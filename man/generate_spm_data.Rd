@@ -32,36 +32,39 @@ returned by \code{\link[=setup_enm]{setup_enm()}}.}
 \item{seed}{Optional random seed, for a reproducible scan.}
 }
 \value{
-A tibble with one row per mutant \verb{(j, m)} (\code{m = 0} is the wild type),
-carrying all measured effects of that mutation: scalar energy changes
-(\code{ddg_dv_jm}, \code{ddg_tds_jm}, \code{ddgact_dv_jm}, \code{ddgact_tds_jm}) and list-columns
-\code{site} / \code{pdb_site} (the site index to PDB-residue map), \code{dr} (displacement
-vector), \code{dr2_ijm} (per-site squared displacement; each cell a \code{dr2_i} vector
-over response sites \code{i} for that mutant), \code{mode} (the normal-mode index
-\code{1:nmodes}), and \code{dr2_njm} (per-mode squared contribution; each cell a \code{dr2_n}
-vector over response modes \code{n}).
+An \code{spm} object: a list with four elements -- \code{energy_data} (a tibble of
+per-mutant stability and activity energy changes, \code{j}, \code{m}, \code{ddg_jm}, \code{ddgact_jm},
+wild-type rows dropped), \code{dr2_ijm} (the mutant-by-site squared-divergence matrix),
+\code{dr2_njm} (the mutant-by-mode squared-divergence matrix), and \code{site_map} (a tibble
+mapping the site index \code{i} to its PDB residue number \code{pdb_site}).
 }
 \description{
-Runs a single-point-mutation scan over a protein structure: for every site it
-generates \code{n_mutations} mutants and records each mutant's measured effects (the
-energy changes and the per-site / per-mode squared displacement profiles),
-returning one row per mutant. Mutants are processed one at a time and only the
-metrics are kept (never a tibble of full mutant structures), so the scan stays
-memory-efficient on large proteins.
+Runs a single-point-mutation scan over a protein structure and returns the
+\strong{model-ready} \code{spm} object: for every site it generates \code{n_mutations} mutants,
+records each mutant's energy changes and squared structural divergence, and packs the
+result into the compact arrays every \verb{calculate_*}, \verb{fit_*}, and \verb{predict_*} function
+consumes. This is the single object the rest of the package works from -- there is no
+separate preprocessing step.
+}
+\details{
+The returned object carries, computed once, both response axes at the same time: the
+per-site divergence matrix \code{dr2_ijm} (each site value is the squared displacement of a
+residue) and the per-mode divergence matrix \code{dr2_njm} (each value is the squared
+contribution of a normal mode). A calculation picks the axis it needs; the object does
+not have to be regenerated to switch between them.
 }
 \examples{
 \dontrun{
 spm <- generate_spm_data(znb_wt, n_mutations = 10, seed = 1024)
-head(spm[c("j", "m")])
+dim(spm$dr2_ijm)
+dim(spm$dr2_njm)
 }
 }
 \seealso{
-\code{\link[=setup_enm]{setup_enm()}} (builds the \code{wt} input); \code{\link[=preprocess_spm]{preprocess_spm()}} and
-\code{\link[=preprocess_spm_mode]{preprocess_spm_mode()}} (reshape this output for the model).
+\code{\link[=setup_enm]{setup_enm()}} (builds the \code{wt} input); \code{\link[=calculate_dr2_i_msa]{calculate_dr2_i_msa()}} /
+\code{\link[=calculate_dr2_n_msa]{calculate_dr2_n_msa()}} and \code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}} (consume the returned object).
 
 Other spm:
-\code{\link[=preprocess_spm]{preprocess_spm()}},
-\code{\link[=preprocess_spm_mode]{preprocess_spm_mode()}},
 \code{\link[=weights_jm_spm]{weights_jm_spm()}}
 }
 \concept{spm}

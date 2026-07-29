@@ -4,10 +4,10 @@
 \alias{calculate_nlrmsd_i_msa_decomposition}
 \title{Mean-centred per-site divergence decomposition at one (a1, a2)}
 \usage{
-calculate_nlrmsd_i_msa_decomposition(spm_pp, a1, a2)
+calculate_nlrmsd_i_msa_decomposition(spm, a1, a2)
 }
 \arguments{
-\item{spm_pp}{Preprocessed single-point-mutation data, the output of \code{\link[=preprocess_spm]{preprocess_spm()}}.}
+\item{spm}{A single-point-mutation \code{spm} object from \code{\link[=generate_spm_data]{generate_spm_data()}}.}
 
 \item{a1}{Stability selection strength (non-negative).}
 
@@ -27,8 +27,8 @@ defined on the centred quantity (the one the fit is on); the three columns sum e
 }
 \examples{
 \dontrun{
-pp <- preprocess_spm(znb_spm)
-head(calculate_nlrmsd_i_msa_decomposition(pp, a1 = 1, a2 = 1))
+spm <- generate_spm_data(znb_wt, seed = 1024)
+head(calculate_nlrmsd_i_msa_decomposition(spm, a1 = 1, a2 = 1))
 }
 }
 \seealso{

@@ -4,11 +4,10 @@
 \alias{calculate_nlrmsd_n_nested_models}
 \title{Mean-centred per-mode divergence profiles under all four model variants (MM, MS, MA, MSA)}
 \usage{
-calculate_nlrmsd_n_nested_models(spm_pp, a1, a2)
+calculate_nlrmsd_n_nested_models(spm, a1, a2)
 }
 \arguments{
-\item{spm_pp}{Preprocessed single-point-mutation data in mode form, the output of
-\code{\link[=preprocess_spm_mode]{preprocess_spm_mode()}}.}
+\item{spm}{A single-point-mutation \code{spm} object from \code{\link[=generate_spm_data]{generate_spm_data()}}.}
 
 \item{a1}{Stability selection strength used for the MS and MSA variants (non-negative).}
 
@@ -26,8 +25,8 @@ centred independently, matching \code{\link[=predict_nlrmsd_n_nested_models_ml]{
 }
 \examples{
 \dontrun{
-pp <- preprocess_spm_mode(znb_spm)
-head(calculate_nlrmsd_n_nested_models(pp, a1 = 1, a2 = 1))
+spm <- generate_spm_data(znb_wt, seed = 1024)
+head(calculate_nlrmsd_n_nested_models(spm, a1 = 1, a2 = 1))
 }
 }
 \seealso{

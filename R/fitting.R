@@ -15,7 +15,7 @@
 #' returned covariance `cov` is on the `(a1, log2(a2+1))` scale; the standard error
 #' of `a2` is obtained by the delta method (`da2/d(log2(a2+1)) = 2^(log2(a2+1)) * ln 2`).
 #'
-#' @param spm_pp Preprocessed data from [preprocess_spm()] (must include `site_map`).
+#' @param spm A single-point-mutation `spm` object from [generate_spm_data()] (its `site_map` keys the fit to PDB residues).
 #' @param observed_data Tibble with columns `pdb_site` and `lrmsd_i_obs` (the fit
 #'   target), as documented for `calculate_loglik_lrmsd_i_msa()`.
 #' @param a1_range Length-2 `[min, max]` box bound for `a1`.
@@ -50,11 +50,11 @@
 #' @export
 #' @examples
 #' \dontrun{
-#' pp <- preprocess_spm(znb_spm)
-#' ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
+#' spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
+#' ml <- fit_lrmsd_i_msa_ml(spm, znb_profile)
 #' c(a1 = ml$a1, a2 = ml$a2)
 #' }
-fit_lrmsd_i_msa_ml <- function(spm_pp,
+fit_lrmsd_i_msa_ml <- function(spm,
                        observed_data,
                        a1_range = c(0, 10),
                        log2_a2_plus1_range = c(0, 13),
@@ -76,7 +76,7 @@ fit_lrmsd_i_msa_ml <- function(spm_pp,
   # calculate_loglik_lrmsd_i_msa already mean-centers both profiles, so this IS the
   # shared objective (no separate centering here).
   nll <- function(theta) {
-    -calculate_loglik_lrmsd_i_msa(spm_pp, observed_data,
+    -calculate_loglik_lrmsd_i_msa(spm, observed_data,
                           a1 = theta[1], a2 = 2^theta[2] - 1)
   }
 
@@ -117,10 +117,10 @@ fit_lrmsd_i_msa_ml <- function(spm_pp,
   se_a2 <- abs(2^b_hat * log(2)) * se_b
 
   # Profiled noise scale at the optimum (same formula the likelihood uses).
-  pred <- calculate_lrmsd_i_msa(spm_pp, a1_hat, a2_hat)
+  pred <- calculate_lrmsd_i_msa(spm, a1_hat, a2_hat)
   obs <- observed_data %>%
     dplyr::select(pdb_site, lrmsd_i_obs) %>%
-    inner_join(spm_pp$site_map, by = "pdb_site") %>%
+    inner_join(spm$site_map, by = "pdb_site") %>%
     dplyr::select(i, lrmsd_i_obs)
   cmp <- obs %>%
     inner_join(pred, by = "i") %>%
@@ -168,7 +168,7 @@ fit_lrmsd_i_msa_ml <- function(spm_pp,
 #' returned covariance `cov` is on the `(a1, log2(a2+1))` scale; the standard error
 #' of `a2` is obtained by the delta method (`da2/d(log2(a2+1)) = 2^(log2(a2+1)) * ln 2`).
 #'
-#' @param spm_pp_mode Preprocessed data from [preprocess_spm_mode()] (energy_data +
+#' @param spm A single-point-mutation `spm` object from [generate_spm_data()] (energy_data +
 #'   the `dr2_njm` matrix; no `site_map`).
 #' @param observed_data Tibble with columns `n` (mode index) and `lrmsd_n_obs` (the
 #'   fit target), as documented for `calculate_loglik_lrmsd_n_msa()`.
@@ -205,11 +205,11 @@ fit_lrmsd_i_msa_ml <- function(spm_pp,
 #' @export
 #' @examples
 #' \dontrun{
-#' pp <- preprocess_spm_mode(znb_spm)
-#' ml <- fit_lrmsd_n_msa_ml(pp, znb_profile_n)
+#' spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
+#' ml <- fit_lrmsd_n_msa_ml(spm, znb_profile_n)
 #' c(a1 = ml$a1, a2 = ml$a2)
 #' }
-fit_lrmsd_n_msa_ml <- function(spm_pp_mode,
+fit_lrmsd_n_msa_ml <- function(spm,
                        observed_data,
                        a1_range = c(0, 10),
                        log2_a2_plus1_range = c(0, 13),
@@ -229,7 +229,7 @@ fit_lrmsd_n_msa_ml <- function(spm_pp_mode,
 
   # Negative profiled log-likelihood in (a1, b) coordinates, b = log2(a2 + 1).
   nll <- function(theta) {
-    -calculate_loglik_lrmsd_n_msa(spm_pp_mode, observed_data,
+    -calculate_loglik_lrmsd_n_msa(spm, observed_data,
                           a1 = theta[1], a2 = 2^theta[2] - 1)
   }
 
@@ -270,7 +270,7 @@ fit_lrmsd_n_msa_ml <- function(spm_pp_mode,
   se_a2 <- abs(2^b_hat * log(2)) * se_b
 
   # Profiled noise scale at the optimum (mode form: join on n, no site_map).
-  pred <- calculate_lrmsd_n_msa(spm_pp_mode, a1_hat, a2_hat)
+  pred <- calculate_lrmsd_n_msa(spm, a1_hat, a2_hat)
   obs <- observed_data %>%
     dplyr::select(n, lrmsd_n_obs)
   cmp <- obs %>%
@@ -337,20 +337,20 @@ calculate_null_deviance <- function(y) {
 #' the model prediction and observations, compare under a Gaussian noise model whose
 #' scale is profiled out (`sigma = sqrt(mean(r^2))`). Maximised by [fit_lrmsd_i_msa_ml()].
 #'
-#' @param spm_pp Preprocessed data from [preprocess_spm()] (must include `site_map`).
+#' @param spm A single-point-mutation `spm` object from [generate_spm_data()] (its `site_map` keys the fit to PDB residues).
 #' @param observed_data Tibble with columns `pdb_site` and `lrmsd_i_obs`.
 #' @param a1 Stability selection strength.
 #' @param a2 Activity selection strength.
 #' @return A single numeric log-likelihood.
 #' @noRd
-calculate_loglik_lrmsd_i_msa <- function(spm_pp, observed_data, a1, a2) {
+calculate_loglik_lrmsd_i_msa <- function(spm, observed_data, a1, a2) {
 
   # Generate model predictions (keyed by the internal response-site index i)
-  predictions <- calculate_lrmsd_i_msa(spm_pp, a1, a2)
+  predictions <- calculate_lrmsd_i_msa(spm, a1, a2)
 
   # Translate user-supplied pdb_site to the internal index i via the model's
   # site_map. pdb_site is the structure-anchored key; i is model-internal.
-  site_map <- spm_pp$site_map
+  site_map <- spm$site_map
   observations <- observed_data %>%
     dplyr::select(pdb_site, lrmsd_i_obs)
 
@@ -394,16 +394,16 @@ calculate_loglik_lrmsd_i_msa <- function(spm_pp, observed_data, a1, a2) {
 #' with no `pdb_site` mapping (the mode index `n` is used directly). Maximised by
 #' [fit_lrmsd_n_msa_ml()].
 #'
-#' @param spm_pp_mode Preprocessed data from [preprocess_spm_mode()].
+#' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
 #' @param observed_data Tibble with columns `n` (mode index) and `lrmsd_n_obs`.
 #' @param a1 Stability selection strength.
 #' @param a2 Activity selection strength.
 #' @return A single numeric log-likelihood.
 #' @noRd
-calculate_loglik_lrmsd_n_msa <- function(spm_pp_mode, observed_data, a1, a2) {
+calculate_loglik_lrmsd_n_msa <- function(spm, observed_data, a1, a2) {
 
   # Generate model predictions (keyed by the response-mode index n)
-  predictions <- calculate_lrmsd_n_msa(spm_pp_mode, a1, a2)
+  predictions <- calculate_lrmsd_n_msa(spm, a1, a2)
 
   # Modes are not structure-anchored: n is the model index directly (no site_map).
   observations <- observed_data %>%

@@ -20,7 +20,7 @@
 # correctness check, dropped per the test-review gate.
 
 test_that("uncertainty must be one of the four modes (match.arg)", {
-  pp <- preprocess_spm(znb_spm)
+  pp <- znb_spm
   ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
   expect_error(predict_lrmsd_i_msa_ml(ml, pp, uncertainty = "spmm"))   # typo
   expect_error(predict_lrmsd_i_msa_ml(ml, pp, uncertainty = "all"))
@@ -30,7 +30,7 @@ test_that("uncertainty must be one of the four modes (match.arg)", {
 })
 
 test_that('uncertainty = "none" gives an exactly zero-width band, stable schema', {
-  pp <- preprocess_spm(znb_spm)
+  pp <- znb_spm
   ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
   pn   <- predict_lrmsd_i_msa_ml(ml, pp, uncertainty = "none")
   pboth <- predict_lrmsd_i_msa_ml(ml, pp, uncertainty = "both")
@@ -51,7 +51,7 @@ test_that('uncertainty = "parameter" reproduces the pre-refactor band exactly', 
   # the code under test -- so a change in the parameter arm makes this test go red.
   # (First six residues of the znb site fit; full vectors match to 0 as verified in the
   # scratchpad.)
-  pp <- preprocess_spm(znb_spm)
+  pp <- znb_spm
   ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
   p  <- predict_lrmsd_i_msa_ml(ml, pp, uncertainty = "parameter")
   pn <- predict_nlrmsd_i_msa_ml(ml, pp, uncertainty = "parameter")
@@ -68,7 +68,7 @@ test_that("MM centred band: zero under parameter, nonzero under spm/both", {
   # The qualitative fix. MM has zero parameter gradient -> zero PARAMETER band, but a
   # nonzero SPM-sampling band. Both facts asserted on the SAME column, so neither a
   # "MM always zero" nor a "MM always nonzero" bug can pass.
-  pp <- preprocess_spm(znb_spm)
+  pp <- znb_spm
   ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
 
   par <- predict_nlrmsd_i_nested_models_ml(ml, pp, uncertainty = "parameter")
@@ -85,7 +85,7 @@ test_that("nphi_mut band == nlrmsd_mm band (same quantity); phi_stab differs", {
   # SPM band must equal the nlrmsd_mm band exactly. Negative control: phi_stab is a
   # DIFFERENCE (ms - mm), so its band must NOT equal the single-model nlrmsd_ms band --
   # if the decomposition wrongly reused a single-model formula, that control goes red.
-  pp <- preprocess_spm(znb_spm)
+  pp <- znb_spm
   ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
   dec <- predict_nlrmsd_i_msa_decomposition_ml(ml, pp, uncertainty = "spm")
   nn  <- predict_nlrmsd_i_nested_models_ml(ml, pp, uncertainty = "spm")

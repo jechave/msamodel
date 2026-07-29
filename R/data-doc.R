@@ -36,33 +36,31 @@ NULL
 
 #' Single-point-mutation scan (SPM) for 1znb_A
 #'
-#' Per-mutation energetic and structural-response data from a single-point
-#' mutation scan of every site of the example protein. This is the primary input
-#' to the divergence-profile and fitting functions (via \code{preprocess_spm}).
+#' Model-ready single-point-mutation scan of every site of the example protein: the
+#' \code{spm} object every divergence-profile and fitting function consumes directly.
+#' It carries, for the 2280 mutants (228 sites times 10 replicates, wild-type states
+#' dropped), the per-mutant energy changes and both response-axis divergence matrices.
 #'
-#' @format A tibble with 2508 rows (228 sites times 11 states, mutation index
-#'   m = 0..10) and 12 columns:
+#' @format An \code{spm} object (a list of class \code{"spm"}) with four elements:
 #' \describe{
-#'   \item{j}{Integer index of the mutated (perturbed) site.}
-#'   \item{m}{Integer mutation replicate (0 = wild type).}
-#'   \item{ddg_dv_jm}{Stability change, energy term.}
-#'   \item{ddg_tds_jm}{Stability change, entropy (-T*dS) term.}
-#'   \item{ddgact_dv_jm}{Activity change, energy term.}
-#'   \item{ddgact_tds_jm}{Activity change, entropy term.}
-#'   \item{site}{List column: vector of internal site indices.}
-#'   \item{pdb_site}{List column: vector of PDB residue numbers.}
-#'   \item{dr}{List column: Cartesian displacement vector (length 3 * n_sites).}
-#'   \item{dr2_ijm}{List column: per-site squared displacement; each cell a
-#'     \code{(dr2_i)} vector over response sites (length n_sites) for that mutant.}
-#'   \item{mode}{List column: normal-mode index (1:nmodes).}
-#'   \item{dr2_njm}{List column: per-mode squared contribution to \code{dr}; each
-#'     cell a \code{(dr2_n)} vector over response modes (length nmodes).}
+#'   \item{energy_data}{Tibble, one row per mutant, columns \code{j} (mutated site),
+#'     \code{m} (replicate), \code{ddg_jm} (stability change), \code{ddgact_jm}
+#'     (activity change).}
+#'   \item{dr2_ijm}{Numeric \code{[mutant x site]} matrix of per-site squared
+#'     displacements; each site value is the squared displacement of a residue
+#'     (L2 over its three Cartesian coordinates). 2280 rows times 228 site columns.}
+#'   \item{dr2_njm}{Numeric \code{[mutant x mode]} matrix of per-mode squared
+#'     displacements; each value is the squared projection of the displacement onto a
+#'     normal mode. 2280 rows times 678 mode columns.}
+#'   \item{site_map}{Tibble mapping the site index \code{i} to its PDB residue number
+#'     \code{pdb_site} (228 rows). Modes are not residue-anchored, so there is no map
+#'     for \code{dr2_njm}.}
 #' }
 #' @details Generated (not copied) by \code{generate_spm_data(znb_wt,
-#'   n_mutations = 10, model = "lfenm", sigma = 0.3, min_sd = 2, seed = 1024)} and
-#'   validated once against the source project's precomputed scan. See
-#'   \code{data-raw/prepare_znb_data.R}.
-#' @seealso \code{\link{generate_spm_data}}, \code{\link{preprocess_spm}}
+#'   n_mutations = 10, model = "lfenm", sigma = 0.3, min_sd = 2,
+#'   pdb_site_active = ..., seed = 1024)} and validated once against the source
+#'   project's precomputed scan. See \code{data-raw/prepare_znb_data.R}.
+#' @seealso \code{\link{generate_spm_data}}
 #' @family datasets
 "znb_spm"
 

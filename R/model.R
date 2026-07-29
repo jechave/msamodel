@@ -33,8 +33,8 @@
 #' # One mutant:
 #' pfix_msa(ddg = 1.2, ddgact = 0.4, a1 = 1, a2 = 1)
 #' # A whole scan:
-#' pp <- preprocess_spm(znb_spm)
-#' pfix_msa(pp$energy_data$ddg_jm, pp$energy_data$ddgact_jm, a1 = 1, a2 = 1)
+#' spm <- generate_spm_data(znb_wt, seed = 1024)
+#' pfix_msa(spm$energy_data$ddg_jm, spm$energy_data$ddgact_jm, a1 = 1, a2 = 1)
 #' }
 #' @export
 pfix_msa <- function(ddg, ddgact, a1, a2) {
@@ -53,8 +53,7 @@ pfix_msa <- function(ddg, ddgact, a1, a2) {
 #' those weights. This is the elementary prediction the nested-model and fitting
 #' functions call repeatedly at different `(a1, a2)`.
 #'
-#' @param spm_pp Preprocessed single-point-mutation data, the output of
-#'   [preprocess_spm()] (the per-mutant energies and the site divergence matrix).
+#' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
 #' @param a1 Stability selection strength (non-negative). `0` disables stability
 #'   selection.
 #' @param a2 Activity selection strength (non-negative). `0` disables activity
@@ -66,16 +65,16 @@ pfix_msa <- function(ddg, ddgact, a1, a2) {
 #' @family model
 #' @examples
 #' \dontrun{
-#' pp <- preprocess_spm(znb_spm)
+#' spm <- generate_spm_data(znb_wt, seed = 1024)
 #' # Full model at a representative selection strength:
-#' head(calculate_dr2_i_msa(pp, a1 = 1, a2 = 1))
+#' head(calculate_dr2_i_msa(spm, a1 = 1, a2 = 1))
 #' }
 #' @export
-calculate_dr2_i_msa <- function(spm_pp, a1, a2) {
-  dr2_ijm <- spm_pp$dr2_ijm
+calculate_dr2_i_msa <- function(spm, a1, a2) {
+  dr2_ijm <- spm$dr2_ijm
 
   # SPM-ensemble weights from the MSA model's fixation probabilities.
-  weights_jm <- weights_jm_spm(spm_pp, a1, a2)
+  weights_jm <- weights_jm_spm(spm, a1, a2)
 
   # Weighted average over the mutant (j,m) axis: (dr2_ijm) -> (dr2_i)
   dr2_i <- colSums(dr2_ijm * weights_jm)
@@ -92,26 +91,25 @@ calculate_dr2_i_msa <- function(spm_pp, a1, a2) {
 #' expansion all obtain their predicted profile through this function rather than
 #' re-applying `log(sqrt(.))` by hand.
 #'
-#' @param spm_pp Preprocessed single-point-mutation data, the output of
-#'   [preprocess_spm()].
+#' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
 #' @param a1 Stability selection strength (non-negative). `0` disables stability
 #'   selection.
 #' @param a2 Activity selection strength (non-negative). `0` disables activity
 #'   selection.
 #' @return A tibble with one row per site: the site index `i` and the predicted
 #'   profile `lrmsd_i_msa`. Callers needing the PDB residue number join
-#'   `spm_pp$site_map` themselves (as [calculate_lrmsd_i_nested_models()] does).
+#'   `spm$site_map` themselves (as [calculate_lrmsd_i_nested_models()] does).
 #' @seealso [calculate_dr2_i_msa()] (the squared-divergence forward map it wraps);
 #'   [calculate_lrmsd_i_nested_models()] (the four-variant analysis expansion).
 #' @family model
 #' @examples
 #' \dontrun{
-#' pp <- preprocess_spm(znb_spm)
-#' head(calculate_lrmsd_i_msa(pp, a1 = 1, a2 = 1))
+#' spm <- generate_spm_data(znb_wt, seed = 1024)
+#' head(calculate_lrmsd_i_msa(spm, a1 = 1, a2 = 1))
 #' }
 #' @export
-calculate_lrmsd_i_msa <- function(spm_pp, a1, a2) {
-  dr2 <- calculate_dr2_i_msa(spm_pp, a1, a2)
+calculate_lrmsd_i_msa <- function(spm, a1, a2) {
+  dr2 <- calculate_dr2_i_msa(spm, a1, a2)
   tibble(i = dr2$i, lrmsd_i_msa = log(sqrt(dr2$dr2_i)))
 }
 
@@ -129,7 +127,7 @@ calculate_lrmsd_i_msa <- function(spm_pp, a1, a2) {
 #' happens to observe. The fit instead centres over the observation-matched residues, so a
 #' fitted profile sits at a slightly different level by design; see [predict_nlrmsd_i_msa_ml()].
 #'
-#' @param spm_pp Preprocessed single-point-mutation data, the output of [preprocess_spm()].
+#' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
 #' @param a1 Stability selection strength (non-negative). `0` disables stability selection.
 #' @param a2 Activity selection strength (non-negative). `0` disables activity selection.
 #' @return A tibble with one row per site: the site index `i` and the mean-centred profile
@@ -140,12 +138,12 @@ calculate_lrmsd_i_msa <- function(spm_pp, a1, a2) {
 #' @family model
 #' @examples
 #' \dontrun{
-#' pp <- preprocess_spm(znb_spm)
-#' head(calculate_nlrmsd_i_msa(pp, a1 = 1, a2 = 1))
+#' spm <- generate_spm_data(znb_wt, seed = 1024)
+#' head(calculate_nlrmsd_i_msa(spm, a1 = 1, a2 = 1))
 #' }
 #' @export
-calculate_nlrmsd_i_msa <- function(spm_pp, a1, a2) {
-  lrmsd <- calculate_lrmsd_i_msa(spm_pp, a1, a2)
+calculate_nlrmsd_i_msa <- function(spm, a1, a2) {
+  lrmsd <- calculate_lrmsd_i_msa(spm, a1, a2)
   tibble(i = lrmsd$i, nlrmsd_i_msa = lrmsd$lrmsd_i_msa - mean(lrmsd$lrmsd_i_msa))
 }
 
@@ -159,9 +157,7 @@ calculate_nlrmsd_i_msa <- function(spm_pp, a1, a2) {
 #' in what the columns represent. This function predicts only; the package ships no
 #' empirical mode profile to fit against.
 #'
-#' @param spm_pp Preprocessed single-point-mutation data in mode form, the output
-#'   of [preprocess_spm_mode()] (the per-mutant energies and the mode divergence
-#'   matrix).
+#' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
 #' @param a1 Stability selection strength (non-negative). `0` disables stability
 #'   selection.
 #' @param a2 Activity selection strength (non-negative). `0` disables activity
@@ -173,16 +169,16 @@ calculate_nlrmsd_i_msa <- function(spm_pp, a1, a2) {
 #' @family model
 #' @examples
 #' \dontrun{
-#' pp <- preprocess_spm_mode(znb_spm)
-#' head(calculate_dr2_n_msa(pp, a1 = 1, a2 = 1))
+#' spm <- generate_spm_data(znb_wt, seed = 1024)
+#' head(calculate_dr2_n_msa(spm, a1 = 1, a2 = 1))
 #' }
 #' @export
-calculate_dr2_n_msa <- function(spm_pp, a1, a2) {
-  dr2_njm <- spm_pp$dr2_njm
+calculate_dr2_n_msa <- function(spm, a1, a2) {
+  dr2_njm <- spm$dr2_njm
 
   # SPM-ensemble weights from the MSA model's fixation probabilities
   # (axis-agnostic: identical weights as the site form).
-  weights_jm <- weights_jm_spm(spm_pp, a1, a2)
+  weights_jm <- weights_jm_spm(spm, a1, a2)
 
   # Weighted average over the mutant (j,m) axis: (dr2_njm) -> (dr2_n)
   dr2_n <- colSums(dr2_njm * weights_jm)
@@ -200,8 +196,7 @@ calculate_dr2_n_msa <- function(spm_pp, a1, a2) {
 #' obtain their predicted profile through this function rather than re-applying
 #' `log(sqrt(.))` by hand.
 #'
-#' @param spm_pp Preprocessed single-point-mutation data in mode form, the output
-#'   of [preprocess_spm_mode()].
+#' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
 #' @param a1 Stability selection strength (non-negative). `0` disables stability
 #'   selection.
 #' @param a2 Activity selection strength (non-negative). `0` disables activity
@@ -215,12 +210,12 @@ calculate_dr2_n_msa <- function(spm_pp, a1, a2) {
 #' @family model
 #' @examples
 #' \dontrun{
-#' pp <- preprocess_spm_mode(znb_spm)
-#' head(calculate_lrmsd_n_msa(pp, a1 = 1, a2 = 1))
+#' spm <- generate_spm_data(znb_wt, seed = 1024)
+#' head(calculate_lrmsd_n_msa(spm, a1 = 1, a2 = 1))
 #' }
 #' @export
-calculate_lrmsd_n_msa <- function(spm_pp, a1, a2) {
-  dr2 <- calculate_dr2_n_msa(spm_pp, a1, a2)
+calculate_lrmsd_n_msa <- function(spm, a1, a2) {
+  dr2 <- calculate_dr2_n_msa(spm, a1, a2)
   tibble(n = dr2$n, lrmsd_n_msa = log(sqrt(dr2$dr2_n)))
 }
 
@@ -234,8 +229,7 @@ calculate_lrmsd_n_msa <- function(spm_pp, a1, a2) {
 #' the support note (predict/scenario centres over all modes; the fit centres over the
 #' observation-matched modes, so the two levels differ by design).
 #'
-#' @param spm_pp Preprocessed single-point-mutation data in mode form, the output of
-#'   [preprocess_spm_mode()].
+#' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
 #' @param a1 Stability selection strength (non-negative). `0` disables stability selection.
 #' @param a2 Activity selection strength (non-negative). `0` disables activity selection.
 #' @return A tibble with one row per mode: the mode index `n` and the mean-centred profile
@@ -246,12 +240,12 @@ calculate_lrmsd_n_msa <- function(spm_pp, a1, a2) {
 #' @family model
 #' @examples
 #' \dontrun{
-#' pp <- preprocess_spm_mode(znb_spm)
-#' head(calculate_nlrmsd_n_msa(pp, a1 = 1, a2 = 1))
+#' spm <- generate_spm_data(znb_wt, seed = 1024)
+#' head(calculate_nlrmsd_n_msa(spm, a1 = 1, a2 = 1))
 #' }
 #' @export
-calculate_nlrmsd_n_msa <- function(spm_pp, a1, a2) {
-  lrmsd <- calculate_lrmsd_n_msa(spm_pp, a1, a2)
+calculate_nlrmsd_n_msa <- function(spm, a1, a2) {
+  lrmsd <- calculate_lrmsd_n_msa(spm, a1, a2)
   tibble(n = lrmsd$n, nlrmsd_n_msa = lrmsd$lrmsd_n_msa - mean(lrmsd$lrmsd_n_msa))
 }
 
@@ -276,8 +270,7 @@ calculate_nlrmsd_n_msa <- function(spm_pp, a1, a2) {
 #' Pass the four returned columns to `calculate_msa_decomposition()` to split the
 #' divergence into its mutation, stability, and activity contributions.
 #'
-#' @param spm_pp Preprocessed single-point-mutation data, the output of
-#'   [preprocess_spm()].
+#' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
 #' @param a1 Stability selection strength used for the MS and MSA variants
 #'   (non-negative).
 #' @param a2 Activity selection strength used for the MA and MSA variants
@@ -291,21 +284,21 @@ calculate_nlrmsd_n_msa <- function(spm_pp, a1, a2) {
 #' @family model
 #' @examples
 #' \dontrun{
-#' pp <- preprocess_spm(znb_spm)
-#' head(calculate_lrmsd_i_nested_models(pp, a1 = 1, a2 = 1))
+#' spm <- generate_spm_data(znb_wt, seed = 1024)
+#' head(calculate_lrmsd_i_nested_models(spm, a1 = 1, a2 = 1))
 #' }
 #' @export
-calculate_lrmsd_i_nested_models <- function(spm_pp, a1, a2) {
-  lrmsd <- function(p1, p2) calculate_lrmsd_i_msa(spm_pp, p1, p2)$lrmsd_i_msa
+calculate_lrmsd_i_nested_models <- function(spm, a1, a2) {
+  lrmsd <- function(p1, p2) calculate_lrmsd_i_msa(spm, p1, p2)$lrmsd_i_msa
 
   tibble(
-    i           = seq_len(ncol(spm_pp$dr2_ijm)),
+    i           = seq_len(ncol(spm$dr2_ijm)),
     lrmsd_i_mm  = lrmsd(0,  0),
     lrmsd_i_ms  = lrmsd(a1, 0),
     lrmsd_i_ma  = lrmsd(0,  a2),
     lrmsd_i_msa = lrmsd(a1, a2)
   ) %>%
-    left_join(spm_pp$site_map, by = "i") %>%
+    left_join(spm$site_map, by = "i") %>%
     select(i, pdb_site, everything())
 }
 
@@ -318,7 +311,7 @@ calculate_lrmsd_i_nested_models <- function(spm_pp, a1, a2) {
 #' [predict_nlrmsd_i_nested_models_ml()] treat them. This is the natural scenario forward map
 #' for comparing the centred variants without fitting.
 #'
-#' @param spm_pp Preprocessed single-point-mutation data, the output of [preprocess_spm()].
+#' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
 #' @param a1 Stability selection strength used for the MS and MSA variants (non-negative).
 #' @param a2 Activity selection strength used for the MA and MSA variants (non-negative).
 #' @return A tibble with one row per site: `i`, `pdb_site`, and the four mean-centred profiles
@@ -329,12 +322,12 @@ calculate_lrmsd_i_nested_models <- function(spm_pp, a1, a2) {
 #' @family model
 #' @examples
 #' \dontrun{
-#' pp <- preprocess_spm(znb_spm)
-#' head(calculate_nlrmsd_i_nested_models(pp, a1 = 1, a2 = 1))
+#' spm <- generate_spm_data(znb_wt, seed = 1024)
+#' head(calculate_nlrmsd_i_nested_models(spm, a1 = 1, a2 = 1))
 #' }
 #' @export
-calculate_nlrmsd_i_nested_models <- function(spm_pp, a1, a2) {
-  nm <- calculate_lrmsd_i_nested_models(spm_pp, a1, a2)
+calculate_nlrmsd_i_nested_models <- function(spm, a1, a2) {
+  nm <- calculate_lrmsd_i_nested_models(spm, a1, a2)
   tibble(
     i           = nm$i,
     pdb_site    = nm$pdb_site,
@@ -360,8 +353,7 @@ calculate_nlrmsd_i_nested_models <- function(spm_pp, a1, a2) {
 #' `(a1, a2)` to phi with credible bands is done downstream by evaluating this
 #' function across the posterior's nodes or draws.
 #'
-#' @param spm_pp Preprocessed single-point-mutation data, the output of
-#'   [preprocess_spm()].
+#' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
 #' @param a1 Stability selection strength (non-negative).
 #' @param a2 Activity selection strength (non-negative).
 #' @return A tibble with one row per site: the site index `i`, the PDB residue
@@ -373,12 +365,12 @@ calculate_nlrmsd_i_nested_models <- function(spm_pp, a1, a2) {
 #' @family model
 #' @examples
 #' \dontrun{
-#' pp <- preprocess_spm(znb_spm)
-#' head(calculate_decomposition_i_msa(pp, a1 = 1, a2 = 1))
+#' spm <- generate_spm_data(znb_wt, seed = 1024)
+#' head(calculate_decomposition_i_msa(spm, a1 = 1, a2 = 1))
 #' }
 #' @export
-calculate_decomposition_i_msa <- function(spm_pp, a1, a2) {
-  nm  <- calculate_lrmsd_i_nested_models(spm_pp, a1, a2)
+calculate_decomposition_i_msa <- function(spm, a1, a2) {
+  nm  <- calculate_lrmsd_i_nested_models(spm, a1, a2)
   phi <- calculate_msa_decomposition(
     nm$lrmsd_i_mm, nm$lrmsd_i_ms, nm$lrmsd_i_ma, nm$lrmsd_i_msa
   )
@@ -394,7 +386,7 @@ calculate_decomposition_i_msa <- function(spm_pp, a1, a2) {
 #' `nlrmsd_i_msa` (centring is linear). This is the point decomposition that
 #' [predict_nlrmsd_i_msa_decomposition_ml()] bands (the two agree exactly).
 #'
-#' @param spm_pp Preprocessed single-point-mutation data, the output of [preprocess_spm()].
+#' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
 #' @param a1 Stability selection strength (non-negative).
 #' @param a2 Activity selection strength (non-negative).
 #' @return A tibble with one row per site: `i`, `pdb_site`, and the three mean-centred
@@ -406,12 +398,12 @@ calculate_decomposition_i_msa <- function(spm_pp, a1, a2) {
 #' @family model
 #' @examples
 #' \dontrun{
-#' pp <- preprocess_spm(znb_spm)
-#' head(calculate_nlrmsd_i_msa_decomposition(pp, a1 = 1, a2 = 1))
+#' spm <- generate_spm_data(znb_wt, seed = 1024)
+#' head(calculate_nlrmsd_i_msa_decomposition(spm, a1 = 1, a2 = 1))
 #' }
 #' @export
-calculate_nlrmsd_i_msa_decomposition <- function(spm_pp, a1, a2) {
-  d <- calculate_decomposition_i_msa(spm_pp, a1, a2)
+calculate_nlrmsd_i_msa_decomposition <- function(spm, a1, a2) {
+  d <- calculate_decomposition_i_msa(spm, a1, a2)
   tibble(
     i         = d$i,
     pdb_site  = d$pdb_site,
@@ -442,8 +434,7 @@ calculate_nlrmsd_i_msa_decomposition <- function(spm_pp, a1, a2) {
 #' (unlike the site form). Pass the four returned columns to
 #' `calculate_msa_decomposition()` to split the divergence into its contributions.
 #'
-#' @param spm_pp Preprocessed single-point-mutation data in mode form, the output
-#'   of [preprocess_spm_mode()].
+#' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
 #' @param a1 Stability selection strength used for the MS and MSA variants
 #'   (non-negative).
 #' @param a2 Activity selection strength used for the MA and MSA variants
@@ -455,15 +446,15 @@ calculate_nlrmsd_i_msa_decomposition <- function(spm_pp, a1, a2) {
 #' @family model
 #' @examples
 #' \dontrun{
-#' pp <- preprocess_spm_mode(znb_spm)
-#' head(calculate_lrmsd_n_nested_models(pp, a1 = 1, a2 = 1))
+#' spm <- generate_spm_data(znb_wt, seed = 1024)
+#' head(calculate_lrmsd_n_nested_models(spm, a1 = 1, a2 = 1))
 #' }
 #' @export
-calculate_lrmsd_n_nested_models <- function(spm_pp, a1, a2) {
-  lrmsd <- function(p1, p2) calculate_lrmsd_n_msa(spm_pp, p1, p2)$lrmsd_n_msa
+calculate_lrmsd_n_nested_models <- function(spm, a1, a2) {
+  lrmsd <- function(p1, p2) calculate_lrmsd_n_msa(spm, p1, p2)$lrmsd_n_msa
 
   tibble(
-    n           = seq_len(ncol(spm_pp$dr2_njm)),
+    n           = seq_len(ncol(spm$dr2_njm)),
     lrmsd_n_mm  = lrmsd(0,  0),
     lrmsd_n_ms  = lrmsd(a1, 0),
     lrmsd_n_ma  = lrmsd(0,  a2),
@@ -478,8 +469,7 @@ calculate_lrmsd_n_nested_models <- function(spm_pp, a1, a2) {
 #' modes). Modes are not residue-anchored, so there is no `pdb_site` column. Each variant is
 #' centred independently, matching [predict_nlrmsd_n_nested_models_ml()].
 #'
-#' @param spm_pp Preprocessed single-point-mutation data in mode form, the output of
-#'   [preprocess_spm_mode()].
+#' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
 #' @param a1 Stability selection strength used for the MS and MSA variants (non-negative).
 #' @param a2 Activity selection strength used for the MA and MSA variants (non-negative).
 #' @return A tibble with one row per mode: `n` and the four mean-centred profiles
@@ -490,12 +480,12 @@ calculate_lrmsd_n_nested_models <- function(spm_pp, a1, a2) {
 #' @family model
 #' @examples
 #' \dontrun{
-#' pp <- preprocess_spm_mode(znb_spm)
-#' head(calculate_nlrmsd_n_nested_models(pp, a1 = 1, a2 = 1))
+#' spm <- generate_spm_data(znb_wt, seed = 1024)
+#' head(calculate_nlrmsd_n_nested_models(spm, a1 = 1, a2 = 1))
 #' }
 #' @export
-calculate_nlrmsd_n_nested_models <- function(spm_pp, a1, a2) {
-  nm <- calculate_lrmsd_n_nested_models(spm_pp, a1, a2)
+calculate_nlrmsd_n_nested_models <- function(spm, a1, a2) {
+  nm <- calculate_lrmsd_n_nested_models(spm, a1, a2)
   tibble(
     n           = nm$n,
     nlrmsd_n_mm  = nm$lrmsd_n_mm  - mean(nm$lrmsd_n_mm),
@@ -520,8 +510,7 @@ calculate_nlrmsd_n_nested_models <- function(spm_pp, a1, a2) {
 #' `(a1, a2)` to phi with credible bands is done downstream by evaluating this
 #' function across the posterior's nodes or draws.
 #'
-#' @param spm_pp Preprocessed single-point-mutation data in mode form, the output
-#'   of [preprocess_spm_mode()].
+#' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
 #' @param a1 Stability selection strength (non-negative).
 #' @param a2 Activity selection strength (non-negative).
 #' @return A tibble with one row per mode: the mode index `n` and the three
@@ -532,12 +521,12 @@ calculate_nlrmsd_n_nested_models <- function(spm_pp, a1, a2) {
 #' @family model
 #' @examples
 #' \dontrun{
-#' pp <- preprocess_spm_mode(znb_spm)
-#' head(calculate_decomposition_n_msa(pp, a1 = 1, a2 = 1))
+#' spm <- generate_spm_data(znb_wt, seed = 1024)
+#' head(calculate_decomposition_n_msa(spm, a1 = 1, a2 = 1))
 #' }
 #' @export
-calculate_decomposition_n_msa <- function(spm_pp, a1, a2) {
-  nm  <- calculate_lrmsd_n_nested_models(spm_pp, a1, a2)
+calculate_decomposition_n_msa <- function(spm, a1, a2) {
+  nm  <- calculate_lrmsd_n_nested_models(spm, a1, a2)
   phi <- calculate_msa_decomposition(
     nm$lrmsd_n_mm, nm$lrmsd_n_ms, nm$lrmsd_n_ma, nm$lrmsd_n_msa
   )
@@ -553,8 +542,7 @@ calculate_decomposition_n_msa <- function(spm_pp, a1, a2) {
 #' `pdb_site` column. This is the point decomposition that
 #' [predict_nlrmsd_n_msa_decomposition_ml()] bands.
 #'
-#' @param spm_pp Preprocessed single-point-mutation data in mode form, the output of
-#'   [preprocess_spm_mode()].
+#' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
 #' @param a1 Stability selection strength (non-negative).
 #' @param a2 Activity selection strength (non-negative).
 #' @return A tibble with one row per mode: `n` and the three mean-centred contributions
@@ -566,12 +554,12 @@ calculate_decomposition_n_msa <- function(spm_pp, a1, a2) {
 #' @family model
 #' @examples
 #' \dontrun{
-#' pp <- preprocess_spm_mode(znb_spm)
-#' head(calculate_nlrmsd_n_msa_decomposition(pp, a1 = 1, a2 = 1))
+#' spm <- generate_spm_data(znb_wt, seed = 1024)
+#' head(calculate_nlrmsd_n_msa_decomposition(spm, a1 = 1, a2 = 1))
 #' }
 #' @export
-calculate_nlrmsd_n_msa_decomposition <- function(spm_pp, a1, a2) {
-  d <- calculate_decomposition_n_msa(spm_pp, a1, a2)
+calculate_nlrmsd_n_msa_decomposition <- function(spm, a1, a2) {
+  d <- calculate_decomposition_n_msa(spm, a1, a2)
   tibble(
     n         = d$n,
     nphi_mut  = d$phi_mut  - mean(d$phi_mut),

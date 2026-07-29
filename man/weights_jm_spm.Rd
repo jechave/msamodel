@@ -4,12 +4,11 @@
 \alias{weights_jm_spm}
 \title{SPM-ensemble averaging weights over mutants}
 \usage{
-weights_jm_spm(spm_pp, a1, a2)
+weights_jm_spm(spm, a1, a2)
 }
 \arguments{
-\item{spm_pp}{Preprocessed single-point-mutation data, the output of
-\code{\link[=preprocess_spm]{preprocess_spm()}} or \code{\link[=preprocess_spm_mode]{preprocess_spm_mode()}} (only its \code{energy_data} is used,
-so either form works).}
+\item{spm}{A single-point-mutation \code{spm} object, the output of
+\code{\link[=generate_spm_data]{generate_spm_data()}} (only its \code{energy_data} is used).}
 
 \item{a1}{Stability selection strength (non-negative).}
 
@@ -17,7 +16,7 @@ so either form works).}
 }
 \value{
 A numeric vector of averaging weights over mutants, one per row of
-\code{spm_pp$energy_data}, summing to one.
+\code{spm$energy_data}, summing to one.
 }
 \description{
 Turns the per-mutant fixation probabilities of the MSA model (\code{\link[=pfix_msa]{pfix_msa()}}) into
@@ -37,8 +36,8 @@ strengths change; they cannot be precomputed once from the scan.
 }
 \examples{
 \dontrun{
-pp <- preprocess_spm(znb_spm)
-w <- weights_jm_spm(pp, a1 = 1, a2 = 1)
+spm <- generate_spm_data(znb_wt, seed = 1024)
+w <- weights_jm_spm(spm, a1 = 1, a2 = 1)
 sum(w)  # 1
 }
 }
@@ -47,8 +46,6 @@ sum(w)  # 1
 \code{\link[=calculate_dr2_i_msa]{calculate_dr2_i_msa()}} and \code{\link[=calculate_dr2_n_msa]{calculate_dr2_n_msa()}} (average with these weights).
 
 Other spm:
-\code{\link[=generate_spm_data]{generate_spm_data()}},
-\code{\link[=preprocess_spm]{preprocess_spm()}},
-\code{\link[=preprocess_spm_mode]{preprocess_spm_mode()}}
+\code{\link[=generate_spm_data]{generate_spm_data()}}
 }
 \concept{spm}

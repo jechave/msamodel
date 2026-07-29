@@ -24,7 +24,7 @@ test_that("calculate_msa_decomposition is a pure vector function (4 in, 3 out)",
 })
 
 test_that("calculate_decomposition_i_msa packages nested-models + the kernel", {
-  pp <- preprocess_spm(znb_spm)
+  pp <- znb_spm
   got <- calculate_decomposition_i_msa(pp, a1 = 1, a2 = 1)
 
   # Shape / keys: one row per site, site keys carried, phi columns present.
@@ -46,7 +46,7 @@ test_that("calculate_decomposition_i_msa packages nested-models + the kernel", {
 })
 
 test_that("calculate_decomposition_n_msa packages nested-models + the kernel (mode)", {
-  pp <- preprocess_spm_mode(znb_spm)
+  pp <- znb_spm
   got <- calculate_decomposition_n_msa(pp, a1 = 1, a2 = 1)
 
   # Shape / keys: one row per mode, keyed on n, no pdb_site (modes aren't residues).

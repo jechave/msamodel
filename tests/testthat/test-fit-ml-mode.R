@@ -4,7 +4,7 @@
 # model is scientifically correct. The fit target is the SYNTHETIC znb_profile_n.
 
 test_that("fit_lrmsd_n_msa_ml returns the documented list shape", {
-  pp <- preprocess_spm_mode(znb_spm)
+  pp <- znb_spm
   ml <- fit_lrmsd_n_msa_ml(pp, znb_profile_n)
 
   expect_named(ml, c("a1", "a2", "logLik", "deviance", "null_deviance",
@@ -29,7 +29,7 @@ test_that("mode ML sits at a local max of its own objective (consistency)", {
   # independent correctness (the grid recomputes the same objective). WHERE the
   # optimum is, is pinned by the frozen-reference test below; THAT it is a max there,
   # is pinned here.
-  pp <- preprocess_spm_mode(znb_spm)
+  pp <- znb_spm
   ml <- fit_lrmsd_n_msa_ml(pp, znb_profile_n)
 
   a1g <- ml$a1 + c(-0.1, -0.05, 0, 0.05, 0.1)
@@ -45,7 +45,7 @@ test_that("fit_lrmsd_n_msa_ml matches frozen reference values", {
   # Frozen literals captured once from the current implementation (devtools state,
   # 2026-06-24) on the synthetic znb_profile_n. Catches drift in the mode fit math /
   # optimiser path, not a re-derivation.
-  pp <- preprocess_spm_mode(znb_spm)
+  pp <- znb_spm
   ml <- fit_lrmsd_n_msa_ml(pp, znb_profile_n)
 
   expect_equal(ml$a1,        0.449221, tolerance = 1e-4)
@@ -57,7 +57,7 @@ test_that("fit_lrmsd_n_msa_ml matches frozen reference values", {
 })
 
 test_that("fit_lrmsd_n_msa_ml validates box bounds and init (fail loud)", {
-  pp <- preprocess_spm_mode(znb_spm)
+  pp <- znb_spm
   expect_error(fit_lrmsd_n_msa_ml(pp, znb_profile_n, a1_range = c(5)),
                "a1_range must be a vector of length 2")
   expect_error(fit_lrmsd_n_msa_ml(pp, znb_profile_n, a1_range = c(10, 0)),
@@ -72,7 +72,7 @@ test_that("fit_lrmsd_n_msa_ml validates box bounds and init (fail loud)", {
 
 test_that("unknown mode index in observed_data is an error, not a silent drop", {
   # The n-coverage guard, mode analogue of the site pdb_site guard.
-  pp <- preprocess_spm_mode(znb_spm)
+  pp <- znb_spm
   bad <- znb_profile_n
   bad$n[1] <- 999999L
   expect_error(
@@ -85,7 +85,7 @@ test_that("unknown mode index in observed_data is an error, not a silent drop", 
 test_that("calculate_loglik_lrmsd_n_msa is invariant to a constant shift in lrmsd_n_obs", {
   # Both profiles are mean-centered, so adding a constant to the observed column
   # leaves the log-likelihood unchanged. Independent property, not a re-derivation.
-  pp <- preprocess_spm_mode(znb_spm)
+  pp <- znb_spm
   ll1 <- msamodel:::calculate_loglik_lrmsd_n_msa(pp, znb_profile_n, a1 = 2, a2 = 5)
   shifted <- znb_profile_n
   shifted$lrmsd_n_obs <- shifted$lrmsd_n_obs + 3.7
@@ -96,8 +96,8 @@ test_that("calculate_loglik_lrmsd_n_msa is invariant to a constant shift in lrms
 test_that("znb_profile_n is reproducible from its seeded recipe", {
   # Determinism guard (hard project rule): re-derive the synthetic fixture from its
   # data-raw recipe and compare to the embedded data, to machine precision.
-  ppm <- preprocess_spm_mode(znb_spm)
-  site_fit <- fit_lrmsd_i_msa_ml(preprocess_spm(znb_spm), znb_profile)
+  ppm <- znb_spm
+  site_fit <- fit_lrmsd_i_msa_ml(znb_spm, znb_profile)
   truth <- calculate_dr2_n_msa(ppm, site_fit$a1, site_fit$a2)
   set.seed(2025)
   expected_obs <- log(sqrt(truth$dr2_n)) + rnorm(nrow(truth), 0, 0.30)

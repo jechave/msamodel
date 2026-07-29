@@ -30,8 +30,8 @@ divergence to a site's structural environment.
 }
 \examples{
 \dontrun{
-pp <- preprocess_spm(znb_spm)
-prof <- calculate_dr2_i_msa(pp, a1 = 1, a2 = 1)
+spm <- generate_spm_data(znb_wt, seed = 1024)
+prof <- calculate_dr2_i_msa(spm, a1 = 1, a2 = 1)
 add_site_properties(prof, znb_wt, pdb_site_active = c(99, 101, 103, 162))
 }
 }

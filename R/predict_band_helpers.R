@@ -230,13 +230,13 @@ var_spm_nlrmsd_n_msa <- function(dr2_njm, weights) {
 #' the profile helpers own their `spm_hmat` call, but needs the fit parameters to build
 #' the MM/MS/MSA weights and returns three variances rather than one.
 #'
-#' @param spm_pp Preprocessed data from [preprocess_spm()] (provides `dr2_ijm`).
+#' @param spm The `spm` object from [generate_spm_data()] (provides `dr2_ijm`).
 #' @param a1 Stability selection strength (the fit's point estimate).
 #' @param a2 Activity selection strength (the fit's point estimate).
 #' @return A named list `mut`/`stab`/`act`, each a per-site numeric variance vector.
 #' @noRd
-var_spm_nphi_i_msa <- function(spm_pp, a1, a2) {
-  hmat_v <- function(A1, A2) spm_hmat(spm_pp$dr2_ijm, weights_jm_spm(spm_pp, A1, A2), centred = TRUE)
+var_spm_nphi_i_msa <- function(spm, a1, a2) {
+  hmat_v <- function(A1, A2) spm_hmat(spm$dr2_ijm, weights_jm_spm(spm, A1, A2), centred = TRUE)
   h_mm  <- hmat_v(0, 0); h_ms <- hmat_v(a1, 0); h_msa <- hmat_v(a1, a2)
   list(mut  = colSums(h_mm^2),               # nphi_mut  = nlrmsd_mm
        stab = colSums((h_ms  - h_mm)^2),     # nphi_stab = nlrmsd_ms  - nlrmsd_mm
@@ -248,13 +248,13 @@ var_spm_nphi_i_msa <- function(spm_pp, a1, a2) {
 #' Mode-form counterpart of `var_spm_nphi_i_msa()`: identical math on the per-mode
 #' divergence matrix `dr2_njm`.
 #'
-#' @param spm_pp_mode Preprocessed data from [preprocess_spm_mode()] (provides `dr2_njm`).
+#' @param spm The `spm` object from [generate_spm_data()] (provides `dr2_njm`).
 #' @param a1 Stability selection strength (the fit's point estimate).
 #' @param a2 Activity selection strength (the fit's point estimate).
 #' @return A named list `mut`/`stab`/`act`, each a per-mode numeric variance vector.
 #' @noRd
-var_spm_nphi_n_msa <- function(spm_pp_mode, a1, a2) {
-  hmat_v <- function(A1, A2) spm_hmat(spm_pp_mode$dr2_njm, weights_jm_spm(spm_pp_mode, A1, A2), centred = TRUE)
+var_spm_nphi_n_msa <- function(spm, a1, a2) {
+  hmat_v <- function(A1, A2) spm_hmat(spm$dr2_njm, weights_jm_spm(spm, A1, A2), centred = TRUE)
   h_mm  <- hmat_v(0, 0); h_ms <- hmat_v(a1, 0); h_msa <- hmat_v(a1, a2)
   list(mut  = colSums(h_mm^2),
        stab = colSums((h_ms  - h_mm)^2),

@@ -9,7 +9,7 @@
 #     regression the split fixes; guarded here with a negative control below.
 
 test_that("predict_*_ml fail loud on a fit missing the delta-method primitives", {
-  pp  <- preprocess_spm(znb_spm)
+  pp  <- znb_spm
   raw <- list(a1 = 1, a2 = 1)                 # no cov
   expect_error(predict_lrmsd_i_msa_ml(raw, pp), "2x2 cov")
   expect_error(predict_lrmsd_i_msa_ml(raw, pp), "fit_lrmsd_i_msa_ml")
@@ -17,7 +17,7 @@ test_that("predict_*_ml fail loud on a fit missing the delta-method primitives",
   bad_cov <- list(a1 = 1, a2 = 1, cov = matrix(0, 3, 3))   # wrong-shape cov
   expect_error(predict_nlrmsd_i_nested_models_ml(bad_cov, pp), "2x2 cov")
 
-  expect_error(predict_nlrmsd_n_msa_decomposition_ml(42, preprocess_spm_mode(znb_spm)),
+  expect_error(predict_nlrmsd_n_msa_decomposition_ml(42, znb_spm),
                "2x2 cov")
   # bad level on an otherwise-valid fit
   ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
@@ -25,9 +25,9 @@ test_that("predict_*_ml fail loud on a fit missing the delta-method primitives",
 })
 
 test_that("fitter -> predict_*_ml is wired on both axes (smoke)", {
-  pp  <- preprocess_spm(znb_spm)
+  pp  <- znb_spm
   ml  <- fit_lrmsd_i_msa_ml(pp, znb_profile)
-  ppm <- preprocess_spm_mode(znb_spm)
+  ppm <- znb_spm
   mln <- fit_lrmsd_n_msa_ml(ppm, znb_profile_n)
 
   bandcols <- function(prefix) as.vector(t(outer(prefix, c("_mean", "_lower", "_upper"), paste0)))
@@ -76,7 +76,7 @@ test_that("nlrmsd band uses the CENTRED gradient, not the lrmsd (raw) band", {
   # equal; that is the bug this guards against. Pinned to the PARAMETER arm: the
   # centred-vs-raw-gradient property is a statement about the parameter band (the SPM
   # arm has its own separate centring, tested in test-predict-uncertainty.R).
-  pp <- preprocess_spm(znb_spm)
+  pp <- znb_spm
   ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
   z  <- stats::qnorm(0.975)
 
@@ -114,7 +114,7 @@ test_that("MM's centred PARAMETER band is exactly zero-width (constant gradient)
   # uncertainty="parameter" -- under the default "both" MM's band is nonzero (its SPM
   # arm), which is tested in test-predict-uncertainty.R. Negative control: nlrmsd_i_msa
   # (the full model) has a nonzero parameter band, so a "0 == 0" tautology cannot pass.
-  pp <- preprocess_spm(znb_spm)
+  pp <- znb_spm
   ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
   nn <- predict_nlrmsd_i_nested_models_ml(ml, pp, uncertainty = "parameter")
 
