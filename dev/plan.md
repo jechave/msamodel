@@ -149,7 +149,7 @@ per-version detail is written when each version starts.
      swept in `calculate_decomposition_*`, which takes bare params). The three layers,
      one `@family` each (a layer is defined by its `@family` tag, not by living in a
      single file — the prediction layer spans two `R/` files):
-       - **model** (`@family model`, `R/model.R`) — input = bare `(a1, a2)` + `spm_pp`.
+       - **model** (`@family model`, `R/model.R`) — input = bare `(a1, a2)` + `spm`.
          `pfix_msa`, all `calculate_*` **including** `calculate_*_nested_models` and
          `calculate_decomposition_*`. These ARE the model, full stop — they take
          parameters, so they are model regardless of whether the *quantity* feels
@@ -175,9 +175,9 @@ per-version detail is written when each version starts.
      open-coded in 5 sites. Correct layering, separating three conflated concerns:
      - **`pfix_msa(ddg, ddgact, a1, a2)`** — *the MSA model*: per-mutant fixation
        probability `min(exp(−a1·ddg),1)·min(exp(−a2·ddgact),1)`. **Pure, vectorized
-       (scalar or vector), no `spm_pp`** — the primitive a trajectory simulator calls.
+       (scalar or vector), no `spm`** — the primitive a trajectory simulator calls.
        `@family model`.
-     - **`weights_jm_spm(spm_pp, a1, a2)`** — *the SPM ensemble's* averaging weights
+     - **`weights_jm_spm(spm, a1, a2)`** — *the SPM ensemble's* averaging weights
        (`pfix / sum(pfix)`). The normalization is **ensemble-specific**, NOT part of the
        model: a star-tree ensemble (v0.5) reweights the same `pfix` differently. Naming
        this seam (`git grep weights_jm_spm`) is what keeps the v0.5 tree from having to
@@ -239,14 +239,17 @@ Also in `tmp_src/archive/`, characterized but not yet read line-by-line:
 
 Three distinct stages, easy to conflate (don't):
 
-1. **SPM physics** — `generate_spm_data()`. The expensive part: ENM + mutation
-   scans via `penm`, producing the per-mutant `dr2` and ΔΔG columns. Computed
-   ONCE, independent of a1/a2. This is "the precomputation".
-2. **Reshaping** — `preprocess_spm()`. NOT a computation: filters `m=0`, sums two
-   pairs of energy columns into `ddg_jm`/`ddgact_jm`, pivots the `dr2`
-   list-column into a `[mutant × site]` matrix, builds the `i ↔ pdb_site`
-   `site_map`. Cheap, deterministic, also a1/a2-independent. Run once, reuse.
-3. **Reweighting** — `calculate_dr2i_msa()` (`R/msa_model_evaluation.R:12-26`).
+1. **SPM physics** — `generate_spm_core()` (`@noRd`). The expensive part: ENM +
+   mutation scans via `penm`, producing the per-mutant `dr2` and ΔΔG record.
+   Computed ONCE, independent of a1/a2. This is "the precomputation".
+2. **Reshaping** — the private `preprocess_spm()` / `preprocess_spm_mode()` helpers,
+   composed inside the public `generate_spm_data()`. NOT a computation: filters
+   `m=0`, sums the energy columns into `ddg_jm`/`ddgact_jm`, pivots the `dr2`
+   list-columns into `[mutant × site]` / `[mutant × mode]` matrices, builds the
+   `i ↔ pdb_site` `site_map`. Cheap, deterministic, a1/a2-independent. The public
+   `generate_spm_data()` returns the assembled `spm` object (stages 1+2 fused); no
+   separate preprocess call — see [[project_msamodel]].
+3. **Reweighting** — `calculate_dr2_i_msa()` / `calculate_dr2_n_msa()` (`R/model.R`).
    The ONLY place a1/a2 enter, via the per-mutant weights.
 
 Every divergence quantity in the archive is computed as

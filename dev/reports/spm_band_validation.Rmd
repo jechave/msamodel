@@ -120,7 +120,7 @@ take $\tfrac12\log$, centre, and difference (a **shared** draw across variants p
 the cross-model correlation for $\phi$). The band is the SD across $B$ replicates.
 
 ```{r compute}
-pp <- preprocess_spm(znb_spm); M <- pp$dr2_ijm
+pp <- znb_spm; M <- pp$dr2_ijm
 N  <- nrow(M); S <- ncol(M); ed <- pp$energy_data
 ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
 a1 <- ml$a1; a2 <- ml$a2

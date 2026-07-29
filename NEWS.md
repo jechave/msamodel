@@ -1,5 +1,16 @@
 # msamodel (development version)
 
+## API changes
+
+* **The single-point-mutation scan is now one object.** `generate_spm_data()` returns a
+  ready-to-use `spm` object — a list `{energy_data, dr2_ijm, dr2_njm, site_map}` carrying
+  both the per-residue and per-mode divergence — that every `calculate_*`, `fit_*`, and
+  `predict_*` function consumes directly. The separate `preprocess_spm()` /
+  `preprocess_spm_mode()` step is gone (both are now internal), and those functions'
+  arguments (`spm_pp`, `spm_pp_mode`) are replaced by a single `spm` argument throughout.
+  Migration: drop the `preprocess_spm(spm)` / `preprocess_spm_mode(spm)` call and pass the
+  `generate_spm_data()` result straight to the downstream functions.
+
 ## New features
 
 * **SPM sampling error in the prediction bands.** The `predict_*_ml` bands now combine

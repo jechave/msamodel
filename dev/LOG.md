@@ -12,6 +12,19 @@ One short entry per working session.
 The current state and what's next. Keep this current as slices finish; it is the
 one place the live state lives (no separate PROGRESS file as of 2026-06-26).
 
+- **SPM OBJECT UNIFIED + COMMITTED 2026-07-29 (`1898fd5`).** The three public SPM objects
+  (`generate_spm_data` tibble + `preprocess_spm` + `preprocess_spm_mode`) are collapsed into ONE
+  public object: `generate_spm_data()` now returns a classed `spm` list
+  `{energy_data, dr2_ijm, dr2_njm, site_map}`, assembled once. Old scan body → private
+  `generate_spm_core()` (`@noRd`, keeps raw `dr`); the two reshapers are private helpers the public
+  `generate_spm_data()` composes. All 31 consumers take `spm` (not `spm_pp`/`spm_pp_mode`). `znb_spm`
+  regenerated as the assembled object (~9 MB leaner); reshape value-preserving (cell-for-cell max
+  diff 0, negative control red). Dropped the `cat()` scan progress print. **All four vignettes taught
+  the fitted `predict_*` workflow** (closes the queued "update site/mode vignettes to predict_" item):
+  intro fits site data and reads BOTH axes from that one fit (`predict_nlrmsd_n_msa_ml(ml, spm)` from
+  a SITE fit); direct `calculate_nlrmsd_*` replace hand-rolled `log(sqrt())`/centring; outputs +
+  plot code shown; dev-history framing cut ([[feedback_no_dev_history_in_learner_docs]], and the
+  `/vignette-naive-review` skill was fixed to catch that class). `check()` 0E/1W/2N baseline.
 - **SPM ERROR ARM DONE + COMMITTED. Band-split, SPM-sampling arm, and the `var_spm` rename all
   landed.** The finite-mutation SPM sampling error is combined with the `(a1,a2)` parameter arm in
   every `predict_*_ml` band, selected by `uncertainty = c("both","spm","parameter","none")` (default
@@ -464,6 +477,41 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   unchanged: the **diff-rule** still decides whether the full `test()` runs — fire it
   before a code/data/roxygen commit; skip it for docs/vignette-only diffs.
 <!-- /NOW -->
+
+### 2026-07-29 — unify the three SPM objects into one `spm`; vignettes → `predict_*`
+
+Committed `1898fd5` (74 files). Started as a user question: was the site/mode axis
+symmetry treating `dr2_ijm` and `dr2_njm` as "100% equivalent reshapes of one matrix"?
+Investigated (self + Explore agent + Parseval check): NO bug — site (`dr2_i`, L2 over 3
+cartesian coords per residue) and mode (`dr2_n`, per-mode projection) are distinct
+reductions of the same 3N displacement (228 sites vs 678 modes; `sum_i dr2_i == sum_n
+dr2_n` per mutant to ~4e-14). The non-equivalence is correctly localized to generation;
+downstream math is legitimately per-column axis-agnostic.
+
+That review turned into a design cleanup the user asked for: collapse the THREE public
+SPM objects into ONE. `generate_spm_data()` now returns a classed `spm` list
+`{energy_data, dr2_ijm, dr2_njm, site_map}`. Old scan body → `generate_spm_core()`
+(`@noRd`, verbatim, keeps raw `dr` for a future cartesian/motion arm); `preprocess_spm`
+/ `preprocess_spm_mode` demoted to `@noRd` helpers the public wrapper composes. 31
+consumers swept `spm_pp`/`spm_pp_mode` → `spm`. `znb_spm` regenerated as the assembled
+object (24.8→15.5 MB). Value-preservation PROVEN cell-for-cell vs the old two-object
+output (max diff 0; negative control — permuted matrix — went red). Independent Opus
+review found the refactor correct + behavior-preserving; frozen literals/snapshots
+unchanged. Dropped the `cat("Processing site …")` scan progress print (+ unused
+`n_sites`) — it was cluttering the first vignette chunk (user caught via screenshot).
+
+Then a full vignette rewrite (grew past the original scope, user opted into "everything
+the naive reviews found"): all four teach the fitted `predict_*` workflow. The intro now
+fits SITE data and reads BOTH axes from that single fit —
+`predict_nlrmsd_n_msa_ml(ml, spm)` works from a site fit (verified) — no mode fit / no
+synthetic mode data needed. Direct `calculate_nlrmsd_*` / `calculate_lrmsd_*` forward
+maps replaced hand-rolled `log(sqrt())`/mean-centring; `calculate_*` outputs and plot
+code are now shown (fixes the `i`-vs-`pdb_site` key trap the site reviewer caught).
+Cut every dev-history/by-contrast-to-the-old-design sentence — a recurring clarity BUG
+I'm blind to as a package-follower ([[feedback_no_dev_history_in_learner_docs]]); the
+`/vignette-naive-review` skill was fixed (v2.1) because it PASSED that leak, then
+re-run to confirm it now catches it. `check()`: 0E/1W/2N (baseline). User approved the
+rendered vignettes.
 
 ### 2026-07-28 — drop the `dr2` matrix colname leak
 
