@@ -2,6 +2,199 @@
 # Maximises the profiled Gaussian log-likelihood (calculate_loglik_lrmsd_i_msa) over
 # (a1, log2(a2+1)) and returns a point estimate plus an asymptotic covariance.
 
+# ---- axis-blind fitting core ------------------------------------------------------
+# The site (i, keyed to pdb_site via site_map) and mode (n, keyed directly) fits are the
+# same machinery on a resolved (index, obs) pair. These cores hold that shared machinery;
+# they receive ALREADY-RESOLVED, ALREADY-VALIDATED predictions and observations (both bare
+# two-column tibbles keyed by the same integer index column named `idx`), so they carry no
+# notion of site vs mode, no site_map, and no unknown-key check -- those stay in the
+# exported wrappers (the wrapper owns key resolution + its own unknown-key error).
+
+#' Match a resolved prediction/observation pair and mean-centre both
+#'
+#' Inner-joins predictions to observations on the shared integer key `idx`, then centres
+#' each over the MATCHED support (its own mean over the joined rows). Axis-blind: the
+#' caller has already resolved any label->index mapping and named both value columns
+#' generically. The matched-set centring is the fit's centring domain (distinct from the
+#' full-support centring of the calculate_nlrmsd_* forward maps).
+#'
+#' @param predictions Tibble `(idx, pred)`: model lrmsd keyed by the internal index.
+#' @param obs Tibble `(idx, obs)`: observed lrmsd keyed by the same index.
+#' @return A tibble of the matched rows with `obs`, `pred`, and their centred forms
+#'   `obs_c`, `pred_c` (residuals = `obs_c - pred_c`).
+#' @noRd
+match_lrmsd_obs_pred <- function(predictions, obs) {
+  obs %>%
+    inner_join(predictions, by = "idx") %>%
+    mutate(obs_c = obs - mean(obs), pred_c = pred - mean(pred))
+}
+
+#' Axis-blind profiled Gaussian log-likelihood from a resolved (pred, obs) pair
+#'
+#' The shared core of `calculate_loglik_lrmsd_{i,n}_msa()`: mean-centre matched model and
+#' observations, compare under a Gaussian whose scale is profiled out
+#' (`sigma = sqrt(mean(r^2))`). Receives resolved, validated frames; performs no key
+#' resolution or unknown-key check.
+#'
+#' @param predictions Tibble `(idx, pred)`.
+#' @param obs Tibble `(idx, obs)`.
+#' @return A single numeric log-likelihood.
+#' @noRd
+loglik_lrmsd_msa_core <- function(predictions, obs) {
+  cmp <- match_lrmsd_obs_pred(predictions, obs)
+  residuals <- cmp$obs_c - cmp$pred_c
+  sigma <- sqrt(mean(residuals^2))
+  sum(dnorm(residuals, 0, sigma, log = TRUE))
+}
+
+#' Axis-blind goodness-of-fit primitives from a resolved (pred, obs) pair
+#'
+#' The shared sigma/deviance block of `fit_lrmsd_{i,n}_msa_ml()`: matched residuals, the
+#' profiled noise scale, residual deviance, and the flat-null deviance. Axis-blind.
+#'
+#' @param predictions Tibble `(idx, pred)` at the fit's point estimate.
+#' @param obs Tibble `(idx, obs)`.
+#' @return A list `sigma_hat`, `deviance`, `null_deviance`, `nobs`.
+#' @noRd
+fit_gof_primitives <- function(predictions, obs) {
+  cmp <- match_lrmsd_obs_pred(predictions, obs)
+  residuals <- cmp$obs_c - cmp$pred_c
+  list(
+    sigma_hat     = sqrt(mean(residuals^2)),
+    deviance      = sum(residuals^2),
+    null_deviance = calculate_null_deviance(cmp$obs),
+    nobs          = length(residuals)
+  )
+}
+
+#' Axis-blind ML optimisation + asymptotic covariance
+#'
+#' The shared machinery of `fit_lrmsd_{i,n}_msa_ml()`: validate the box, build the
+#' grid-max start, optimise the supplied negative log-likelihood in `(a1, log2(a2+1))`
+#' coordinates, form the asymptotic covariance from the Hessian, and assemble the return
+#' list. The axis-specific likelihood and goodness-of-fit are injected as closures.
+#'
+#' @param nll Negative profiled log-likelihood, a function of `theta = c(a1, log2(a2+1))`.
+#' @param gof_fn A function of `(a1_hat, a2_hat)` returning the `fit_gof_primitives()` list
+#'   at the optimum.
+#' @param a1_range,log2_a2_plus1_range,init,grid_n The box + start controls (see the
+#'   exported fits).
+#' @return The fit list (a1, a2, logLik, deviance, null_deviance, nobs, k, sigma_hat, cov,
+#'   se_a1, se_a2, convergence).
+#' @noRd
+fit_lrmsd_msa_ml_core <- function(nll, gof_fn,
+                                  a1_range, log2_a2_plus1_range,
+                                  init, grid_n) {
+  if (length(a1_range) != 2 || a1_range[1] >= a1_range[2]) {
+    stop("a1_range must be a vector of length 2 with min < max")
+  }
+  if (length(log2_a2_plus1_range) != 2 ||
+      log2_a2_plus1_range[1] >= log2_a2_plus1_range[2]) {
+    stop("log2_a2_plus1_range must be a vector of length 2 with min < max")
+  }
+
+  lower <- c(a1_range[1], log2_a2_plus1_range[1])
+  upper <- c(a1_range[2], log2_a2_plus1_range[2])
+
+  if (is.null(init)) {
+    a1_grid <- seq(lower[1], upper[1], length.out = grid_n)
+    b_grid  <- seq(lower[2], upper[2], length.out = grid_n)
+    grid    <- expand.grid(a1 = a1_grid, b = b_grid)
+    ll      <- apply(grid, 1L, function(row) -nll(c(row[["a1"]], row[["b"]])))
+    init    <- as.numeric(grid[which.max(ll), c("a1", "b")])
+  } else {
+    if (length(init) != 2) stop("init must be a length-2 numeric c(a1, log2(a2+1))")
+    if (init[1] < lower[1] || init[1] > upper[1] ||
+        init[2] < lower[2] || init[2] > upper[2]) {
+      stop("init must lie within the box [a1_range] x [log2_a2_plus1_range]")
+    }
+  }
+
+  opt <- optim(init, nll, method = "L-BFGS-B", lower = lower, upper = upper)
+
+  par_fit <- opt$par
+  a1_hat  <- par_fit[1]
+  b_hat   <- par_fit[2]
+  a2_hat  <- 2^b_hat - 1
+
+  H <- optimHess(par_fit, nll)
+  cov <- tryCatch(solve(H), error = function(e) NULL)
+  if (is.null(cov) || any(!is.finite(cov)) || any(diag(cov) <= 0)) {
+    stop("Hessian at the ML optimum is singular or not positive-definite; ",
+         "cannot form the asymptotic covariance. The likelihood may be flat in ",
+         "one direction (e.g. a parameter pinned at a box bound).")
+  }
+  se <- sqrt(diag(cov))
+  se_a1 <- se[1]
+  se_b  <- se[2]
+  se_a2 <- abs(2^b_hat * log(2)) * se_b   # delta: a2 = 2^b - 1, da2/db = 2^b * ln 2
+
+  gof <- gof_fn(a1_hat, a2_hat)
+
+  list(
+    a1            = unname(a1_hat),
+    a2            = unname(a2_hat),
+    logLik        = -opt$value,
+    deviance      = gof$deviance,
+    null_deviance = gof$null_deviance,
+    nobs          = gof$nobs,
+    k             = 3L,
+    sigma_hat     = gof$sigma_hat,
+    cov           = cov,
+    se_a1         = unname(se_a1),
+    se_a2         = unname(se_a2),
+    convergence   = opt$convergence
+  )
+}
+
+# ---- axis-specific observation resolvers (the ONLY axis-aware boundary logic) ------
+# Each turns the user's observed_data into the canonical (idx, obs) frame the cores
+# consume, and owns its axis's unknown-key error. SITE: pdb_site -> internal index i via
+# site_map. MODE: n is the index directly (no map). These are the sole locus of the
+# site/mode asymmetry in fitting.
+
+#' Resolve site observations (pdb_site) to the internal index (site boundary)
+#'
+#' Translates user `pdb_site` labels to the model-internal site index `i` via
+#' `spm$site_map`, erroring on any `pdb_site` not present in the model. Returns the
+#' canonical `(idx, obs)` frame the fitting cores consume.
+#'
+#' @param spm The `spm` object (its `site_map` keys pdb_site -> i).
+#' @param observed_data Tibble with `pdb_site` and `lrmsd_i_obs`.
+#' @return A tibble `(idx, obs)`.
+#' @noRd
+resolve_site_obs <- function(spm, observed_data) {
+  observations <- observed_data %>% dplyr::select(pdb_site, lrmsd_i_obs)
+  unknown <- setdiff(observations$pdb_site, spm$site_map$pdb_site)
+  if (length(unknown) > 0) {
+    stop("observed_data has pdb_site value(s) not present in the model: ",
+         paste(unknown, collapse = ", "))
+  }
+  observations %>%
+    inner_join(spm$site_map, by = "pdb_site") %>%
+    dplyr::transmute(idx = i, obs = lrmsd_i_obs)
+}
+
+#' Resolve mode observations (n) to the internal index (mode boundary)
+#'
+#' Modes are not structure-anchored: the mode index `n` IS the internal index. Errors on
+#' any observed `n` not present in the model's predictions. Returns the canonical
+#' `(idx, obs)` frame.
+#'
+#' @param predictions The mode predictions tibble carrying `n` (the valid index set).
+#' @param observed_data Tibble with `n` and `lrmsd_n_obs`.
+#' @return A tibble `(idx, obs)`.
+#' @noRd
+resolve_mode_obs <- function(predictions, observed_data) {
+  observations <- observed_data %>% dplyr::select(n, lrmsd_n_obs)
+  unknown <- setdiff(observations$n, predictions$n)
+  if (length(unknown) > 0) {
+    stop("observed_data has mode index(es) not present in the model: ",
+         paste(unknown, collapse = ", "))
+  }
+  observations %>% dplyr::transmute(idx = n, obs = lrmsd_n_obs)
+}
+
 #' Maximum-likelihood point fit of the lrmsd_i MSA model
 #'
 #' Maximises the profiled Gaussian log-likelihood (`calculate_loglik_lrmsd_i_msa()`)
@@ -60,98 +253,20 @@ fit_lrmsd_i_msa_ml <- function(spm,
                        log2_a2_plus1_range = c(0, 13),
                        init = NULL,
                        grid_n = 25) {
-  # Validate box bounds -- fail loud.
-  if (length(a1_range) != 2 || a1_range[1] >= a1_range[2]) {
-    stop("a1_range must be a vector of length 2 with min < max")
-  }
-  if (length(log2_a2_plus1_range) != 2 ||
-      log2_a2_plus1_range[1] >= log2_a2_plus1_range[2]) {
-    stop("log2_a2_plus1_range must be a vector of length 2 with min < max")
-  }
-
-  lower <- c(a1_range[1], log2_a2_plus1_range[1])
-  upper <- c(a1_range[2], log2_a2_plus1_range[2])
-
-  # Negative profiled log-likelihood in (a1, b) coordinates, b = log2(a2 + 1).
-  # calculate_loglik_lrmsd_i_msa already mean-centers both profiles, so this IS the
-  # shared objective (no separate centering here).
+  # Site boundary: the nll and the sigma/GoF block both resolve observations pdb_site -> i
+  # via site_map (with the site-axis unknown-key error). The axis-blind core owns the
+  # optimisation, covariance, and return assembly.
   nll <- function(theta) {
     -calculate_loglik_lrmsd_i_msa(spm, observed_data,
                           a1 = theta[1], a2 = 2^theta[2] - 1)
   }
-
-  # Start: caller-supplied, else a deterministic coarse grid-max over the box.
-  if (is.null(init)) {
-    a1_grid <- seq(lower[1], upper[1], length.out = grid_n)
-    b_grid  <- seq(lower[2], upper[2], length.out = grid_n)
-    grid    <- expand.grid(a1 = a1_grid, b = b_grid)
-    ll      <- apply(grid, 1L, function(row) -nll(c(row[["a1"]], row[["b"]])))
-    init    <- as.numeric(grid[which.max(ll), c("a1", "b")])
-  } else {
-    if (length(init) != 2) stop("init must be a length-2 numeric c(a1, log2(a2+1))")
-    if (init[1] < lower[1] || init[1] > upper[1] ||
-        init[2] < lower[2] || init[2] > upper[2]) {
-      stop("init must lie within the box [a1_range] x [log2_a2_plus1_range]")
-    }
+  gof_fn <- function(a1_hat, a2_hat) {
+    obs  <- resolve_site_obs(spm, observed_data)
+    pred <- calculate_lrmsd_i_msa(spm, a1_hat, a2_hat) %>%
+      dplyr::transmute(idx = i, pred = lrmsd_i_msa)
+    fit_gof_primitives(pred, obs)
   }
-
-  opt <- optim(init, nll, method = "L-BFGS-B", lower = lower, upper = upper)
-
-  par_fit <- opt$par
-  a1_hat  <- par_fit[1]
-  b_hat   <- par_fit[2]
-  a2_hat  <- 2^b_hat - 1
-
-  # Asymptotic covariance from the Hessian of the NLL at the optimum.
-  H <- optimHess(par_fit, nll)
-  cov <- tryCatch(solve(H), error = function(e) NULL)
-  if (is.null(cov) || any(!is.finite(cov)) || any(diag(cov) <= 0)) {
-    stop("Hessian at the ML optimum is singular or not positive-definite; ",
-         "cannot form the asymptotic covariance. The likelihood may be flat in ",
-         "one direction (e.g. a parameter pinned at a box bound).")
-  }
-  se <- sqrt(diag(cov))
-  se_a1 <- se[1]
-  se_b  <- se[2]
-  # Delta method: a2 = 2^b - 1, da2/db = 2^b * ln 2.
-  se_a2 <- abs(2^b_hat * log(2)) * se_b
-
-  # Profiled noise scale at the optimum (same formula the likelihood uses).
-  pred <- calculate_lrmsd_i_msa(spm, a1_hat, a2_hat)
-  obs <- observed_data %>%
-    dplyr::select(pdb_site, lrmsd_i_obs) %>%
-    inner_join(spm$site_map, by = "pdb_site") %>%
-    dplyr::select(i, lrmsd_i_obs)
-  cmp <- obs %>%
-    inner_join(pred, by = "i") %>%
-    mutate(
-      nlrmsd_i_obs = lrmsd_i_obs - mean(lrmsd_i_obs),
-      nlrmsd_i_msa = lrmsd_i_msa - mean(lrmsd_i_msa)
-    )
-  residuals <- cmp$nlrmsd_i_obs - cmp$nlrmsd_i_msa
-  sigma_hat <- sqrt(mean(residuals^2))
-
-  # Goodness-of-fit primitives (flat/mean-only null; k counts sigma). D^2/AIC/BIC are
-  # derived from these by gof_lrmsd_i_msa_ml(). deviance = sum(resid^2) (= glm's
-  # residual deviance for a Gaussian, = nobs * sigma_hat^2); null_deviance vs a
-  # constant profile.
-  deviance      <- sum(residuals^2)
-  null_deviance <- calculate_null_deviance(cmp$lrmsd_i_obs)
-
-  list(
-    a1            = unname(a1_hat),
-    a2            = unname(a2_hat),
-    logLik        = -opt$value,
-    deviance      = deviance,
-    null_deviance = null_deviance,
-    nobs          = length(residuals),
-    k             = 3L,
-    sigma_hat     = sigma_hat,
-    cov           = cov,
-    se_a1         = unname(se_a1),
-    se_a2         = unname(se_a2),
-    convergence   = opt$convergence
-  )
+  fit_lrmsd_msa_ml_core(nll, gof_fn, a1_range, log2_a2_plus1_range, init, grid_n)
 }
 
 #' Maximum-likelihood point fit of the lrmsd_n MSA model (mode form)
@@ -215,94 +330,18 @@ fit_lrmsd_n_msa_ml <- function(spm,
                        log2_a2_plus1_range = c(0, 13),
                        init = NULL,
                        grid_n = 25) {
-  # Validate box bounds (same contract as fit_lrmsd_i_msa_ml) -- fail loud.
-  if (length(a1_range) != 2 || a1_range[1] >= a1_range[2]) {
-    stop("a1_range must be a vector of length 2 with min < max")
-  }
-  if (length(log2_a2_plus1_range) != 2 ||
-      log2_a2_plus1_range[1] >= log2_a2_plus1_range[2]) {
-    stop("log2_a2_plus1_range must be a vector of length 2 with min < max")
-  }
-
-  lower <- c(a1_range[1], log2_a2_plus1_range[1])
-  upper <- c(a1_range[2], log2_a2_plus1_range[2])
-
-  # Negative profiled log-likelihood in (a1, b) coordinates, b = log2(a2 + 1).
+  # Mode boundary: n is the internal index directly (no site_map). Same axis-blind core;
+  # the mode unknown-key check is on n, done inside resolve_mode_obs.
   nll <- function(theta) {
     -calculate_loglik_lrmsd_n_msa(spm, observed_data,
                           a1 = theta[1], a2 = 2^theta[2] - 1)
   }
-
-  # Start: caller-supplied, else a deterministic coarse grid-max over the box.
-  if (is.null(init)) {
-    a1_grid <- seq(lower[1], upper[1], length.out = grid_n)
-    b_grid  <- seq(lower[2], upper[2], length.out = grid_n)
-    grid    <- expand.grid(a1 = a1_grid, b = b_grid)
-    ll      <- apply(grid, 1L, function(row) -nll(c(row[["a1"]], row[["b"]])))
-    init    <- as.numeric(grid[which.max(ll), c("a1", "b")])
-  } else {
-    if (length(init) != 2) stop("init must be a length-2 numeric c(a1, log2(a2+1))")
-    if (init[1] < lower[1] || init[1] > upper[1] ||
-        init[2] < lower[2] || init[2] > upper[2]) {
-      stop("init must lie within the box [a1_range] x [log2_a2_plus1_range]")
-    }
+  gof_fn <- function(a1_hat, a2_hat) {
+    pred <- calculate_lrmsd_n_msa(spm, a1_hat, a2_hat)
+    obs  <- resolve_mode_obs(pred, observed_data)
+    fit_gof_primitives(dplyr::transmute(pred, idx = n, pred = lrmsd_n_msa), obs)
   }
-
-  opt <- optim(init, nll, method = "L-BFGS-B", lower = lower, upper = upper)
-
-  par_fit <- opt$par
-  a1_hat  <- par_fit[1]
-  b_hat   <- par_fit[2]
-  a2_hat  <- 2^b_hat - 1
-
-  # Asymptotic covariance from the Hessian of the NLL at the optimum.
-  H <- optimHess(par_fit, nll)
-  cov <- tryCatch(solve(H), error = function(e) NULL)
-  if (is.null(cov) || any(!is.finite(cov)) || any(diag(cov) <= 0)) {
-    stop("Hessian at the ML optimum is singular or not positive-definite; ",
-         "cannot form the asymptotic covariance. The likelihood may be flat in ",
-         "one direction (e.g. a parameter pinned at a box bound).")
-  }
-  se <- sqrt(diag(cov))
-  se_a1 <- se[1]
-  se_b  <- se[2]
-  # Delta method: a2 = 2^b - 1, da2/db = 2^b * ln 2.
-  se_a2 <- abs(2^b_hat * log(2)) * se_b
-
-  # Profiled noise scale at the optimum (mode form: join on n, no site_map).
-  pred <- calculate_lrmsd_n_msa(spm, a1_hat, a2_hat)
-  obs <- observed_data %>%
-    dplyr::select(n, lrmsd_n_obs)
-  cmp <- obs %>%
-    inner_join(pred, by = "n") %>%
-    mutate(
-      nlrmsd_n_obs = lrmsd_n_obs - mean(lrmsd_n_obs),
-      nlrmsd_n_msa = lrmsd_n_msa - mean(lrmsd_n_msa)
-    )
-  residuals <- cmp$nlrmsd_n_obs - cmp$nlrmsd_n_msa
-  sigma_hat <- sqrt(mean(residuals^2))
-
-  # Goodness-of-fit primitives (flat/mean-only null; k counts sigma). D^2/AIC/BIC are
-  # derived from these by gof_lrmsd_n_msa_ml(). deviance = sum(resid^2) (= glm's
-  # residual deviance for a Gaussian, = nobs * sigma_hat^2); null_deviance vs a
-  # constant profile.
-  deviance      <- sum(residuals^2)
-  null_deviance <- calculate_null_deviance(cmp$lrmsd_n_obs)
-
-  list(
-    a1            = unname(a1_hat),
-    a2            = unname(a2_hat),
-    logLik        = -opt$value,
-    deviance      = deviance,
-    null_deviance = null_deviance,
-    nobs          = length(residuals),
-    k             = 3L,
-    sigma_hat     = sigma_hat,
-    cov           = cov,
-    se_a1         = unname(se_a1),
-    se_a2         = unname(se_a2),
-    convergence   = opt$convergence
-  )
+  fit_lrmsd_msa_ml_core(nll, gof_fn, a1_range, log2_a2_plus1_range, init, grid_n)
 }
 
 #' Flat/mean-only null deviance of an observed profile
@@ -344,48 +383,12 @@ calculate_null_deviance <- function(y) {
 #' @return A single numeric log-likelihood.
 #' @noRd
 calculate_loglik_lrmsd_i_msa <- function(spm, observed_data, a1, a2) {
-
-  # Generate model predictions (keyed by the internal response-site index i)
-  predictions <- calculate_lrmsd_i_msa(spm, a1, a2)
-
-  # Translate user-supplied pdb_site to the internal index i via the model's
-  # site_map. pdb_site is the structure-anchored key; i is model-internal.
-  site_map <- spm$site_map
-  observations <- observed_data %>%
-    dplyr::select(pdb_site, lrmsd_i_obs)
-
-  unknown <- setdiff(observations$pdb_site, site_map$pdb_site)
-  if (length(unknown) > 0) {
-    stop("observed_data has pdb_site value(s) not present in the model: ",
-         paste(unknown, collapse = ", "))
-  }
-
-  observations <- observations %>%
-    inner_join(site_map, by = "pdb_site") %>%
-    dplyr::select(i, lrmsd_i_obs)
-
-  # Match predictions with observations
-  comparison <- observations %>%
-    inner_join(predictions, by = "i") %>%
-    mutate(
-      nlrmsd_i_obs = lrmsd_i_obs - mean(lrmsd_i_obs),
-      nlrmsd_i_msa = lrmsd_i_msa - mean(lrmsd_i_msa)
-    )
-
-  # Calculate residuals
-  residuals <- comparison$nlrmsd_i_obs - comparison$nlrmsd_i_msa
-
-  # Estimate sigma from residuals. sigma is profiled out at each (a1, a2): the
-  # value below is the closed-form ML estimate for r_i ~ N(0, sigma^2), namely
-  # sqrt(mean(r^2)) (divisor n). (Previously sd(residuals), divisor n-1, which is
-  # not the profile MLE; the (a1, a2) argmax is unchanged but sigma-derived
-  # quantities — logLik, SEs — were slightly off.)
-  sigma <- sqrt(mean(residuals^2))
-
-  # Calculate log-likelihood using residuals
-  log_lik <- sum(dnorm(residuals, 0, sigma, log = TRUE))
-
-  return(log_lik)
+  # Resolve user pdb_site -> internal site index i (site-only, at the boundary), with the
+  # site-axis unknown-key check; then hand canonical (idx, obs)/(idx, pred) to the core.
+  obs         <- resolve_site_obs(spm, observed_data)             # tibble(idx, obs)
+  predictions <- calculate_lrmsd_i_msa(spm, a1, a2) %>%
+    dplyr::transmute(idx = i, pred = lrmsd_i_msa)
+  loglik_lrmsd_msa_core(predictions, obs)
 }
 
 #' Profiled Gaussian log-likelihood of a per-mode divergence profile
@@ -401,36 +404,9 @@ calculate_loglik_lrmsd_i_msa <- function(spm, observed_data, a1, a2) {
 #' @return A single numeric log-likelihood.
 #' @noRd
 calculate_loglik_lrmsd_n_msa <- function(spm, observed_data, a1, a2) {
-
-  # Generate model predictions (keyed by the response-mode index n)
+  # Mode index n is the internal index directly (no site_map); resolve + unknown-key check
+  # at the boundary, then hand canonical frames to the axis-blind core.
   predictions <- calculate_lrmsd_n_msa(spm, a1, a2)
-
-  # Modes are not structure-anchored: n is the model index directly (no site_map).
-  observations <- observed_data %>%
-    dplyr::select(n, lrmsd_n_obs)
-
-  unknown <- setdiff(observations$n, predictions$n)
-  if (length(unknown) > 0) {
-    stop("observed_data has mode index(es) not present in the model: ",
-         paste(unknown, collapse = ", "))
-  }
-
-  # Match predictions with observations
-  comparison <- observations %>%
-    inner_join(predictions, by = "n") %>%
-    mutate(
-      nlrmsd_n_obs = lrmsd_n_obs - mean(lrmsd_n_obs),
-      nlrmsd_n_msa = lrmsd_n_msa - mean(lrmsd_n_msa)
-    )
-
-  # Calculate residuals
-  residuals <- comparison$nlrmsd_n_obs - comparison$nlrmsd_n_msa
-
-  # Profiled-out sigma: closed-form ML estimate sqrt(mean(r^2)) (divisor n), same
-  # as the site form (see calculate_loglik_lrmsd_i_msa).
-  sigma <- sqrt(mean(residuals^2))
-
-  log_lik <- sum(dnorm(residuals, 0, sigma, log = TRUE))
-
-  return(log_lik)
+  obs         <- resolve_mode_obs(predictions, observed_data)     # tibble(idx, obs)
+  loglik_lrmsd_msa_core(dplyr::transmute(predictions, idx = n, pred = lrmsd_n_msa), obs)
 }
