@@ -27,5 +27,6 @@ utils::globalVariables(c(
   "nlrmsd_i_msa", "nlrmsd_i_obs", "nlrmsd_n_msa", "nlrmsd_n_obs",
   "parameter", "pdb_site",
   "phi_act", "phi_mut", "phi_stab", "sample_id",
+  "idx", "obs", "pred",
   "upper", "value", "variable"
 ))

@@ -12,17 +12,28 @@ One short entry per working session.
 The current state and what's next. Keep this current as slices finish; it is the
 one place the live state lives (no separate PROGRESS file as of 2026-06-26).
 
-- **QUEUED (planned + APPROVED 2026-07-29, not yet started):** axis-independent internal
-  primitives — collapse the ~14 duplicated `_i_`/`_n_` template bodies onto shared
-  axis-blind primitives (`dr2_msa`, `lrmsd_msa`, … taking a bare `dr2_mat` + `energy_data`;
-  bare unnamed vectors out, tibbles only at the exported boundary; the `site_map` label
-  isolated to the boundary). Implementation-only: all 28 exports keep names/signatures/
-  tibble returns, numbers-identical bar. New `weights_jm(energy_data,a1,a2)` primitive
-  (both fix a `weights_jm_spm` signature clash). Band-machinery rename stays a SEPARATE
-  deferred item. All 4 vignettes re-knit + user HTML review before commit. Full hardened
-  plan (2 Opus-4.8 reviewers folded in): `~/.claude/plans/i-want-to-chat-cheerful-wigderson.md`.
-  **PAUSED pending Claude platform stability** (elevated model errors across 2026-07-29/30;
-  status page showed a partial Claude Code outage on 2026-07-30).
+- **AXIS-INDEPENDENT PRIMITIVES — DONE 2026-07-30 (4 commits `0f90365`/`7e44fd8`/`b70db58`/`0bedc3d`).**
+  The site/mode duplication is collapsed onto axis-blind internal primitives; all 28 exports
+  keep names/signatures/tibble returns (implementation-only), byte-identical output. Layers:
+  - `R/model.R`: 7 forward-map primitives (`dr2_msa`, `lrmsd_msa`, `nlrmsd_msa`,
+    `lrmsd_nested_models`, `nlrmsd_nested_models`, `lrmsd_msa_decomposition`,
+    `nlrmsd_msa_decomposition`) + `weights_jm(energy_data,a1,a2)` (`weights_jm_spm` now its
+    one-line skin). All 14 model skins call them.
+  - `R/predict_band_helpers.R`: the 3 `var_spm_*` `_i`/`_n` pairs unified into
+    `var_spm_lrmsd`/`var_spm_nlrmsd`/`var_spm_nphi`; 10 call sites rewired in `predict.R`.
+  - `R/fitting.R`: axis-blind `fit_lrmsd_msa_ml_core`/`loglik_lrmsd_msa_core`/
+    `fit_gof_primitives`/`match_lrmsd_obs_pred`; the site/mode asymmetry isolated to
+    `resolve_site_obs`/`resolve_mode_obs` (each owns its unknown-key error).
+  Primitives take a bare `dr2_mat` (`dr2_ijm`/`dr2_njm`) + `energy_data`, return plain
+  vectors in column order — NO `unname()` (fail-loud: matrices are nameless by construction).
+  Verified: numbers-identical oracle 33/33 (max diff 0, negative-control-proven; scratchpad
+  `oracle.R`); full suite 194P/0F/2skip each commit; NAMESPACE unchanged; per-axis unknown-key
+  errors re-checked; all 4 vignettes re-knit BYTE-IDENTICAL + user-approved HTML;
+  `check()` 0E/1W/2N. **DEFERRED (separate items):** the terse band-machinery rename
+  (`spm_hmat`/`grad_t`/…) + PDF notation; and the export rename
+  `calculate_decomposition_{i,n}_msa` → `calculate_lrmsd_{i,n}_msa_decomposition` (a public-API
+  change; the internal primitive is already `lrmsd_msa_decomposition`). Plan:
+  `~/.claude/plans/i-want-to-chat-cheerful-wigderson.md`.
 
 - **SPM OBJECT UNIFIED + COMMITTED 2026-07-29 (`1898fd5`).** The three public SPM objects
   (`generate_spm_data` tibble + `preprocess_spm` + `preprocess_spm_mode`) are collapsed into ONE
@@ -489,6 +500,39 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   unchanged: the **diff-rule** still decides whether the full `test()` runs — fire it
   before a code/data/roxygen commit; skip it for docs/vignette-only diffs.
 <!-- /NOW -->
+
+### 2026-07-30 — axis-independent internal primitives (site/mode unification)
+
+Committed `0f90365` (model), `7e44fd8` (predict-variance), `b70db58` (fitting),
+`0bedc3d` (unname-fix + doc scrub). Started as a user design question: the site (`_i_`)
+and mode (`_n_`) function pairs looked ~90% identical, differing only in which
+response-mutation matrix they consume. Three Explore agents (Opus 4.8) confirmed it: no
+divergent math, reshaping, reduction, or mode-count logic anywhere — the ONLY genuine
+axis-specific behaviour is the response-index↔observation-label map (`site_map`/`pdb_site`
+for sites, none for modes), and it lives purely at the observation boundary, never in the
+numeric core. So the interior collapses onto shared axis-blind primitives.
+
+Design decided with the user across an extended plan-mode dialogue (2 Opus-4.8 reviewers
+hardened the plan): primitives take a bare `dr2_mat` + `energy_data` and return plain
+vectors/lists (tibbles only at the exported boundary — the package was "too tibbly"); NO
+index in the primitives (the index is a boundary labelling act); bare-quantity names
+(`dr2_msa`, `lrmsd_msa`, …, `lrmsd_msa_decomposition` — named correctly even though its
+export `calculate_decomposition_i_msa` is a known naming wart deferred to a later item);
+`dr2_mat` (underscore, matching `spm_hmat`); a new `weights_jm(energy_data,a1,a2)` pure
+primitive (resolves a `weights_jm_spm(spm,…)` signature clash — it now a one-line skin).
+
+Implementation-only: all 28 exports keep names/signatures/tibble returns, verified
+byte-identical by a scratchpad numbers-identical oracle (33/33, max cell diff 0,
+negative-control-proven) after each of the 3 code commits; full suite 194P/0F/2skip;
+NAMESPACE unchanged; per-axis unknown-key error contract re-verified; all 4 vignettes
+re-knit BYTE-IDENTICAL and user-approved; `check()` 0E/1W/2N.
+
+The 4th commit (`0bedc3d`) is a user-caught correction: I'd added a defensive
+`unname(colSums(...))` in `dr2_msa` — a no-op (matrices nameless by construction) that
+also violated fail-loud (silently swallowing an unexpected name). Removed. Same commit
+scrubbed dev-history residue from the roxygen I'd added ("bare/unnamed" qualifiers, "pure
+core of X which is now a skin") — extended [[feedback_no_dev_history_in_learner_docs]] to
+cover roxygen. DEFERRED: band-machinery terse rename; the decomposition export rename.
 
 ### 2026-07-29 — unify the three SPM objects into one `spm`; vignettes → `predict_*`
 
