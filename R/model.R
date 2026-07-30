@@ -43,6 +43,142 @@ pfix_msa <- function(ddg, ddgact, a1, a2) {
   pstab * pact
 }
 
+# ---- axis-blind forward-map primitives (internal) ---------------------------------
+# The site (_i_/dr2_ijm) and mode (_n_/dr2_njm) forward maps are the same math on a
+# different response-mutation matrix. These primitives hold that shared math: they take
+# a bare [mutant x response] matrix `dr2_mat` (either dr2_ijm or dr2_njm) plus the
+# `energy_data` tibble, and return BARE UNNAMED vectors (or a named list of bare vectors)
+# in matrix-column order -- no index, no tibble, no site_map. The exported calculate_*_i/n
+# skins below attach the axis index (and, site only, the pdb_site label) at the boundary.
+
+#' SPM-ensemble averaging weights from an energy table (axis-agnostic)
+#'
+#' The pure core of [weights_jm_spm()]: turns the per-mutant fixation probabilities of the
+#' MSA model into the normalised averaging weights `weights_jm = pfix_jm / sum(pfix_jm)`,
+#' one per mutant `(j, m)`, summing to one. Takes the bare `energy_data` tibble (not the
+#' `spm` object) so every axis-blind forward-map primitive can build weights without the
+#' object; `weights_jm_spm(spm, ...)` is the one-line public skin `weights_jm(spm$energy_data, ...)`.
+#'
+#' @param energy_data A tibble carrying per-mutant `ddg_jm` and `ddgact_jm` columns.
+#' @param a1 Stability selection strength (non-negative).
+#' @param a2 Activity selection strength (non-negative).
+#' @return A bare numeric vector of averaging weights, one per mutant, summing to one.
+#' @family model
+#' @noRd
+weights_jm <- function(energy_data, a1, a2) {
+  pfix_jm <- pfix_msa(energy_data$ddg_jm, energy_data$ddgact_jm, a1, a2)
+  pfix_jm / sum(pfix_jm)
+}
+
+#' Axis-blind per-response structural divergence at one (a1, a2)
+#'
+#' The shared core of [calculate_dr2_i_msa()] / [calculate_dr2_n_msa()]: weights each
+#' mutant by its MSA fixation probability and averages the per-response squared
+#' displacements over mutants. Bare vector in column order of `dr2_mat`.
+#'
+#' @param dr2_mat A `[mutant x response]` divergence matrix (`dr2_ijm` or `dr2_njm`).
+#' @param energy_data The per-mutant energy tibble (for the weights).
+#' @param a1,a2 Selection strengths.
+#' @return A bare unnamed numeric vector of per-response `dr2`, in column order.
+#' @family model
+#' @noRd
+dr2_msa <- function(dr2_mat, energy_data, a1, a2) {
+  w <- weights_jm(energy_data, a1, a2)
+  unname(colSums(dr2_mat * w))
+}
+
+#' Axis-blind per-response log structural divergence at one (a1, a2)
+#'
+#' The shared core of [calculate_lrmsd_i_msa()] / [calculate_lrmsd_n_msa()]:
+#' `lrmsd = log(sqrt(dr2))`. Sole owner of the `dr2 -> lrmsd` transform.
+#'
+#' @inheritParams dr2_msa
+#' @return A bare unnamed numeric vector of per-response `lrmsd`, in column order.
+#' @family model
+#' @noRd
+lrmsd_msa <- function(dr2_mat, energy_data, a1, a2) {
+  log(sqrt(dr2_msa(dr2_mat, energy_data, a1, a2)))
+}
+
+#' Axis-blind mean-centred per-response log divergence at one (a1, a2)
+#'
+#' The shared core of [calculate_nlrmsd_i_msa()] / [calculate_nlrmsd_n_msa()]:
+#' `nlrmsd = lrmsd - mean(lrmsd)` over the full response support.
+#'
+#' @inheritParams dr2_msa
+#' @return A bare unnamed numeric vector of per-response `nlrmsd`, in column order.
+#' @family model
+#' @noRd
+nlrmsd_msa <- function(dr2_mat, energy_data, a1, a2) {
+  lrmsd <- lrmsd_msa(dr2_mat, energy_data, a1, a2)
+  lrmsd - mean(lrmsd)
+}
+
+#' Axis-blind four nested-model lrmsd profiles at one (a1, a2)
+#'
+#' The shared core of [calculate_lrmsd_i_nested_models()] /
+#' [calculate_lrmsd_n_nested_models()]: the four variants MM `(0,0)`, MS `(a1,0)`,
+#' MA `(0,a2)`, MSA `(a1,a2)`, each a bare `lrmsd` vector.
+#'
+#' @inheritParams dr2_msa
+#' @return A named list `mm`, `ms`, `ma`, `msa`, each a bare unnamed `lrmsd` vector.
+#' @family model
+#' @noRd
+lrmsd_nested_models <- function(dr2_mat, energy_data, a1, a2) {
+  lrmsd <- function(p1, p2) lrmsd_msa(dr2_mat, energy_data, p1, p2)
+  list(mm  = lrmsd(0,  0),
+       ms  = lrmsd(a1, 0),
+       ma  = lrmsd(0,  a2),
+       msa = lrmsd(a1, a2))
+}
+
+#' Axis-blind four mean-centred nested-model nlrmsd profiles at one (a1, a2)
+#'
+#' The shared core of [calculate_nlrmsd_i_nested_models()] /
+#' [calculate_nlrmsd_n_nested_models()]: each nested variant centred by its own mean.
+#'
+#' @inheritParams dr2_msa
+#' @return A named list `mm`, `ms`, `ma`, `msa`, each a bare centred vector.
+#' @family model
+#' @noRd
+nlrmsd_nested_models <- function(dr2_mat, energy_data, a1, a2) {
+  v <- lrmsd_nested_models(dr2_mat, energy_data, a1, a2)
+  lapply(v, function(x) x - mean(x))
+}
+
+#' Axis-blind divergence decomposition at one (a1, a2)
+#'
+#' The shared core of [calculate_decomposition_i_msa()] / [calculate_decomposition_n_msa()]:
+#' evaluate the four nested variants, then apply the sequential split
+#' `calculate_msa_decomposition()`. Named `lrmsd_msa_decomposition` (not the naive
+#' `decomposition_msa`) so it pairs cleanly with `nlrmsd_msa_decomposition`; the exported
+#' `calculate_decomposition_*_msa` is a known naming wart kept for now (see plan).
+#'
+#' @inheritParams dr2_msa
+#' @return A list `phi_mut`, `phi_stab`, `phi_act`, each a bare vector.
+#' @family model
+#' @noRd
+lrmsd_msa_decomposition <- function(dr2_mat, energy_data, a1, a2) {
+  v <- lrmsd_nested_models(dr2_mat, energy_data, a1, a2)
+  calculate_msa_decomposition(v$mm, v$ms, v$ma, v$msa)
+}
+
+#' Axis-blind mean-centred divergence decomposition at one (a1, a2)
+#'
+#' The shared core of [calculate_nlrmsd_i_msa_decomposition()] /
+#' [calculate_nlrmsd_n_msa_decomposition()]: each phi contribution centred by its own mean.
+#'
+#' @inheritParams dr2_msa
+#' @return A named list `nphi_mut`, `nphi_stab`, `nphi_act`, each a bare centred vector.
+#' @family model
+#' @noRd
+nlrmsd_msa_decomposition <- function(dr2_mat, energy_data, a1, a2) {
+  phi <- lrmsd_msa_decomposition(dr2_mat, energy_data, a1, a2)
+  list(nphi_mut  = phi$phi_mut  - mean(phi$phi_mut),
+       nphi_stab = phi$phi_stab - mean(phi$phi_stab),
+       nphi_act  = phi$phi_act  - mean(phi$phi_act))
+}
+
 #' Predicted per-site structural divergence at one selection strength
 #'
 #' Computes the model's predicted per-site structural divergence `dr2_i` (the
@@ -71,15 +207,8 @@ pfix_msa <- function(ddg, ddgact, a1, a2) {
 #' }
 #' @export
 calculate_dr2_i_msa <- function(spm, a1, a2) {
-  dr2_ijm <- spm$dr2_ijm
-
-  # SPM-ensemble weights from the MSA model's fixation probabilities.
-  weights_jm <- weights_jm_spm(spm, a1, a2)
-
-  # Weighted average over the mutant (j,m) axis: (dr2_ijm) -> (dr2_i)
-  dr2_i <- colSums(dr2_ijm * weights_jm)
-
-  tibble(i = seq_len(ncol(dr2_ijm)), dr2_i = dr2_i)
+  dr2_i <- dr2_msa(spm$dr2_ijm, spm$energy_data, a1, a2)
+  tibble(i = seq_along(dr2_i), dr2_i = dr2_i)
 }
 
 #' Predicted per-site log structural divergence at one selection strength
@@ -109,8 +238,8 @@ calculate_dr2_i_msa <- function(spm, a1, a2) {
 #' }
 #' @export
 calculate_lrmsd_i_msa <- function(spm, a1, a2) {
-  dr2 <- calculate_dr2_i_msa(spm, a1, a2)
-  tibble(i = dr2$i, lrmsd_i_msa = log(sqrt(dr2$dr2_i)))
+  lrmsd <- lrmsd_msa(spm$dr2_ijm, spm$energy_data, a1, a2)
+  tibble(i = seq_along(lrmsd), lrmsd_i_msa = lrmsd)
 }
 
 #' Predicted mean-centred per-site log structural divergence at one selection strength
@@ -143,8 +272,8 @@ calculate_lrmsd_i_msa <- function(spm, a1, a2) {
 #' }
 #' @export
 calculate_nlrmsd_i_msa <- function(spm, a1, a2) {
-  lrmsd <- calculate_lrmsd_i_msa(spm, a1, a2)
-  tibble(i = lrmsd$i, nlrmsd_i_msa = lrmsd$lrmsd_i_msa - mean(lrmsd$lrmsd_i_msa))
+  nlrmsd <- nlrmsd_msa(spm$dr2_ijm, spm$energy_data, a1, a2)
+  tibble(i = seq_along(nlrmsd), nlrmsd_i_msa = nlrmsd)
 }
 
 #' Predicted per-mode structural divergence at one selection strength
@@ -174,16 +303,8 @@ calculate_nlrmsd_i_msa <- function(spm, a1, a2) {
 #' }
 #' @export
 calculate_dr2_n_msa <- function(spm, a1, a2) {
-  dr2_njm <- spm$dr2_njm
-
-  # SPM-ensemble weights from the MSA model's fixation probabilities
-  # (axis-agnostic: identical weights as the site form).
-  weights_jm <- weights_jm_spm(spm, a1, a2)
-
-  # Weighted average over the mutant (j,m) axis: (dr2_njm) -> (dr2_n)
-  dr2_n <- colSums(dr2_njm * weights_jm)
-
-  tibble(n = seq_len(ncol(dr2_njm)), dr2_n = dr2_n)
+  dr2_n <- dr2_msa(spm$dr2_njm, spm$energy_data, a1, a2)
+  tibble(n = seq_along(dr2_n), dr2_n = dr2_n)
 }
 
 #' Predicted per-mode log structural divergence at one selection strength
@@ -215,8 +336,8 @@ calculate_dr2_n_msa <- function(spm, a1, a2) {
 #' }
 #' @export
 calculate_lrmsd_n_msa <- function(spm, a1, a2) {
-  dr2 <- calculate_dr2_n_msa(spm, a1, a2)
-  tibble(n = dr2$n, lrmsd_n_msa = log(sqrt(dr2$dr2_n)))
+  lrmsd <- lrmsd_msa(spm$dr2_njm, spm$energy_data, a1, a2)
+  tibble(n = seq_along(lrmsd), lrmsd_n_msa = lrmsd)
 }
 
 #' Predicted mean-centred per-mode log structural divergence at one selection strength
@@ -245,8 +366,8 @@ calculate_lrmsd_n_msa <- function(spm, a1, a2) {
 #' }
 #' @export
 calculate_nlrmsd_n_msa <- function(spm, a1, a2) {
-  lrmsd <- calculate_lrmsd_n_msa(spm, a1, a2)
-  tibble(n = lrmsd$n, nlrmsd_n_msa = lrmsd$lrmsd_n_msa - mean(lrmsd$lrmsd_n_msa))
+  nlrmsd <- nlrmsd_msa(spm$dr2_njm, spm$energy_data, a1, a2)
+  tibble(n = seq_along(nlrmsd), nlrmsd_n_msa = nlrmsd)
 }
 
 #' Per-site divergence profiles under all four model variants (MM, MS, MA, MSA)
@@ -289,14 +410,13 @@ calculate_nlrmsd_n_msa <- function(spm, a1, a2) {
 #' }
 #' @export
 calculate_lrmsd_i_nested_models <- function(spm, a1, a2) {
-  lrmsd <- function(p1, p2) calculate_lrmsd_i_msa(spm, p1, p2)$lrmsd_i_msa
-
+  v <- lrmsd_nested_models(spm$dr2_ijm, spm$energy_data, a1, a2)
   tibble(
-    i           = seq_len(ncol(spm$dr2_ijm)),
-    lrmsd_i_mm  = lrmsd(0,  0),
-    lrmsd_i_ms  = lrmsd(a1, 0),
-    lrmsd_i_ma  = lrmsd(0,  a2),
-    lrmsd_i_msa = lrmsd(a1, a2)
+    i           = seq_along(v$mm),
+    lrmsd_i_mm  = v$mm,
+    lrmsd_i_ms  = v$ms,
+    lrmsd_i_ma  = v$ma,
+    lrmsd_i_msa = v$msa
   ) %>%
     left_join(spm$site_map, by = "i") %>%
     select(i, pdb_site, everything())
@@ -327,15 +447,16 @@ calculate_lrmsd_i_nested_models <- function(spm, a1, a2) {
 #' }
 #' @export
 calculate_nlrmsd_i_nested_models <- function(spm, a1, a2) {
-  nm <- calculate_lrmsd_i_nested_models(spm, a1, a2)
+  v <- nlrmsd_nested_models(spm$dr2_ijm, spm$energy_data, a1, a2)
   tibble(
-    i           = nm$i,
-    pdb_site    = nm$pdb_site,
-    nlrmsd_i_mm  = nm$lrmsd_i_mm  - mean(nm$lrmsd_i_mm),
-    nlrmsd_i_ms  = nm$lrmsd_i_ms  - mean(nm$lrmsd_i_ms),
-    nlrmsd_i_ma  = nm$lrmsd_i_ma  - mean(nm$lrmsd_i_ma),
-    nlrmsd_i_msa = nm$lrmsd_i_msa - mean(nm$lrmsd_i_msa)
-  )
+    i            = seq_along(v$mm),
+    nlrmsd_i_mm  = v$mm,
+    nlrmsd_i_ms  = v$ms,
+    nlrmsd_i_ma  = v$ma,
+    nlrmsd_i_msa = v$msa
+  ) %>%
+    left_join(spm$site_map, by = "i") %>%
+    select(i, pdb_site, everything())
 }
 
 #' Per-site divergence decomposition at one (a1, a2)
@@ -370,11 +491,11 @@ calculate_nlrmsd_i_nested_models <- function(spm, a1, a2) {
 #' }
 #' @export
 calculate_decomposition_i_msa <- function(spm, a1, a2) {
-  nm  <- calculate_lrmsd_i_nested_models(spm, a1, a2)
-  phi <- calculate_msa_decomposition(
-    nm$lrmsd_i_mm, nm$lrmsd_i_ms, nm$lrmsd_i_ma, nm$lrmsd_i_msa
-  )
-  dplyr::bind_cols(nm[c("i", "pdb_site")], tibble::as_tibble(phi))
+  phi  <- lrmsd_msa_decomposition(spm$dr2_ijm, spm$energy_data, a1, a2)
+  keys <- tibble(i = seq_along(phi$phi_mut)) %>%
+    left_join(spm$site_map, by = "i") %>%
+    select(i, pdb_site)
+  dplyr::bind_cols(keys, tibble::as_tibble(phi))
 }
 
 #' Mean-centred per-site divergence decomposition at one (a1, a2)
@@ -403,14 +524,11 @@ calculate_decomposition_i_msa <- function(spm, a1, a2) {
 #' }
 #' @export
 calculate_nlrmsd_i_msa_decomposition <- function(spm, a1, a2) {
-  d <- calculate_decomposition_i_msa(spm, a1, a2)
-  tibble(
-    i         = d$i,
-    pdb_site  = d$pdb_site,
-    nphi_mut  = d$phi_mut  - mean(d$phi_mut),
-    nphi_stab = d$phi_stab - mean(d$phi_stab),
-    nphi_act  = d$phi_act  - mean(d$phi_act)
-  )
+  nphi <- nlrmsd_msa_decomposition(spm$dr2_ijm, spm$energy_data, a1, a2)
+  tibble(i = seq_along(nphi$nphi_mut)) %>%
+    left_join(spm$site_map, by = "i") %>%
+    select(i, pdb_site) %>%
+    dplyr::bind_cols(tibble::as_tibble(nphi))
 }
 
 #' Per-mode divergence profiles under all four model variants (MM, MS, MA, MSA)
@@ -451,14 +569,13 @@ calculate_nlrmsd_i_msa_decomposition <- function(spm, a1, a2) {
 #' }
 #' @export
 calculate_lrmsd_n_nested_models <- function(spm, a1, a2) {
-  lrmsd <- function(p1, p2) calculate_lrmsd_n_msa(spm, p1, p2)$lrmsd_n_msa
-
+  v <- lrmsd_nested_models(spm$dr2_njm, spm$energy_data, a1, a2)
   tibble(
-    n           = seq_len(ncol(spm$dr2_njm)),
-    lrmsd_n_mm  = lrmsd(0,  0),
-    lrmsd_n_ms  = lrmsd(a1, 0),
-    lrmsd_n_ma  = lrmsd(0,  a2),
-    lrmsd_n_msa = lrmsd(a1, a2)
+    n           = seq_along(v$mm),
+    lrmsd_n_mm  = v$mm,
+    lrmsd_n_ms  = v$ms,
+    lrmsd_n_ma  = v$ma,
+    lrmsd_n_msa = v$msa
   )
 }
 
@@ -485,13 +602,13 @@ calculate_lrmsd_n_nested_models <- function(spm, a1, a2) {
 #' }
 #' @export
 calculate_nlrmsd_n_nested_models <- function(spm, a1, a2) {
-  nm <- calculate_lrmsd_n_nested_models(spm, a1, a2)
+  v <- nlrmsd_nested_models(spm$dr2_njm, spm$energy_data, a1, a2)
   tibble(
-    n           = nm$n,
-    nlrmsd_n_mm  = nm$lrmsd_n_mm  - mean(nm$lrmsd_n_mm),
-    nlrmsd_n_ms  = nm$lrmsd_n_ms  - mean(nm$lrmsd_n_ms),
-    nlrmsd_n_ma  = nm$lrmsd_n_ma  - mean(nm$lrmsd_n_ma),
-    nlrmsd_n_msa = nm$lrmsd_n_msa - mean(nm$lrmsd_n_msa)
+    n            = seq_along(v$mm),
+    nlrmsd_n_mm  = v$mm,
+    nlrmsd_n_ms  = v$ms,
+    nlrmsd_n_ma  = v$ma,
+    nlrmsd_n_msa = v$msa
   )
 }
 
@@ -526,11 +643,8 @@ calculate_nlrmsd_n_nested_models <- function(spm, a1, a2) {
 #' }
 #' @export
 calculate_decomposition_n_msa <- function(spm, a1, a2) {
-  nm  <- calculate_lrmsd_n_nested_models(spm, a1, a2)
-  phi <- calculate_msa_decomposition(
-    nm$lrmsd_n_mm, nm$lrmsd_n_ms, nm$lrmsd_n_ma, nm$lrmsd_n_msa
-  )
-  dplyr::bind_cols(nm["n"], tibble::as_tibble(phi))
+  phi <- lrmsd_msa_decomposition(spm$dr2_njm, spm$energy_data, a1, a2)
+  dplyr::bind_cols(tibble(n = seq_along(phi$phi_mut)), tibble::as_tibble(phi))
 }
 
 #' Mean-centred per-mode divergence decomposition at one (a1, a2)
@@ -559,11 +673,6 @@ calculate_decomposition_n_msa <- function(spm, a1, a2) {
 #' }
 #' @export
 calculate_nlrmsd_n_msa_decomposition <- function(spm, a1, a2) {
-  d <- calculate_decomposition_n_msa(spm, a1, a2)
-  tibble(
-    n         = d$n,
-    nphi_mut  = d$phi_mut  - mean(d$phi_mut),
-    nphi_stab = d$phi_stab - mean(d$phi_stab),
-    nphi_act  = d$phi_act  - mean(d$phi_act)
-  )
+  nphi <- nlrmsd_msa_decomposition(spm$dr2_njm, spm$energy_data, a1, a2)
+  dplyr::bind_cols(tibble(n = seq_along(nphi$nphi_mut)), tibble::as_tibble(nphi))
 }

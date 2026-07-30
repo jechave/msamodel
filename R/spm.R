@@ -302,7 +302,5 @@ preprocess_spm_mode <- function(spm) {
 #' }
 #' @export
 weights_jm_spm <- function(spm, a1, a2) {
-  energy_data <- spm$energy_data
-  pfix_jm <- pfix_msa(energy_data$ddg_jm, energy_data$ddgact_jm, a1, a2)
-  pfix_jm / sum(pfix_jm)
+  weights_jm(spm$energy_data, a1, a2)
 }
