@@ -12,6 +12,23 @@ One short entry per working session.
 The current state and what's next. Keep this current as slices finish; it is the
 one place the live state lives (no separate PROGRESS file as of 2026-06-26).
 
+- **NEXT (user, 2026-07-30) — the primitives refactor DID NOT GO DEEP ENOUGH; user will
+  study the structure in a fresh session before deciding.** Finding that prompted it: the
+  `predict_*_ml` functions still call the `calculate_*` tibble SKINS internally, not the
+  primitives — in THREE roles: (1) the point-estimate `keys <- calculate_*` line, (2) the
+  parameter-arm `f(t)` differentiation closure `calculate_*(...)$col`, (3) already-primitive
+  SPM arm. Roles (1) and (2) route bare-vector math through the tibble skin needlessly:
+  e.g. `predict_lrmsd_i_msa_ml` builds `calculate_lrmsd_i_msa` then discards its structure,
+  re-joining `spm$site_map` ITSELF (predict.R:190-191, 202) — the skin's tibble earns
+  nothing there. So predictors could route ENTIRELY through primitives, with `calculate_*`
+  becoming a purely user-facing convenience nothing internal calls. NOT yet scoped/decided —
+  user wants to look at the call structure first (`dev/callgraph.R` → `dev/preview/callgraph.pdf`,
+  regenerated 2026-07-30, 67 fns/140 edges; the axis-blind primitives show as the grey shared
+  spine both arms call into). Numbers-identical oracle exists (`oracle.R`, scratchpad) to
+  verify any such change. (NOTE: I bullshitted mid-analysis — claimed the point-estimate path
+  NEEDS the skin for pdb_site; it does not, the predictor holds `spm` and joins site_map
+  itself. Verify against code, don't narrate.)
+
 - **AXIS-INDEPENDENT PRIMITIVES — DONE 2026-07-30 (4 commits `0f90365`/`7e44fd8`/`b70db58`/`0bedc3d`).**
   The site/mode duplication is collapsed onto axis-blind internal primitives; all 28 exports
   keep names/signatures/tibble returns (implementation-only), byte-identical output. Layers:

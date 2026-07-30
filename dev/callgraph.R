@@ -18,8 +18,11 @@
 #
 # PRINT-LEGIBLE by design: high-contrast (black text, black arrows, saturated fills),
 # and each page is scaled UP to fill a Letter sheet at a readable font. The whole-graph
-# view was dropped — at 47 nodes it cannot be both on one sheet and legible; the two arm
-# pages together already cover every function.
+# view was dropped — at this node count it cannot be both on one sheet and legible; the
+# two arm pages together already cover every function. The shared axis-blind primitive
+# layer (dr2_msa, lrmsd_msa, var_spm_*, the fit/loglik cores, weights_jm) has no _i_/_n_
+# token, so it classifies as "agnostic" and renders as the grey shared spine both arms
+# call into — which is exactly the post-unification structure the graph should show.
 #
 # Requires: mvbutils + qpdf (R pkgs) and graphviz's `dot` on PATH
 # (`brew install graphviz`).
