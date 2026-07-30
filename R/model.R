@@ -47,22 +47,24 @@ pfix_msa <- function(ddg, ddgact, a1, a2) {
 # The site (_i_/dr2_ijm) and mode (_n_/dr2_njm) forward maps are the same math on a
 # different response-mutation matrix. These primitives hold that shared math: they take
 # a bare [mutant x response] matrix `dr2_mat` (either dr2_ijm or dr2_njm) plus the
-# `energy_data` tibble, and return BARE UNNAMED vectors (or a named list of bare vectors)
-# in matrix-column order -- no index, no tibble, no site_map. The exported calculate_*_i/n
-# skins below attach the axis index (and, site only, the pdb_site label) at the boundary.
+# `energy_data` tibble, and return bare vectors (or a named list of bare vectors) in
+# matrix-column order -- no index, no tibble, no site_map. Alignment is by column
+# POSITION (the dr2 matrices carry no column names by construction); the exported
+# calculate_*_i/n skins below attach the axis index (and, site only, the pdb_site label)
+# at the boundary.
 
-#' SPM-ensemble averaging weights from an energy table (axis-agnostic)
+#' SPM-ensemble averaging weights from an energy table
 #'
-#' The pure core of [weights_jm_spm()]: turns the per-mutant fixation probabilities of the
-#' MSA model into the normalised averaging weights `weights_jm = pfix_jm / sum(pfix_jm)`,
-#' one per mutant `(j, m)`, summing to one. Takes the bare `energy_data` tibble (not the
-#' `spm` object) so every axis-blind forward-map primitive can build weights without the
-#' object; `weights_jm_spm(spm, ...)` is the one-line public skin `weights_jm(spm$energy_data, ...)`.
+#' Turns the per-mutant MSA fixation probabilities into the normalised averaging weights
+#' `weights_jm = pfix_jm / sum(pfix_jm)`, one per mutant `(j, m)`, summing to one. Reads
+#' the per-mutant energies directly from an `energy_data` tibble, so the forward-map
+#' primitives obtain their weights without the `spm` object.
 #'
 #' @param energy_data A tibble carrying per-mutant `ddg_jm` and `ddgact_jm` columns.
 #' @param a1 Stability selection strength (non-negative).
 #' @param a2 Activity selection strength (non-negative).
-#' @return A bare numeric vector of averaging weights, one per mutant, summing to one.
+#' @seealso [weights_jm_spm()], the exported form taking the whole `spm` object.
+#' @return A numeric vector of averaging weights, one per mutant, summing to one.
 #' @family model
 #' @noRd
 weights_jm <- function(energy_data, a1, a2) {
@@ -74,17 +76,17 @@ weights_jm <- function(energy_data, a1, a2) {
 #'
 #' The shared core of [calculate_dr2_i_msa()] / [calculate_dr2_n_msa()]: weights each
 #' mutant by its MSA fixation probability and averages the per-response squared
-#' displacements over mutants. Bare vector in column order of `dr2_mat`.
+#' displacements over mutants.
 #'
 #' @param dr2_mat A `[mutant x response]` divergence matrix (`dr2_ijm` or `dr2_njm`).
 #' @param energy_data The per-mutant energy tibble (for the weights).
 #' @param a1,a2 Selection strengths.
-#' @return A bare unnamed numeric vector of per-response `dr2`, in column order.
+#' @return A numeric vector of per-response `dr2`, in column order.
 #' @family model
 #' @noRd
 dr2_msa <- function(dr2_mat, energy_data, a1, a2) {
   w <- weights_jm(energy_data, a1, a2)
-  unname(colSums(dr2_mat * w))
+  colSums(dr2_mat * w)
 }
 
 #' Axis-blind per-response log structural divergence at one (a1, a2)
@@ -93,7 +95,7 @@ dr2_msa <- function(dr2_mat, energy_data, a1, a2) {
 #' `lrmsd = log(sqrt(dr2))`. Sole owner of the `dr2 -> lrmsd` transform.
 #'
 #' @inheritParams dr2_msa
-#' @return A bare unnamed numeric vector of per-response `lrmsd`, in column order.
+#' @return A numeric vector of per-response `lrmsd`, in column order.
 #' @family model
 #' @noRd
 lrmsd_msa <- function(dr2_mat, energy_data, a1, a2) {
@@ -106,7 +108,7 @@ lrmsd_msa <- function(dr2_mat, energy_data, a1, a2) {
 #' `nlrmsd = lrmsd - mean(lrmsd)` over the full response support.
 #'
 #' @inheritParams dr2_msa
-#' @return A bare unnamed numeric vector of per-response `nlrmsd`, in column order.
+#' @return A numeric vector of per-response `nlrmsd`, in column order.
 #' @family model
 #' @noRd
 nlrmsd_msa <- function(dr2_mat, energy_data, a1, a2) {
@@ -118,10 +120,10 @@ nlrmsd_msa <- function(dr2_mat, energy_data, a1, a2) {
 #'
 #' The shared core of [calculate_lrmsd_i_nested_models()] /
 #' [calculate_lrmsd_n_nested_models()]: the four variants MM `(0,0)`, MS `(a1,0)`,
-#' MA `(0,a2)`, MSA `(a1,a2)`, each a bare `lrmsd` vector.
+#' MA `(0,a2)`, MSA `(a1,a2)`, each an `lrmsd` vector.
 #'
 #' @inheritParams dr2_msa
-#' @return A named list `mm`, `ms`, `ma`, `msa`, each a bare unnamed `lrmsd` vector.
+#' @return A named list `mm`, `ms`, `ma`, `msa`, each an `lrmsd` vector in column order.
 #' @family model
 #' @noRd
 lrmsd_nested_models <- function(dr2_mat, energy_data, a1, a2) {
@@ -138,7 +140,7 @@ lrmsd_nested_models <- function(dr2_mat, energy_data, a1, a2) {
 #' [calculate_nlrmsd_n_nested_models()]: each nested variant centred by its own mean.
 #'
 #' @inheritParams dr2_msa
-#' @return A named list `mm`, `ms`, `ma`, `msa`, each a bare centred vector.
+#' @return A named list `mm`, `ms`, `ma`, `msa`, each a centred vector in column order.
 #' @family model
 #' @noRd
 nlrmsd_nested_models <- function(dr2_mat, energy_data, a1, a2) {
@@ -155,7 +157,7 @@ nlrmsd_nested_models <- function(dr2_mat, energy_data, a1, a2) {
 #' `calculate_decomposition_*_msa` is a known naming wart kept for now (see plan).
 #'
 #' @inheritParams dr2_msa
-#' @return A list `phi_mut`, `phi_stab`, `phi_act`, each a bare vector.
+#' @return A list `phi_mut`, `phi_stab`, `phi_act`, each a vector in column order.
 #' @family model
 #' @noRd
 lrmsd_msa_decomposition <- function(dr2_mat, energy_data, a1, a2) {
@@ -169,7 +171,7 @@ lrmsd_msa_decomposition <- function(dr2_mat, energy_data, a1, a2) {
 #' [calculate_nlrmsd_n_msa_decomposition()]: each phi contribution centred by its own mean.
 #'
 #' @inheritParams dr2_msa
-#' @return A named list `nphi_mut`, `nphi_stab`, `nphi_act`, each a bare centred vector.
+#' @return A named list `nphi_mut`, `nphi_stab`, `nphi_act`, each a centred vector in column order.
 #' @family model
 #' @noRd
 nlrmsd_msa_decomposition <- function(dr2_mat, energy_data, a1, a2) {

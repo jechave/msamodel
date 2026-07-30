@@ -168,15 +168,15 @@ spm_hmat <- function(dr2_mat, weights, centred) {
 
 #' Axis-blind per-response SPM-sampling variance of the uncentred lrmsd profile
 #'
-#' `Var_SPM` of the UNCENTRED `lrmsd` profile, on either axis. Pure; returns a bare
-#' numeric vector in the column order of `dr2_mat`. The difference (phi) variance is NOT
-#' built here -- callers form it from two `spm_hmat()` matrices so the shared-sample
-#' covariance is retained. Named for the exact quantity it produces (lrmsd, uncentred);
-#' the mean-centred quantity is `var_spm_nlrmsd()`.
+#' `Var_SPM` of the UNCENTRED `lrmsd` profile, on either axis. Returns a numeric vector in
+#' the column order of `dr2_mat`. The difference (phi) variance is NOT built here --
+#' callers form it from two `spm_hmat()` matrices so the shared-sample covariance is
+#' retained. Named for the exact quantity it produces (lrmsd, uncentred); the mean-centred
+#' quantity is `var_spm_nlrmsd()`.
 #'
 #' @param dr2_mat Numeric `[mutant x response]` divergence matrix (`dr2_ijm` or `dr2_njm`).
 #' @param weights Length-`nmutant` numeric weights.
-#' @return A bare numeric vector of per-response SPM-sampling variances.
+#' @return A numeric vector of per-response SPM-sampling variances.
 #' @noRd
 var_spm_lrmsd <- function(dr2_mat, weights) {
   colSums(spm_hmat(dr2_mat, weights, centred = FALSE)^2)
@@ -189,7 +189,7 @@ var_spm_lrmsd <- function(dr2_mat, weights) {
 #'
 #' @param dr2_mat Numeric `[mutant x response]` divergence matrix (`dr2_ijm` or `dr2_njm`).
 #' @param weights Length-`nmutant` numeric weights.
-#' @return A bare numeric vector of per-response SPM-sampling variances.
+#' @return A numeric vector of per-response SPM-sampling variances.
 #' @noRd
 var_spm_nlrmsd <- function(dr2_mat, weights) {
   colSums(spm_hmat(dr2_mat, weights, centred = TRUE)^2)
@@ -200,10 +200,9 @@ var_spm_nlrmsd <- function(dr2_mat, weights) {
 #' Each phi contribution is a linear contrast of nested models (MM/MS/MSA) on the SAME
 #' scan. Builds the centred per-mutant contribution matrix `h` for each model via
 #' `spm_hmat()`, then forms each contrast's sampling variance from the DIFFERENCED
-#' contributions, so the shared-sample covariance (cross term) is retained. Mirrors how
-#' the profile helpers own their `spm_hmat` call, but needs the fit parameters to build
-#' the MM/MS/MSA weights and returns three variances rather than one. Axis-blind: takes
-#' the bare `dr2_mat` and `energy_data` (builds the three weight sets via `weights_jm`).
+#' contributions, so the shared-sample covariance (cross term) is retained. Needs the fit
+#' parameters to build the MM/MS/MSA weight sets (via `weights_jm`), and returns three
+#' variances rather than one.
 #'
 #' @param dr2_mat Numeric `[mutant x response]` divergence matrix (`dr2_ijm` or `dr2_njm`).
 #' @param energy_data The per-mutant energy tibble (for the MM/MS/MSA weights).
