@@ -12,6 +12,18 @@ One short entry per working session.
 The current state and what's next. Keep this current as slices finish; it is the
 one place the live state lives (no separate PROGRESS file as of 2026-06-26).
 
+- **QUEUED (planned + APPROVED 2026-07-29, not yet started):** axis-independent internal
+  primitives — collapse the ~14 duplicated `_i_`/`_n_` template bodies onto shared
+  axis-blind primitives (`dr2_msa`, `lrmsd_msa`, … taking a bare `dr2_mat` + `energy_data`;
+  bare unnamed vectors out, tibbles only at the exported boundary; the `site_map` label
+  isolated to the boundary). Implementation-only: all 28 exports keep names/signatures/
+  tibble returns, numbers-identical bar. New `weights_jm(energy_data,a1,a2)` primitive
+  (both fix a `weights_jm_spm` signature clash). Band-machinery rename stays a SEPARATE
+  deferred item. All 4 vignettes re-knit + user HTML review before commit. Full hardened
+  plan (2 Opus-4.8 reviewers folded in): `~/.claude/plans/i-want-to-chat-cheerful-wigderson.md`.
+  **PAUSED pending Claude platform stability** (elevated model errors across 2026-07-29/30;
+  status page showed a partial Claude Code outage on 2026-07-30).
+
 - **SPM OBJECT UNIFIED + COMMITTED 2026-07-29 (`1898fd5`).** The three public SPM objects
   (`generate_spm_data` tibble + `preprocess_spm` + `preprocess_spm_mode`) are collapsed into ONE
   public object: `generate_spm_data()` now returns a classed `spm` list
