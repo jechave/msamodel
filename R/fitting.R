@@ -104,6 +104,7 @@ fit_lrmsd_msa_ml_core <- function(nll, gof_fn,
     init    <- as.numeric(grid[which.max(ll), c("a1", "b")])
   } else {
     if (length(init) != 2) stop("init must be a length-2 numeric c(a1, log2(a2+1))")
+    if (!is.null(names(init))) stop("init must be an unnamed positional c(a1, log2(a2+1))")
     if (init[1] < lower[1] || init[1] > upper[1] ||
         init[2] < lower[2] || init[2] > upper[2]) {
       stop("init must lie within the box [a1_range] x [log2_a2_plus1_range]")
@@ -132,8 +133,8 @@ fit_lrmsd_msa_ml_core <- function(nll, gof_fn,
   gof <- gof_fn(a1_hat, a2_hat)
 
   list(
-    a1            = unname(a1_hat),
-    a2            = unname(a2_hat),
+    a1            = a1_hat,
+    a2            = a2_hat,
     logLik        = -opt$value,
     deviance      = gof$deviance,
     null_deviance = gof$null_deviance,
@@ -141,8 +142,8 @@ fit_lrmsd_msa_ml_core <- function(nll, gof_fn,
     k             = 3L,
     sigma_hat     = gof$sigma_hat,
     cov           = cov,
-    se_a1         = unname(se_a1),
-    se_a2         = unname(se_a2),
+    se_a1         = se_a1,
+    se_a2         = se_a2,
     convergence   = opt$convergence
   )
 }

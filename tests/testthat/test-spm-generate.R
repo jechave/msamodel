@@ -42,10 +42,10 @@ test_that("a single mutant row reproduces from its seeded recipe (cheap coherenc
                          mut_model = SPM_MODEL, mut_dl_sigma = SPM_SIGMA,
                          mut_sd_min = SPM_MIN_SD, seed = SPM_SEED)
 
-  # Same measured divergences the generation loop records for this row. unname() the
-  # matrix row (it carries no names anyway) to compare against the bare penm vectors.
-  expect_equal(unname(znb_spm$dr2_ijm[k, ]), penm::delta_structure_dr2i(znb_wt, mut))
-  expect_equal(unname(znb_spm$dr2_njm[k, ]), penm::delta_structure_dr2n(znb_wt, mut))
+  # Same measured divergences the generation loop records for this row: the matrix row
+  # compares directly against penm's per-mutant vectors (both nameless).
+  expect_equal(znb_spm$dr2_ijm[k, ], penm::delta_structure_dr2i(znb_wt, mut))
+  expect_equal(znb_spm$dr2_njm[k, ], penm::delta_structure_dr2n(znb_wt, mut))
   # Summed stability / activity energy changes (energy_data carries the summed terms).
   expect_equal(ed$ddg_jm[k],    ddg_dv(znb_wt, mut)  + ddg_tds(znb_wt, mut))
   expect_equal(ed$ddgact_jm[k], ddgact_dv(znb_wt, mut, pdb_site_active = PDB_SITE_ACTIVE) +

@@ -518,6 +518,39 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   before a code/data/roxygen commit; skip it for docs/vignette-only diffs.
 <!-- /NOW -->
 
+### 2026-07-31 — remove orphaned `unname()` stopgaps; make two silent no-ops fail-loud
+
+User caught that the dr2-colname `unname()` hack (added when `preprocess_spm*` still set
+`colnames(dr2_ijm/njm)`, removed at source in `5ca5bd7`) survived in several orphaned spots
+long after its cause was gone — a fail-loud violation: a defensive strip guarding a condition
+the construction now prevents hides an anomaly instead of surfacing it. Swept the whole tree
+(R + tests + data-raw + dev) and verified each site empirically before touching it.
+
+- **`delta_band` (`predict_band_helpers.R`):** dropped the `unname(mean_v/se_v)` + its false
+  "forward maps / var_spm carry stray per-element names (dr2 column names)" comment. Verified
+  every band input (`mean_v`, param arm, `var_spm`, their sum, `var_spm_nphi$mut`) is nameless.
+- **`spm_hmat` weights renorm:** the `w <- weights / sum(weights)` line silently renormalised
+  weights that every caller already passes summing to 1 (`weights_jm` = `pfix_jm/sum(pfix_jm)`;
+  `var_spm_nphi` builds them the same way) — the second hide-upstream-error pattern the user
+  flagged. Replaced with `stopifnot(abs(sum(weights)-1) < 1e-6)`; `msd` uses `weights` directly.
+- **`fitting.R` fit-return strips:** these were NOT dead — a NAMED `init` propagates names
+  through `optim$par`/`diag(cov)` onto `a1/a2/se_a1/se_a2`. But `init` is documented as an
+  unnamed positional `c(a1, log2(a2+1))`, so a named `init` is out of contract. Fixed loud:
+  `if (!is.null(names(init))) stop("init must be an unnamed positional …")`, then dropped all
+  four return `unname()`s (redundant once named input is rejected — NOT relocated to a silent
+  `unname(init)`, which would be the same hack one line up).
+- **Tests:** removed the three no-op `unname()` stopgaps + false comments (`test-msa-mode`,
+  `test-predict-ml`, `test-spm-generate`). Only `test-spm-generate` gains real coverage
+  (independent provenance: package matrix row vs penm's return); the other two are
+  symmetric-provenance (both sides same source) so their edits are comment-honesty, not new
+  guards — not overclaimed. Added two permanent `expect_error("unnamed positional")` tests
+  (site + mode fits).
+
+Verified: 3 fail-loud/negative controls pass (spm_hmat rejects non-sum-1 & accepts legit;
+named init errors, unnamed returns nameless; test-spm-generate catches a one-sided name
+injection). Full `test()` 196P/0F/2skip (194 baseline + 2 new). `document()` → no man/NAMESPACE
+churn. Plan `~/.claude/plans/twinkly-napping-thacker.md`.
+
 ### 2026-07-30 — axis-independent internal primitives (site/mode unification)
 
 Committed `0f90365` (model), `7e44fd8` (predict-variance), `b70db58` (fitting),
@@ -628,9 +661,13 @@ private-core cleanup of that whole chain is a deliberately deferred separate ite
 `colnames(dr2_ijm/njm) <- site/mode` (spm.R:176,231) — the *internal* `1:n` index, redundant
 with column position (the gappy `pdb_site` is carried separately in `site_map`). Those names
 leak as element-names onto every `colSums`-derived value vector (`calculate_*` value columns
-carry `c("1"=…,"2"=…)`); the predictors already `unname()` them in `delta_band`. Confirmed
+carry `c("1"=…,"2"=…)`); the predictors then `unname()`'d them in `delta_band`. Confirmed
 original (migrated from `tmp_src`), `1:n` by penm construction, not necessary. FIXED in the
-`5ca5bd7` entry above (colname assignments removed, readers use `seq_len(ncol())`, stopgaps dropped).
+`5ca5bd7` entry above (colname assignments removed, readers use `seq_len(ncol())`, *some*
+stopgaps dropped). The remaining orphaned `unname()` stopgaps — `delta_band`, and the no-op
+strips left in the `test-msa-mode` / `test-predict-ml` / `test-spm-generate` assertions — were
+removed later (see the dated entry below); the weights-renorm no-op in `spm_hmat` was made
+fail-loud in the same pass.
 
 ### 2026-07-28 — `var_spm` rename + decomposition-variance extraction
 

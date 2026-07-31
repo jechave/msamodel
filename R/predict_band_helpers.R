@@ -52,15 +52,11 @@ grad_t <- function(f, t, h = 1e-5) {
 #'   yields a zero-width band.
 #' @param level Confidence-band coverage in `(0, 1)` (e.g. `0.95`).
 #' @param name Character stem for the output columns.
-#' @return A tibble with columns `<name>_mean`, `<name>_lower`, `<name>_upper`. Stray
-#'   per-element names on the inputs are dropped so they do not leak onto the columns.
+#' @return A tibble with columns `<name>_mean`, `<name>_lower`, `<name>_upper`.
 #' @noRd
 delta_band <- function(mean_v, var_v, level, name) {
   se_v <- sqrt(pmax(var_v, 0))            # pmax guards tiny negative round-off only
   z    <- stats::qnorm(1 - (1 - level) / 2)
-  # unname: the forward maps / var_spm carry stray per-element names (dr2 column names)
-  # that would otherwise leak onto the band columns. A row-indexed band carries none.
-  mean_v <- unname(mean_v); se_v <- unname(se_v)
   cols <- list(mean_v, mean_v - z * se_v, mean_v + z * se_v)
   names(cols) <- paste0(name, c("_mean", "_lower", "_upper"))
   tibble::as_tibble(cols)
@@ -146,8 +142,9 @@ uncertainty_gates <- function(uncertainty, level) {
 #' profile and phi families (see `dev/reports/spm_band_validation.Rmd`).
 #'
 #' @param dr2_mat Numeric `[mutant k x response]` matrix of per-mutant divergences.
-#' @param weights Length-`nmutant` numeric weights (need not sum to 1; used as given,
-#'   normalised internally).
+#' @param weights Length-`nmutant` numeric averaging weights that MUST sum to 1 (as
+#'   produced by `weights_jm()`); `msd` is a weighted mean, so an unnormalised input is
+#'   an upstream error and is rejected rather than silently renormalised.
 #' @param centred Logical: `FALSE` selects lrmsd, `TRUE` selects nlrmsd (mean-centred
 #'   over the response support).
 #' @return A numeric `[mutant k x response]` contribution matrix `h`; column sums of
@@ -158,12 +155,13 @@ spm_hmat <- function(dr2_mat, weights, centred) {
     stop("spm_hmat: nrow(dr2_mat) (", nrow(dr2_mat), ") must equal length(weights) (",
          length(weights), "); the mutant axes are misaligned.")
   }
-  w   <- weights / sum(weights)                 # normalise (msd is a self-normalised mean)
-  msd <- colSums(dr2_mat * w)
+  stopifnot("spm_hmat: weights must sum to 1 (normalise upstream via weights_jm())" =
+              abs(sum(weights) - 1) < 1e-6)
+  msd <- colSums(dr2_mat * weights)
   G   <- sweep(dr2_mat, 2, 2 * msd, "/")        # dr2 / (2 msd)
   if (centred) G <- G - rowMeans(G)             # support-centre per mutant (nlrmsd)
-  Gc  <- sweep(G, 2, colSums(G * w))            # deviate from w-weighted per-response mean
-  Gc * w
+  Gc  <- sweep(G, 2, colSums(G * weights))      # deviate from w-weighted per-response mean
+  Gc * weights
 }
 
 #' Axis-blind per-response SPM-sampling variance of the uncentred lrmsd profile

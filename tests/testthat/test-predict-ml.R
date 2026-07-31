@@ -104,7 +104,7 @@ test_that("nlrmsd band uses the CENTRED gradient, not the lrmsd (raw) band", {
     (f(tp) - f(tm)) / (2 * h)
   })
   Jc <- sweep(J, 2, colMeans(J))
-  se_ref <- unname(sqrt(rowSums((Jc %*% ml$cov) * Jc)))  # J carries dr2 col names; band doesn't
+  se_ref <- sqrt(rowSums((Jc %*% ml$cov) * Jc))
   expect_equal(w_nlrmsd, z * se_ref)
 })
 

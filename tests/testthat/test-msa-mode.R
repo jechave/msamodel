@@ -97,5 +97,5 @@ test_that("dr2_n reweighting collapses the mutant axis with the same weights as 
   expected <- colSums(znb_spm$dr2_njm * w)
 
   d <- calculate_dr2_n_msa(znb_spm, a1, a2)
-  expect_equal(unname(d$dr2_n), unname(expected))
+  expect_equal(d$dr2_n, expected)
 })

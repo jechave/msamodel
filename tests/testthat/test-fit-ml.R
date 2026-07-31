@@ -67,6 +67,8 @@ test_that("fit_lrmsd_i_msa_ml validates box bounds (fail loud)", {
                "init must be a length-2 numeric")
   expect_error(fit_lrmsd_i_msa_ml(pp, znb_profile, init = c(99, 1)),
                "init must lie within the box")
+  expect_error(fit_lrmsd_i_msa_ml(pp, znb_profile, init = c(a1 = 1, b = 1)),
+               "init must be an unnamed positional")
 })
 
 test_that("fit_lrmsd_i_msa_ml inherits the pdb_site contract from the likelihood", {
