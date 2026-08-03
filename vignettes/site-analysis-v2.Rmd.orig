@@ -1,0 +1,522 @@
+---
+title: "Site analysis of structural divergence"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Site analysis of structural divergence (v2)}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+<!--
+SOURCE OF TRUTH. This `.Rmd.orig` is the editable vignette; every code chunk runs
+for real. The shipped `site-analysis-v2.Rmd` is PRE-RENDERED from this file.
+Regenerate it after editing this file or after any change to the package code the
+vignette exercises:
+
+  Rscript -e 'knitr::knit("vignettes/site-analysis-v2.Rmd.orig", output = "vignettes/site-analysis-v2.Rmd")'
+
+then commit both this file, the rendered `site-analysis-v2.Rmd`, and its figures.
+Pattern: https://ropensci.org/technotes/2019/12/08/precompute-vignettes/
+-->
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 4.2,
+  dpi = 96,
+  # Write precomputed figures under a vignette-named dir rather than the default
+  # bare `figure/`, which R CMD check flags as a stray knitr leftover.
+  fig.path = "site-analysis-v2_files/figure-html/"
+)
+
+# Every computation chunk below runs for real when this file is knit. ggplot2 is
+# a Suggested dependency; if it is absent the computation still runs and only the
+# plotting chunks are skipped.
+has_ggplot <- requireNamespace("ggplot2", quietly = TRUE)
+
+# The fit here is ML (deterministic); the seed is harmless but kept for a stable
+# committed render.
+set.seed(1024)
+
+# The VignetteIndexEntry carries a "(v2)" tag to distinguish this from the sibling
+# vignette in the index; the YAML title is the clean form. Silence the mismatch check.
+options(rmarkdown.html_vignette.check_title = FALSE)
+```
+
+```{r libs, include = FALSE}
+suppressMessages({
+  library(msamodel)
+  library(dplyr)
+  library(tidyr)
+})
+if (has_ggplot) {
+  suppressMessages(library(ggplot2))
+  theme_set(theme_minimal(base_size = 12))
+}
+```
+
+This vignette predicts structural divergence **per residue** and fits it to data.
+Its sibling, the [mode analysis vignette](mode-analysis-v2.html), runs the same arc
+**per normal mode**; the two are companion views of one model. For a short
+end-to-end tour of both axes, see the [package overview](msamodel-v2.html).
+
+The per-residue quantity is `lrmsd`, the log root-mean-square structural displacement
+at each residue. It is built from a **single-point-mutation scan (SPM)**: the package
+mutates every site many times and records how far each mutation displaces the structure.
+Averaging that displacement over mutations — weighted by how likely each mutation is to
+survive selection — gives `dr2_i` per residue, and `lrmsd = log(sqrt(dr2_i))`. Two
+parameters set the selection weighting: `a1` (strength of selection on **stability**)
+and `a2` (strength of selection on **activity**, proximity to the active site), both
+non-negative with `0` meaning that pressure is off.
+
+Sections 2–4 evaluate the model at `(a1, a2)` values you supply, to show how the profile
+responds to each pressure; section 5 estimates `(a1, a2)` from observed data instead.
+We use the worked example `1znb_A` (zinc beta-lactamase), whose data ship as the `znb_*`
+datasets.
+
+Two verbs carry the whole vignette. `calculate_profiles()` returns the divergence
+profile at a given `(a1, a2)` — use it for the profile itself; `calculate_decomposition()`
+returns the four nested models plus their mutation/stability/activity split — use it when
+you want that breakdown. Each returns a list with a `$site` tibble (per residue) and a
+`$mode` tibble (per normal mode); this per-residue vignette reads `$site` throughout.
+
+## 1. Setup
+
+Everything starts from your two inputs: a structure file and a vector of
+active-site residue numbers. We use the worked example `1znb_A` (zinc
+beta-lactamase) that ships with the package; swap in your own at the two marked
+lines. You read the structure file with bio3d — `bio3d::read.pdb()` for a `.pdb` file,
+`bio3d::read.cif()` for mmCIF — and pass the result to `setup_enm()`.
+
+```{r attach}
+library(msamodel)
+library(dplyr)      # data-wrangling verbs (mutate, left_join, ...) used below
+library(tidyr)      # pivot_longer, to reshape profiles for plotting
+library(purrr)      # map_dfr, for the parameter sweeps in section 4
+library(ggplot2)    # the figures; optional — skip it if you only want the tables
+```
+
+```{r inputs}
+pdb_file        <- system.file("extdata", "1znb_A.pdb", package = "msamodel")  # <- your PDB path
+pdb_site_active <- c(99, 101, 103, 162, 181, 184, 193, 223)                    # <- your active-site residues
+```
+
+`msamodel` reads the structure, builds an elastic network model (`wt`), and runs a
+single-point-mutation scan (`spm`):
+
+```{r build}
+pdb <- bio3d::read.pdb(pdb_file)
+wt  <- setup_enm(pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+spm <- generate_spm_data(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
+                         min_sd = 2, pdb_site_active = pdb_site_active, seed = 1024)
+```
+
+The arguments above are the model's defaults — you can keep them for a first run.
+`setup_enm()` builds the elastic network: `node = "ca"` puts one node per residue at its
+C-alpha, `d_max = 10.5` (Å) sets how close two residues must be to be connected, and
+`model`/`frustrated` pick the spring rules. `generate_spm_data()` runs the scan:
+`n_mutations` mutants per site, `sigma` the mutation strength, `min_sd` the minimum
+sequence separation between coupled sites, `seed` for reproducibility. The scan takes a
+minute or two; for this example the result also ships as `znb_spm`, so `data("znb_spm")`
+loads it if you prefer to skip the wait. The observed profile we fit to is loaded later,
+in section 5.
+
+`spm` records, for each mutant, its energy changes and the per-residue divergence
+`dr2_ijm` it causes; the verbs below read those from it.
+
+Two per-site structural descriptors are used as plot axes below. We get them from
+`add_site_properties()`, which reads the wild-type ENM (`wt`) and returns, per
+site:
+
+- `dactive` — distance (Å) from the residue to the nearest active-site residue,
+- `msf` — mean square fluctuation, a flexibility measure from the ENM normal modes;
+  we report `lrmsf = log(sqrt(msf))`, the log RMSF.
+
+The site index `i` is msamodel's internal 1..N residue index; `spm$site_map` is the
+key from `i` to `pdb_site`, the PDB residue number used on the chain-plot x-axis.
+
+```{r site-props}
+site_ids   <- spm$site_map$i   # the internal site indices i
+site_props <- add_site_properties(tibble::tibble(i = site_ids), wt, pdb_site_active) |>
+  mutate(lrmsf = log(sqrt(msf))) |>               # log RMSF (flexibility)
+  left_join(spm$site_map, by = "i") |>            # attach pdb_site (i -> PDB number)
+  select(i, pdb_site, dactive, lrmsf)
+```
+
+## 2. Divergence profile at given (a1, a2)
+
+For any choice of `(a1, a2)`, `calculate_profiles()` returns the divergence profile.
+We ask for the per-residue reading with `$site`; the site tibble has the index `i`, the
+PDB number `pdb_site`, and the profile `lrmsd_i_msa` (the `msa` marks the full model,
+with both selection pressures active; section 3 introduces the variants with one or both
+switched off). The `which` argument picks the quantity: `"lrmsd"` (used through sections
+2–4) is the absolute profile, keeping the overall level; `"nlrmsd"` is the same profile
+with its mean subtracted off — its *shape* — which section 5 uses to compare against data.
+
+```{r profile-raw}
+a1 <- 2; a2 <- 500
+calculate_profiles(spm, a1, a2, which = "lrmsd")$site |> head()
+```
+
+Here we pick illustrative values to see the model in action — `a1 = 2` (moderate
+stability selection) and `a2 = 500` (strong activity selection); the two live on
+different scales, so their numbers are not comparable to each other. Section 5 replaces
+these guesses with values estimated from data. The profile is keyed by `i` and
+`pdb_site`, so we attach the two structural descriptors from `site_props`:
+
+```{r profile-code}
+profile_demo <- calculate_profiles(spm, a1, a2, which = "lrmsd")$site |>
+  left_join(select(site_props, i, dactive, lrmsf), by = "i")
+```
+
+The divergence profile along the chain (active sites marked in red):
+
+```{r profile-residue, eval = has_ggplot}
+ggplot(profile_demo, aes(pdb_site, lrmsd_i_msa)) +
+  geom_vline(xintercept = pdb_site_active, colour = "firebrick", alpha = 0.4, linewidth = 0.3) +
+  geom_line(colour = "grey40") +
+  geom_point(size = 0.8, colour = "grey20") +
+  labs(
+    title = sprintf("Divergence profile (a1 = %g, a2 = %g)", a1, a2),
+    subtitle = "Red lines mark active-site residues",
+    x = "Residue (PDB numbering)", y = "lrmsd"
+  )
+```
+
+Divergence is lower (more conserved) at rigid sites and near the active site.
+Plotting `lrmsd` against flexibility and against distance to the active site,
+with a smooth, makes those trends explicit:
+
+```{r profile-lrmsf, eval = has_ggplot}
+ggplot(profile_demo, aes(lrmsf, lrmsd_i_msa)) +
+  geom_point(alpha = 0.5, colour = "grey30") +
+  geom_smooth(method = "loess", formula = y ~ x, se = TRUE, colour = "steelblue") +
+  labs(title = "Divergence vs. flexibility",
+       x = "lrmsf  (log RMSF)", y = "lrmsd")
+```
+
+```{r profile-dactive, eval = has_ggplot}
+ggplot(profile_demo, aes(dactive, lrmsd_i_msa)) +
+  geom_point(alpha = 0.5, colour = "grey30") +
+  geom_smooth(method = "loess", formula = y ~ x, se = TRUE, colour = "darkorange") +
+  labs(title = "Divergence vs. distance to active site",
+       x = "Distance to active site (Å)", y = "lrmsd")
+```
+
+## 3. Decomposing the profile at given (a1, a2)
+
+The profile at a chosen `(a1, a2)` can be split into additive contributions from
+mutation, stability selection, and activity selection. The split uses four
+**nested model variants**, each the model evaluated with one or both selection
+pressures switched off:
+
+| Variant | a1 (stability) | a2 (activity) | meaning |
+|:--|:--|:--|:--|
+| **MM** | 0 | 0 | mutation only — no selection |
+| **MS** | a1 | 0 | mutation + stability selection |
+| **MA** | 0 | a2 | mutation + activity selection |
+| **MSA** | a1 | a2 | full model — both selections |
+
+`calculate_decomposition()` returns, in one `$site` tibble, both the four nested lrmsd
+profiles (`lrmsd_i_mm`, `lrmsd_i_ms`, `lrmsd_i_ma`, `lrmsd_i_msa`) and their split
+(`phi_mut`, `phi_stab`, `phi_act`). `which = "lrmsd"` keeps everything on the absolute
+scale:
+
+```{r decomp-code}
+decomp <- calculate_decomposition(spm, a1, a2, which = "lrmsd")$site   # a1 = 2, a2 = 500 from section 2
+head(decomp)
+```
+
+The four profiles along the chain — each model adds one more selection pressure,
+suppressing divergence further (active sites marked in red):
+
+```{r nested-profiles, eval = has_ggplot}
+model_cols <- c(MM = "#FF8C00", MS = "#0000CD", MA = "#1B9E77", MSA = "#C41E3A")
+nested_long <- decomp |>
+  tidyr::pivot_longer(c(lrmsd_i_mm, lrmsd_i_ms, lrmsd_i_ma, lrmsd_i_msa),
+                      names_to = "model", values_to = "lrmsd") |>
+  mutate(model = factor(toupper(sub("lrmsd_i_", "", model)),
+                        levels = c("MM", "MS", "MA", "MSA")))
+ggplot(nested_long, aes(pdb_site, lrmsd, colour = model)) +
+  geom_vline(xintercept = pdb_site_active, colour = "firebrick",
+             alpha = 0.3, linewidth = 0.3) +
+  geom_line(alpha = 0.85) +
+  scale_colour_manual(values = model_cols) +
+  labs(title = sprintf("Nested-model profiles (a1 = %g, a2 = %g)", a1, a2),
+       subtitle = "Red lines mark active-site residues",
+       x = "Residue (PDB numbering)", y = "lrmsd", colour = "model")
+```
+
+The **sequential** decomposition starts from the mutation-only model and adds one
+selection pressure at a time along MM → MS → MSA. Each term is the incremental
+divergence contributed by the next pressure. (MA — activity alone, stability off — is
+the fourth variant: it is not a step on this MM → MS → MSA path, but it lets you see
+activity selection's effect on its own, as the mirror of MS. The decomposition uses MM,
+MS, and MSA.) Writing $\phi$ for the contributions,
+
+$$
+\phi_{\text{mut}}  = \text{lrmsd}_{\text{mm}}
+$$
+$$
+\phi_{\text{stab}} = \text{lrmsd}_{\text{ms}} - \text{lrmsd}_{\text{mm}}
+$$
+$$
+\phi_{\text{act}}  = \text{lrmsd}_{\text{msa}} - \text{lrmsd}_{\text{ms}}
+$$
+
+By construction these sum to the full prediction,
+$\phi_{\text{mut}} + \phi_{\text{stab}} + \phi_{\text{act}} = \text{lrmsd}_{\text{msa}}$.
+Those three `phi_*` columns are already in the `decomp` tibble above — the four nested
+profiles are there when you want to *see* them, and the `phi` split is there when you
+want the contributions directly:
+
+```{r decomp-fixed, eval = has_ggplot}
+labs_comp <- c(phi_mut = "mutation",
+               phi_stab = "stability selection",
+               phi_act = "activity selection")
+# Paper component colours: mutation = orange, stability = blue, activity = red.
+comp_cols <- c("mutation" = "#FF8C00", "stability selection" = "#0000CD",
+               "activity selection" = "#C41E3A")
+phi_long <- decomp |>
+  tidyr::pivot_longer(c(phi_mut, phi_stab, phi_act),
+                      names_to = "component", values_to = "phi") |>
+  mutate(component = factor(labs_comp[component], levels = labs_comp))
+ggplot(phi_long, aes(pdb_site, phi, colour = component)) +
+  geom_vline(xintercept = pdb_site_active, colour = "firebrick",
+             alpha = 0.3, linewidth = 0.3) +
+  geom_hline(yintercept = 0, colour = "grey80") +
+  geom_line() +
+  scale_colour_manual(values = comp_cols, guide = "none") +
+  facet_wrap(~ component, ncol = 1) +
+  labs(title = sprintf("Decomposition of the profile (a1 = %g, a2 = %g)", a1, a2),
+       subtitle = "Red lines mark active-site residues",
+       x = "Residue (PDB numbering)", y = "contribution to lrmsd")
+```
+
+Reading the panels: each curve is one pressure's contribution to `lrmsd` at each
+residue. Where a curve dips **below** zero, that pressure *reduces* divergence at that
+residue (it conserves the site); above zero, it adds divergence. Activity selection, for
+instance, should press down hardest near the active-site residues (red lines).
+
+This decomposes the profile at the **chosen** `(a1, a2)`. Section 6 applies the
+same decomposition to the **fitted** profile, after `a1, a2` are estimated from
+data in section 5.
+
+## 4. How the profile depends on a1 and a2
+
+Stability selection (`a1`, with `a2 = 0`) and activity selection (`a2`, with
+`a1 = 0`) shape the profile in different ways. Here we vary one parameter at a
+time and overlay the resulting profiles:
+
+```{r sweep-code}
+# Stability sweep: vary a1, hold a2 = 0
+a1_values <- c(0, 1, 2, 4, 8)
+sweep_a1 <- purrr::map_dfr(a1_values, function(a1)
+  calculate_profiles(spm, a1, 0, which = "lrmsd")$site |>
+    rename(lrmsd = lrmsd_i_msa) |>
+    mutate(a1 = a1) |>
+    left_join(select(site_props, i, dactive, lrmsf), by = "i"))
+
+# Activity sweep: vary a2, hold a1 = 0
+a2_values <- c(0, 31, 127, 511, 2047)
+sweep_a2 <- purrr::map_dfr(a2_values, function(a2)
+  calculate_profiles(spm, 0, a2, which = "lrmsd")$site |>
+    rename(lrmsd = lrmsd_i_msa) |>
+    mutate(a2 = a2) |>
+    left_join(select(site_props, i, dactive, lrmsf), by = "i"))
+```
+
+```{r sweep-a1, eval = has_ggplot}
+ggplot(sweep_a1, aes(pdb_site, lrmsd, colour = factor(a1), group = a1)) +
+  geom_vline(xintercept = pdb_site_active, colour = "firebrick",
+             alpha = 0.3, linewidth = 0.3) +
+  geom_line(alpha = 0.85) +
+  scale_colour_viridis_d(end = 0.9) +
+  labs(title = "Stability sweep (a2 = 0)", subtitle = "Red lines mark active-site residues",
+       x = "Residue (PDB numbering)", y = "lrmsd", colour = "a1")
+```
+
+```{r sweep-a2, eval = has_ggplot}
+ggplot(sweep_a2, aes(pdb_site, lrmsd, colour = factor(a2), group = a2)) +
+  geom_vline(xintercept = pdb_site_active, colour = "firebrick",
+             alpha = 0.3, linewidth = 0.3) +
+  geom_line(alpha = 0.85) +
+  scale_colour_viridis_d(option = "C", end = 0.9) +
+  labs(title = "Activity sweep (a1 = 0)", subtitle = "Red lines mark active-site residues",
+       x = "Residue (PDB numbering)", y = "lrmsd", colour = "a2")
+```
+
+Increasing `a1` suppresses divergence broadly (stronger stability selection
+conserves the whole structure); increasing `a2` suppresses divergence
+selectively around the active site.
+
+## 5. Fitting a1 and a2 to observed divergence
+
+Sections 2–4 chose `(a1, a2)` by hand. In practice you estimate them: you find the
+`(a1, a2)` whose predicted profile best matches a profile you measured.
+
+To fit, you supply that **observed** divergence profile — **your** data, not something
+`msamodel` computes. You obtain it by superimposing homologous structures onto your
+protein over a sequence alignment and measuring how much each residue's position varies
+across the family; `lrmsd_i_obs` is the log of that per-residue variation. `msamodel`
+does not do this step — you bring the result as a table with columns `pdb_site` and
+`lrmsd_i_obs`. The package ships one for the worked example, `znb_profile`:
+
+```{r obs}
+data("znb_profile")   # the example observed data; supply your own in this shape
+head(znb_profile)
+```
+
+`fit_lrmsd_i_msa_ml()` estimates `a1, a2` from it by maximum likelihood, returning a
+point estimate plus an asymptotic covariance from the Hessian at the optimum. It is
+fast and deterministic:
+
+```{r fit-code}
+ml <- fit_lrmsd_i_msa_ml(spm, znb_profile)   # spm from section 1; znb_profile is the target
+c(a1 = ml$a1, a2 = ml$a2)
+```
+
+```{r fit-params, echo = FALSE}
+knitr::kable(
+  tibble::tibble(
+    parameter = c("a1", "a2"),
+    estimate  = c(ml$a1, ml$a2),
+    se        = c(ml$se_a1, ml$se_a2)
+  ),
+  digits = 3,
+  caption = "ML estimate of the selection parameters (se from the Hessian)"
+)
+```
+
+The [inference methods vignette](inference-methods-v2.html) walks through this fit end
+to end and puts delta-method confidence bands on the predicted profile and its
+decomposition.
+
+### Fitted vs. observed
+
+An observed profile fixes the *shape* of divergence along the chain but not its overall
+level, so the fit compares shapes: each profile with its own average subtracted off. We
+write that centred form `nlrmsd = lrmsd - mean(lrmsd)` (the leading `n` = "centred"). We
+take the MSA prediction at the ML estimate — the `lrmsd_i_msa` column of the fitted
+decomposition — join it to the observed profile, centre both over the compared residues,
+and annotate with R²:
+
+```{r fit-prep}
+# Coefficient of determination, R^2 = 1 - SSE/SST, used to score the fit.
+r2 <- function(obs, pred) 1 - sum((obs - pred)^2) / sum((obs - mean(obs))^2)
+
+fit_msa <- calculate_decomposition(spm, ml$a1, ml$a2, which = "lrmsd")$site |>
+  select(pdb_site, lrmsd_fit = lrmsd_i_msa)
+
+cmp <- znb_profile |>
+  inner_join(fit_msa, by = "pdb_site") |>
+  left_join(select(site_props, pdb_site, dactive, lrmsf), by = "pdb_site") |>
+  mutate(
+    nlrmsd_i_obs = lrmsd_i_obs - mean(lrmsd_i_obs),
+    nlrmsd_fit = lrmsd_fit - mean(lrmsd_fit)
+  )
+
+r2_fit <- r2(cmp$nlrmsd_i_obs, cmp$nlrmsd_fit)
+```
+
+```{r fit-long, include = FALSE}
+cmp_long <- cmp |>
+  tidyr::pivot_longer(c(nlrmsd_i_obs, nlrmsd_fit),
+                      names_to = "source", values_to = "nlrmsd") |>
+  mutate(source = dplyr::recode(source,
+                                nlrmsd_i_obs = "observed",
+                                nlrmsd_fit = "fitted (MSA)"))
+```
+
+Profile along the chain — observed vs fitted:
+
+```{r fit-profile, eval = has_ggplot}
+ggplot(cmp_long, aes(pdb_site, nlrmsd, colour = source)) +
+  geom_line(alpha = 0.8) +
+  scale_colour_manual(values = c("observed" = "grey25", "fitted (MSA)" = "firebrick")) +
+  annotate("text", x = -Inf, y = Inf, hjust = -0.15, vjust = 1.8,
+           label = sprintf("R^2 == %.3f", r2_fit), parse = TRUE) +
+  labs(title = "Observed vs. fitted divergence profile",
+       x = "Residue (PDB numbering)", y = "nlrmsd (mean-centered)", colour = NULL) +
+  theme(legend.position = "top")
+```
+
+Fitted vs observed as a scatter (points on the dashed line are a perfect match):
+
+```{r fit-scatter, eval = has_ggplot}
+ggplot(cmp, aes(nlrmsd_i_obs, nlrmsd_fit)) +
+  geom_abline(slope = 1, intercept = 0, colour = "grey70", linetype = 2) +
+  geom_point(alpha = 0.5, colour = "steelblue") +
+  annotate("text", x = -Inf, y = Inf, hjust = -0.15, vjust = 1.4,
+           label = sprintf("R^2 == %.3f", r2_fit), parse = TRUE) +
+  labs(title = "Fitted vs. observed (mean-centered)",
+       x = "observed nlrmsd", y = "fitted nlrmsd")
+```
+
+And the fitted/observed divergence against flexibility and distance to the
+active site:
+
+```{r fit-vs-lrmsf, eval = has_ggplot}
+ggplot(cmp_long, aes(lrmsf, nlrmsd, colour = source)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "loess", formula = y ~ x, se = FALSE) +
+  scale_colour_manual(values = c("observed" = "grey25", "fitted (MSA)" = "firebrick")) +
+  labs(title = "Observed vs. fitted, by flexibility",
+       x = "lrmsf (log RMSF)", y = "nlrmsd (mean-centered)", colour = NULL) +
+  theme(legend.position = "top")
+```
+
+```{r fit-vs-dactive, eval = has_ggplot}
+ggplot(cmp_long, aes(dactive, nlrmsd, colour = source)) +
+  geom_point(alpha = 0.4) +
+  geom_smooth(method = "loess", formula = y ~ x, se = FALSE) +
+  scale_colour_manual(values = c("observed" = "grey25", "fitted (MSA)" = "firebrick")) +
+  labs(title = "Observed vs. fitted, by distance to active site",
+       x = "Distance to active site (Å)", y = "nlrmsd (mean-centered)", colour = NULL) +
+  theme(legend.position = "top")
+```
+
+## 6. Decomposing the fitted profile
+
+Section 3 decomposed the profile at a *chosen* `(a1, a2)`. The same
+$\phi_{\text{mut}}/\phi_{\text{stab}}/\phi_{\text{act}}$ decomposition applies to
+the **fitted** profile — call `calculate_decomposition()` at the ML estimate
+`(ml$a1, ml$a2)` instead of the chosen strengths, and read the `phi_*` columns:
+
+```{r decomp-fit-code}
+phi_fit <- calculate_decomposition(spm, ml$a1, ml$a2, which = "lrmsd")$site
+```
+
+The mutation term is the divergence under no selection (it still varies among
+sites — mutations perturb sites unequally); a negative selection term means that
+pressure *reduces* divergence at that site relative to the mutation-only model.
+
+```{r decomp-fit, eval = has_ggplot}
+labs_comp <- c(phi_mut = "mutation",
+               phi_stab = "stability selection",
+               phi_act = "activity selection")
+comp_cols <- c("mutation" = "#FF8C00", "stability selection" = "#0000CD",
+               "activity selection" = "#C41E3A")
+phi_fit_long <- phi_fit |>
+  tidyr::pivot_longer(c(phi_mut, phi_stab, phi_act),
+                      names_to = "component", values_to = "phi") |>
+  mutate(component = factor(labs_comp[component], levels = labs_comp))
+ggplot(phi_fit_long, aes(pdb_site, phi, colour = component)) +
+  geom_vline(xintercept = pdb_site_active, colour = "firebrick",
+             alpha = 0.3, linewidth = 0.3) +
+  geom_hline(yintercept = 0, colour = "grey80") +
+  geom_line() +
+  scale_colour_manual(values = comp_cols, guide = "none") +
+  facet_wrap(~ component, ncol = 1) +
+  labs(title = "Decomposition of the fitted profile",
+       subtitle = "Red lines mark active-site residues",
+       x = "Residue (PDB numbering)", y = "contribution to lrmsd")
+```
+
+## Session info
+
+```{r session, echo = FALSE}
+sessionInfo()
+```
