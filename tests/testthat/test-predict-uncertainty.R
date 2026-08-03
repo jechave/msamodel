@@ -81,7 +81,7 @@ test_that("MM centred band: zero under parameter, nonzero under spm/both", {
 })
 
 test_that("nphi_mut band == nlrmsd_mm band (same quantity); phi_stab differs", {
-  # phi_mut = mm by construction (calculate_msa_decomposition sets phi_mut = mm), so its
+  # phi_mut = mm by construction (decompose_nested sets phi_mut = mm), so its
   # SPM band must equal the nlrmsd_mm band exactly. Negative control: phi_stab is a
   # DIFFERENCE (ms - mm), so its band must NOT equal the single-model nlrmsd_ms band --
   # if the decomposition wrongly reused a single-model formula, that control goes red.

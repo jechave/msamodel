@@ -24,7 +24,7 @@ Forward decomposition on the site axis: at a single pair of selection strengths
 mutation, stability, and activity contributions (\code{phi_mut}, \code{phi_stab},
 \code{phi_act}). It packages the two-step recipe -- evaluate the four nested model
 variants with \code{\link[=calculate_lrmsd_i_nested_models]{calculate_lrmsd_i_nested_models()}}, then apply the sequential
-split \code{calculate_msa_decomposition()} -- so a caller wanting phi at a point need
+split \code{decompose_nested()} -- so a caller wanting phi at a point need
 not run and thread the four variant columns by hand. The three contributions sum
 exactly to the full-model profile \code{lrmsd_i_msa}.
 }
@@ -41,7 +41,7 @@ head(calculate_decomposition_i_msa(spm, a1 = 1, a2 = 1))
 }
 \seealso{
 \code{\link[=calculate_lrmsd_i_nested_models]{calculate_lrmsd_i_nested_models()}} (the four variants it splits);
-\code{calculate_msa_decomposition()} (the pure sequential split);
+\code{decompose_nested()} (the pure sequential split);
 \code{\link[=calculate_decomposition_n_msa]{calculate_decomposition_n_msa()}} (the mode-indexed counterpart).
 
 Other model:

@@ -152,7 +152,7 @@ nlrmsd_nested_models <- function(dr2_mat, energy_data, a1, a2) {
 #'
 #' The shared core of [calculate_decomposition_i_msa()] / [calculate_decomposition_n_msa()]:
 #' evaluate the four nested variants, then apply the sequential split
-#' `calculate_msa_decomposition()`. Named `lrmsd_msa_decomposition` (not the naive
+#' `decompose_nested()`. Named `lrmsd_msa_decomposition` (not the naive
 #' `decomposition_msa`) so it pairs cleanly with `nlrmsd_msa_decomposition`; the exported
 #' `calculate_decomposition_*_msa` is a known naming wart kept for now (see plan).
 #'
@@ -162,7 +162,7 @@ nlrmsd_nested_models <- function(dr2_mat, energy_data, a1, a2) {
 #' @noRd
 lrmsd_msa_decomposition <- function(dr2_mat, energy_data, a1, a2) {
   v <- lrmsd_nested_models(dr2_mat, energy_data, a1, a2)
-  calculate_msa_decomposition(v$mm, v$ms, v$ma, v$msa)
+  decompose_nested(v$mm, v$ms, v$ma, v$msa)
 }
 
 #' Axis-blind mean-centred divergence decomposition at one (a1, a2)
@@ -390,7 +390,7 @@ calculate_nlrmsd_n_msa <- function(spm, a1, a2) {
 #' | MA  | (0, a2)  | mutation + activity selection |
 #' | MSA | (a1, a2) | full model, both selections |
 #'
-#' Pass the four returned columns to `calculate_msa_decomposition()` to split the
+#' Pass the four returned columns to `decompose_nested()` to split the
 #' divergence into its mutation, stability, and activity contributions.
 #'
 #' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
@@ -402,7 +402,7 @@ calculate_nlrmsd_n_msa <- function(spm, a1, a2) {
 #'   number `pdb_site`, and the four divergence profiles `lrmsd_i_mm`,
 #'   `lrmsd_i_ms`, `lrmsd_i_ma`, `lrmsd_i_msa`.
 #' @seealso [calculate_dr2_i_msa()] (the single-variant prediction it calls);
-#'   `calculate_msa_decomposition()` (splits the four columns into contributions);
+#'   `decompose_nested()` (splits the four columns into contributions);
 #'   [calculate_lrmsd_n_nested_models()] (the mode-indexed counterpart).
 #' @family model
 #' @examples
@@ -468,7 +468,7 @@ calculate_nlrmsd_i_nested_models <- function(spm, a1, a2) {
 #' mutation, stability, and activity contributions (`phi_mut`, `phi_stab`,
 #' `phi_act`). It packages the two-step recipe -- evaluate the four nested model
 #' variants with [calculate_lrmsd_i_nested_models()], then apply the sequential
-#' split `calculate_msa_decomposition()` -- so a caller wanting phi at a point need
+#' split `decompose_nested()` -- so a caller wanting phi at a point need
 #' not run and thread the four variant columns by hand. The three contributions sum
 #' exactly to the full-model profile `lrmsd_i_msa`.
 #'
@@ -483,7 +483,7 @@ calculate_nlrmsd_i_nested_models <- function(spm, a1, a2) {
 #'   number `pdb_site`, and the three contributions `phi_mut`, `phi_stab`,
 #'   `phi_act`.
 #' @seealso [calculate_lrmsd_i_nested_models()] (the four variants it splits);
-#'   `calculate_msa_decomposition()` (the pure sequential split);
+#'   `decompose_nested()` (the pure sequential split);
 #'   [calculate_decomposition_n_msa()] (the mode-indexed counterpart).
 #' @family model
 #' @examples
@@ -552,7 +552,7 @@ calculate_nlrmsd_i_msa_decomposition <- function(spm, a1, a2) {
 #'
 #' Modes are not anchored to residues, so the output has no `pdb_site` column
 #' (unlike the site form). Pass the four returned columns to
-#' `calculate_msa_decomposition()` to split the divergence into its contributions.
+#' `decompose_nested()` to split the divergence into its contributions.
 #'
 #' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
 #' @param a1 Stability selection strength used for the MS and MSA variants
@@ -621,7 +621,7 @@ calculate_nlrmsd_n_nested_models <- function(spm, a1, a2) {
 #' into its mutation, stability, and activity contributions (`phi_mut`, `phi_stab`,
 #' `phi_act`). It packages the two-step recipe -- evaluate the four nested model
 #' variants with [calculate_lrmsd_n_nested_models()], then apply the sequential split
-#' `calculate_msa_decomposition()`. The three contributions sum exactly to the
+#' `decompose_nested()`. The three contributions sum exactly to the
 #' full-model profile `lrmsd_n_msa`. Modes are not anchored to residues, so the
 #' output has no `pdb_site` column.
 #'
@@ -635,7 +635,7 @@ calculate_nlrmsd_n_nested_models <- function(spm, a1, a2) {
 #' @return A tibble with one row per mode: the mode index `n` and the three
 #'   contributions `phi_mut`, `phi_stab`, `phi_act`.
 #' @seealso [calculate_lrmsd_n_nested_models()] (the four variants it splits);
-#'   `calculate_msa_decomposition()` (the pure sequential split);
+#'   `decompose_nested()` (the pure sequential split);
 #'   [calculate_decomposition_i_msa()] (the residue-indexed counterpart).
 #' @family model
 #' @examples

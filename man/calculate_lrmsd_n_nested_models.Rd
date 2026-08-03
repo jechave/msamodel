@@ -38,7 +38,7 @@ The four variants are obtained by turning the two selection strengths on or off:
 
 Modes are not anchored to residues, so the output has no \code{pdb_site} column
 (unlike the site form). Pass the four returned columns to
-\code{calculate_msa_decomposition()} to split the divergence into its contributions.
+\code{decompose_nested()} to split the divergence into its contributions.
 }
 \examples{
 \dontrun{

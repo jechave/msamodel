@@ -23,7 +23,7 @@ of selection strengths \verb{(a1, a2)} it splits the predicted mode-divergence p
 into its mutation, stability, and activity contributions (\code{phi_mut}, \code{phi_stab},
 \code{phi_act}). It packages the two-step recipe -- evaluate the four nested model
 variants with \code{\link[=calculate_lrmsd_n_nested_models]{calculate_lrmsd_n_nested_models()}}, then apply the sequential split
-\code{calculate_msa_decomposition()}. The three contributions sum exactly to the
+\code{decompose_nested()}. The three contributions sum exactly to the
 full-model profile \code{lrmsd_n_msa}. Modes are not anchored to residues, so the
 output has no \code{pdb_site} column.
 }
@@ -40,7 +40,7 @@ head(calculate_decomposition_n_msa(spm, a1 = 1, a2 = 1))
 }
 \seealso{
 \code{\link[=calculate_lrmsd_n_nested_models]{calculate_lrmsd_n_nested_models()}} (the four variants it splits);
-\code{calculate_msa_decomposition()} (the pure sequential split);
+\code{decompose_nested()} (the pure sequential split);
 \code{\link[=calculate_decomposition_i_msa]{calculate_decomposition_i_msa()}} (the residue-indexed counterpart).
 
 Other model:

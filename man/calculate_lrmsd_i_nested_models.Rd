@@ -38,7 +38,7 @@ The four variants are obtained by turning the two selection strengths on or off:
 }
 
 
-Pass the four returned columns to \code{calculate_msa_decomposition()} to split the
+Pass the four returned columns to \code{decompose_nested()} to split the
 divergence into its mutation, stability, and activity contributions.
 }
 \examples{
@@ -49,7 +49,7 @@ head(calculate_lrmsd_i_nested_models(spm, a1 = 1, a2 = 1))
 }
 \seealso{
 \code{\link[=calculate_dr2_i_msa]{calculate_dr2_i_msa()}} (the single-variant prediction it calls);
-\code{calculate_msa_decomposition()} (splits the four columns into contributions);
+\code{decompose_nested()} (splits the four columns into contributions);
 \code{\link[=calculate_lrmsd_n_nested_models]{calculate_lrmsd_n_nested_models()}} (the mode-indexed counterpart).
 
 Other model:

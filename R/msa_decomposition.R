@@ -27,7 +27,7 @@
 #' @return A named list of three numeric vectors -- `phi_mut`, `phi_stab`,
 #'   `phi_act` -- one value per input element.
 #' @noRd
-calculate_msa_decomposition <- function(mm, ms, ma, msa) {
+decompose_nested <- function(mm, ms, ma, msa) {
   # Sequential M0 -> MM -> MS -> MSA decomposition. `ma` is unused here but kept
   # in the signature so the future Shapley `method` is a non-breaking addition.
   list(

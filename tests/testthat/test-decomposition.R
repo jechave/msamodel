@@ -1,11 +1,11 @@
-test_that("calculate_msa_decomposition is a pure vector function (4 in, 3 out)", {
+test_that("decompose_nested is a pure vector function (4 in, 3 out)", {
   # Plain numeric vectors -- no tibble, no column names, no key. This is the point
   # of the refactor: the math knows nothing about sites/modes.
   mm  <- c(0.1, 0.2, 0.3)
   ms  <- c(0.2, 0.3, 0.4)
   ma  <- c(0.3, 0.4, 0.5)   # unused by sequential; reserved for Shapley
   msa <- c(0.5, 0.6, 0.7)
-  out <- calculate_msa_decomposition(mm, ms, ma, msa)
+  out <- decompose_nested(mm, ms, ma, msa)
 
   expect_type(out, "list")
   expect_named(out, c("phi_mut", "phi_stab", "phi_act"))
@@ -33,8 +33,8 @@ test_that("calculate_decomposition_i_msa packages nested-models + the kernel", {
 
   # It equals the manual two-step it packages (its contract).
   nm  <- calculate_lrmsd_i_nested_models(pp, a1 = 1, a2 = 1)
-  ref <- calculate_msa_decomposition(nm$lrmsd_i_mm, nm$lrmsd_i_ms,
-                                     nm$lrmsd_i_ma, nm$lrmsd_i_msa)
+  ref <- decompose_nested(nm$lrmsd_i_mm, nm$lrmsd_i_ms,
+                          nm$lrmsd_i_ma, nm$lrmsd_i_msa)
   expect_equal(got$phi_mut,  ref$phi_mut)
   expect_equal(got$phi_stab, ref$phi_stab)
   expect_equal(got$phi_act,  ref$phi_act)
@@ -56,8 +56,8 @@ test_that("calculate_decomposition_n_msa packages nested-models + the kernel (mo
 
   # It equals the manual two-step it packages (its contract).
   nm  <- calculate_lrmsd_n_nested_models(pp, a1 = 1, a2 = 1)
-  ref <- calculate_msa_decomposition(nm$lrmsd_n_mm, nm$lrmsd_n_ms,
-                                     nm$lrmsd_n_ma, nm$lrmsd_n_msa)
+  ref <- decompose_nested(nm$lrmsd_n_mm, nm$lrmsd_n_ms,
+                          nm$lrmsd_n_ma, nm$lrmsd_n_msa)
   expect_equal(got$phi_mut,  ref$phi_mut)
   expect_equal(got$phi_stab, ref$phi_stab)
   expect_equal(got$phi_act,  ref$phi_act)
