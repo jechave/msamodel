@@ -59,11 +59,11 @@ test_that("calculate_nlrmsd_n_msa centres the uncentred profile and agrees with 
   lr <- calculate_lrmsd_n_msa(znb_spm, a1, a2)$lrmsd_n_msa
   expect_equal(nc$nlrmsd_n_msa, lr - mean(lr))
 
-  # Forward map == predictor point profile (uncertainty='none' strips the band).
+  # Forward map == predictor point profile.
   mln  <- fit_lrmsd_n_msa_ml(znb_spm, znb_profile_n)
   fwd  <- calculate_nlrmsd_n_msa(znb_spm, mln$a1, mln$a2)
-  pred <- predict_nlrmsd_n_msa_ml(mln, znb_spm, uncertainty = "none")
-  expect_equal(fwd$nlrmsd_n_msa, pred$nlrmsd_n_msa_mean)
+  pred <- predict_profiles(mln, znb_spm, which = "nlrmsd")$mode
+  expect_equal(fwd$nlrmsd_n_msa, pred$nlrmsd_n_msa)
 })
 
 test_that("calculate_nlrmsd_n_msa_decomposition contributions sum to the centred profile", {

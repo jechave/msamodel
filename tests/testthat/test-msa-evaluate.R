@@ -40,16 +40,15 @@ test_that("calculate_nlrmsd_i_msa centres the uncentred profile over the full su
   expect_equal(mean(nc$nlrmsd_i_msa), 0)          # centred: mean is (machine) zero
 })
 
-test_that("calculate_nlrmsd_i_msa agrees with predict_nlrmsd_i_msa_ml's point profile", {
+test_that("calculate_nlrmsd_i_msa agrees with predict_profiles's point profile", {
   # The forward map and the predictor must return the SAME centred profile (the whole
-  # point of the twin). uncertainty='none' strips the band so only the mean remains.
-  # Negative control: if the twin centred over the wrong support (or not at all), the
-  # predictor -- which centres over the full model support -- would disagree.
+  # point of the twin). Negative control: if the twin centred over the wrong support (or
+  # not at all), the predictor -- which centres over the full model support -- would disagree.
   pp <- znb_spm
   ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
   fwd  <- calculate_nlrmsd_i_msa(pp, ml$a1, ml$a2)
-  pred <- predict_nlrmsd_i_msa_ml(ml, pp, uncertainty = "none")
-  expect_equal(fwd$nlrmsd_i_msa, pred$nlrmsd_i_msa_mean)
+  pred <- predict_profiles(ml, pp, which = "nlrmsd")$site
+  expect_equal(fwd$nlrmsd_i_msa, pred$nlrmsd_i_msa)
 })
 
 test_that("calculate_nlrmsd_i_msa_decomposition contributions sum to the centred profile", {
