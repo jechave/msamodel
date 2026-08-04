@@ -1,22 +1,22 @@
-# Mode-form structural divergence (v0.3a): the mode matrix dr2_njm on the assembled
-# spm object + calculate_dr2_n_msa. Predict-only path (no fit), parallel to the site
-# path in test-msa-evaluate.R.
+# Mode-form structural divergence: the mode matrix dr2_njm on the assembled spm
+# object + the @noRd forward-map primitives (dr2_msa / lrmsd_nested_models /
+# nlrmsd_msa / nlrmsd_msa_decomposition / nlrmsd_nested_models) that the leaf verbs
+# are built from. Mode mirror of test-msa-evaluate.R. The old exported calculate_*_n_*
+# grid wrappers were deleted; the math they wrapped is these primitives.
 
 test_that("znb_spm carries a [mutant x mode] dr2_njm of the expected shape", {
   # 228 sites x 10 mutations (m > 0) = 2280 mutant rows; 678 modes (= 3*228 - 6).
   expect_equal(dim(znb_spm$dr2_njm), c(2280L, 678L))
   # Mode index is the column position, not stored as colnames (which would leak onto
-  # colSums-derived value vectors); calculate_dr2_n_msa recovers n via seq_len(ncol).
+  # colSums-derived value vectors); the forward map recovers n via seq_len(ncol).
   expect_null(colnames(znb_spm$dr2_njm))
 })
 
-test_that("calculate_dr2_n_msa returns one finite, positive dr2_n per mode", {
-  d <- calculate_dr2_n_msa(znb_spm, a1 = 2, a2 = 5)
-  expect_named(d, c("n", "dr2_n"))
-  expect_equal(nrow(d), 678L)
-  expect_equal(d$n, 1:678)
-  expect_true(all(is.finite(d$dr2_n)))
-  expect_true(all(d$dr2_n > 0))
+test_that("dr2_msa returns one finite, positive dr2 per mode", {
+  d <- dr2_msa(znb_spm$dr2_njm, znb_spm$energy_data, a1 = 2, a2 = 5)
+  expect_length(d, 678L)
+  expect_true(all(is.finite(d)))
+  expect_true(all(d > 0))
 })
 
 test_that("per-mutant site and mode divergence agree (basis invariance)", {
@@ -31,58 +31,52 @@ test_that("per-mutant site and mode divergence agree (basis invariance)", {
   }
 })
 
-test_that("calculate_lrmsd_n_nested_models builds the four variants at the right (a1,a2)", {
+test_that("lrmsd_nested_models builds the four variants at the right (a1,a2) (mode)", {
   a1 <- 2; a2 <- 5
-  nested <- calculate_lrmsd_n_nested_models(znb_spm, a1, a2)
+  nested <- lrmsd_nested_models(znb_spm$dr2_njm, znb_spm$energy_data, a1, a2)
 
-  # Mode form: keyed by n, NO pdb_site (modes are not anchored to residues).
-  expect_named(nested, c("n", "lrmsd_n_mm", "lrmsd_n_ms", "lrmsd_n_ma", "lrmsd_n_msa"))
-  expect_equal(nrow(nested), 678L)
-
-  # Each variant = log(sqrt(dr2_n)) of calculate_dr2_n_msa at its (a1,a2) point.
+  expect_named(nested, c("mm", "ms", "ma", "msa"))
+  # Each variant = log(sqrt(dr2)) of dr2_msa at its (a1,a2) point.
   # Independent route (recompute the forward map directly), not circular.
-  expect_equal(nested$lrmsd_n_mm,  log(sqrt(calculate_dr2_n_msa(znb_spm, 0,  0 )$dr2_n)))
-  expect_equal(nested$lrmsd_n_ms,  log(sqrt(calculate_dr2_n_msa(znb_spm, a1, 0 )$dr2_n)))
-  expect_equal(nested$lrmsd_n_ma,  log(sqrt(calculate_dr2_n_msa(znb_spm, 0,  a2)$dr2_n)))
-  expect_equal(nested$lrmsd_n_msa, log(sqrt(calculate_dr2_n_msa(znb_spm, a1, a2)$dr2_n)))
+  expect_equal(nested$mm,  log(sqrt(dr2_msa(znb_spm$dr2_njm, znb_spm$energy_data, 0,  0 ))))
+  expect_equal(nested$ms,  log(sqrt(dr2_msa(znb_spm$dr2_njm, znb_spm$energy_data, a1, 0 ))))
+  expect_equal(nested$ma,  log(sqrt(dr2_msa(znb_spm$dr2_njm, znb_spm$energy_data, 0,  a2))))
+  expect_equal(nested$msa, log(sqrt(dr2_msa(znb_spm$dr2_njm, znb_spm$energy_data, a1, a2))))
 })
 
-test_that("calculate_nlrmsd_n_msa centres the uncentred profile and agrees with its predictor", {
+test_that("nlrmsd_msa centres the uncentred profile and agrees with its predictor (mode)", {
   a1 <- 2; a2 <- 5
-  nc <- calculate_nlrmsd_n_msa(znb_spm, a1, a2)
-
-  expect_named(nc, c("n", "nlrmsd_n_msa"))
-  expect_equal(nrow(nc), 678L)
+  nc <- nlrmsd_msa(znb_spm$dr2_njm, znb_spm$energy_data, a1, a2)
 
   # Independent route: centred == uncentred lrmsd minus its full-support mean.
   # Negative control: an uncentred return would fail (profile mean far from zero).
-  lr <- calculate_lrmsd_n_msa(znb_spm, a1, a2)$lrmsd_n_msa
-  expect_equal(nc$nlrmsd_n_msa, lr - mean(lr))
+  lr <- lrmsd_msa(znb_spm$dr2_njm, znb_spm$energy_data, a1, a2)
+  expect_equal(nc, lr - mean(lr))
 
-  # Forward map == predictor point profile.
+  # Forward-map primitive == predictor point profile.
   mln  <- fit_lrmsd_n_msa_ml(znb_spm, znb_profile_n)
-  fwd  <- calculate_nlrmsd_n_msa(znb_spm, mln$a1, mln$a2)
+  fwd  <- nlrmsd_msa(znb_spm$dr2_njm, znb_spm$energy_data, mln$a1, mln$a2)
   pred <- predict_profiles(mln, znb_spm, which = "nlrmsd")$mode
-  expect_equal(fwd$nlrmsd_n_msa, pred$nlrmsd_n_msa)
+  expect_equal(fwd, pred$nlrmsd_n_msa)
 })
 
-test_that("calculate_nlrmsd_n_msa_decomposition contributions sum to the centred profile", {
+test_that("nlrmsd_msa_decomposition contributions sum to the centred profile (mode)", {
   a1 <- 2; a2 <- 5
-  d <- calculate_nlrmsd_n_msa_decomposition(znb_spm, a1, a2)
+  d <- nlrmsd_msa_decomposition(znb_spm$dr2_njm, znb_spm$energy_data, a1, a2)
 
-  expect_named(d, c("n", "nphi_mut", "nphi_stab", "nphi_act"))
-  # Independent route: nlrmsd_n_msa from its own twin. Negative control: dropping the
+  expect_named(d, c("nphi_mut", "nphi_stab", "nphi_act"))
+  # Independent route: nlrmsd_msa from its own primitive. Negative control: dropping the
   # centring on any nphi term breaks the equality.
-  prof <- calculate_nlrmsd_n_msa(znb_spm, a1, a2)$nlrmsd_n_msa
+  prof <- nlrmsd_msa(znb_spm$dr2_njm, znb_spm$energy_data, a1, a2)
   expect_equal(d$nphi_mut + d$nphi_stab + d$nphi_act, prof)
 })
 
 test_that("dr2_n reweighting collapses the mutant axis with the same weights as the site form", {
   # Independent-route check: build the same fixation weights by hand and apply
-  # colSums(dr2_njm * w). Confirms calculate_dr2_n_msa uses the axis-agnostic
-  # mutant-axis weights, not a mode-specific scheme. Energies come straight from the
-  # raw scan (generate_spm_core), NOT from the assembled object under test, so this is
-  # not circular with the forward map.
+  # colSums(dr2_njm * w). Confirms dr2_msa uses the axis-agnostic mutant-axis weights,
+  # not a mode-specific scheme. Energies come straight from the raw scan
+  # (generate_spm_core), NOT from the assembled object under test, so this is not
+  # circular with the forward map.
   a1 <- 2; a2 <- 5
 
   scan <- generate_spm_core(znb_wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
@@ -96,6 +90,6 @@ test_that("dr2_n reweighting collapses the mutant axis with the same weights as 
   w <- pfix / sum(pfix)
   expected <- colSums(znb_spm$dr2_njm * w)
 
-  d <- calculate_dr2_n_msa(znb_spm, a1, a2)
-  expect_equal(d$dr2_n, expected)
+  d <- dr2_msa(znb_spm$dr2_njm, znb_spm$energy_data, a1, a2)
+  expect_equal(d, expected)
 })

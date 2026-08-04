@@ -30,8 +30,8 @@ test_that("pdb_site contract gives the same loglik as a manual i-keyed join", {
   ll_contract <- msamodel:::calculate_loglik_lrmsd_i_msa(pp, znb_profile, a1, a2)
 
   obs_i <- dplyr::inner_join(znb_profile, pp$site_map, by = "pdb_site")
-  pred <- calculate_dr2_i_msa(pp, a1, a2)
-  pred$lrmsd_i_msa <- log(sqrt(pred$dr2_i))
+  dr2_i <- dr2_msa(pp$dr2_ijm, pp$energy_data, a1, a2)
+  pred <- tibble::tibble(i = seq_along(dr2_i), lrmsd_i_msa = log(sqrt(dr2_i)))
   cmp <- dplyr::inner_join(obs_i[, c("i", "lrmsd_i_obs")],
                            pred[, c("i", "lrmsd_i_msa")], by = "i")
   res <- (cmp$lrmsd_i_obs - mean(cmp$lrmsd_i_obs)) -
