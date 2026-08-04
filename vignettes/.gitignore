@@ -7,7 +7,4 @@
 !msamodel_files/
 !site-analysis_files/
 !mode-analysis_files/
-!msamodel-v2_files/
-!site-analysis-v2_files/
-!mode-analysis-v2_files/
-!inference-methods-v2_files/
+!inference-methods_files/

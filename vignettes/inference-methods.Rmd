@@ -35,52 +35,46 @@ parameters to your data and ask how well the model explains it.
 
 This vignette teaches that fitting workflow end to end, and — because a point estimate
 without an uncertainty is not worth much — it puts a **confidence band** on every
-prediction. The idea behind the band is simple: the fit does not know `(a1, a2)`
-exactly, only to within a standard error, and a small wobble in `(a1, a2)` produces a
-small wobble in every predicted value. The band is the size of that downstream wobble —
-the fit's own uncertainty carried forward to each prediction, giving a `mean` with a
-`lower`/`upper` interval at every residue. ("Delta method" is just the standard name for
-this carry-forward; you don't need its formula to use the result.) The fit is
-deterministic (a numerical optimisation, no chain or burn-in), so the same data always
-gives the same answer.
+prediction. Each prediction comes with a standard error, and the band is the mean plus or
+minus a couple of standard errors. That standard error combines two sources of
+uncertainty: the fit does not know `(a1, a2)` exactly, only to within a standard error,
+and a small wobble in `(a1, a2)` produces a small wobble in every predicted value; and
+the mutation scan the prediction is built on is itself finite (a limited number of
+mutations per site), which adds its own sampling error. The reported `_se` already
+combines both, so the band reflects total prediction uncertainty, not just one source.
+The fit is deterministic (a numerical optimisation, no chain or burn-in), so the same
+data always gives the same answer.
 
-One scope note: this band reflects the uncertainty in the fitted `(a1, a2)` only. The
-mutation scan it is built on is itself finite (a limited number of mutations per site),
-which is a second, separate source of uncertainty the band does not cover. So read the
-bands here as *parameter* uncertainty, not the last word on total uncertainty.
-
-The workflow has five steps, each a function:
+The workflow has five steps, drawn from four functions:
 
 1. **fit** `(a1, a2)` to your data — `fit_lrmsd_i_msa_ml()`;
 2. **score** how well the fit does — `gof_lrmsd_i_msa_ml()`;
-3. **predict** the divergence profile with a band — `predict_lrmsd_i_msa_ml()`;
+3. **predict** the divergence profile with a band — `predict_profiles()`;
 4. band the four **nested-model variants** (the profile under each what-if selection
-   scenario) — `predict_lrmsd_i_nested_models_ml()` and its centred form
-   `predict_nlrmsd_i_nested_models_ml()`;
+   scenario), and
 5. band the **decomposition** (splitting one profile into its mutation, stability, and
-   activity parts) — `predict_nlrmsd_i_msa_decomposition_ml()`.
+   activity parts) — both from one function, `predict_decomposition()`.
 
-The model runs on **two axes**, and every function comes in both. The **site** axis
-(function suffix `_i`) gives one value per residue; the **mode** axis (suffix `_n`)
-gives one value per normal mode of the structure — a coarser, motion-based coordinate.
-**Part A** below runs the whole workflow on the site axis; **Part B** repeats it on the
-mode axis. (The [site analysis](site-analysis.html) and [mode analysis](mode-analysis.html)
+`predict_profiles()` and `predict_decomposition()` each return **both response axes at
+once** — a `$site` tibble (one value per residue) and a `$mode` tibble (one value per
+normal mode of the structure, a coarser motion-based coordinate). **Part A** below reads
+`$site` through the whole workflow; **Part B** reads `$mode` from the same calls. (The
+[site analysis](site-analysis.html) and [mode analysis](mode-analysis.html)
 vignettes develop the model itself; here the model is fixed and the subject is fitting
 and uncertainty.)
 
 ## One idea to grasp first: `lrmsd` vs. `nlrmsd`
 
-Every predictor below returns its answer in two forms, and knowing which to reach for
-is the one thing worth understanding before you start.
+Each prediction verb takes a `which` argument selecting one of two forms, and knowing
+which to reach for is the one thing worth understanding before you start.
 
-- **`lrmsd`** is the profile the model predicts directly: the log of each residue's
-  structural divergence. Think of it as the raw predicted curve.
-- **`nlrmsd`** is that same curve with its average subtracted off:
+- **`lrmsd`** (`which = "lrmsd"`) is the profile the model predicts directly: the log of
+  each residue's structural divergence. Think of it as the raw predicted curve.
+- **`nlrmsd`** (`which = "nlrmsd"`) is that same curve with its average subtracted off:
   `nlrmsd = lrmsd - mean(lrmsd)`. It describes the *shape* of the profile — which
   residues are above or below average — with the overall level removed. (The leading
-  `n` marks this centred form; it appears in the function names too, e.g.
-  `predict_nlrmsd_...`. Do not confuse it with the axis suffix `_n`, which means the
-  *mode* axis of Part B — a different letter in a different slot.)
+  `n` marks this centred form. Do not confuse it with the axis reading `$mode`, which is
+  Part B — a different thing entirely.)
 
 Why keep both? Because they answer different questions, and each carries its **own**
 confidence band. It is tempting to assume `nlrmsd`'s band is just `lrmsd`'s band shifted
@@ -98,10 +92,20 @@ Reach for **`lrmsd`** when you want the model's raw predicted curve on its own. 
 decomposition (step 5) exists only in the centred form, because there is no meaningful
 way to split up an overall level the data cannot see.
 
-Keep that distinction in mind; each step below shows both forms and says which it is
-using and why.
+## From a standard error to a band
 
-# Part A — Site axis (`_i`)
+Every prediction verb reports each value with a `_se` sibling column — the standard
+error of that value. To draw a confidence band, turn the standard error into
+lower/upper bounds: a 95% band is the value plus or minus `z` standard errors, with
+`z = qnorm(0.975) ≈ 1.96`. We define that multiplier once and reuse it in every plot
+below (for a 99% band use `qnorm(0.995) ≈ 2.58` instead):
+
+
+```r
+z <- qnorm(0.975)   # 1.96; the multiplier for a 95% band
+```
+
+# Part A — Site axis (read `$site`)
 
 ## A1. Setup: from your structure to a fittable object
 
@@ -207,8 +211,7 @@ c(se_a1 = ml$se_a1, se_a2 = ml$se_a2)
 #>  0.122275 10.186796
 ```
 
-Every band in the rest of Part A is built from `ml` — specifically from the uncertainty
-in these two estimates.
+Every band in the rest of Part A is built from `ml`.
 
 ## A3. Score the fit
 
@@ -236,47 +239,46 @@ one to look at.
 
 ## A4. Predict the divergence profile, with a band
 
-Now the payoff: the predicted profile. There are two predictors, one per quantity from
-the section above — `predict_lrmsd_i_msa_ml()` for the raw `lrmsd` curve and
-`predict_nlrmsd_i_msa_ml()` for the centred `nlrmsd` shape. Each takes the fit and the
-scan, and returns one row per residue with a `mean` and a `lower`/`upper` band, computed
-by propagating the fit's `(a1, a2)` uncertainty through the model.
+Now the payoff: the predicted profile. `predict_profiles()` takes the fit and the scan
+and returns, on each axis, one row per residue with the profile value and its standard
+error. `which` selects the quantity — `"lrmsd"` for the raw curve or `"nlrmsd"` for the
+centred shape. We read the `$site` tibble here.
 
 ### The raw curve (`lrmsd`)
 
 
 ```r
-band <- predict_lrmsd_i_msa_ml(ml, spm)   # raw lrmsd; *_mean / *_lower / *_upper per residue
+band <- predict_profiles(ml, spm, which = "lrmsd")$site   # lrmsd_i_msa + lrmsd_i_msa_se
 head(band)
-#> # A tibble: 6 × 5
-#>       i pdb_site lrmsd_i_msa_mean lrmsd_i_msa_lower lrmsd_i_msa_upper
-#>   <int>    <int>            <dbl>             <dbl>             <dbl>
-#> 1     1       20            -2.30             -2.50             -2.10
-#> 2     2       21            -3.26             -3.46             -3.07
-#> 3     3       22            -3.19             -3.36             -3.02
-#> 4     4       23            -3.52             -3.73             -3.31
-#> 5     5       24            -3.62             -3.80             -3.43
-#> 6     6       25            -3.51             -3.68             -3.35
+#> # A tibble: 6 × 4
+#>       i pdb_site lrmsd_i_msa lrmsd_i_msa_se
+#>   <int>    <int>       <dbl>          <dbl>
+#> 1     1       20       -2.30         0.100 
+#> 2     2       21       -3.26         0.0973
+#> 3     3       22       -3.19         0.0887
+#> 4     4       23       -3.52         0.106 
+#> 5     5       24       -3.62         0.0950
+#> 6     6       25       -3.51         0.0849
 ```
 
 ### The centred shape (`nlrmsd`)
 
-The centred predictor returns the same profile with its mean removed, and its own —
-narrower — band:
+The centred prediction returns the same profile with its mean removed, and its own —
+narrower — standard error:
 
 
 ```r
-nband <- predict_nlrmsd_i_msa_ml(ml, spm)  # centred nlrmsd; its own delta band
+nband <- predict_profiles(ml, spm, which = "nlrmsd")$site  # nlrmsd_i_msa + nlrmsd_i_msa_se
 head(nband)
-#> # A tibble: 6 × 5
-#>       i pdb_site nlrmsd_i_msa_mean nlrmsd_i_msa_lower nlrmsd_i_msa_upper
-#>   <int>    <int>             <dbl>              <dbl>              <dbl>
-#> 1     1       20             1.82               1.60               2.03 
-#> 2     2       21             0.852              0.648              1.06 
-#> 3     3       22             0.927              0.743              1.11 
-#> 4     4       23             0.599              0.371              0.827
-#> 5     5       24             0.501              0.303              0.700
-#> 6     6       25             0.605              0.426              0.784
+#> # A tibble: 6 × 4
+#>       i pdb_site nlrmsd_i_msa nlrmsd_i_msa_se
+#>   <int>    <int>        <dbl>           <dbl>
+#> 1     1       20        1.82           0.110 
+#> 2     2       21        0.852          0.104 
+#> 3     3       22        0.927          0.0942
+#> 4     4       23        0.599          0.116 
+#> 5     5       24        0.501          0.101 
+#> 6     6       25        0.605          0.0913
 ```
 
 ### Comparing the fit to your data
@@ -294,7 +296,7 @@ obs_centred <- znb_profile |>
 
 There is one wrinkle to get right, and it is worth understanding because it will apply
 to your own data too. "Centred" only means anything relative to *which residues you
-averaged over*. The predictor centres over **all** residues the model covers, because it
+averaged over*. The prediction centres over **all** residues the model covers, because it
 knows nothing about your particular dataset. But your measured profile centres over only
 the residues *it* observes — and an alignment rarely observes every modelled residue
 (here the model spans a few more than the data measures). Two curves centred over two
@@ -303,29 +305,26 @@ other they would appear vertically offset for no real reason.
 
 The fix is to put the prediction on the data's footing: re-centre it over exactly the
 residues the data observes. Concretely, subtract the prediction's mean *taken over just
-the matched residues*. This is one number subtracted from `mean`, `lower`, and `upper`
-together, so it slides the band up or down without changing its **width** — it only lines
-the two curves up on a common zero:
+the matched residues*. This is one number subtracted from the value, so it slides the
+curve (and its band, which we build from `_se`) up or down without changing its
+**width** — it only lines the two curves up on a common zero. We build the band from the
+standard error at the same time:
 
 
 ```r
 band_obs <- nband |>
-  inner_join(obs_centred, by = "pdb_site")            # keep only residues the data observes
-
-shift <- mean(band_obs$nlrmsd_i_msa_mean)             # prediction's mean over those residues
-
-band_obs <- band_obs |>
-  mutate(nlrmsd_i_msa_mean  = nlrmsd_i_msa_mean  - shift,
-         nlrmsd_i_msa_lower = nlrmsd_i_msa_lower - shift,
-         nlrmsd_i_msa_upper = nlrmsd_i_msa_upper - shift)
+  inner_join(obs_centred, by = "pdb_site") |>              # keep only residues the data observes
+  mutate(shift = mean(nlrmsd_i_msa),                       # prediction's mean over those residues
+         value = nlrmsd_i_msa - shift,
+         lower = value - z * nlrmsd_i_msa_se,
+         upper = value + z * nlrmsd_i_msa_se)
 ```
 
 
 ```r
 ggplot(band_obs, aes(pdb_site)) +
-  geom_ribbon(aes(ymin = nlrmsd_i_msa_lower, ymax = nlrmsd_i_msa_upper),
-              fill = "steelblue", alpha = 0.25) +
-  geom_line(aes(y = nlrmsd_i_msa_mean), colour = "steelblue") +
+  geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.25) +
+  geom_line(aes(y = value), colour = "steelblue") +
   geom_point(aes(y = nlrmsd_i_obs), colour = "grey25", size = 0.7, alpha = 0.7) +
   labs(title = "Site: fitted profile with 95% band vs. observed",
        x = "Residue (PDB numbering)", y = "nlrmsd (shape, mean removed)")
@@ -334,75 +333,61 @@ ggplot(band_obs, aes(pdb_site)) +
 ![plot of chunk ml-band](inference-methods_files/figure-html/ml-band-1.png)
 
 The blue band is the model's 95% prediction; the grey points are your data. Where points
-sit inside the band, the fit accounts for them. Widen the band to any level with the
-`level` argument (e.g. `level = 0.99`).
+sit inside the band, the fit accounts for them.
 
-## A5. Nested models: what-if selection scenarios
+## A5. Nested models and the decomposition
 
-The full model (call it **MSA**) turns on both kinds of selection at once. To see what
-each kind would do on its own, the package also evaluates three **what-if** versions of
-the *same* profile under different selection regimes: **MM**, no selection (mutation
-only); **MS**, stability selection alone; **MA**, activity selection alone. These are
-four separate predicted profiles, not pieces of one — comparing them shows how the
-profile changes as each kind of selection is switched on.
+Two related readings come from one call, `predict_decomposition(ml, spm, which =
+"nlrmsd")`. It returns, per axis, both:
 
-As with the profile, there is a raw and a centred predictor.
-`predict_lrmsd_i_nested_models_ml()` returns the four variants as raw curves:
+- the four **nested-model variants** — the *same* profile under each selection regime:
+  **MM**, no selection (mutation only); **MS**, stability alone; **MA**, activity alone;
+  **MSA**, the full model — each a centred profile with its standard error;
+- the **decomposition** — the full profile split into three additive parts (**mutation**,
+  **stability**, **activity**), each with its standard error.
+
+The nested models are four separate what-if profiles you compare; the decomposition
+splits the one full profile into contributions you read residue by residue. Both live in
+the centred (`nlrmsd`) family — there is no meaningful way to band an overall level the
+data cannot see — so `which = "nlrmsd"` is the reading here:
 
 
 ```r
-nested_band <- predict_lrmsd_i_nested_models_ml(ml, spm)  # lrmsd_i_{mm,ms,ma,msa}_{mean,lower,upper}
-head(nested_band[, 1:8])   # i, pdb_site, then the MM and MS bands
-#> # A tibble: 6 × 8
-#>       i pdb_site lrmsd_i_mm_mean lrmsd_i_mm_lower lrmsd_i_mm_upper
-#>   <int>    <int>           <dbl>            <dbl>            <dbl>
-#> 1     1       20           -2.42            -2.62            -2.22
-#> 2     2       21           -3.35            -3.50            -3.20
-#> 3     3       22           -3.27            -3.41            -3.13
-#> 4     4       23           -3.62            -3.74            -3.51
-#> 5     5       24           -3.67            -3.79            -3.55
-#> 6     6       25           -3.60            -3.73            -3.47
-#> # ℹ 3 more variables: lrmsd_i_ms_mean <dbl>, lrmsd_i_ms_lower <dbl>,
-#> #   lrmsd_i_ms_upper <dbl>
+dec <- predict_decomposition(ml, spm, which = "nlrmsd")$site
+names(dec)
+#>  [1] "i"               "pdb_site"        "nlrmsd_i_mm"     "nlrmsd_i_mm_se" 
+#>  [5] "nlrmsd_i_ms"     "nlrmsd_i_ms_se"  "nlrmsd_i_ma"     "nlrmsd_i_ma_se" 
+#>  [9] "nlrmsd_i_msa"    "nlrmsd_i_msa_se" "nphi_mut"        "nphi_mut_se"    
+#> [13] "nphi_stab"       "nphi_stab_se"    "nphi_act"        "nphi_act_se"
 ```
 
-`predict_nlrmsd_i_nested_models_ml()` returns them centred (each on its own mean), which
-is what we plot so all four sit on the same shape scale:
+### The nested-model variants
+
+The nested columns are `nlrmsd_i_{mm,ms,ma,msa}` with an `_se` sibling each. We build a
+band from the standard error and plot MM, MS, and MSA on one shape scale (MA omitted to
+keep the panel readable):
 
 
 ```r
-nested_nband <- predict_nlrmsd_i_nested_models_ml(ml, spm)  # nlrmsd_i_{mm,ms,ma,msa}_*
-head(nested_nband[, 1:8])
-#> # A tibble: 6 × 8
-#>       i pdb_site nlrmsd_i_mm_mean nlrmsd_i_mm_lower nlrmsd_i_mm_upper
-#>   <int>    <int>            <dbl>             <dbl>             <dbl>
-#> 1     1       20            1.43             1.23               1.63 
-#> 2     2       21            0.501            0.351              0.652
-#> 3     3       22            0.577            0.439              0.716
-#> 4     4       23            0.226            0.110              0.341
-#> 5     5       24            0.180            0.0605             0.300
-#> 6     6       25            0.249            0.122              0.376
-#> # ℹ 3 more variables: nlrmsd_i_ms_mean <dbl>, nlrmsd_i_ms_lower <dbl>,
-#> #   nlrmsd_i_ms_upper <dbl>
-```
-
-
-```r
-# One colour per model variant; MA omitted to keep the panel readable.
 model_cols <- c(MM = "#FF8C00", MS = "#0000CD", MSA = "#C41E3A")
-nested_long <- nested_nband |>
-  pivot_longer(
-    c(starts_with("nlrmsd_i_mm_"), starts_with("nlrmsd_i_ms_"), starts_with("nlrmsd_i_msa_")),
-    names_to = c("model", ".value"),
-    names_pattern = "nlrmsd_i_(mm|ms|msa)_(mean|lower|upper)"
-  ) |>
-  mutate(model = factor(toupper(model), levels = c("MM", "MS", "MSA")))
+# Reshape the value columns and the _se columns to long form separately, then join:
+# one row per (residue, model) carrying both the value and its standard error.
+nested_val <- dec |>
+  select(pdb_site, nlrmsd_i_mm, nlrmsd_i_ms, nlrmsd_i_msa) |>
+  pivot_longer(-pdb_site, names_to = "model", names_prefix = "nlrmsd_i_", values_to = "value")
+nested_se <- dec |>
+  select(pdb_site, nlrmsd_i_mm_se, nlrmsd_i_ms_se, nlrmsd_i_msa_se) |>
+  pivot_longer(-pdb_site, names_to = "model",
+               names_pattern = "nlrmsd_i_(mm|ms|msa)_se", values_to = "se")
+nested_long <- inner_join(nested_val, nested_se, by = c("pdb_site", "model")) |>
+  mutate(model = factor(toupper(model), levels = c("MM", "MS", "MSA")),
+         lower = value - z * se, upper = value + z * se)
 
 ggplot(nested_long, aes(pdb_site, colour = model, fill = model)) +
   geom_vline(xintercept = pdb_site_active, colour = "firebrick",
              alpha = 0.4, linewidth = 0.3) +     # active-site residues
   geom_ribbon(aes(ymin = lower, ymax = upper), colour = NA, alpha = 0.18) +
-  geom_line(aes(y = mean), alpha = 0.85) +
+  geom_line(aes(y = value), alpha = 0.85) +
   scale_colour_manual(values = model_cols) +
   scale_fill_manual(values = model_cols) +
   labs(title = "Site: nested-model profiles with 95% bands (ML)",
@@ -412,60 +397,41 @@ ggplot(nested_long, aes(pdb_site, colour = model, fill = model)) +
 ![plot of chunk ml-nested-plot](inference-methods_files/figure-html/ml-nested-plot-1.png)
 
 MM's curve varies residue to residue like any profile (mutations perturb different sites
-by different amounts), but it carries **no band** — with both selection strengths off it
-does not depend on `(a1, a2)` at all, so the fit's uncertainty cannot move it. Bands
-appear and widen on the other variants as selection is switched on, and the gap between
-MM and the others is the divergence that selection accounts for.
+by different amounts). Its band is the **narrowest** of the four: with both selection
+strengths off it does not depend on `(a1, a2)`, so the parameter part of its uncertainty
+is zero, leaving only the scan-sampling part. Bands widen on the other variants as
+selection is switched on and the parameter part enters, and the gap between MM and the
+others is the divergence that selection accounts for.
 
-## A6. Decompose each residue's divergence
+### The decomposition
 
-The nested models (A5) were four separate what-if profiles. The **decomposition** is the
-different task: it takes the single full profile and splits each residue's divergence
-into three additive parts — how much comes from **mutation** alone, from **stability**
-selection, and from **activity** selection — so you can read, residue by residue, what is
-driving the divergence there.
-
-`predict_nlrmsd_i_msa_decomposition_ml()` returns those three parts (`nphi_mut`,
-`nphi_stab`, `nphi_act`), each with its own band. It exists only in the centred form —
-there is no way to split up an overall level the data cannot see — so, unlike the
-profile and the nested models, there is a single predictor here:
-
-
-```r
-phi_band <- predict_nlrmsd_i_msa_decomposition_ml(ml, spm)  # nphi_{mut,stab,act}_{mean,lower,upper}
-head(phi_band)
-#> # A tibble: 6 × 11
-#>       i pdb_site nphi_mut_mean nphi_mut_lower nphi_mut_upper nphi_stab_mean
-#>   <int>    <int>         <dbl>          <dbl>          <dbl>          <dbl>
-#> 1     1       20         1.43          1.23            1.63          0.129 
-#> 2     2       21         0.501         0.351           0.652         0.110 
-#> 3     3       22         0.577         0.439           0.716         0.107 
-#> 4     4       23         0.226         0.110           0.341         0.132 
-#> 5     5       24         0.180         0.0605          0.300         0.0933
-#> 6     6       25         0.249         0.122           0.376         0.123 
-#> # ℹ 5 more variables: nphi_stab_lower <dbl>, nphi_stab_upper <dbl>,
-#> #   nphi_act_mean <dbl>, nphi_act_lower <dbl>, nphi_act_upper <dbl>
-```
+The decomposition columns are `nphi_{mut,stab,act}` with an `_se` sibling each — `nphi` is
+the contribution to the centred profile (the `n` prefix is the same "centred" mark as in
+`nlrmsd`). They give each residue's divergence split into how much comes from **mutation**
+alone, from **stability** selection, and from **activity** selection:
 
 
 ```r
 comp_labs <- c(mut = "mutation", stab = "stability selection", act = "activity selection")
 comp_cols <- c("mutation" = "#FF8C00", "stability selection" = "#0000CD",
                "activity selection" = "#C41E3A")
-phi_long <- phi_band |>
-  pivot_longer(
-    -c(i, pdb_site),
-    names_to = c("component", ".value"),
-    names_pattern = "nphi_(mut|stab|act)_(mean|lower|upper)"
-  ) |>
-  mutate(component = factor(comp_labs[component], levels = comp_labs))
+phi_val <- dec |>
+  select(pdb_site, nphi_mut, nphi_stab, nphi_act) |>
+  pivot_longer(-pdb_site, names_to = "component", names_prefix = "nphi_", values_to = "value")
+phi_se <- dec |>
+  select(pdb_site, nphi_mut_se, nphi_stab_se, nphi_act_se) |>
+  pivot_longer(-pdb_site, names_to = "component",
+               names_pattern = "nphi_(mut|stab|act)_se", values_to = "se")
+phi_long <- inner_join(phi_val, phi_se, by = c("pdb_site", "component")) |>
+  mutate(component = factor(comp_labs[component], levels = comp_labs),
+         lower = value - z * se, upper = value + z * se)
 
 ggplot(phi_long, aes(pdb_site, colour = component, fill = component)) +
   geom_vline(xintercept = pdb_site_active, colour = "firebrick",
              alpha = 0.4, linewidth = 0.3) +     # active-site residues
   geom_hline(yintercept = 0, colour = "grey80") +
   geom_ribbon(aes(ymin = lower, ymax = upper), colour = NA, alpha = 0.2) +
-  geom_line(aes(y = mean)) +
+  geom_line(aes(y = value)) +
   scale_colour_manual(values = comp_cols) +
   scale_fill_manual(values = comp_cols) +
   labs(title = "Site: divergence decomposition with 95% bands (ML)",
@@ -477,27 +443,27 @@ ggplot(phi_long, aes(pdb_site, colour = component, fill = component)) +
 
 The three parts add up, residue by residue, to the full centred profile `nlrmsd_i_msa`
 (the split is exact). Their bands do **not** add — each is the uncertainty of that one
-part. The mutation part has no band, for the same reason MM had none: it does not depend
-on `(a1, a2)`.
+part. The mutation part (`nphi_mut`) has the narrowest band, for the same reason MM does:
+its parameter part is zero (it does not depend on `(a1, a2)`), leaving only scan sampling.
 
-# Part B — Mode axis (`_n`)
+# Part B — Mode axis (read `$mode`)
 
-Everything in Part A was on the **site** axis — one value per residue. The **mode** axis
-runs the identical five-step workflow with the `_n` functions, but on the structure's
-normal modes: coordinates that describe how the whole protein flexes, ordered from
-softest motion upward. Where the site axis answers "which *residues* diverge most," the
-mode axis answers "which *collective motions* diverge most" — use it when you care about
-the protein's large-scale flexibility rather than individual positions. (What a normal
-mode is, and why it is a natural coordinate for divergence, is developed in the
+Everything in Part A read the `$site` tibble — one value per residue. The **mode** axis
+runs the identical five-step workflow, reading the `$mode` tibble instead, on the
+structure's normal modes: coordinates that describe how the whole protein flexes,
+ordered from softest motion upward. Where the site axis answers "which *residues* diverge
+most," the mode axis answers "which *collective motions* diverge most" — use it when you
+care about the protein's large-scale flexibility rather than individual positions. (What a
+normal mode is, and why it is a natural coordinate for divergence, is developed in the
 [mode analysis](mode-analysis.html) vignette.)
 
 Each step below is the mode counterpart of the same-numbered site step, so the
-*reasoning* from Part A carries over unchanged — here we show the mode functions and
-point out only what genuinely differs on this axis.
+*reasoning* from Part A carries over unchanged — here we read `$mode` and point out only
+what genuinely differs on this axis.
 
 ## B1. Setup (mode)
 
-You work from the same `spm` object built in A1; the mode functions read its per-mode
+You work from the same `spm` object built in A1; the mode reading uses its per-mode
 divergence matrix `dr2_njm`. Your data on this axis is a mode-indexed profile, columns
 `n` and `lrmsd_n_obs`; the package ships `znb_profile_n`:
 
@@ -541,22 +507,21 @@ gof_lrmsd_n_msa_ml(mln)
 
 ## B4. Predict the profile (mode)
 
-The two profile predictors, raw and centred, exactly as in A4:
+The same profile prediction, read from `$mode`:
 
 
 ```r
-mband  <- predict_lrmsd_n_msa_ml(mln, spm)    # raw lrmsd_n
-mnband <- predict_nlrmsd_n_msa_ml(mln, spm)   # centred nlrmsd_n
+mnband <- predict_profiles(mln, spm, which = "nlrmsd")$mode   # centred nlrmsd_n + se
 head(mnband)
-#> # A tibble: 6 × 4
-#>       n nlrmsd_n_msa_mean nlrmsd_n_msa_lower nlrmsd_n_msa_upper
-#>   <int>             <dbl>              <dbl>              <dbl>
-#> 1     1              3.27               3.11               3.44
-#> 2     2              3.14               2.97               3.30
-#> 3     3              3.06               2.88               3.23
-#> 4     4              2.93               2.80               3.07
-#> 5     5              2.85               2.71               2.98
-#> 6     6              2.64               2.55               2.73
+#> # A tibble: 6 × 3
+#>       n nlrmsd_n_msa nlrmsd_n_msa_se
+#>   <int>        <dbl>           <dbl>
+#> 1     1         3.27          0.0827
+#> 2     2         3.14          0.0829
+#> 3     3         3.06          0.0898
+#> 4     4         2.93          0.0693
+#> 5     5         2.85          0.0676
+#> 6     6         2.64          0.0452
 ```
 
 Two differences from the site axis, both because modes are not residues. There is no
@@ -572,15 +537,16 @@ mobs_centred <- znb_profile_n |>
   select(n, nlrmsd_n_obs)
 
 mband_obs <- mnband |>
-  inner_join(mobs_centred, by = "n")
+  inner_join(mobs_centred, by = "n") |>
+  mutate(lower = nlrmsd_n_msa - z * nlrmsd_n_msa_se,
+         upper = nlrmsd_n_msa + z * nlrmsd_n_msa_se)
 ```
 
 
 ```r
 ggplot(mband_obs, aes(n)) +
-  geom_ribbon(aes(ymin = nlrmsd_n_msa_lower, ymax = nlrmsd_n_msa_upper),
-              fill = "seagreen", alpha = 0.25) +
-  geom_line(aes(y = nlrmsd_n_msa_mean), colour = "seagreen") +
+  geom_ribbon(aes(ymin = lower, ymax = upper), fill = "seagreen", alpha = 0.25) +
+  geom_line(aes(y = nlrmsd_n_msa), colour = "seagreen") +
   geom_point(aes(y = nlrmsd_n_obs), colour = "grey25", size = 0.5, alpha = 0.5) +
   labs(title = "Mode: fitted profile with 95% band vs. observed",
        x = "Mode index n", y = "nlrmsd (shape, mean removed)")
@@ -588,42 +554,32 @@ ggplot(mband_obs, aes(n)) +
 
 ![plot of chunk mode-band](inference-methods_files/figure-html/mode-band-1.png)
 
-## B5. Nested models (mode)
+## B5. Nested models and the decomposition (mode)
 
-The centred nested predictor, as in A5 (its raw counterpart
-`predict_lrmsd_n_nested_models_ml()` behaves exactly like the site version):
+The mode reading of `predict_decomposition()`, as in A5:
 
 
 ```r
-mnested_nband <- predict_nlrmsd_n_nested_models_ml(mln, spm)  # nlrmsd_n_{mm,ms,ma,msa}_*
-head(mnested_nband[, 1:8])
-#> # A tibble: 6 × 8
-#>       n nlrmsd_n_mm_mean nlrmsd_n_mm_lower nlrmsd_n_mm_upper nlrmsd_n_ms_mean
-#>   <int>            <dbl>             <dbl>             <dbl>            <dbl>
-#> 1     1             3.49              3.35              3.64             3.71
-#> 2     2             3.16              3.01              3.30             3.40
-#> 3     3             2.88              2.70              3.06             3.03
-#> 4     4             2.74              2.63              2.85             2.84
-#> 5     5             2.67              2.56              2.78             2.78
-#> 6     6             2.61              2.54              2.69             2.72
-#> # ℹ 3 more variables: nlrmsd_n_ms_lower <dbl>, nlrmsd_n_ms_upper <dbl>,
-#> #   nlrmsd_n_ma_mean <dbl>
+mdec <- predict_decomposition(mln, spm, which = "nlrmsd")$mode
 ```
 
 
 ```r
 model_cols <- c(MM = "#FF8C00", MS = "#0000CD", MSA = "#C41E3A")
-mnested_long <- mnested_nband |>
-  pivot_longer(
-    c(starts_with("nlrmsd_n_mm_"), starts_with("nlrmsd_n_ms_"), starts_with("nlrmsd_n_msa_")),
-    names_to = c("model", ".value"),
-    names_pattern = "nlrmsd_n_(mm|ms|msa)_(mean|lower|upper)"
-  ) |>
-  mutate(model = factor(toupper(model), levels = c("MM", "MS", "MSA")))
+mnested_val <- mdec |>
+  select(n, nlrmsd_n_mm, nlrmsd_n_ms, nlrmsd_n_msa) |>
+  pivot_longer(-n, names_to = "model", names_prefix = "nlrmsd_n_", values_to = "value")
+mnested_se <- mdec |>
+  select(n, nlrmsd_n_mm_se, nlrmsd_n_ms_se, nlrmsd_n_msa_se) |>
+  pivot_longer(-n, names_to = "model",
+               names_pattern = "nlrmsd_n_(mm|ms|msa)_se", values_to = "se")
+mnested_long <- inner_join(mnested_val, mnested_se, by = c("n", "model")) |>
+  mutate(model = factor(toupper(model), levels = c("MM", "MS", "MSA")),
+         lower = value - z * se, upper = value + z * se)
 
 ggplot(mnested_long, aes(n, colour = model, fill = model)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), colour = NA, alpha = 0.18) +
-  geom_line(aes(y = mean), alpha = 0.85) +
+  geom_line(aes(y = value), alpha = 0.85) +
   scale_colour_manual(values = model_cols) +
   scale_fill_manual(values = model_cols) +
   labs(title = "Mode: nested-model profiles with 95% bands (ML)",
@@ -632,46 +588,29 @@ ggplot(mnested_long, aes(n, colour = model, fill = model)) +
 
 ![plot of chunk mode-nested-plot](inference-methods_files/figure-html/mode-nested-plot-1.png)
 
-As on the site axis, MM has no band (it does not depend on `(a1, a2)`).
-
-## B6. Decompose (mode)
-
-The mode decomposition, as in A6:
-
-
-```r
-mphi_band <- predict_nlrmsd_n_msa_decomposition_ml(mln, spm)  # nphi_{mut,stab,act}_*
-head(mphi_band)
-#> # A tibble: 6 × 10
-#>       n nphi_mut_mean nphi_mut_lower nphi_mut_upper nphi_stab_mean
-#>   <int>         <dbl>          <dbl>          <dbl>          <dbl>
-#> 1     1          3.49           3.35           3.64          0.219
-#> 2     2          3.16           3.01           3.30          0.240
-#> 3     3          2.88           2.70           3.06          0.153
-#> 4     4          2.74           2.63           2.85          0.105
-#> 5     5          2.67           2.56           2.78          0.114
-#> 6     6          2.61           2.54           2.69          0.112
-#> # ℹ 5 more variables: nphi_stab_lower <dbl>, nphi_stab_upper <dbl>,
-#> #   nphi_act_mean <dbl>, nphi_act_lower <dbl>, nphi_act_upper <dbl>
-```
+As on the site axis, MM has the narrowest band — its parameter part is zero (it does not
+depend on `(a1, a2)`), leaving only the scan-sampling part.
 
 
 ```r
 comp_labs <- c(mut = "mutation", stab = "stability selection", act = "activity selection")
 comp_cols <- c("mutation" = "#FF8C00", "stability selection" = "#0000CD",
                "activity selection" = "#C41E3A")
-mphi_long <- mphi_band |>
-  pivot_longer(
-    -n,
-    names_to = c("component", ".value"),
-    names_pattern = "nphi_(mut|stab|act)_(mean|lower|upper)"
-  ) |>
-  mutate(component = factor(comp_labs[component], levels = comp_labs))
+mphi_val <- mdec |>
+  select(n, nphi_mut, nphi_stab, nphi_act) |>
+  pivot_longer(-n, names_to = "component", names_prefix = "nphi_", values_to = "value")
+mphi_se <- mdec |>
+  select(n, nphi_mut_se, nphi_stab_se, nphi_act_se) |>
+  pivot_longer(-n, names_to = "component",
+               names_pattern = "nphi_(mut|stab|act)_se", values_to = "se")
+mphi_long <- inner_join(mphi_val, mphi_se, by = c("n", "component")) |>
+  mutate(component = factor(comp_labs[component], levels = comp_labs),
+         lower = value - z * se, upper = value + z * se)
 
 ggplot(mphi_long, aes(n, colour = component, fill = component)) +
   geom_hline(yintercept = 0, colour = "grey80") +
   geom_ribbon(aes(ymin = lower, ymax = upper), colour = NA, alpha = 0.2) +
-  geom_line(aes(y = mean)) +
+  geom_line(aes(y = value)) +
   scale_colour_manual(values = comp_cols) +
   scale_fill_manual(values = comp_cols) +
   labs(title = "Mode: divergence decomposition with 95% bands (ML)",
@@ -681,8 +620,8 @@ ggplot(mphi_long, aes(n, colour = component, fill = component)) +
 
 ![plot of chunk mode-decomposition-plot](inference-methods_files/figure-html/mode-decomposition-plot-1.png)
 
-As on the site axis, the three parts sum to `nlrmsd_n_msa` and the mutation part has no
-band.
+As on the site axis, the three parts sum to `nlrmsd_n_msa`, and the mutation part
+(`nphi_mut`) has the narrowest band — its parameter part is zero, leaving only scan sampling.
 
 ## Where to next
 
@@ -714,13 +653,13 @@ band.
 #> [4] msamodel_0.3.0.9000
 #> 
 #> loaded via a namespace (and not attached):
-#>  [1] Rcpp_1.1.0         knitr_1.43         magrittr_2.0.4     tidyselect_1.2.1  
-#>  [5] lattice_0.22-5     R6_2.6.1           rlang_1.1.6        highr_0.11        
-#>  [9] jefuns_0.1.0       tools_4.2.1        parallel_4.2.1     grid_4.2.1        
-#> [13] gtable_0.3.6       xfun_0.41          cli_3.6.5          withr_3.0.2       
-#> [17] bio3d_2.4-5        tibble_3.3.0       lifecycle_1.0.4    S7_0.2.1          
-#> [21] Matrix_1.5-4.1     purrr_1.2.0        RColorBrewer_1.1-3 farver_2.1.2      
-#> [25] vctrs_0.6.5        glue_1.8.0         evaluate_0.24.0    labeling_0.4.3    
-#> [29] compiler_4.2.1     pillar_1.11.1      generics_0.1.4     scales_1.4.0      
-#> [33] penm_0.2.0.9000    pkgconfig_2.0.3
+#>  [1] Rcpp_1.1.0         rstudioapi_0.16.0  knitr_1.43         magrittr_2.0.4    
+#>  [5] tidyselect_1.2.1   lattice_0.22-5     R6_2.6.1           rlang_1.1.6       
+#>  [9] highr_0.11         jefuns_0.1.0       tools_4.2.1        parallel_4.2.1    
+#> [13] grid_4.2.1         gtable_0.3.6       xfun_0.41          cli_3.6.5         
+#> [17] withr_3.0.2        bio3d_2.4-5        tibble_3.3.0       lifecycle_1.0.4   
+#> [21] S7_0.2.1           Matrix_1.5-4.1     purrr_1.2.0        RColorBrewer_1.1-3
+#> [25] farver_2.1.2       vctrs_0.6.5        glue_1.8.0         evaluate_0.24.0   
+#> [29] labeling_0.4.3     compiler_4.2.1     pillar_1.11.1      generics_0.1.4    
+#> [33] scales_1.4.0       penm_0.2.0.9000    pkgconfig_2.0.3
 ```
