@@ -23,7 +23,7 @@ the \emph{centred} per-site profile \code{nlrmsd_i_msa}, each centred by its own
 model support and emitted as \code{nphi_mut}, \code{nphi_stab}, \code{nphi_act}. The decomposition is
 defined on the centred quantity (the one the fit is on); the three columns sum exactly to
 \code{nlrmsd_i_msa} (centring is linear). This is the point decomposition that
-\code{\link[=predict_nlrmsd_i_msa_decomposition_ml]{predict_nlrmsd_i_msa_decomposition_ml()}} bands (the two agree exactly).
+\code{\link[=predict_decomposition]{predict_decomposition()}} bands (the two agree exactly).
 }
 \examples{
 \dontrun{
@@ -34,7 +34,7 @@ head(calculate_nlrmsd_i_msa_decomposition(spm, a1 = 1, a2 = 1))
 \seealso{
 \code{\link[=calculate_decomposition_i_msa]{calculate_decomposition_i_msa()}} (the uncentred \verb{phi_*} decomposition);
 \code{\link[=calculate_nlrmsd_i_msa]{calculate_nlrmsd_i_msa()}} (the centred profile these sum to);
-\code{\link[=predict_nlrmsd_i_msa_decomposition_ml]{predict_nlrmsd_i_msa_decomposition_ml()}} (the same contributions with delta-method
+\code{\link[=predict_decomposition]{predict_decomposition()}} (the same contributions with delta-method
 bands); \code{\link[=calculate_nlrmsd_n_msa_decomposition]{calculate_nlrmsd_n_msa_decomposition()}} (the mode-indexed counterpart).
 
 Other model:

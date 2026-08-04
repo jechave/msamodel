@@ -13,11 +13,9 @@
 #' care whether they are indexed by site or by mode, so the same call serves both;
 #' the caller supplies whichever four columns it holds and attaches the result.
 #'
-#' The public entry points that own the four-variant evaluation and attach the
-#' result are [calculate_decomposition_i_msa()] / [calculate_decomposition_n_msa()]
-#' (forward, at one `(a1, a2)`) and [predict_nlrmsd_i_msa_decomposition_ml()] /
-#' [predict_nlrmsd_n_msa_decomposition_ml()] (delta-method bands from a fit); this kernel is
-#' the pure math they share and is internal.
+#' The public entry point that owns the four-variant evaluation and attaches the
+#' result is [calculate_decomposition()] (at one `(a1, a2)`) / [predict_decomposition()]
+#' (delta-method bands from a fit); this kernel is the pure math they share and is internal.
 #'
 #' @param mm,ms,ma,msa Numeric vectors of equal length giving the divergence under
 #'   the four model variants: mutation-only (`mm`), plus-stability (`ms`),

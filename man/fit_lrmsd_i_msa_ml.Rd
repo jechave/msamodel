@@ -72,7 +72,7 @@ c(a1 = ml$a1, a2 = ml$a2)
 }
 \seealso{
 \code{\link[=gof_lrmsd_i_msa_ml]{gof_lrmsd_i_msa_ml()}} (goodness-of-fit from this fit),
-\code{\link[=predict_lrmsd_i_msa_ml]{predict_lrmsd_i_msa_ml()}} (propagate the fit to a banded profile),
+\code{\link[=predict_profiles]{predict_profiles()}} (propagate the fit to a banded profile),
 \code{calculate_loglik_lrmsd_i_msa()} (the objective).
 
 Other fitting:

@@ -120,7 +120,9 @@ calculate_profiles <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
 #'
 #' For `which = "nlrmsd"` the profile is centred by its own mean over the full model
 #' support, and the parameter arm uses the column-centred gradient (the mean is itself a
-#' function of the parameters); see [predict_nlrmsd_i_msa_ml()] for the support note.
+#' function of the parameters). Prediction centres over all model residues, agnostic to
+#' which residues a given dataset observes; when overlaying observed data, centre it on
+#' its own matched support.
 #'
 #' @param fit A list from [fit_lrmsd_i_msa_ml()] (site) or [fit_lrmsd_n_msa_ml()] (mode),
 #'   carrying `a1`, `a2`, and the 2x2 `cov` on the `(a1, log2(a2+1))` scale. One fit

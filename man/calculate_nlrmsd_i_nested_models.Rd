@@ -22,7 +22,7 @@ Mean-centred counterpart of \code{\link[=calculate_lrmsd_i_nested_models]{calcul
 variants, but each centred by \strong{its own} mean over the full model support (all model
 residues), \code{nlrmsd_i_v = lrmsd_i_v - mean_S(lrmsd_i_v)}. Each variant is centred
 independently -- MM by the MM mean, MSA by the MSA mean -- matching how the fit and
-\code{\link[=predict_nlrmsd_i_nested_models_ml]{predict_nlrmsd_i_nested_models_ml()}} treat them. This is the natural scenario forward map
+\code{\link[=predict_decomposition]{predict_decomposition()}} treat them. This is the natural scenario forward map
 for comparing the centred variants without fitting.
 }
 \examples{
@@ -33,7 +33,7 @@ head(calculate_nlrmsd_i_nested_models(spm, a1 = 1, a2 = 1))
 }
 \seealso{
 \code{\link[=calculate_lrmsd_i_nested_models]{calculate_lrmsd_i_nested_models()}} (the uncentred variants it centres);
-\code{\link[=predict_nlrmsd_i_nested_models_ml]{predict_nlrmsd_i_nested_models_ml()}} (the same variants with delta-method bands);
+\code{\link[=predict_decomposition]{predict_decomposition()}} (the same variants with delta-method bands);
 \code{\link[=calculate_nlrmsd_n_nested_models]{calculate_nlrmsd_n_nested_models()}} (the mode-indexed counterpart).
 
 Other model:

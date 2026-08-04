@@ -23,7 +23,7 @@ contributions of the centred per-mode profile \code{nlrmsd_n_msa}, each centred 
 over the full model support and emitted as \code{nphi_mut}, \code{nphi_stab}, \code{nphi_act}. The three
 columns sum exactly to \code{nlrmsd_n_msa}. Modes are not residue-anchored, so there is no
 \code{pdb_site} column. This is the point decomposition that
-\code{\link[=predict_nlrmsd_n_msa_decomposition_ml]{predict_nlrmsd_n_msa_decomposition_ml()}} bands.
+\code{\link[=predict_decomposition]{predict_decomposition()}} bands.
 }
 \examples{
 \dontrun{
@@ -34,7 +34,7 @@ head(calculate_nlrmsd_n_msa_decomposition(spm, a1 = 1, a2 = 1))
 \seealso{
 \code{\link[=calculate_decomposition_n_msa]{calculate_decomposition_n_msa()}} (the uncentred \verb{phi_*} decomposition);
 \code{\link[=calculate_nlrmsd_n_msa]{calculate_nlrmsd_n_msa()}} (the centred profile these sum to);
-\code{\link[=predict_nlrmsd_n_msa_decomposition_ml]{predict_nlrmsd_n_msa_decomposition_ml()}} (the same contributions with delta-method
+\code{\link[=predict_decomposition]{predict_decomposition()}} (the same contributions with delta-method
 bands); \code{\link[=calculate_nlrmsd_i_msa_decomposition]{calculate_nlrmsd_i_msa_decomposition()}} (the residue-indexed counterpart).
 
 Other model:

@@ -21,7 +21,7 @@ A tibble with one row per mode: \code{n} and the four mean-centred profiles
 Mode-indexed counterpart of \code{\link[=calculate_nlrmsd_i_nested_models]{calculate_nlrmsd_i_nested_models()}}: the four nested variants
 of the per-mode profile, each centred by its own mean over the full model support (all
 modes). Modes are not residue-anchored, so there is no \code{pdb_site} column. Each variant is
-centred independently, matching \code{\link[=predict_nlrmsd_n_nested_models_ml]{predict_nlrmsd_n_nested_models_ml()}}.
+centred independently, matching \code{\link[=predict_decomposition]{predict_decomposition()}}.
 }
 \examples{
 \dontrun{
@@ -31,7 +31,7 @@ head(calculate_nlrmsd_n_nested_models(spm, a1 = 1, a2 = 1))
 }
 \seealso{
 \code{\link[=calculate_lrmsd_n_nested_models]{calculate_lrmsd_n_nested_models()}} (the uncentred variants it centres);
-\code{\link[=predict_nlrmsd_n_nested_models_ml]{predict_nlrmsd_n_nested_models_ml()}} (the same variants with delta-method bands);
+\code{\link[=predict_decomposition]{predict_decomposition()}} (the same variants with delta-method bands);
 \code{\link[=calculate_nlrmsd_i_nested_models]{calculate_nlrmsd_i_nested_models()}} (the residue-indexed counterpart).
 
 Other model:

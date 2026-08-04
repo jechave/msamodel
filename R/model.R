@@ -251,12 +251,12 @@ calculate_lrmsd_i_msa <- function(spm, a1, a2) {
 #' `nlrmsd_i = lrmsd_i - mean_S(lrmsd_i)`. This is the quantity the site ML fit is on -- the
 #' likelihood centres both sides -- so it is the natural forward map for exploring a
 #' scenario `(a1, a2)` on the same scale the fit reports, without fitting. It is also the
-#' point profile that [predict_nlrmsd_i_msa_ml()] bands: the two agree exactly (the
+#' point profile that [predict_profiles()] bands: the two agree exactly (the
 #' predictor's `_mean` column is this function's `nlrmsd_i_msa`).
 #'
 #' Centring is over all model residues, deliberately agnostic to which residues a dataset
 #' happens to observe. The fit instead centres over the observation-matched residues, so a
-#' fitted profile sits at a slightly different level by design; see [predict_nlrmsd_i_msa_ml()].
+#' fitted profile sits at a slightly different level by design; see [predict_profiles()].
 #'
 #' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
 #' @param a1 Stability selection strength (non-negative). `0` disables stability selection.
@@ -264,7 +264,7 @@ calculate_lrmsd_i_msa <- function(spm, a1, a2) {
 #' @return A tibble with one row per site: the site index `i` and the mean-centred profile
 #'   `nlrmsd_i_msa`.
 #' @seealso [calculate_lrmsd_i_msa()] (the uncentred profile it centres);
-#'   [predict_nlrmsd_i_msa_ml()] (the same quantity with delta-method bands from a fit);
+#'   [predict_profiles()] (the same quantity with delta-method bands from a fit);
 #'   [calculate_nlrmsd_n_msa()] (the mode-indexed counterpart).
 #' @family model
 #' @examples
@@ -347,7 +347,7 @@ calculate_lrmsd_n_msa <- function(spm, a1, a2) {
 #' Mode-indexed counterpart of [calculate_nlrmsd_i_msa()]: the per-mode profile centred by
 #' its own mean over the full model support (all modes),
 #' `nlrmsd_n = lrmsd_n - mean_S(lrmsd_n)`. This is the quantity the mode ML fit is on and the
-#' point profile that [predict_nlrmsd_n_msa_ml()] bands (the two agree exactly). Modes are
+#' point profile that [predict_profiles()] bands (the two agree exactly). Modes are
 #' not residue-anchored, so there is no `pdb_site` column. See [calculate_nlrmsd_i_msa()] for
 #' the support note (predict/scenario centres over all modes; the fit centres over the
 #' observation-matched modes, so the two levels differ by design).
@@ -358,7 +358,7 @@ calculate_lrmsd_n_msa <- function(spm, a1, a2) {
 #' @return A tibble with one row per mode: the mode index `n` and the mean-centred profile
 #'   `nlrmsd_n_msa`.
 #' @seealso [calculate_lrmsd_n_msa()] (the uncentred profile it centres);
-#'   [predict_nlrmsd_n_msa_ml()] (the same quantity with delta-method bands from a fit);
+#'   [predict_profiles()] (the same quantity with delta-method bands from a fit);
 #'   [calculate_nlrmsd_i_msa()] (the residue-indexed counterpart).
 #' @family model
 #' @examples
@@ -430,7 +430,7 @@ calculate_lrmsd_i_nested_models <- function(spm, a1, a2) {
 #' variants, but each centred by **its own** mean over the full model support (all model
 #' residues), `nlrmsd_i_v = lrmsd_i_v - mean_S(lrmsd_i_v)`. Each variant is centred
 #' independently -- MM by the MM mean, MSA by the MSA mean -- matching how the fit and
-#' [predict_nlrmsd_i_nested_models_ml()] treat them. This is the natural scenario forward map
+#' [predict_decomposition()] treat them. This is the natural scenario forward map
 #' for comparing the centred variants without fitting.
 #'
 #' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
@@ -439,7 +439,7 @@ calculate_lrmsd_i_nested_models <- function(spm, a1, a2) {
 #' @return A tibble with one row per site: `i`, `pdb_site`, and the four mean-centred profiles
 #'   `nlrmsd_i_mm`, `nlrmsd_i_ms`, `nlrmsd_i_ma`, `nlrmsd_i_msa`.
 #' @seealso [calculate_lrmsd_i_nested_models()] (the uncentred variants it centres);
-#'   [predict_nlrmsd_i_nested_models_ml()] (the same variants with delta-method bands);
+#'   [predict_decomposition()] (the same variants with delta-method bands);
 #'   [calculate_nlrmsd_n_nested_models()] (the mode-indexed counterpart).
 #' @family model
 #' @examples
@@ -507,7 +507,7 @@ calculate_decomposition_i_msa <- function(spm, a1, a2) {
 #' model support and emitted as `nphi_mut`, `nphi_stab`, `nphi_act`. The decomposition is
 #' defined on the centred quantity (the one the fit is on); the three columns sum exactly to
 #' `nlrmsd_i_msa` (centring is linear). This is the point decomposition that
-#' [predict_nlrmsd_i_msa_decomposition_ml()] bands (the two agree exactly).
+#' [predict_decomposition()] bands (the two agree exactly).
 #'
 #' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
 #' @param a1 Stability selection strength (non-negative).
@@ -516,7 +516,7 @@ calculate_decomposition_i_msa <- function(spm, a1, a2) {
 #'   contributions `nphi_mut`, `nphi_stab`, `nphi_act`.
 #' @seealso [calculate_decomposition_i_msa()] (the uncentred `phi_*` decomposition);
 #'   [calculate_nlrmsd_i_msa()] (the centred profile these sum to);
-#'   [predict_nlrmsd_i_msa_decomposition_ml()] (the same contributions with delta-method
+#'   [predict_decomposition()] (the same contributions with delta-method
 #'   bands); [calculate_nlrmsd_n_msa_decomposition()] (the mode-indexed counterpart).
 #' @family model
 #' @examples
@@ -586,7 +586,7 @@ calculate_lrmsd_n_nested_models <- function(spm, a1, a2) {
 #' Mode-indexed counterpart of [calculate_nlrmsd_i_nested_models()]: the four nested variants
 #' of the per-mode profile, each centred by its own mean over the full model support (all
 #' modes). Modes are not residue-anchored, so there is no `pdb_site` column. Each variant is
-#' centred independently, matching [predict_nlrmsd_n_nested_models_ml()].
+#' centred independently, matching [predict_decomposition()].
 #'
 #' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
 #' @param a1 Stability selection strength used for the MS and MSA variants (non-negative).
@@ -594,7 +594,7 @@ calculate_lrmsd_n_nested_models <- function(spm, a1, a2) {
 #' @return A tibble with one row per mode: `n` and the four mean-centred profiles
 #'   `nlrmsd_n_mm`, `nlrmsd_n_ms`, `nlrmsd_n_ma`, `nlrmsd_n_msa`.
 #' @seealso [calculate_lrmsd_n_nested_models()] (the uncentred variants it centres);
-#'   [predict_nlrmsd_n_nested_models_ml()] (the same variants with delta-method bands);
+#'   [predict_decomposition()] (the same variants with delta-method bands);
 #'   [calculate_nlrmsd_i_nested_models()] (the residue-indexed counterpart).
 #' @family model
 #' @examples
@@ -656,7 +656,7 @@ calculate_decomposition_n_msa <- function(spm, a1, a2) {
 #' over the full model support and emitted as `nphi_mut`, `nphi_stab`, `nphi_act`. The three
 #' columns sum exactly to `nlrmsd_n_msa`. Modes are not residue-anchored, so there is no
 #' `pdb_site` column. This is the point decomposition that
-#' [predict_nlrmsd_n_msa_decomposition_ml()] bands.
+#' [predict_decomposition()] bands.
 #'
 #' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
 #' @param a1 Stability selection strength (non-negative).
@@ -665,7 +665,7 @@ calculate_decomposition_n_msa <- function(spm, a1, a2) {
 #'   `nphi_mut`, `nphi_stab`, `nphi_act`.
 #' @seealso [calculate_decomposition_n_msa()] (the uncentred `phi_*` decomposition);
 #'   [calculate_nlrmsd_n_msa()] (the centred profile these sum to);
-#'   [predict_nlrmsd_n_msa_decomposition_ml()] (the same contributions with delta-method
+#'   [predict_decomposition()] (the same contributions with delta-method
 #'   bands); [calculate_nlrmsd_i_msa_decomposition()] (the residue-indexed counterpart).
 #' @family model
 #' @examples

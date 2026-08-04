@@ -23,13 +23,13 @@ its own mean over the \strong{full model support} (all model residues),
 \code{nlrmsd_i = lrmsd_i - mean_S(lrmsd_i)}. This is the quantity the site ML fit is on -- the
 likelihood centres both sides -- so it is the natural forward map for exploring a
 scenario \verb{(a1, a2)} on the same scale the fit reports, without fitting. It is also the
-point profile that \code{\link[=predict_nlrmsd_i_msa_ml]{predict_nlrmsd_i_msa_ml()}} bands: the two agree exactly (the
+point profile that \code{\link[=predict_profiles]{predict_profiles()}} bands: the two agree exactly (the
 predictor's \verb{_mean} column is this function's \code{nlrmsd_i_msa}).
 }
 \details{
 Centring is over all model residues, deliberately agnostic to which residues a dataset
 happens to observe. The fit instead centres over the observation-matched residues, so a
-fitted profile sits at a slightly different level by design; see \code{\link[=predict_nlrmsd_i_msa_ml]{predict_nlrmsd_i_msa_ml()}}.
+fitted profile sits at a slightly different level by design; see \code{\link[=predict_profiles]{predict_profiles()}}.
 }
 \examples{
 \dontrun{
@@ -39,7 +39,7 @@ head(calculate_nlrmsd_i_msa(spm, a1 = 1, a2 = 1))
 }
 \seealso{
 \code{\link[=calculate_lrmsd_i_msa]{calculate_lrmsd_i_msa()}} (the uncentred profile it centres);
-\code{\link[=predict_nlrmsd_i_msa_ml]{predict_nlrmsd_i_msa_ml()}} (the same quantity with delta-method bands from a fit);
+\code{\link[=predict_profiles]{predict_profiles()}} (the same quantity with delta-method bands from a fit);
 \code{\link[=calculate_nlrmsd_n_msa]{calculate_nlrmsd_n_msa()}} (the mode-indexed counterpart).
 
 Other model:

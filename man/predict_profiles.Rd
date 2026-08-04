@@ -29,7 +29,9 @@ summed under independence).
 \details{
 For \code{which = "nlrmsd"} the profile is centred by its own mean over the full model
 support, and the parameter arm uses the column-centred gradient (the mean is itself a
-function of the parameters); see \code{\link[=predict_nlrmsd_i_msa_ml]{predict_nlrmsd_i_msa_ml()}} for the support note.
+function of the parameters). Prediction centres over all model residues, agnostic to
+which residues a given dataset observes; when overlaying observed data, centre it on
+its own matched support.
 }
 \examples{
 \dontrun{

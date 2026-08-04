@@ -21,7 +21,7 @@ A tibble with one row per mode: the mode index \code{n} and the mean-centred pro
 Mode-indexed counterpart of \code{\link[=calculate_nlrmsd_i_msa]{calculate_nlrmsd_i_msa()}}: the per-mode profile centred by
 its own mean over the full model support (all modes),
 \code{nlrmsd_n = lrmsd_n - mean_S(lrmsd_n)}. This is the quantity the mode ML fit is on and the
-point profile that \code{\link[=predict_nlrmsd_n_msa_ml]{predict_nlrmsd_n_msa_ml()}} bands (the two agree exactly). Modes are
+point profile that \code{\link[=predict_profiles]{predict_profiles()}} bands (the two agree exactly). Modes are
 not residue-anchored, so there is no \code{pdb_site} column. See \code{\link[=calculate_nlrmsd_i_msa]{calculate_nlrmsd_i_msa()}} for
 the support note (predict/scenario centres over all modes; the fit centres over the
 observation-matched modes, so the two levels differ by design).
@@ -34,7 +34,7 @@ head(calculate_nlrmsd_n_msa(spm, a1 = 1, a2 = 1))
 }
 \seealso{
 \code{\link[=calculate_lrmsd_n_msa]{calculate_lrmsd_n_msa()}} (the uncentred profile it centres);
-\code{\link[=predict_nlrmsd_n_msa_ml]{predict_nlrmsd_n_msa_ml()}} (the same quantity with delta-method bands from a fit);
+\code{\link[=predict_profiles]{predict_profiles()}} (the same quantity with delta-method bands from a fit);
 \code{\link[=calculate_nlrmsd_i_msa]{calculate_nlrmsd_i_msa()}} (the residue-indexed counterpart).
 
 Other model:

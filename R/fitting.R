@@ -238,7 +238,7 @@ resolve_mode_obs <- function(predictions, observed_data) {
 #'     \item{convergence}{`optim` convergence code (0 = success).}
 #'   }
 #' @seealso [gof_lrmsd_i_msa_ml()] (goodness-of-fit from this fit),
-#'   [predict_lrmsd_i_msa_ml()] (propagate the fit to a banded profile),
+#'   [predict_profiles()] (propagate the fit to a banded profile),
 #'   `calculate_loglik_lrmsd_i_msa()` (the objective).
 #' @family fitting
 #' @export

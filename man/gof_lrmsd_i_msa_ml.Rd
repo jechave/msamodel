@@ -46,16 +46,6 @@ gof_lrmsd_i_msa_ml(ml)
 counterpart).
 
 Other prediction:
-\code{\link[=gof_lrmsd_n_msa_ml]{gof_lrmsd_n_msa_ml()}},
-\code{\link[=predict_lrmsd_i_msa_ml]{predict_lrmsd_i_msa_ml()}},
-\code{\link[=predict_lrmsd_i_nested_models_ml]{predict_lrmsd_i_nested_models_ml()}},
-\code{\link[=predict_lrmsd_n_msa_ml]{predict_lrmsd_n_msa_ml()}},
-\code{\link[=predict_lrmsd_n_nested_models_ml]{predict_lrmsd_n_nested_models_ml()}},
-\code{\link[=predict_nlrmsd_i_msa_decomposition_ml]{predict_nlrmsd_i_msa_decomposition_ml()}},
-\code{\link[=predict_nlrmsd_i_msa_ml]{predict_nlrmsd_i_msa_ml()}},
-\code{\link[=predict_nlrmsd_i_nested_models_ml]{predict_nlrmsd_i_nested_models_ml()}},
-\code{\link[=predict_nlrmsd_n_msa_decomposition_ml]{predict_nlrmsd_n_msa_decomposition_ml()}},
-\code{\link[=predict_nlrmsd_n_msa_ml]{predict_nlrmsd_n_msa_ml()}},
-\code{\link[=predict_nlrmsd_n_nested_models_ml]{predict_nlrmsd_n_nested_models_ml()}}
+\code{\link[=gof_lrmsd_n_msa_ml]{gof_lrmsd_n_msa_ml()}}
 }
 \concept{prediction}
