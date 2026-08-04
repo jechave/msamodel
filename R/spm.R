@@ -147,8 +147,8 @@ generate_spm_core <- function(wt, n_mutations = 10,
 #'   wild-type rows dropped), `dr2_ijm` (the mutant-by-site squared-divergence matrix),
 #'   `dr2_njm` (the mutant-by-mode squared-divergence matrix), and `site_map` (a tibble
 #'   mapping the site index `i` to its PDB residue number `pdb_site`).
-#' @seealso [setup_enm()] (builds the `wt` input); [calculate_dr2_i_msa()] /
-#'   [calculate_dr2_n_msa()] and [fit_lrmsd_i_msa_ml()] (consume the returned object).
+#' @seealso [setup_enm()] (builds the `wt` input); [calculate_profiles()] and
+#'   [fit_lrmsd_i_msa_ml()] (consume the returned object).
 #' @family spm
 #' @examples
 #' \dontrun{
@@ -273,8 +273,8 @@ preprocess_spm_mode <- function(spm) {
 #' Turns the per-mutant fixation probabilities of the MSA model ([pfix_msa()]) into
 #' the averaging weights of the single-point-mutation (SPM) ensemble: `weights_jm =
 #' pfix_jm / sum(pfix_jm)`, one weight per mutant `(j, m)`, summing to one. The
-#' site- and mode-form forward maps ([calculate_dr2_i_msa()], [calculate_dr2_n_msa()])
-#' both average their per-mutant divergences with exactly these weights.
+#' forward map ([calculate_profiles()]) averages its per-mutant divergences, on both
+#' response axes, with exactly these weights.
 #'
 #' The normalisation is a property of *this ensemble*, not of the model: it is the
 #' SPM scan's estimator of the mutant distribution. A different ensemble (for
@@ -292,7 +292,7 @@ preprocess_spm_mode <- function(spm) {
 #' @return A numeric vector of averaging weights over mutants, one per row of
 #'   `spm$energy_data`, summing to one.
 #' @seealso [pfix_msa()] (the unnormalised model probabilities);
-#'   [calculate_dr2_i_msa()] and [calculate_dr2_n_msa()] (average with these weights).
+#'   [calculate_profiles()] (averages with these weights).
 #' @family spm
 #' @examples
 #' \dontrun{

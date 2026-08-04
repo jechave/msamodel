@@ -8,7 +8,7 @@ add_site_properties(site_data, wt, pdb_site_active)
 }
 \arguments{
 \item{site_data}{A per-site table keyed by the site index \code{i} (for example the
-output of \code{\link[=calculate_dr2_i_msa]{calculate_dr2_i_msa()}}).}
+\verb{$site} tibble from \code{\link[=calculate_profiles]{calculate_profiles()}}).}
 
 \item{wt}{Wild-type protein structure with an elastic network model, as
 returned by \code{\link[=setup_enm]{setup_enm()}}.}
@@ -30,13 +30,13 @@ divergence to a site's structural environment.
 }
 \examples{
 \dontrun{
-spm <- generate_spm_data(znb_wt, seed = 1024)
-prof <- calculate_dr2_i_msa(spm, a1 = 1, a2 = 1)
+spm  <- generate_spm_data(znb_wt, seed = 1024)
+prof <- calculate_profiles(spm, a1 = 1, a2 = 1)$site
 add_site_properties(prof, znb_wt, pdb_site_active = c(99, 101, 103, 162))
 }
 }
 \seealso{
-\code{\link[=setup_enm]{setup_enm()}} (builds the \code{wt} input); \code{\link[=calculate_dr2_i_msa]{calculate_dr2_i_msa()}} (a
+\code{\link[=setup_enm]{setup_enm()}} (builds the \code{wt} input); \code{\link[=calculate_profiles]{calculate_profiles()}} (a
 typical source of \code{site_data}).
 
 Other setup:

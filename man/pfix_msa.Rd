@@ -48,22 +48,6 @@ pfix_msa(spm$energy_data$ddg_jm, spm$energy_data$ddgact_jm, a1 = 1, a2 = 1)
 }
 \seealso{
 \code{\link[=weights_jm_spm]{weights_jm_spm()}} (normalises these into SPM-ensemble averaging
-weights); \code{\link[=calculate_dr2_i_msa]{calculate_dr2_i_msa()}} (the site forward map built on them).
-
-Other model:
-\code{\link[=calculate_decomposition_i_msa]{calculate_decomposition_i_msa()}},
-\code{\link[=calculate_decomposition_n_msa]{calculate_decomposition_n_msa()}},
-\code{\link[=calculate_dr2_i_msa]{calculate_dr2_i_msa()}},
-\code{\link[=calculate_dr2_n_msa]{calculate_dr2_n_msa()}},
-\code{\link[=calculate_lrmsd_i_msa]{calculate_lrmsd_i_msa()}},
-\code{\link[=calculate_lrmsd_i_nested_models]{calculate_lrmsd_i_nested_models()}},
-\code{\link[=calculate_lrmsd_n_msa]{calculate_lrmsd_n_msa()}},
-\code{\link[=calculate_lrmsd_n_nested_models]{calculate_lrmsd_n_nested_models()}},
-\code{\link[=calculate_nlrmsd_i_msa]{calculate_nlrmsd_i_msa()}},
-\code{\link[=calculate_nlrmsd_i_msa_decomposition]{calculate_nlrmsd_i_msa_decomposition()}},
-\code{\link[=calculate_nlrmsd_i_nested_models]{calculate_nlrmsd_i_nested_models()}},
-\code{\link[=calculate_nlrmsd_n_msa]{calculate_nlrmsd_n_msa()}},
-\code{\link[=calculate_nlrmsd_n_msa_decomposition]{calculate_nlrmsd_n_msa_decomposition()}},
-\code{\link[=calculate_nlrmsd_n_nested_models]{calculate_nlrmsd_n_nested_models()}}
+weights); \code{\link[=calculate_profiles]{calculate_profiles()}} (the forward map built on them).
 }
 \concept{model}

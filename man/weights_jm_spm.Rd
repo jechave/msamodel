@@ -21,8 +21,8 @@ A numeric vector of averaging weights over mutants, one per row of
 \description{
 Turns the per-mutant fixation probabilities of the MSA model (\code{\link[=pfix_msa]{pfix_msa()}}) into
 the averaging weights of the single-point-mutation (SPM) ensemble: \code{weights_jm = pfix_jm / sum(pfix_jm)}, one weight per mutant \verb{(j, m)}, summing to one. The
-site- and mode-form forward maps (\code{\link[=calculate_dr2_i_msa]{calculate_dr2_i_msa()}}, \code{\link[=calculate_dr2_n_msa]{calculate_dr2_n_msa()}})
-both average their per-mutant divergences with exactly these weights.
+forward map (\code{\link[=calculate_profiles]{calculate_profiles()}}) averages its per-mutant divergences, on both
+response axes, with exactly these weights.
 }
 \details{
 The normalisation is a property of \emph{this ensemble}, not of the model: it is the
@@ -43,7 +43,7 @@ sum(w)  # 1
 }
 \seealso{
 \code{\link[=pfix_msa]{pfix_msa()}} (the unnormalised model probabilities);
-\code{\link[=calculate_dr2_i_msa]{calculate_dr2_i_msa()}} and \code{\link[=calculate_dr2_n_msa]{calculate_dr2_n_msa()}} (average with these weights).
+\code{\link[=calculate_profiles]{calculate_profiles()}} (averages with these weights).
 
 Other spm:
 \code{\link[=generate_spm_data]{generate_spm_data()}}

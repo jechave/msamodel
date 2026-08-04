@@ -7,7 +7,7 @@
 #' divergence to a site's structural environment.
 #'
 #' @param site_data A per-site table keyed by the site index `i` (for example the
-#'   output of [calculate_dr2_i_msa()]).
+#'   `$site` tibble from [calculate_profiles()]).
 #' @param wt Wild-type protein structure with an elastic network model, as
 #'   returned by [setup_enm()].
 #' @param pdb_site_active Integer vector of active-site residue numbers (PDB
@@ -15,13 +15,13 @@
 #' @return The input table with four columns added: `dactive` (distance to the
 #'   nearest active site), `cn` (contact number), `msf` (mean square fluctuation),
 #'   and `shell` (a factor banding `dactive` into levels 0-7).
-#' @seealso [setup_enm()] (builds the `wt` input); [calculate_dr2_i_msa()] (a
+#' @seealso [setup_enm()] (builds the `wt` input); [calculate_profiles()] (a
 #'   typical source of `site_data`).
 #' @family setup
 #' @examples
 #' \dontrun{
-#' spm <- generate_spm_data(znb_wt, seed = 1024)
-#' prof <- calculate_dr2_i_msa(spm, a1 = 1, a2 = 1)
+#' spm  <- generate_spm_data(znb_wt, seed = 1024)
+#' prof <- calculate_profiles(spm, a1 = 1, a2 = 1)$site
 #' add_site_properties(prof, znb_wt, pdb_site_active = c(99, 101, 103, 162))
 #' }
 #' @export

@@ -61,8 +61,8 @@ dim(spm$dr2_njm)
 }
 }
 \seealso{
-\code{\link[=setup_enm]{setup_enm()}} (builds the \code{wt} input); \code{\link[=calculate_dr2_i_msa]{calculate_dr2_i_msa()}} /
-\code{\link[=calculate_dr2_n_msa]{calculate_dr2_n_msa()}} and \code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}} (consume the returned object).
+\code{\link[=setup_enm]{setup_enm()}} (builds the \code{wt} input); \code{\link[=calculate_profiles]{calculate_profiles()}} and
+\code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}} (consume the returned object).
 
 Other spm:
 \code{\link[=weights_jm_spm]{weights_jm_spm()}}
