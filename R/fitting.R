@@ -263,8 +263,8 @@ fit_lrmsd_i_msa_ml <- function(spm,
   }
   gof_fn <- function(a1_hat, a2_hat) {
     obs  <- resolve_site_obs(spm, observed_data)
-    pred <- calculate_lrmsd_i_msa(spm, a1_hat, a2_hat) %>%
-      dplyr::transmute(idx = i, pred = lrmsd_i_msa)
+    v    <- lrmsd_msa(spm$dr2_ijm, spm$energy_data, a1_hat, a2_hat)
+    pred <- tibble::tibble(idx = seq_along(v), pred = v)
     fit_gof_primitives(pred, obs)
   }
   fit_lrmsd_msa_ml_core(nll, gof_fn, a1_range, log2_a2_plus1_range, init, grid_n)
@@ -338,7 +338,8 @@ fit_lrmsd_n_msa_ml <- function(spm,
                           a1 = theta[1], a2 = 2^theta[2] - 1)
   }
   gof_fn <- function(a1_hat, a2_hat) {
-    pred <- calculate_lrmsd_n_msa(spm, a1_hat, a2_hat)
+    v    <- lrmsd_msa(spm$dr2_njm, spm$energy_data, a1_hat, a2_hat)
+    pred <- tibble::tibble(n = seq_along(v), lrmsd_n_msa = v)  # n kept for resolve_mode_obs
     obs  <- resolve_mode_obs(pred, observed_data)
     fit_gof_primitives(dplyr::transmute(pred, idx = n, pred = lrmsd_n_msa), obs)
   }
@@ -387,8 +388,8 @@ calculate_loglik_lrmsd_i_msa <- function(spm, observed_data, a1, a2) {
   # Resolve user pdb_site -> internal site index i (site-only, at the boundary), with the
   # site-axis unknown-key check; then hand canonical (idx, obs)/(idx, pred) to the core.
   obs         <- resolve_site_obs(spm, observed_data)             # tibble(idx, obs)
-  predictions <- calculate_lrmsd_i_msa(spm, a1, a2) %>%
-    dplyr::transmute(idx = i, pred = lrmsd_i_msa)
+  v           <- lrmsd_msa(spm$dr2_ijm, spm$energy_data, a1, a2)
+  predictions <- tibble::tibble(idx = seq_along(v), pred = v)
   loglik_lrmsd_msa_core(predictions, obs)
 }
 
@@ -407,7 +408,8 @@ calculate_loglik_lrmsd_i_msa <- function(spm, observed_data, a1, a2) {
 calculate_loglik_lrmsd_n_msa <- function(spm, observed_data, a1, a2) {
   # Mode index n is the internal index directly (no site_map); resolve + unknown-key check
   # at the boundary, then hand canonical frames to the axis-blind core.
-  predictions <- calculate_lrmsd_n_msa(spm, a1, a2)
+  v           <- lrmsd_msa(spm$dr2_njm, spm$energy_data, a1, a2)
+  predictions <- tibble::tibble(n = seq_along(v), lrmsd_n_msa = v)  # n kept for resolve_mode_obs
   obs         <- resolve_mode_obs(predictions, observed_data)     # tibble(idx, obs)
   loglik_lrmsd_msa_core(dplyr::transmute(predictions, idx = n, pred = lrmsd_n_msa), obs)
 }
