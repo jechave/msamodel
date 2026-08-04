@@ -12,18 +12,16 @@ One short entry per working session.
 The current state and what's next. Keep this current as slices finish; it is the
 one place the live state lives (no separate PROGRESS file as of 2026-06-26).
 
-- **NEXT — the SECOND deletion pass: the 14 `calculate_*` grid functions.** The 10 old
-  `predict_*_ml` are gone (2026-08-04, see history entry below); the leaf verbs
-  `calculate_profiles`/`predict_profiles`/`calculate_decomposition`/`predict_decomposition`
-  (`R/api.R`) are the profile/decomposition surface. Remaining old exports to retire: the 14
-  `calculate_*` in `R/model.R`. Two are HARD blockers needing rewiring FIRST:
-  `calculate_lrmsd_{i,n}_msa` sit on the KEEP fit path (`fit_*`/`@noRd calculate_loglik_*`,
-  `R/fitting.R:266,341,390,410`) → rewire onto the `@noRd` primitive `lrmsd_msa()`;
-  `calculate_dr2_{i,n}_msa` are used by `data-raw/prepare_znb_data.R:126` (builds `znb_profile_n`)
-  + KEEP `@seealso`/`@example` links → rewire onto `dr2_msa()` + scrub docs. The other 10
-  `calculate_*` are tests-only once those clear. Full tier map in the (approved) deletion plan.
-  The permanent numeric guard for the four verbs is the FROZEN block in `tests/testthat/test-api.R`
-  (literals independent of the old functions — survives their deletion).
+- **OLD-GRID RETIREMENT COMPLETE 2026-08-04 — both deletion passes done.** The exported
+  model/prediction API is now the four leaf verbs (`calculate_profiles`/`predict_profiles`/
+  `calculate_decomposition`/`predict_decomposition`, `R/api.R`) + `fit_*_ml` + `gof_*_ml`
+  (+ setup/spm/site helpers). The 10 old `predict_*_ml` (`0243155`) AND the 14 old `calculate_*`
+  grid functions (`5621b06`) are gone; the fit path + leaf verbs call the `@noRd` forward-map
+  primitives in `R/model.R` (`dr2_msa`/`lrmsd_msa`/`nlrmsd_msa`/`lrmsd_nested_models`/
+  `nlrmsd_nested_models`/`lrmsd_msa_decomposition`/`nlrmsd_msa_decomposition`) directly.
+  Numeric guard for the verbs = the FROZEN block in `test-api.R` (literals independent of the
+  old fns). check() 0E/1W/2N. **NEXT = user's call** — no old-grid work remains; roadmap's next
+  version is v0.4 (motion arm `dh_*`/`nh_*`, penm slow-loop only), not started/scoped.
 
 - **AXIS-INDEPENDENT PRIMITIVES — DONE 2026-07-30 (4 commits `0f90365`/`7e44fd8`/`b70db58`/`0bedc3d`).**
   The site/mode duplication is collapsed onto axis-blind internal primitives; all 28 exports
@@ -513,6 +511,30 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   unchanged: the **diff-rule** still decides whether the full `test()` runs — fire it
   before a code/data/roxygen commit; skip it for docs/vignette-only diffs.
 <!-- /NOW -->
+
+### 2026-08-04 — second deletion pass: the 14 `calculate_*` grid functions retired (old grid GONE)
+
+Completes the old-grid retirement. Verified against the CURRENT (post-predict-deletion) tree that
+every candidate was a thin `tibble()` wrapper over an `@noRd` primitive calling no other candidate —
+only 3 real blockers, the rest tests-/docs-only. Sequenced per the approved plan:
+**(1)** rewired the 4 fit-path sites off `calculate_lrmsd_{i,n}_msa` onto `lrmsd_msa()` (`R/fitting.R`,
+`49b6af9`) — mode side keeps the `n` column `resolve_mode_obs` reads; value-identical, 207P.
+**(2)** rewired the data-build `calculate_dr2_n_msa` + its mirror determinism test onto `dr2_msa()`
+(`a4a4d50`); **verified `znb_profile_n` regenerates BYTE-IDENTICAL** (max abs diff 0 vs the committed
+fixture and the old code path) so `data/*.rda` is untouched. **(3)** rewired every candidate-referencing
+test onto the primitives, preserving the genuine properties with negative controls (`b8f4ea0`): the
+forward-map/nested/decomposition/centring suites, the snapshot drift guard (serialize form of the bare
+vector == the old tibble column — a subtle catch: renaming a `test_that` desc silently writes a NEW
+snapshot instead of comparing, which would void the guard; caught + reverted), the independent-route
+loglik oracle, and the hand-rolled-weights check. **(4+5)** scrubbed 8 KEEP-file doc links + the
+surviving primitives' own "shared core of [deleted]" self-descriptions, then deleted all 14 `@export`
+blocks from `R/model.R` (`5621b06`, −1405 lines). `document()` dropped exactly the 14 exports + 14 man
+pages; `git grep` finds zero candidate refs in `R/ tests/ vignettes/ data-raw/` (only LOG/plan history
+retains the names). Single `check()` gate (no redundant `test()` before it, per
+[[feedback_no_redundant_test_before_check]]): **0E/1W/2N** baseline, no dangling-`\link` / broken-example
+warning. NEWS dev-section + LOG NOW + memory reconciled (naming-convention memories that merely
+*illustrate* a rule with an old name were left — they don't claim live existence). **The exported
+model/prediction API is now the four leaf verbs + `fit_*_ml` + `gof_*_ml`.**
 
 ### 2026-08-04 — four leaf verbs shipped, then first deletion pass (10 `predict_*_ml` retired)
 
