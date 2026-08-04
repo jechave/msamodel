@@ -2,10 +2,8 @@
 # primitives (R/model.R forward maps + R/predict_band_helpers.R band machinery).
 #
 # HARD CONSTRAINT: these verbs and their helpers call ONLY non-exported primitives.
-# They MUST NOT call any exported calculate_* / predict_* / gof_* / weights_jm_spm /
-# pfix_msa function. The old exported grid functions stay untouched as an independent
-# numbers-oracle; new code reaches DOWN to the primitives so the old exports can later
-# be deleted without breaking this layer.
+# They MUST NOT call any exported calculate_* / predict_* / gof_* / pfix_msa function;
+# they reach DOWN to the @noRd forward-map primitives (R/model.R) instead.
 #
 # Each verb returns list(site = <tibble>, mode = <tibble>) -- both axes every call.
 # `which` selects the quantity family: "lrmsd" (absolute) or "nlrmsd" (mean-centred).
@@ -40,7 +38,6 @@ key_profile <- function(cols, spm, axis) {
 
 #' Value + standard-error column pair for one banded quantity
 #'
-#' The `_se`-emitting counterpart of `delta_band()` (which emits mean/lower/upper).
 #' Given a point value vector and its TOTAL per-element variance (parameter + SPM arms
 #' already summed by the caller), returns a two-element named list `<name>` (the value)
 #' and `<name>_se` (the standard error), so the pair lands as adjacent columns.

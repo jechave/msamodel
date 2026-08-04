@@ -9,7 +9,7 @@
 #' of a mutant on its own -- it depends only on the mutant's two energy changes and
 #' the selection strengths, not on any ensemble -- so it is the elementary quantity
 #' an evolutionary-trajectory simulation would evaluate step by step, as well as the
-#' primitive the ensemble weights ([weights_jm_spm()]) are built from.
+#' primitive the ensemble averaging weights (`weights_jm()`) are built from.
 #'
 #' Pure and vectorised: `ddg` and `ddgact` may be scalars (one mutant) or
 #' equal-length vectors (many mutants), and the result matches their shape. This is
@@ -25,8 +25,8 @@
 #' @param a2 Activity selection strength (non-negative). `0` disables activity
 #'   selection.
 #' @return A numeric vector of fixation probabilities, the same length as `ddg`.
-#' @seealso [weights_jm_spm()] (normalises these into SPM-ensemble averaging
-#'   weights); [calculate_profiles()] (the forward map built on them).
+#' @seealso [calculate_profiles()] (the forward map built on these; it averages the
+#'   per-mutant divergences with the normalised `weights_jm()`).
 #' @family model
 #' @examples
 #' \dontrun{
@@ -63,7 +63,6 @@ pfix_msa <- function(ddg, ddgact, a1, a2) {
 #' @param energy_data A tibble carrying per-mutant `ddg_jm` and `ddgact_jm` columns.
 #' @param a1 Stability selection strength (non-negative).
 #' @param a2 Activity selection strength (non-negative).
-#' @seealso [weights_jm_spm()], the exported form taking the whole `spm` object.
 #' @return A numeric vector of averaging weights, one per mutant, summing to one.
 #' @family model
 #' @noRd

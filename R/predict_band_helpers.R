@@ -37,31 +37,6 @@ grad_t <- function(f, t, h = 1e-5) {
   matrix(J, nrow = n)
 }
 
-#' Assemble a symmetric confidence band from a mean and total variance
-#'
-#' Pure band assembler: given the point profile `mean_v` and its TOTAL per-element
-#' variance `var_v` (already summed across whatever uncertainty arms the caller chose
-#' -- parameter, SPM, both, or neither), build the symmetric band
-#' `mean_v +/- z*sqrt(var_v)` at coverage `level`. No arm is privileged here: the
-#' caller decides which variances to add before calling. `var_v = 0` gives a
-#' zero-width band (the `"none"` uncertainty mode), which keeps the column schema
-#' stable across modes.
-#'
-#' @param mean_v Numeric vector: the point profile (one value per element).
-#' @param var_v Numeric vector (same length): the TOTAL per-element variance. `0`
-#'   yields a zero-width band.
-#' @param level Confidence-band coverage in `(0, 1)` (e.g. `0.95`).
-#' @param name Character stem for the output columns.
-#' @return A tibble with columns `<name>_mean`, `<name>_lower`, `<name>_upper`.
-#' @noRd
-delta_band <- function(mean_v, var_v, level, name) {
-  se_v <- sqrt(pmax(var_v, 0))            # pmax guards tiny negative round-off only
-  z    <- stats::qnorm(1 - (1 - level) / 2)
-  cols <- list(mean_v, mean_v - z * se_v, mean_v + z * se_v)
-  names(cols) <- paste0(name, c("_mean", "_lower", "_upper"))
-  tibble::as_tibble(cols)
-}
-
 #' Parameter-uncertainty variance arm (delta method)
 #'
 #' Per-element variance of `f(t)` induced by the fit's `t`-scale covariance `cov_t`,
@@ -94,27 +69,6 @@ var_param_delta <- function(f, t_hat, cov_t, centred) {
 #' @return A length-2 numeric vector `c(a1, log2(a2 + 1))`.
 #' @noRd
 ml_t_hat <- function(fit) c(fit$a1, log2(fit$a2 + 1))
-
-#' Resolve the four uncertainty modes into per-arm gates
-#'
-#' The four uncertainty modes and their arm gates: `both` = SPM + parameter;
-#' `spm` / `parameter` = that arm alone; `none` = zero-width band (same columns, no
-#' width). The predictors compute each arm's variance only when its gate is `TRUE`,
-#' then sum. Also validates `level` here (shared by all predictors).
-#'
-#' @param uncertainty One of `"both"`, `"spm"`, `"parameter"`, `"none"` (matched via
-#'   [base::match.arg()]).
-#' @param level Confidence-band coverage; must be a single number in `(0, 1)`.
-#' @return A `list(param = , spm = )` of logicals gating each variance arm.
-#' @noRd
-uncertainty_gates <- function(uncertainty, level) {
-  uncertainty <- match.arg(uncertainty, c("both", "spm", "parameter", "none"))
-  if (length(level) != 1 || level <= 0 || level >= 1) {
-    stop("level must be a single number in (0, 1)")
-  }
-  list(param = uncertainty %in% c("both", "parameter"),
-       spm   = uncertainty %in% c("both", "spm"))
-}
 
 # ---- SPM-sampling error: per-mutant contribution primitive -----------------------
 

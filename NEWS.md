@@ -16,6 +16,12 @@
   `calculate_nlrmsd_{i,n}_msa_decomposition()` — was **removed** in the same retirement; the
   four leaf verbs (plus `fit_*_ml` / `gof_*_ml`) are the whole exported model/prediction API.
 
+* **`weights_jm_spm()` was removed.** The exported one-line wrapper over the internal
+  SPM-ensemble weights had no callers. The averaging weights are computed internally from
+  the `spm` object's `energy_data` inside the forward maps; there is no public entry point
+  for them. Users needing the raw weights can read them off a profile or recompute from
+  `pfix_msa()`.
+
 * **The single-point-mutation scan is now one object.** `generate_spm_data()` returns a
   ready-to-use `spm` object — a list `{energy_data, dr2_ijm, dr2_njm, site_map}` carrying
   both the per-residue and per-mode divergence — that every `calculate_*`, `fit_*`, and

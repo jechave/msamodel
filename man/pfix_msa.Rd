@@ -29,7 +29,7 @@ stability selection (strength \code{a1}) and activity selection (strength \code{
 of a mutant on its own -- it depends only on the mutant's two energy changes and
 the selection strengths, not on any ensemble -- so it is the elementary quantity
 an evolutionary-trajectory simulation would evaluate step by step, as well as the
-primitive the ensemble weights (\code{\link[=weights_jm_spm]{weights_jm_spm()}}) are built from.
+primitive the ensemble averaging weights (\code{weights_jm()}) are built from.
 }
 \details{
 Pure and vectorised: \code{ddg} and \code{ddgact} may be scalars (one mutant) or
@@ -47,7 +47,7 @@ pfix_msa(spm$energy_data$ddg_jm, spm$energy_data$ddgact_jm, a1 = 1, a2 = 1)
 }
 }
 \seealso{
-\code{\link[=weights_jm_spm]{weights_jm_spm()}} (normalises these into SPM-ensemble averaging
-weights); \code{\link[=calculate_profiles]{calculate_profiles()}} (the forward map built on them).
+\code{\link[=calculate_profiles]{calculate_profiles()}} (the forward map built on these; it averages the
+per-mutant divergences with the normalised \code{weights_jm()}).
 }
 \concept{model}
