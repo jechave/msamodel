@@ -123,8 +123,9 @@ SYN_PROFILE_N_NOISE_SD <- 0.30
 
 site_fit    <- fit_lrmsd_i_msa_ml(znb_spm, znb_profile)   # deterministic truth (a1,a2)
 
-lrmsd_n_true <- calculate_dr2_n_msa(znb_spm, site_fit$a1, site_fit$a2) %>%
-  dplyr::transmute(n, lrmsd_n_true = log(sqrt(dr2_n)))
+dr2_n_true   <- dr2_msa(znb_spm$dr2_njm, znb_spm$energy_data, site_fit$a1, site_fit$a2)
+lrmsd_n_true <- tibble::tibble(n = seq_along(dr2_n_true),
+                               lrmsd_n_true = log(sqrt(dr2_n_true)))
 
 set.seed(SYN_PROFILE_N_SEED)
 znb_profile_n <- lrmsd_n_true %>%

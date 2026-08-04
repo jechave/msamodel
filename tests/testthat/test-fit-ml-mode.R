@@ -100,9 +100,9 @@ test_that("znb_profile_n is reproducible from its seeded recipe", {
   # data-raw recipe and compare to the embedded data, to machine precision.
   ppm <- znb_spm
   site_fit <- fit_lrmsd_i_msa_ml(znb_spm, znb_profile)
-  truth <- calculate_dr2_n_msa(ppm, site_fit$a1, site_fit$a2)
+  dr2_n <- dr2_msa(ppm$dr2_njm, ppm$energy_data, site_fit$a1, site_fit$a2)
   set.seed(2025)
-  expected_obs <- log(sqrt(truth$dr2_n)) + rnorm(nrow(truth), 0, 0.30)
+  expected_obs <- log(sqrt(dr2_n)) + rnorm(length(dr2_n), 0, 0.30)
   expect_equal(znb_profile_n$lrmsd_n_obs, expected_obs, tolerance = 1e-12)
-  expect_equal(znb_profile_n$n, truth$n)
+  expect_equal(znb_profile_n$n, seq_along(dr2_n))
 })
