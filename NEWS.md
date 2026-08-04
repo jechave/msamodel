@@ -2,6 +2,17 @@
 
 ## API changes
 
+* **Four leaf verbs are the profile/decomposition surface; the per-axis
+  `predict_*_ml` grid was retired.** `calculate_profiles()`, `predict_profiles()`,
+  `calculate_decomposition()`, and `predict_decomposition()` each take `which =
+  c("lrmsd", "nlrmsd")` and return `list(site = , mode = )` — both response axes from
+  one call. `predict_*` attach a `_se` standard-error column per value (parameter +
+  SPM-sampling arms summed); build a band as `value ± qnorm(0.975) * se`. The ten old
+  `predict_{lrmsd,nlrmsd}_{i,n}_{msa,nested_models,msa_decomposition}_ml()` functions
+  (and their `uncertainty=` / `level=` arguments) were **removed** — use the leaf verbs.
+  `predict_decomposition(which = "lrmsd")` is not yet available (errors); use
+  `which = "nlrmsd"`. The `calculate_*` grid functions remain for now.
+
 * **The single-point-mutation scan is now one object.** `generate_spm_data()` returns a
   ready-to-use `spm` object — a list `{energy_data, dr2_ijm, dr2_njm, site_map}` carrying
   both the per-residue and per-mode divergence — that every `calculate_*`, `fit_*`, and
@@ -13,16 +24,14 @@
 
 ## New features
 
-* **SPM sampling error in the prediction bands.** The `predict_*_ml` bands now combine
-  two sources of uncertainty: the `(a1, a2)` parameter uncertainty (as before) and the
-  **SPM sampling error** — each divergence value is a mean over a *finite* mutant scan,
-  not the infinite limit. A new `uncertainty` argument on all ten banded predictors
-  selects which sources enter the band: `"both"` (default), `"spm"`, `"parameter"`, or
-  `"none"` (zero-width). The two arms are added as variances under an independence
-  assumption. The band-column schema is identical in every mode. A consequence: the MM
-  variant, which has no parameter-uncertainty band, now carries its (nonzero) SPM band,
-  so `predict_*_nested_models_ml()` and the `nphi_mut` decomposition term report a real
-  band for MM. The SPM delta-method formula is validated against a naive bootstrap for
+* **SPM sampling error in the prediction bands.** Each `_se` reported by
+  `predict_profiles()` / `predict_decomposition()` combines two sources of uncertainty:
+  the `(a1, a2)` parameter uncertainty and the **SPM sampling error** — each divergence
+  value is a mean over a *finite* mutant scan, not the infinite limit. The two arms are
+  added as variances under an independence assumption. A consequence: the MM variant,
+  which has no parameter-uncertainty band, still carries its (nonzero) SPM band, so the
+  nested-model MM column and the `nphi_mut` decomposition term report a real (narrowest)
+  band. The SPM delta-method formula is validated against a naive bootstrap for
   every band quantity (see `dev/reports/spm_band_validation.Rmd`).
 
 * **`calculate_lrmsd_i_nested_models()`** — new exported function returning the
@@ -62,10 +71,9 @@
   quadrature arm that briefly replaced it (`fit_lrmsd_i_msa_agq()`,
   `predict_lrmsd_i_msa_agq()`, `predict_lrmsd_i_nested_models_agq()`,
   `predict_decomposition_i_msa_agq()`). `fit_lrmsd_i_msa_ml()` is the fitter, and
-  profiles/decompositions with error bands come from `predict_lrmsd_i_msa_ml()`,
-  `predict_lrmsd_i_nested_models_ml()`, and `predict_decomposition_i_msa_ml()` (plus
-  their `_n_` mode forms) — deterministic delta-method confidence bands, no seed,
-  burn-in, or draw-averaging.
+  profiles/decompositions with error bands come from `predict_profiles()` and
+  `predict_decomposition()` (see the API-changes note above) — deterministic
+  delta-method confidence bands, no seed, burn-in, or draw-averaging.
 
 * **`dr2`-family names now follow one index-signature convention:**
   `dr2_<indices>` — one underscore, then the free indices the object spans

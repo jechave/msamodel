@@ -12,22 +12,18 @@ One short entry per working session.
 The current state and what's next. Keep this current as slices finish; it is the
 one place the live state lives (no separate PROGRESS file as of 2026-06-26).
 
-- **NEXT (user, 2026-07-30) — the primitives refactor DID NOT GO DEEP ENOUGH; user will
-  study the structure in a fresh session before deciding.** Finding that prompted it: the
-  `predict_*_ml` functions still call the `calculate_*` tibble SKINS internally, not the
-  primitives — in THREE roles: (1) the point-estimate `keys <- calculate_*` line, (2) the
-  parameter-arm `f(t)` differentiation closure `calculate_*(...)$col`, (3) already-primitive
-  SPM arm. Roles (1) and (2) route bare-vector math through the tibble skin needlessly:
-  e.g. `predict_lrmsd_i_msa_ml` builds `calculate_lrmsd_i_msa` then discards its structure,
-  re-joining `spm$site_map` ITSELF (predict.R:190-191, 202) — the skin's tibble earns
-  nothing there. So predictors could route ENTIRELY through primitives, with `calculate_*`
-  becoming a purely user-facing convenience nothing internal calls. NOT yet scoped/decided —
-  user wants to look at the call structure first (`dev/callgraph.R` → `dev/preview/callgraph.pdf`,
-  regenerated 2026-07-30, 67 fns/140 edges; the axis-blind primitives show as the grey shared
-  spine both arms call into). Numbers-identical oracle exists (`oracle.R`, scratchpad) to
-  verify any such change. (NOTE: I bullshitted mid-analysis — claimed the point-estimate path
-  NEEDS the skin for pdb_site; it does not, the predictor holds `spm` and joins site_map
-  itself. Verify against code, don't narrate.)
+- **NEXT — the SECOND deletion pass: the 14 `calculate_*` grid functions.** The 10 old
+  `predict_*_ml` are gone (2026-08-04, see history entry below); the leaf verbs
+  `calculate_profiles`/`predict_profiles`/`calculate_decomposition`/`predict_decomposition`
+  (`R/api.R`) are the profile/decomposition surface. Remaining old exports to retire: the 14
+  `calculate_*` in `R/model.R`. Two are HARD blockers needing rewiring FIRST:
+  `calculate_lrmsd_{i,n}_msa` sit on the KEEP fit path (`fit_*`/`@noRd calculate_loglik_*`,
+  `R/fitting.R:266,341,390,410`) → rewire onto the `@noRd` primitive `lrmsd_msa()`;
+  `calculate_dr2_{i,n}_msa` are used by `data-raw/prepare_znb_data.R:126` (builds `znb_profile_n`)
+  + KEEP `@seealso`/`@example` links → rewire onto `dr2_msa()` + scrub docs. The other 10
+  `calculate_*` are tests-only once those clear. Full tier map in the (approved) deletion plan.
+  The permanent numeric guard for the four verbs is the FROZEN block in `tests/testthat/test-api.R`
+  (literals independent of the old functions — survives their deletion).
 
 - **AXIS-INDEPENDENT PRIMITIVES — DONE 2026-07-30 (4 commits `0f90365`/`7e44fd8`/`b70db58`/`0bedc3d`).**
   The site/mode duplication is collapsed onto axis-blind internal primitives; all 28 exports
@@ -517,6 +513,33 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   unchanged: the **diff-rule** still decides whether the full `test()` runs — fire it
   before a code/data/roxygen commit; skip it for docs/vignette-only diffs.
 <!-- /NOW -->
+
+### 2026-08-04 — four leaf verbs shipped, then first deletion pass (10 `predict_*_ml` retired)
+
+The teachable-surface work landed across several commits. **Built the four leaf verbs**
+`calculate_profiles` / `predict_profiles` / `calculate_decomposition` / `predict_decomposition`
+(`R/api.R`, `4ac01f6`) — each `which=c("lrmsd","nlrmsd")`, returns `list(site=,mode=)`, predict
+verbs attach `_se`; assembled from `@noRd` primitives ONLY (audited: zero exported-fn calls), so
+the old exports never block deletion. `predict_decomposition(which="lrmsd")` errors ("to be
+developed" — uncentred component SE not derived). Renamed the internal `calculate_msa_decomposition`
+→ `decompose_nested` first (audit hygiene). Verified numbers-identical vs the old exports by a
+disposable scratchpad oracle (site+mode, both `which`, `_se` reconstructed from old band limits;
+0 real failures, negative-control-proven). **Added the permanent frozen numeric reference**
+(`15c79fe`, in `test-api.R`): literals from `znb_spm` at a fixed `(a1,a2)` + fixed ML fit, incl.
+the load-bearing nested/component `_se` — literals do NOT depend on the old functions, so they
+survive their deletion (the reference the disposable oracle can't be). **Rewrote all four vignettes**
+onto the new verbs (shipped as `-v2`, `8595e43`; four naive-user reviews ran — caught a factual
+error, an old "MM has no band" claim, corrected to "narrowest band": the new `_se` always includes
+the nonzero SPM arm). **Then the FIRST deletion pass** (Option 2): retired the 10
+`predict_{lrmsd,nlrmsd}_{i,n}_{msa,nested_models,msa_decomposition}_ml` — the least-entangled set
+(no production/KEEP caller). Deleted their two test files + rewired two surviving cross-checks onto
+`predict_profiles` (`a909dfc`); promoted the four `-v2` vignettes to the clean names, deleting the
+four old ones (`ed65597`); deleted the functions + scrubbed 17 `@seealso`/`@details` doc-links onto
+the new verbs (`0243155`). `document()` dropped exactly the 10 exports + 10 man pages; `git grep`
+proof zero refs in R/tests/vignettes (only this LOG's history retains the names). Suite 207P/0F/2skip;
+`check()` back to 0E/1W/2N baseline (a transient extra top-level-file NOTE was stray root-level
+`_files/` dirs from a root-cwd knit — deleted). NEWS dev-version section reconciled. **The 14
+`calculate_*` are the NEXT deletion pass** (see NOW block; two are fit-path/data-raw hard blockers).
 
 ### 2026-07-31 — remove orphaned `unname()` stopgaps; make two silent no-ops fail-loud
 
