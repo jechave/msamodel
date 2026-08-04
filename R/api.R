@@ -144,13 +144,13 @@ predict_profiles <- function(fit, spm, which = c("lrmsd", "nlrmsd")) {
   centred <- which == "nlrmsd"
   mean_fwd <- if (centred) nlrmsd_msa else lrmsd_msa     # value column primitive
   spm_var  <- if (centred) var_spm_nlrmsd else var_spm_lrmsd
-  t_hat    <- ml_t_hat(fit)
+  theta_hat <- as_theta(fit$a1, fit$a2)
 
   out <- lapply(axis_branches(spm), function(b) {
     mean_v <- mean_fwd(b$dr2_mat, spm$energy_data, fit$a1, fit$a2)
     # parameter arm: ALWAYS the uncentred primitive; centring handled inside var_param_delta.
-    f  <- function(t) lrmsd_msa(b$dr2_mat, spm$energy_data, t[1], 2^t[2] - 1)
-    vp <- var_param_delta(f, t_hat, fit$cov, centred = centred)
+    f  <- function(theta) lrmsd_msa(b$dr2_mat, spm$energy_data, theta[1], 2^theta[2] - 1)
+    vp <- var_param_delta(f, theta_hat, fit$cov, centred = centred)
     w  <- weights_jm(spm$energy_data, fit$a1, fit$a2)
     vs <- spm_var(b$dr2_mat, w)
     name <- paste0(which, "_", b$tag, "_msa")
@@ -250,7 +250,7 @@ predict_decomposition <- function(fit, spm, which = c("lrmsd", "nlrmsd")) {
          "component band (standard error) is not yet derived. Use which = \"nlrmsd\".")
   }
   validate_ml_fit(fit, "fit_lrmsd_i_msa_ml() / fit_lrmsd_n_msa_ml()")
-  t_hat <- ml_t_hat(fit)
+  theta_hat <- as_theta(fit$a1, fit$a2)
   variant_a <- list(mm = c(0, 0), ms = c(fit$a1, 0),
                     ma = c(0, fit$a2), msa = c(fit$a1, fit$a2))
 
@@ -258,8 +258,8 @@ predict_decomposition <- function(fit, spm, which = c("lrmsd", "nlrmsd")) {
     # --- nested models: param arm at the fit point (per-variant column); SPM at variant point
     nested_mean <- nlrmsd_nested_models(b$dr2_mat, spm$energy_data, fit$a1, fit$a2)
     nested_cols <- do.call(c, lapply(c("mm", "ms", "ma", "msa"), function(v) {
-      f  <- function(t) lrmsd_nested_models(b$dr2_mat, spm$energy_data, t[1], 2^t[2] - 1)[[v]]
-      vp <- var_param_delta(f, t_hat, fit$cov, centred = TRUE)
+      f  <- function(theta) lrmsd_nested_models(b$dr2_mat, spm$energy_data, theta[1], 2^theta[2] - 1)[[v]]
+      vp <- var_param_delta(f, theta_hat, fit$cov, centred = TRUE)
       a  <- variant_a[[v]]
       w  <- weights_jm(spm$energy_data, a[1], a[2])
       vs <- var_spm_nlrmsd(b$dr2_mat, w)
@@ -270,8 +270,8 @@ predict_decomposition <- function(fit, spm, which = c("lrmsd", "nlrmsd")) {
     comp_mean <- nlrmsd_msa_decomposition(b$dr2_mat, spm$energy_data, fit$a1, fit$a2)
     spm_var   <- var_spm_nphi(b$dr2_mat, spm$energy_data, fit$a1, fit$a2)
     comp_cols <- do.call(c, lapply(c("mut", "stab", "act"), function(v) {
-      f  <- function(t) lrmsd_msa_decomposition(b$dr2_mat, spm$energy_data, t[1], 2^t[2] - 1)[[paste0("phi_", v)]]
-      vp <- var_param_delta(f, t_hat, fit$cov, centred = TRUE)
+      f  <- function(theta) lrmsd_msa_decomposition(b$dr2_mat, spm$energy_data, theta[1], 2^theta[2] - 1)[[paste0("phi_", v)]]
+      vp <- var_param_delta(f, theta_hat, fit$cov, centred = TRUE)
       vs <- spm_var[[v]]
       se_cols(comp_mean[[paste0("nphi_", v)]], vp + vs, paste0("nphi_", v))
     }))

@@ -97,11 +97,11 @@ fit_lrmsd_msa_ml_core <- function(nll, gof_fn,
   upper <- c(a1_range[2], log2_a2_plus1_range[2])
 
   if (is.null(init)) {
-    a1_grid <- seq(lower[1], upper[1], length.out = grid_n)
-    b_grid  <- seq(lower[2], upper[2], length.out = grid_n)
-    grid    <- expand.grid(a1 = a1_grid, b = b_grid)
-    ll      <- apply(grid, 1L, function(row) -nll(c(row[["a1"]], row[["b"]])))
-    init    <- as.numeric(grid[which.max(ll), c("a1", "b")])
+    theta1_grid <- seq(lower[1], upper[1], length.out = grid_n)
+    theta2_grid <- seq(lower[2], upper[2], length.out = grid_n)
+    grid    <- expand.grid(theta1 = theta1_grid, theta2 = theta2_grid)
+    ll      <- apply(grid, 1L, function(row) -nll(c(row[["theta1"]], row[["theta2"]])))
+    init    <- as.numeric(grid[which.max(ll), c("theta1", "theta2")])
   } else {
     if (length(init) != 2) stop("init must be a length-2 numeric c(a1, log2(a2+1))")
     if (!is.null(names(init))) stop("init must be an unnamed positional c(a1, log2(a2+1))")
@@ -113,12 +113,14 @@ fit_lrmsd_msa_ml_core <- function(nll, gof_fn,
 
   opt <- optim(init, nll, method = "L-BFGS-B", lower = lower, upper = upper)
 
-  par_fit <- opt$par
-  a1_hat  <- par_fit[1]
-  b_hat   <- par_fit[2]
-  a2_hat  <- 2^b_hat - 1
+  theta_hat  <- opt$par
+  theta1_hat <- theta_hat[1]
+  theta2_hat <- theta_hat[2]
+  # Un-transform to the natural scale. theta1 == a1 (identity); a2 = 2^theta2 - 1.
+  a1_hat <- theta1_hat
+  a2_hat <- 2^theta2_hat - 1
 
-  H <- optimHess(par_fit, nll)
+  H <- optimHess(theta_hat, nll)
   cov <- tryCatch(solve(H), error = function(e) NULL)
   if (is.null(cov) || any(!is.finite(cov)) || any(diag(cov) <= 0)) {
     stop("Hessian at the ML optimum is singular or not positive-definite; ",
@@ -126,9 +128,9 @@ fit_lrmsd_msa_ml_core <- function(nll, gof_fn,
          "one direction (e.g. a parameter pinned at a box bound).")
   }
   se <- sqrt(diag(cov))
-  se_a1 <- se[1]
-  se_b  <- se[2]
-  se_a2 <- abs(2^b_hat * log(2)) * se_b   # delta: a2 = 2^b - 1, da2/db = 2^b * ln 2
+  se_a1     <- se[1]                          # theta1 == a1, so da1/dtheta1 = 1
+  se_theta2 <- se[2]
+  se_a2 <- abs(2^theta2_hat * log(2)) * se_theta2  # delta: a2 = 2^theta2 - 1, da2/dtheta2 = 2^theta2 * ln 2
 
   gof <- gof_fn(a1_hat, a2_hat)
 

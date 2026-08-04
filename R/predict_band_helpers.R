@@ -7,68 +7,70 @@
 # Predict from an _ml fit: evaluate the forward maps (calculate_*) at the fit's point
 # estimate and propagate the fit's asymptotic covariance through the forward map by the
 # delta method to a symmetric error band. The fit carries `cov` on the
-# t = (a1, b = log2(a2+1)) scale, so we differentiate g(t) = calc(a1=t1, a2=2^t2-1)
-# w.r.t. t directly and sandwich with `cov` -- no covariance transform. Bands are
-# symmetric on the reported scale (g(t_hat) +/- z*se), mirroring the fit's own SEs.
+# theta = (a1, log2(a2+1)) scale, so we differentiate g(theta) = calc(a1=theta1,
+# a2=2^theta2-1) w.r.t. theta directly and sandwich with `cov` -- no covariance
+# transform. Bands are symmetric on the reported scale (g(theta_hat) +/- z*se),
+# mirroring the fit's own SEs.
 
 #' Central-difference Jacobian of a vector-valued forward map
 #'
 #' Numerically differentiates `f` (which returns a per-element numeric vector, e.g. a
-#' per-site profile) with respect to the 2-vector `t = (a1, log2(a2+1))`. Column `j`
-#' of the returned Jacobian is the partial derivative w.r.t. `t[j]`. Uses a symmetric
+#' per-site profile) with respect to the 2-vector `theta = (a1, log2(a2+1))`. Column `j`
+#' of the returned Jacobian is the partial derivative w.r.t. `theta[j]`. Uses a symmetric
 #' two-sided difference, so each dimension costs two `f`-evaluations (four forward-map
 #' calls total for the 2-vector).
 #'
-#' @param f Forward map: a function of the parameter 2-vector `t` returning a numeric
+#' @param f Forward map: a function of the parameter 2-vector `theta` returning a numeric
 #'   vector (length `nelement`).
-#' @param t Length-2 numeric parameter vector `(a1, log2(a2+1))` at which to differentiate.
+#' @param theta Length-2 numeric parameter vector `(a1, log2(a2+1))` at which to differentiate.
 #' @param h Finite-difference step (default `1e-5`).
-#' @return An `[nelement x 2]` numeric Jacobian matrix; column `j` is `d f / d t[j]`.
+#' @return An `[nelement x 2]` numeric Jacobian matrix; column `j` is `d f / d theta[j]`.
 #'   Forced to matrix shape even when `nelement == 1`.
 #' @noRd
-grad_t <- function(f, t, h = 1e-5) {
-  n <- length(f(t))
-  J <- vapply(seq_along(t), function(j) {
-    tp <- t; tp[j] <- tp[j] + h
-    tm <- t; tm[j] <- tm[j] - h
-    (f(tp) - f(tm)) / (2 * h)
+grad_theta <- function(f, theta, h = 1e-5) {
+  n <- length(f(theta))
+  J <- vapply(seq_along(theta), function(j) {
+    theta_p <- theta; theta_p[j] <- theta_p[j] + h
+    theta_m <- theta; theta_m[j] <- theta_m[j] - h
+    (f(theta_p) - f(theta_m)) / (2 * h)
   }, numeric(n))
-  # vapply collapses to a bare length-length(t) vector when n == 1; force [n x length(t)].
+  # vapply collapses to a bare length-length(theta) vector when n == 1; force [n x length(theta)].
   matrix(J, nrow = n)
 }
 
 #' Parameter-uncertainty variance arm (delta method)
 #'
-#' Per-element variance of `f(t)` induced by the fit's `t`-scale covariance `cov_t`,
-#' by the delta method. Uncentred (`centred = FALSE`): `var = diag(J cov_t J^T)` with
-#' `J` the raw Jacobian. Centred (`centred = TRUE`, for an nlrmsd quantity
-#' `nq = q - mean_S(q)`): because `mean_S(q)` is itself a function of the parameters,
-#' the gradient of `nq` is the COLUMN-CENTRED Jacobian `g_i - mean_S(g)`, so the
+#' Per-element variance of `f(theta)` induced by the fit's `theta`-scale covariance
+#' `cov_theta`, by the delta method. Uncentred (`centred = FALSE`):
+#' `var = diag(J cov_theta J^T)` with `J` the raw Jacobian. Centred (`centred = TRUE`, for
+#' an nlrmsd quantity `nq = q - mean_S(q)`): because `mean_S(q)` is itself a function of the
+#' parameters, the gradient of `nq` is the COLUMN-CENTRED Jacobian `g_i - mean_S(g)`, so the
 #' variance uses `Jc = J - colMeans(J)` -- NOT the raw `J` shifted by a constant.
 #'
 #' @param f Forward map: a function of the parameter 2-vector returning the per-element
 #'   vector.
-#' @param t_hat Length-2 point estimate `(a1, log2(a2+1))` at which to evaluate.
-#' @param cov_t The 2x2 asymptotic covariance of the fit on the `t` scale.
+#' @param theta_hat Length-2 point estimate `(a1, log2(a2+1))` at which to evaluate.
+#' @param cov_theta The 2x2 asymptotic covariance of the fit on the `theta` scale.
 #' @param centred Logical: `FALSE` for an uncentred (lrmsd) quantity, `TRUE` for a
 #'   mean-centred (nlrmsd) quantity (uses the column-centred Jacobian).
 #' @return A bare per-element numeric vector of variances, to be summed with the SPM arm.
 #' @noRd
-var_param_delta <- function(f, t_hat, cov_t, centred) {
-  J <- grad_t(f, t_hat)                   # [nelement x 2]
+var_param_delta <- function(f, theta_hat, cov_theta, centred) {
+  J <- grad_theta(f, theta_hat)           # [nelement x 2]
   if (centred) J <- sweep(J, 2, colMeans(J))
-  rowSums((J %*% cov_t) * J)              # diag(J cov_t J^T)
+  rowSums((J %*% cov_theta) * J)          # diag(J cov_theta J^T)
 }
 
-#' Point estimate on the fitting (`t`) scale from an ML fit
+#' Point estimate on the fitting (`theta`) scale
 #'
-#' Maps an `_ml` fit's natural-scale point estimate to the transformed coordinate
-#' `t = (a1, log2(a2 + 1))` the delta method operates on.
+#' Maps a natural-scale `(a1, a2)` point estimate to the transformed coordinate
+#' `theta = (a1, log2(a2 + 1))` the delta method operates on.
 #'
-#' @param fit An `_ml` fit carrying natural-scale `a1` and `a2`.
+#' @param a1 Stability selection strength (natural scale).
+#' @param a2 Activity selection strength (natural scale).
 #' @return A length-2 numeric vector `c(a1, log2(a2 + 1))`.
 #' @noRd
-ml_t_hat <- function(fit) c(fit$a1, log2(fit$a2 + 1))
+as_theta <- function(a1, a2) c(a1, log2(a2 + 1))
 
 # ---- SPM-sampling error: per-mutant contribution primitive -----------------------
 

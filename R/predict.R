@@ -124,7 +124,7 @@ gof_lrmsd_n_msa_ml <- function(fit) {
 
 #' Validate that a fit carries the delta-method inputs
 #'
-#' An `_ml` fit must carry the point estimate + `t`-scale covariance the delta method
+#' An `_ml` fit must carry the point estimate + `theta`-scale covariance the delta method
 #' needs. Fails loud on a wrong-type object rather than propagating an `NA` band.
 #'
 #' @param fit The object to validate; must be a list carrying `a1`, `a2`, and a 2x2
