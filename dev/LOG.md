@@ -41,7 +41,9 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   `oracle.R`); full suite 194P/0F/2skip each commit; NAMESPACE unchanged; per-axis unknown-key
   errors re-checked; all 4 vignettes re-knit BYTE-IDENTICAL + user-approved HTML;
   `check()` 0E/1W/2N. **DEFERRED (separate items):** the terse band-machinery rename
-  (`spm_hmat`/`grad_t`/…) + PDF notation; and the export rename
+  — the `t`→`theta` coordinate piece DONE 2026-08-04 (`b346d3e`; `grad_t`→`grad_theta`,
+  `ml_t_hat`→`as_theta`, `t_hat`/`cov_t`/`b`-family → theta), `spm_hmat` rename + PDF
+  notation STILL deferred; and the export rename
   `calculate_decomposition_{i,n}_msa` → `calculate_lrmsd_{i,n}_msa_decomposition` (a public-API
   change; the internal primitive is already `lrmsd_msa_decomposition`). Plan:
   `~/.claude/plans/i-want-to-chat-cheerful-wigderson.md`.
@@ -511,6 +513,35 @@ one place the live state lives (no separate PROGRESS file as of 2026-06-26).
   unchanged: the **diff-rule** still decides whether the full `test()` runs — fire it
   before a code/data/roxygen commit; skip it for docs/vignette-only diffs.
 <!-- /NOW -->
+
+### 2026-08-04 — fitting coordinate renamed `t` → `theta` (rename-only, committed `b346d3e`)
+
+Part of the deferred "terse band-machinery rename" (the `grad_t`/`t`-coordinate piece;
+`spm_hmat` + the PDF notation are NOT done). The fit optimises over `(a1, log2(a2+1))` and
+reports its covariance on that scale; the prediction code named this coordinate `t`
+(`t_hat`/`cov_t`/`grad_t`/`ml_t_hat`) and the fitter named its 2nd component `b`
+(`b_hat`/`se_b`/`b_grid`). Renamed both to the standard delta-method notation `theta`,
+with scalar components `theta1` (= a1) and `theta2` (= log2(a2+1)). Key decision:
+`theta1 == a1` is a COINCIDENCE of the transform — the optimisation is genuinely in
+`(theta1, theta2)` space, so grid/optim/Hessian scalars are theta-named while `a1`/`a2`
+are reserved for the natural-scale outputs (the un-transform boundary is now an explicit
+comment). `ml_t_hat(fit)` → `as_theta(a1, a2)` (pure values-in). `grad_t` → `grad_theta`;
+`var_param_delta` params `t_hat`/`cov_t` → `theta_hat`/`cov_theta`.
+- Files: `R/predict_band_helpers.R` (defs + roxygen), `R/api.R` (predict-verb call sites
+  only, NO restructuring), `R/fitting.R` (`fit_lrmsd_msa_ml_core` scalars), `R/predict.R`
+  (one doc line). `dev/callgraph.R` name-swaps left UNCOMMITTED (tangled with pre-existing
+  in-flight callgraph work).
+- KEPT (public API, deliberate): exported args `a1_range`/`log2_a2_plus1_range`, and the
+  returned fit fields `a1`/`a2`/`se_a1`/`se_a2`.
+- Rename ONLY — no numeric change. All `@noRd` internals → NAMESPACE/man unchanged,
+  `document()` not run. Guards unchanged: `test-fit-ml` 25P, `test-fit-ml-mode` 27P,
+  `test-api` 53P; full `test()` 195P/0F/2skip; `check()` 0E/1W/2N (untrimmed).
+- STILL DEFERRED (separate items): the `predict_profiles` readability rewrite (the
+  original ask that led here), the `spm_hmat` rename, and the stale-"band"→"se" vocabulary
+  cleanup across R comments/roxygen + the `predict_band_helpers.R` filename.
+- Process note: I first ran a TRIMMED `check(document=FALSE, --no-manual, error_on=never)`
+  and mislabeled it "the baseline", then committed+pushed on it. Re-ran the FULL untrimmed
+  `check()` after — same 0E/1W/2N. See [[feedback_check_must_be_untrimmed]].
 
 ### 2026-08-04 — second deletion pass: the 14 `calculate_*` grid functions retired (old grid GONE)
 
