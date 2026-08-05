@@ -1,518 +1,100 @@
-# Log — msamodel migration
+# Log — msamodel
 
-Append-only history of what was done and attempted (newest first), including
-dead ends and decisions. The durable roadmap is `dev/plan.md`. The live agenda /
-in-flight slice-list lives in the NOW block directly below — **read it first.**
+Append-only history of what was done and attempted, newest first, including dead
+ends and the reasoning behind decisions.
 
-One short entry per working session.
+**Not read at session start.** This is the historical record — consult it when you
+actually need history (why a decision went the way it did, what a dead end was).
+Entries describe the codebase *as it was on their date*; function names in older
+entries are frequently obsolete. For what is currently true, read the code.
 
-<!-- NOW -->
-## NOW / next
+**What earns an entry.** Not every session. Write one when a future reader would
+otherwise have to re-derive something expensive: a decision whose rationale is not
+obvious from the result (especially where the obvious choice was rejected), a dead
+end and why it failed, or a surprising empirical finding. Skip what the commit
+message and the diff already say — narrating execution is what bloated this file
+before 2026-08-05.
 
-The current state and what's next. Keep this current as slices finish; it is the
-one place the live state lives (no separate PROGRESS file as of 2026-06-26).
+**Entries are past tense and dated**, describing a moment. That is what lets this
+file be append-only: a closed record cannot go stale, it only becomes less relevant.
+A claim about how things *currently* work does not belong here — it belongs in
+`dev/findings.md`, where it carries an obligation to be corrected when the code
+changes. The same episode often earns a line in each. Things to maybe do later live
+in `dev/ideas.md`.
 
-- **OLD-GRID RETIREMENT COMPLETE 2026-08-04 — both deletion passes done.** The exported
-  model/prediction API is now the four leaf verbs (`calculate_profiles`/`predict_profiles`/
-  `calculate_decomposition`/`predict_decomposition`, `R/api.R`) + `fit_*_ml` + `gof_*_ml`
-  (+ setup/spm/site helpers). The 10 old `predict_*_ml` (`0243155`) AND the 14 old `calculate_*`
-  grid functions (`5621b06`) are gone; the fit path + leaf verbs call the `@noRd` forward-map
-  primitives in `R/model.R` (`dr2_msa`/`lrmsd_msa`/`nlrmsd_msa`/`lrmsd_nested_models`/
-  `nlrmsd_nested_models`/`lrmsd_msa_decomposition`/`nlrmsd_msa_decomposition`) directly.
-  Numeric guard for the verbs = the FROZEN block in `test-api.R` (literals independent of the
-  old fns). check() 0E/1W/2N. **NEXT = user's call** — no old-grid work remains; roadmap's next
-  version is v0.4 (motion arm `dh_*`/`nh_*`, penm slow-loop only), not started/scoped.
 
-- **AXIS-INDEPENDENT PRIMITIVES — DONE 2026-07-30 (4 commits `0f90365`/`7e44fd8`/`b70db58`/`0bedc3d`).**
-  The site/mode duplication is collapsed onto axis-blind internal primitives; all 28 exports
-  keep names/signatures/tibble returns (implementation-only), byte-identical output. Layers:
-  - `R/model.R`: 7 forward-map primitives (`dr2_msa`, `lrmsd_msa`, `nlrmsd_msa`,
-    `lrmsd_nested_models`, `nlrmsd_nested_models`, `lrmsd_msa_decomposition`,
-    `nlrmsd_msa_decomposition`) + `weights_jm(energy_data,a1,a2)` (`weights_jm_spm` now its
-    one-line skin). All 14 model skins call them.
-  - `R/predict_band_helpers.R`: the 3 `var_spm_*` `_i`/`_n` pairs unified into
-    `var_spm_lrmsd`/`var_spm_nlrmsd`/`var_spm_nphi`; 10 call sites rewired in `predict.R`.
-  - `R/fitting.R`: axis-blind `fit_lrmsd_msa_ml_core`/`loglik_lrmsd_msa_core`/
-    `fit_gof_primitives`/`match_lrmsd_obs_pred`; the site/mode asymmetry isolated to
-    `resolve_site_obs`/`resolve_mode_obs` (each owns its unknown-key error).
-  Primitives take a bare `dr2_mat` (`dr2_ijm`/`dr2_njm`) + `energy_data`, return plain
-  vectors in column order — NO `unname()` (fail-loud: matrices are nameless by construction).
-  Verified: numbers-identical oracle 33/33 (max diff 0, negative-control-proven; scratchpad
-  `oracle.R`); full suite 194P/0F/2skip each commit; NAMESPACE unchanged; per-axis unknown-key
-  errors re-checked; all 4 vignettes re-knit BYTE-IDENTICAL + user-approved HTML;
-  `check()` 0E/1W/2N. **DEFERRED (separate items):** the terse band-machinery rename
-  — the `t`→`theta` coordinate piece DONE 2026-08-04 (`b346d3e`; `grad_t`→`grad_theta`,
-  `ml_t_hat`→`as_theta`, `t_hat`/`cov_t`/`b`-family → theta), `spm_hmat` rename + PDF
-  notation STILL deferred; and the export rename
-  `calculate_decomposition_{i,n}_msa` → `calculate_lrmsd_{i,n}_msa_decomposition` (a public-API
-  change; the internal primitive is already `lrmsd_msa_decomposition`). Plan:
-  `~/.claude/plans/i-want-to-chat-cheerful-wigderson.md`.
+### 2026-08-05 — development-context rebuild: NOW block deleted, `plan.md` retired, memory corpus cut 47 → 23
 
-- **SPM OBJECT UNIFIED + COMMITTED 2026-07-29 (`1898fd5`).** The three public SPM objects
-  (`generate_spm_data` tibble + `preprocess_spm` + `preprocess_spm_mode`) are collapsed into ONE
-  public object: `generate_spm_data()` now returns a classed `spm` list
-  `{energy_data, dr2_ijm, dr2_njm, site_map}`, assembled once. Old scan body → private
-  `generate_spm_core()` (`@noRd`, keeps raw `dr`); the two reshapers are private helpers the public
-  `generate_spm_data()` composes. All 31 consumers take `spm` (not `spm_pp`/`spm_pp_mode`). `znb_spm`
-  regenerated as the assembled object (~9 MB leaner); reshape value-preserving (cell-for-cell max
-  diff 0, negative control red). Dropped the `cat()` scan progress print. **All four vignettes taught
-  the fitted `predict_*` workflow** (closes the queued "update site/mode vignettes to predict_" item):
-  intro fits site data and reads BOTH axes from that one fit (`predict_nlrmsd_n_msa_ml(ml, spm)` from
-  a SITE fit); direct `calculate_nlrmsd_*` replace hand-rolled `log(sqrt())`/centring; outputs +
-  plot code shown; dev-history framing cut ([[feedback_no_dev_history_in_learner_docs]], and the
-  `/vignette-naive-review` skill was fixed to catch that class). `check()` 0E/1W/2N baseline.
-- **SPM ERROR ARM DONE + COMMITTED. Band-split, SPM-sampling arm, and the `var_spm` rename all
-  landed.** The finite-mutation SPM sampling error is combined with the `(a1,a2)` parameter arm in
-  every `predict_*_ml` band, selected by `uncertainty = c("both","spm","parameter","none")` (default
-  `both`; `none` = zero-width, stable schema). The band machinery lives in `R/predict_band_helpers.R`
-  (relocated out of `model.R`/`predict.R`). Formula VALIDATED vs an independent uniform-resample
-  bootstrap, site AND mode, all quantities ~1% — see `dev/reports/spm_band_validation.Rmd`→`.pdf`.
-  Formula/method in [[project_spm_band_formula]].
-- **`var_spm` RENAME DONE 2026-07-28 (this session).** The SPM-variance calculators were renamed
-  `calculate_*_var_spm` → `var_spm_*` (`calculate_` reserved for public forward maps; `var_spm_<col>`
-  is the function, `<col>_var_spm` the value — the `x_mean = mean(x)` split). AND the inline
-  `spm_hmat` logic in the two decomposition predictors was extracted into `var_spm_nphi_{i,n}_msa`,
-  so every predictor now routes through a `var_spm_*` helper (no `predict_*` calls `spm_hmat`
-  directly). Behaviour byte-identical to baseline; `test()` 178P/0F/2skip. Committed `30c250a`.
-- **STILL DEFERRED — the terse band-machinery rename.** `spm_hmat`, `grad_t`, `delta_band`,
-  `var_param_delta`, `ml_t_hat`, `uncertainty_gates` are named in a terse style the author rejects
-  (and `M`/`G`/`Gc`/`h`/`w` inside `spm_hmat`). The `spm_band_validation.pdf` notation MIRRORS those
-  names, so it is also NOT approved. BOTH get fixed together (rename code first so validated
-  behaviour is preserved; PDF notation follows, in CODE notation). Note: `dev/reports/spm_band_validation.Rmd`
-  calls `spm_hmat` by name under `load_all()` — that rename must update those call sites.
-- **Two general naming rules re-confirmed this session (both recorded in memory):** (1) a
-  `calculate_*` is named for the EXACT quantity it produces — never a `centred=TRUE/FALSE` flag that
-  flips `lrmsd`↔`nlrmsd`; (2) site and mode are kept SEPARATE everywhere incl. tests and dev scripts
-  — no axis-parametrized helper. Also: no transient process trivia in durable artifacts
-  ([[feedback_no_process_trivia_in_artifacts]]).
-- **`calculate_nlrmsd_*` FAMILY DONE + COMMITTED 2026-07-28 (`ddb0971`).** Six new exported forward
-  maps (both arms: `_msa`, `_nested_models`, `_msa_decomposition`→`nphi_*`) close the
-  forward-map/predictor asymmetry; predictors rewired to their twins, byte-identical. Full detail in
-  the dated history entry below.
-- **`dr2` COLNAME WART FIXED + COMMITTED 2026-07-28 (`5ca5bd7`).** Dropped the two
-  `colnames(dr2_ijm/njm) <-` assignments in `preprocess_spm*`; the 4 readers now use
-  `seq_len(ncol(...))`. `calculate_*` value columns are no longer polluted with stray element-names.
-  Regenerated `znb_profile_n` (values byte-identical, names-only drop). Detail in history entry.
-- **`dev/tmp2/` is stale throwaway scratch (untracked, ~28MB)** — leave for now; a cleanup pass is
-  planned soon.
+Prompted by the user reporting that sessions had felt degraded for a while, and
+asking whether the "audit your context" advice going around was worth following.
 
-- **LEVEL QUESTION CLOSED 2026-07-23 — keep mean-centring; `a0` is NOT being added.** The
-  2026-07-22 direction (fit `lrmsd_obs = a0 + lrmsd_model + noise` with an explicit level
-  parameter) was worked through and **dropped**. The author's reason is decisive and worth
-  recording: **it is not known how the level is shared among the nested variants MM/MS/MA/MSA**,
-  so any level-carrying quantity (`lrmsd_mm` etc.) is uninterpretable; only the CENTRED
-  quantities (`nlrmsd_mm` …) are invariant to that unknown, whatever the sharing structure is.
-  Centring is therefore not a workaround for a missing parameter — it is the standard move of
-  reporting only quantities invariant to a nuisance you cannot pin down. Corollary: the
-  228-vs-225 "no canonical support" objection that killed `nlrmsd` on 2026-07-22 was
-  **overstated**. Needing to CHOOSE a support is not the same as being ill-defined: fix the
-  reference set once (the 225 matched sites, which the fit already uses) and `nlrmsd(i)` is
-  well-defined on all 228 — the 3 unobserved sites (pdb_site 243/244/245) simply get values
-  relative to that reference. What actually went wrong was two REAL BUGS (next two bullets),
-  not an incoherent concept.
+**What was measured.** The `<!-- NOW -->` block at the top of this file was 506 of
+its 2,195 lines, and `CLAUDE.md` ordered it read first every session. **35 of the 56
+function names in it referred to functions that no longer existed** — it discussed
+the deleted AGQ and MCMC arms and ~28 exports when the package had 12. It also
+contradicted itself, because six weeks of entries were stacked as "now". `dev/plan.md`
+was stale through its "durable findings" section, which still named
+`calculate_dr2_i_msa`/`calculate_dr2_n_msa` as the reweighting stage. 23 of 27
+`feedback_*` memories generalised a single dated incident into a standing rule, and
+several conflicted — the verification-cadence ones pre-condemned both running the
+suite and not running it.
 
-- **BAND-SPLIT DONE 2026-07-23 (this session). The `predict_*` API is split into uncentred
-  (`lrmsd`) and centred (`nlrmsd`) functions, each with its own correct band.** Was BUG 1: the
-  shipped band sandwiched `fit$cov` with the RAW Jacobian of the uncentred map, then subtracted a
-  scalar `shift`, so `nlrmsd_*_lower/upper` carried `lrmsd`'s width (`sqrt(gᵀΣg)`) under an
-  `nlrmsd` label. `Var(nlrmsd) ≠ Var(lrmsd)` — a real bug, not a convention. Fixed by SPLITTING,
-  not by editing the shift:
-  - New `delta_band_centred()` helper (`R/predict.R`, beside `delta_band`) centres both the value
-    and the Jacobian columns (`Jc = sweep(J,2,colMeans(J))`) → band `sqrt((g−ḡ)ᵀΣ(g−ḡ))`.
-  - `predict_*` went 6 → **10 exports**: `predict_lrmsd_{i,n}_msa_ml` (uncentred, band unchanged)
-    + `predict_nlrmsd_{i,n}_msa_ml` (centred); `predict_lrmsd_{i,n}_nested_models_ml` +
-    `predict_nlrmsd_{i,n}_nested_models_ml`; and the renamed centred-only
-    `predict_nlrmsd_{i,n}_msa_decomposition_ml` (was `predict_decomposition_{i,n}_msa_ml`), cols
-    `phi_*` → `nphi_*`. Each function returns ONLY its own quantity (no mixed lrmsd+nlrmsd rows).
-  - **VERIFIED (`scratchpad/band_after.R`, znb):** `predict_lrmsd` band == raw band to 2.3e-16
-    (unchanged); `predict_nlrmsd` band == centred band to 8.3e-17; nlrmsd band 1.36× NARROWER
-    (mean se 0.0538 → 0.0396); nlrmsd_mean == lrmsd_mean − mean(lrmsd_mean) exactly; MM centred
-    band exactly zero-width; nphi means sum to nlrmsd_i_msa mean to 4.4e-16.
-  - `fit$cov` UNCHANGED and correct (`R/fitting.R:365` already centres both sides).
-  - **Both bands are legitimate** — bands on different quantities. `lrmsd` band = model `lrmsd`
-    uncertainty given `(a1,a2)` uncertainty (holding the model's own level). `nlrmsd` band = the
-    quantity the fit is on, the one that compares to observations. Earlier "unwarranted" framing
-    was an OVERSTATEMENT — corrected.
+**Diagnosis.** Not volume of instruction but volume of *confident, project-specific,
+false* content read at session start. This is the distractor case from the context-rot
+literature: near-miss content costs more than absent content because it has to be
+actively rejected. One shape underneath both the LOG and the memory corpus —
+situated information written down as permanent context, with no deletion step. The
+LOG over-preserved events (append-only by design); the memories over-generalised
+corrections, encoding the user's frustration at an in-situation mistake as scope and
+volume ("NEVER", "HARD RULE", quoted anger) when it had been urgency about a moment.
 
-- **"BUG 2" WAS NOT A BUG (settled 2026-07-23).** The fit/predict support difference is BY DESIGN:
-  fit centres over the observation-matched sites (its `fitted.values`), predict centres over the
-  FULL model support (agnostic to a dataset's gaps). Different — both valid — quantities. The
-  predict code already used the full support, which is correct; nothing to fix. (Earlier "make
-  both use 225" entry was WRONG.) The `ḡ`-derivation "UNRESOLVED" item is DISSOLVED: `ḡ` is the
-  model gradient's mean over the model's own support; the observed side enters only via `Σ`.
+**Decisions.**
+- **No replacement state file.** A `STATE.md` was proposed and rejected: the user
+  decides each session's topic, so any file predicting what is next is wrong most
+  sessions — which is precisely how the NOW block became noise. Live state comes
+  from the user. `dev/ideas.md` was created instead as a parking lot, explicitly not
+  a plan and not read at session start.
+- **This file is history and is not read at session start.** The NOW block was
+  deleted entirely; the dated entries were kept untouched.
+- **`dev/plan.md` deleted**, its verified-durable content carried into
+  `dev/findings.md` (which is maintained, and small because every entry is a promise
+  to keep it true).
+- **The `R/` family/file rule was removed from `CLAUDE.md` rather than corrected.**
+  The enumeration had drifted (`api` had become an unlisted seventh family;
+  `R/msa_decomposition.R` carries no `@family` tag), and the user wants the structure
+  rethought rather than re-pinned to a stale snapshot. Re-added deliberately later;
+  the open question is in `dev/ideas.md`.
+- **Memory corpus 47 → 23 files** (27 → 10 `feedback_*`). Seven verification-ritual
+  memories merged into one; four doc-quality memories into another. House style
+  changed to mechanism + a flat dated clause + the question worth asking, dropping
+  caps and quoted anger — those functioned as pressure toward the defensive
+  rule-following that caused the incidents, not as information.
+- The queued `predict_profiles` readability rewrite was **dropped, not parked**
+  (user: "fruit of the poisonous tree") — to be re-raised fresh.
 
-- **Tests:** `test-predict-ml.R` rewritten to the 10-export API + two new checks WITH negative
-  controls verified RED: (a) nlrmsd band uses the centred gradient (a constant-shift bug → widths
-  equal → RED); (b) MM centred band zero-width (guarded non-vacuous by the nonzero MSA width).
-  Full `test()` 159 pass / 0 fail / 2 skip. `document()` run (NAMESPACE + man/, 6→10 predict Rd,
-  2 old decomposition Rd deleted).
+**Worth recording as a dead end.** The salvage pass found that the level-question
+reasoning — why the package reports centred quantities — existed *only* inside the
+NOW block, with no dated entry. Deleting the block wholesale would have destroyed it.
+It is now in `dev/findings.md`.
 
-- **VIGNETTE PENDING (blocks nothing else): `vignettes/inference-methods.Rmd.orig` calls all three
-  changed families** — `predict_lrmsd_i_msa_ml` (no longer emits `nlrmsd_*` cols the plot uses),
-  `predict_lrmsd_i_nested_models_ml`, and the renamed `predict_decomposition_i_msa_ml` +
-  `phi_*`→`nphi_*`. It is BROKEN by this change and needs edits + re-knit + **user HTML approval**
-  (hard rule). NOT touched this session. Do this as its own step before any commit that includes
-  vignette bytes.
+**Worth recording as a failure.** Two false claims were introduced into
+`dev/findings.md` while writing it, both copied from `plan.md` without rechecking:
+that "the tree code interpolates the likelihood over an a1/a2 grid" (there is no tree
+code in this package) and that "a1/a2 enter in exactly one place" (the band machinery
+consumes them separately via `as_theta`). The user caught the first; an adversarial
+re-check found the second. Both share a shape — **an unqualified universal that reads
+as settled background** — and both were true of a smaller, earlier version of the
+code. The dead-function-name sweep could not catch either, because the claims are
+prose and the names inside them are real. A universals scan was added to the
+verification, and the pattern recorded in the `feedback_fluent_but_false` memory.
+Note the irony worth remembering: the file labelled "durable findings — do not
+re-discover" was the least reliable source in the repo, because the label discouraged
+the checking it needed.
 
-- **DECLINED 2026-07-23 (do not reopen without a new reason).** Three things were raised this
-  session and deliberately rejected: (1) **σ in the bands** — the plotted band stays the
-  PARAMETER band `gᵀΣg`. Adding `σ²` (a prediction interval) would make it ~4× wider (σ≈0.4–0.45
-  vs mean parameter half-width ≈0.105) and dominated by σ, so ~95% of points would fall inside
-  BY CONSTRUCTION and the band would not discriminate good fit from bad. Also `geom_smooth(se=TRUE)`
-  — the convention every reader knows — shows the confidence band on the fitted curve, NOT a
-  prediction interval; matching it is the right call. Report σ as a number instead (D² already
-  carries the same information normalised). (2) **Residual autocorrelation across sites** —
-  raised by a review agent, NOT by the author, and never measured. It is a pre-existing property
-  of the 2-parameter fit, orthogonal to everything in flight, and a second-order correction to a
-  band that is already reasonable. If ever wanted, a sandwich covariance is a bolt-on that
-  disturbs nothing. (3) **The Phase-0 cross-term Monte-Carlo** (measuring Cov between the SPM and
-  parameter arms before shipping) — skip it; state the independence assumption in the docs.
-
-- **MM band:** MM has zero *parameter* gradient (`(a1,a2)=(0,0)` fixed → `g=0`), so both its
-  uncentred and centred parameter-uncertainty bands are zero-width — now stated for the correct
-  reason in the split roxygen. Its nonzero *SPM-sampling* variance is the next arm.
-
-- **NEXT = (1) fix the vignette (user HTML approval), then (2) finish the SPM arm — then STOP.**
-  That completes the inference rework. The band-split (this session) replaced the old "support
-  fix" step, which was based on the mistaken Bug 2. The old plan file `~/.claude/plans/indexed-splashing-stardust.md` is
-  SUPERSEDED (it plans an `nlrmsd` restructure that is not happening; the support fix is a
-  two-function change, not a restructure).
-
-- **DECIDED 2026-07-17 — SPM-sampling error band = DELTA METHOD, not bootstrap.** After a
-  long investigation (scratch in `dev/tmp2/`), the conclusion for the SPM-sampling arm of
-  the divergence-profile band: **use the delta method, drop bootstrapping (naive AND
-  stratified).** Rationale, demonstrated not asserted:
-  - The SPM table is the (near-)complete table of single-point-mutation perturbations at
-    t→0; for a model `(a1,a2)` the profile is the *exact* weighted integral
-    `dr2_i = Σ w_r·dr2_ijm` — an analytic framework, not a sample.
-  - The delta variance `sd(lrmsd_i) = sqrt(Σ w_r²(dr2_ijm[,i]−dr2_i)²)/(2·dr2_i)` (=`Vd` in
-    the old `dev/tmp/compare.R`, weighted with **w²**) **equals the naive bootstrap** SD
-    (measured: delta≈naive across all 4 variants, e.g. MSA ~1.21×, MM ~1.35×). Delta is the
-    deterministic/analytic form of what naive resampling does stochastically.
-  - The apparent "naive/delta over-estimate the truth by ~15–35%" was an ARTIFACT of how
-    "truth" was defined: 500 fresh `generate_spm_data` ensembles impose a **fixed
-    n_mut-per-site design** (balanced). Demonstrated by a reshuffle test on site 10 (all
-    without-replacement, weight-free): real balanced seeds sd=0.0357, random *unbalanced*
-    partition 0.0455, balanced partition 0.0338 → **the gap is per-site COUNT BALANCE, not
-    replacement, not between-seed variation, not the partition function** (Z_k varies <1.3%
-    and is 0% for MM which has the biggest gap → both those hypotheses killed by MM).
-  - Naive bootstrap = "draw mutations uniformly (pick j, then m)" = the realistic
-    *evolutionary-sampling* ensemble (unbalanced counts). Stratified = artificial fixed
-    design. So if bootstrapping, user would pick **naive** — but prefers the analytic delta:
-    deterministic, no seed noise, clean for nested-model comparison (same formula on the
-    fixed table), and errs slightly WIDE (conservative, which user prefers).
-  - **NEXT SESSION = build the band-estimation code using delta.** Combine with parameter
-    `(a1,a2)` uncertainty in the SAME delta framework: `Var_total = Var_SPM + g_i^T Σ_a g_i`
-    (+ small cross-term; adding variances is conservative). The parameter arm already exists
-    in the `predict_*_ml` delta-band functions (`grad_t + delta_band`, [[scale_convention_transformed_params]]).
-    Both arms on the lrmsd/log scale via the `1/(2·dr2)` derivative → same currency, just add.
-    This SUPERSEDES the bootstrap SPM-arm in [[project_two_error_sources_band]].
-  - Caveat: delta gives a SYMMETRIC Gaussian band; true lrmsd sampling dist is mildly skewed
-    (~0.4). Fine for an SD/band; not for asymmetric intervals. Scratch data (276 n_mut=19 pp
-    files ~2GB) is in the LOCAL session scratchpad (`.../scratchpad/pp19`), NOT synced/committed;
-    `dev/tmp2/` has the scripts + PNGs (git-ignored). `dev/tmp2/data/D_site10_long.csv` is the
-    per-mutant dr2 at site 10 across seeds used for the demonstrations.
-
-- **ACTIVE WORK ITEM: inference rework** (`dev/plan.md` "Inference rework"). Still at
-  `0.3.0.9000` (dev); NOT releasing now — a release waits until the inference rework
-  reaches a coherent stopping point (user decision 2026-06-30). **NEXT ACTIVE ITEMS =
-  (1) the centring-support fix, then (2) the delta-based two-error-source band**
-  (SPM-sampling ⊕ `(a1,a2)` parameter uncertainty, one delta framework
-  `Var_total = Var_SPM + gᵀΣ_a g`; SPM arm decided DELTA 2026-07-17, see the top bullet).
-  The parameter arm already exists in `predict_*_ml`; the SPM arm is what's left to add.
-  After those two, the inference rework STOPS (see the 2026-07-23 bullets above).
-
-- **AGQ ARM REMOVED 2026-07-20** (`897ffd4`; plan `piped-hatching-fern.md`). The whole
-  adaptive Gauss-Hermite quadrature branch is deleted — `fit_lrmsd_i_msa_agq`,
-  `gauss_hermite`, `predict_{lrmsd_i_msa,lrmsd_i_nested_models,decomposition_i_msa}_agq`,
-  `agq_node_weights`, `agq_band`, and `weighted_quantile` (its only user; `R/utils.R`
-  removed). Kept the shared `calculate_loglik_lrmsd_i_msa` (ML maximises it). Scrubbed the
-  AGQ `\link{}`/`@seealso`/prose cross-refs from surviving ML roxygen; `document()`
-  dropped 4 exports (29→25) + 4 `man/*_agq.Rd`; deleted `test-fit-agq.R`. `test()`
-  149/0F/2skip. **Why removed:** its credible bands were wrong and the fix was never
-  built — a diagnosed METHOD MISMATCH (adaptive GH places nodes optimal for the
-  *integral*, not for the *tail quantile* a credible interval needs; reading a
-  `weighted_quantile` band off the nodes had a non-converging width slope). The designed
-  moment-based fix (`method="moment"`/`"cornish_fisher"`) is now moot: the real gap was
-  never that band but the missing SPM-sampling arm (top bullet), and the delta path
-  (`predict_*_ml`) is the sole band path going forward. Cleanly re-developable from git
-  history if ever wanted. (The deferred `posterior_average(nodes,values)` cleanup dies
-  with AGQ — there is no longer a 3× node-weighting dup to extract.)
-
-- **DONE 2026-07-13 — delta-method ML predictors, both axes** (`c1723b2` + `d7b8950`
-  globalVariables fix; plan `~/.claude/plans/what-are-we-working-composed-lagoon.md`). Six
-  exports `predict_{lrmsd,decomposition}_{i,n}_*_ml` — the ML siblings of the AGQ trio,
-  both site (`i`) and mode (`n`). Shared `@noRd` core: `grad_t` (central-difference
-  Jacobian on the `t=(a1,b)` scale; hardened to always return a matrix — vapply collapses
-  to a vector for scalar `f`), `delta_band` (delta twin of `agq_band`: `mean ± z·sqrt(diag(J
-  cov Jᵀ))`, symmetric on the reported scale), `validate_ml_fit`, `ml_t_hat`. Differentiate
-  on `t`, sandwich `fit$cov` directly (no covariance transform). Column-for-column mirror of
-  the AGQ tables (site keys `i,pdb_site`; mode `n` only). MM/phi_mut bands zero-width
-  (parameter-independent). Verified (scratchpad): means == forward map at the point estimate
-  (machine precision, both axes); delta `se` reproduces `fit$se_a2` independently; band
-  ordering; col shapes 8/14/11 (site) 7/13/10 (mode). Tests lean (`test-predict-ml.R`:
-  fail-loud + wiring smoke; delta identities scratchpad-only). No `numDeriv` dep (hand-rolled
-  central diff). Exports 23→29, man 29→35. `test()` 206/0F/2skip; `check()` **0E/1W/2N**
-  (the globalVariables commit fixed a transient 3rd NOTE for the mode `nlrmsd` bare names —
-  `check()` caught it, `test()` couldn't). NOTE: building this **diagnosed the AGQ band bug
-  above** — the ML/AGQ band comparison exposed it. **WORK ITEM COMPLETE.**
-
-- **DONE 2026-07-13 — absolute goodness-of-fit for the `_ml` fits** (`f82d75a`; plan
-  `~/.claude/plans/what-are-we-working-composed-lagoon.md`). glm/broom pattern: fitter
-  stores raw primitives, a separate prediction-family accessor derives the row.
-  `fit_lrmsd_{i,n}_msa_ml` now store `deviance`, `null_deviance`, `nobs`, `k=3L` (k
-  counts the profiled σ, matching `logLik.lm`/`broom`); new `@noRd`
-  `calculate_null_deviance()` computes the flat/mean-only null deviance. New exports
-  `gof_lrmsd_{i,n}_msa_ml(fit)` → `{D2, AIC, BIC, logLik, deviance, null_deviance, nobs,
-  k}`. **D2 = 1 − deviance/null_deviance = 1 − Var(resid)/Var(obs)** (verified to machine
-  precision; **the planned `1 − logLik/logLik_null` form was WRONG** — the profiled-
-  Gaussian loglik's additive constant doesn't cancel in a ratio; caught by the scratchpad
-  identity check). D2 ≤ 1, **unbounded below**, returned unclamped (negative = real
-  signal). **Deferred:** comparative AIC/BIC/LRT needs MS/MA fit at their own maxima (a
-  future `fix_a1`/`fix_a2` fitter) — MS/MA are projections of the full fit, not fits; per-
-  fit AIC/BIC only here. `_agq` GoF (uses `log_evidence`) also deferred. Exports 21→23,
-  man 29→31. `test()` 206/0F/2skip; `check()` **0E/1W/2N = accepted v0.1 baseline**.
-  **WORK ITEM COMPLETE.**
-
-- **DONE 2026-07-07 — file/family restructure by input-type** (`49ce313`; plan
-  `~/.claude/plans/the-next-step-in-nested-sphinx.md`). Triggered by the tool-derived
-  call graph (`dev/callgraph.R`) exposing two smells: `model.R` mixed the pure model
-  (`calculate_*`, bare params) with the fit-consuming `predict_*_agq`, and `objective.R`
-  was a near-empty file whose 2 loglik fns are pure fitter plumbing. **Criterion locked:
-  `@family` = file = INPUT TYPE** — bare `(a1,a2)` → `model`; observed data → `fitting`;
-  a fit object → `prediction`. (Retired the "forward/analysis/objective" vocabulary:
-  "forward" is fit-relative & doesn't apply to `_ml`; "analysis" wrongly swept in
-  bare-param `calculate_decomposition_*`.) Moves: **`R/predict.R` (new)** ← `predict_*_agq`
-  ×3 + `agq_node_weights`/`agq_band` out of `model.R`, retagged `@family prediction`;
-  **`calculate_loglik_*` → `@noRd` internal** folded into `R/fitting.R`, **`R/objective.R`
-  deleted** (users never call raw loglik; future GoF/AIC = separate public fns);
-  **`R/utils.R` (new)** ← `weighted_quantile` (shared numeric helper), `gauss_hermite`
-  stays in fitting. Ripples: 8 dangling `[calculate_loglik_*()]` links → code; 11 test
-  call sites → `msamodel:::`. **Pure move, ZERO logic change** — frozen loglik/ML/AGQ
-  values identical; `test()` 185/0F/2skip; `check()` **0E/1W/2N = v0.1 baseline** (also
-  fixed `dev/callgraph.R` leaking `Rplots.pdf` into the repo root, which had added a
-  spurious top-level-file NOTE). Exports 23→21, man 31→29. `dev/plan.md` decisions 1&2 +
-  `CLAUDE.md` family line reconciled first. Families now: `setup / spm / model / fitting
-  / prediction / datasets`. **WORK ITEM COMPLETE.**
-
-- **DONE 2026-07-03 — MCMC removal** (`d413a50`, pushed; plan
-  `~/.claude/plans/the-next-step-in-nested-sphinx.md`). Hard-deleted the whole M-H
-  branch now that AGQ reproduces its last unique output (the 2026-07-02 banded
-  decomposition): removed `R/msa_bayesian_analysis.R` (`fit_lrmsd_i_msa_mcmc` +
-  `calculate_prediction_samples`/`_parameter_summary`/`_prediction_summary`) and
-  `R/msa_bayesian_workflow.R` (`run_msa_bayesian_analysis`); dropped
-  `calculate_decomposition_samples`/`_summary` from `R/msa_decomposition.R`, **kept** the
-  `@noRd` `calculate_msa_decomposition` kernel (the AGQ forward path uses it). Deleted
-  `test-msa-mcmc.R` + `test-workflow-endtoend.R`; pruned the MCMC blocks from
-  `test-contract.R` (1) and `test-decomposition.R` (3 blocks + helper) — the dead-ref
-  sweep, not the plan, caught `test-decomposition.R` (the plan had missed it).
-  `document()` removed 7 orphaned man pages + 7 NAMESPACE exports. Repointed roxygen
-  cross-refs (`objective`/`fitting`/`model`/`data-doc`) to `fit_lrmsd_i_msa_ml` /
-  `fit_lrmsd_i_msa_agq` / `predict_*_agq`; reconciled prose (`DESCRIPTION`, `NEWS.md`
-  Removed bullet — v0.1 release history untouched, `CLAUDE.md`, `dev/plan.md`
-  slated→REMOVED). AGQ + `predict_*_agq` is now the sole band path; `fit_lrmsd_i_msa_ml`
-  the point arm. No `lifecycle` cycle (solo dev, git preserves it); no generic
-  posterior-sample propagator kept. **Verify:** full dead-ref sweep over
-  `R/ man/ NAMESPACE tests/` clean; touched test files pass 0F; `check()` **0E/1W/2N =
-  accepted v0.1 baseline** (no new undocumented/orphaned/`\link` diagnostics; vignettes
-  re-knit OK). **WORK ITEM COMPLETE.**
-
-- **DONE 2026-07-02 — AGQ banded-analysis pair + predictor rename** (all 3 slices
-  pushed; plan `~/.claude/plans/lovely-purring-pixel.md`). (Its output unblocked the
-  MCMC removal above.) **Predictor naming
-  grammar LOCKED
-  2026-07-02:** `<verb>_<quantity>_<axis>_<modelspec>[_<method>]` — verb
-  `calculate` (bare params) vs `predict` (takes a fit object); quantity names the
-  RETURN (`dr2`/`lrmsd`/`decomposition`/`loglik`); modelspec `msa` (single full model)
-  vs `nested_models` (the four variants) is a SEPARATE slot from quantity
-  (`decomposition` is a quantity, `nested_models` a modelspec — never interchange);
-  method `agq` trailing, only on the fit-consuming predict layer. `spm` ensemble token
-  DEFERRED (tree = a distinct input object → revisit as dispatch at v0.5, NOT S3 now);
-  `_ml` predictors deferred (independent siblings, after MCMC removal). SITE AXIS ONLY
-  (mode has no AGQ fit). Slices: **(1) DONE** rename `predict_lrmsd_i_agq` →
-  `predict_lrmsd_i_msa_agq` (was missing its `msa` modelspec token) — pure no-op
-  (`identical` to captured baseline), also fixed a stale docstring (`@node`-eval ref
-  said `nested_models`, code calls `calculate_lrmsd_i_msa`), suite 192/0F/2skip.
-  **(2) DONE** added `predict_lrmsd_i_nested_models_agq` (228×14: `i`,`pdb_site` + 12
-  wide MM/MS/MA/MSA band cols) + `predict_decomposition_i_msa_agq` (228×11: + 9 phi
-  band cols), both node-weighting the matching forward fn via shared `@noRd` helpers
-  `agq_node_weights`/`agq_band` (`predict_lrmsd_i_msa_agq` left untouched). sum-identity
-  test (phi means sum to full-model mean, err 4e-15) WITH negative control (phi_mut×1.01
-  → err 0.043, bites); nested-MSA banded mean `identical` to the full-model predictor.
-  Band-ordering tests use 1e-9 tol: MM/phi_mut are node-invariant (verified 0e+00) →
-  legit zero-width bands differing by fp ULP. suite 209/0F/2skip. **(3) DONE** vignette
-  `inference-methods` §5: fixed the rename ref and added BOTH banded predictors —
-  nested-models (single panel, MM/MS/MSA overlaid, MA dropped for readability) and the
-  mean-centred decomposition (`nphi = phi - mean(phi)` per component), both using the
-  site-analysis palette (`model_cols`/`comp_cols`, firebrick active-site vlines).
-  Naive-user review clean (both predictors shown runnable); **user approved the HTML**.
-  Rename checked across ALL four vignettes: only `inference-methods` ever referenced the
-  predictor. **WORK ITEM COMPLETE.** Next: MCMC removal (now unblocked —
-  decomposition-with-bands exists), then `_ml` predictors, then decomposition→analysis
-  rehoming.
-
-- **MILESTONE `check()` clean 2026-07-02** (after the forward-decomposition + kernel-
-  unexport + vignette work, `d0bd36d`/`8b0f8e1`): **0 errors / 1 warning / 2 notes**,
-  identical to the accepted v0.1 baseline (LazyData-compression warning + installed-size
-  note [data 32.7Mb] + clock "unable to verify current time" note; all pre-existing,
-  GitHub-only). Tests OK (`testthat.R [93s/53s]`), examples OK, all vignettes re-knit OK
-  (exercises the rewritten `calculate_decomposition_{i,n}_msa` chunks through the
-  installed package). No new errors/warnings/notes from this session's work.
-
-  - **DONE (2026-07-01): forward-model layer refactor — both axes** (plan
-    `~/.claude/plans/noble-sleeping-brooks.md`; `dev/plan.md` inference-rework decision
-    3). Triggered by the AGQ 4×-waste (`predict_lrmsd_i_agq` computed 4 nested profiles
-    per node, kept 1) → root cause: the MSA model is not a function (fixation-prob 4
-    lines inlined byte-identically in both `dr2` calculators) and `log(sqrt(dr2))` is
-    open-coded (no `calculate_lrmsd_*_msa`). Fix = 3 rungs: `pfix_msa` (model, pure) /
-    `weights_jm_spm` (SPM-ensemble weights) / `calculate_lrmsd_i_msa` (forward
-    prediction, owns log(sqrt)). **Pure refactor — every slice reproduces current
-    numbers to machine precision (0e+00).** Slices:
-    - **(1) DONE `14f324b`** — extracted `pfix_msa` + `weights_jm_spm`, rewired site
-      `calculate_dr2_i_msa` (mode `_n` left inline).
-    - **(2) DONE `951ebe6`** — added `calculate_lrmsd_i_msa`, rewired the 3 site-axis
-      log(sqrt) sites (nested_models helper, objective, ML post-fit); dropped the dead
-      `dr2_i_msa` globalVariables entry. Verified no-op (nested profile, loglik
-      interior+corners, ML fit, AGQ fit all 0e+00). No new permanent test — existing
-      frozen-loglik + nested-oracle tests pin it. Independent agile-expert agent review
-      pre-execution (no blocking findings; F1/F2/F5 folded into the artifact).
-    - **(3) DONE `c06f760`** — `predict_lrmsd_i_agq` now calls `calculate_lrmsd_i_msa`
-      (one forward eval/node, not four); `pdb_site` recovered via
-      `left_join(site_map)`. The AGQ path no longer calls `nested_models` — the
-      original 4×-waste is closed. Verified no-op (all 6 band columns + i/pdb_site
-      0e+00). Independent agile-expert review pre-execution (no blocking; alias-
-      substitution = firmest footing).
-    - **MODE MIRROR (1) DONE `4741295`** — `calculate_dr2_n_msa` now calls
-      `weights_jm_spm`; dropped dead `energy_data` local. Eliminates the **last inline
-      `pfix` copy** in the package (`pstab_jm` now appears nowhere). dr2_n 0e+00.
-    - **MODE MIRROR (2) DONE `b9f6fc4`** — added `calculate_lrmsd_n_msa`, rewired the 3
-      mode-axis log(sqrt) sites (nested_n helper, mode loglik, mode ML post-fit).
-      Verified no-op (nested profile, loglik interior+corners, mode ML fit all 0e+00).
-      No new test — `test-msa-mode.R` nested oracle + `test-fit-ml-mode.R` frozen fit
-      pin every rewired site. Independent agile-expert review pre-execution (no blocking).
-    **FORWARD-LAYER REFACTOR COMPLETE — BOTH AXES** (site 1-3 + mode 1-2,
-    `14f324b`/`951ebe6`/`c06f760`/`4741295`/`b9f6fc4`). Uniform layer both axes:
-    `pfix_msa` (model) → `weights_jm_spm` (SPM ensemble) → `calculate_dr2_{i,n}_msa` →
-    `calculate_lrmsd_{i,n}_msa` (sole log(sqrt) owners) → analysis (`nested_models`,
-    decomposition, AGQ predictor). Closing artifact: `git grep 'log(sqrt(dr2'` in `R/`
-    hits ONLY the two owners; `pstab_jm` gone. Suite 178/0F/2skip throughout.
-
-  - **DONE (2026-07-02): forward decomposition functions — both axes** (plan
-    `~/.claude/plans/ancient-beaming-micali.md`). Added `calculate_decomposition_i_msa`
-    and `calculate_decomposition_n_msa` (`R/model.R`, `@family model`, `@export`) — the
-    single-`(a1,a2)` forward rung that packages `calculate_lrmsd_{i,n}_nested_models`
-    → the pure `calculate_msa_decomposition(mm,ms,ma,msa)` kernel (kernel UNTOUCHED,
-    per [[pure-functions-over-param-flexibility]]). API is `(spm_pp, a1, a2)` (user
-    correction: forward decomposition takes spm+params, NOT the four variant vectors);
-    internals reuse nested_models (user choice). Site returns `i, pdb_site, phi_*`;
-    mode returns `n, phi_*` (no pdb_site). **This unblocks the AGQ banded-analysis
-    functions** — both AGQ **nested-models-with-bands** (band each of MM/MS/MA/MSA)
-    AND AGQ **decomposition-with-bands** (band phi_mut/phi_stab/phi_act) are now "run
-    the matching forward fn across nodes/draws". (`predict_lrmsd_i_agq`, `R/model.R`,
-    already does exactly this loop for the single full-model profile — the two new
-    predictors swap `calculate_lrmsd_i_nested_models` / `calculate_decomposition_i_msa`
-    in as the per-node evaluator.) Tests: equivalence
-    to the manual two-step + sum-identity (`phi_mut+phi_stab+phi_act == lrmsd_*_msa`,
-    max err 0e+00) in `test-decomposition.R`; NEGATIVE CONTROL run on both (injected
-    error → sum-identity goes red). Suite 192/0F/2skip. `document()` regenerated
-    NAMESPACE + man/ (2 new pages; family cross-ref churn on the other model pages).
-    Then, same work item (user decisions): **(3) unexported the pure kernel**
-    `calculate_msa_decomposition` (now `@noRd`, internal) — its only callers are
-    in-package (the two forward fns + `calculate_decomposition_samples`); public phi
-    API is now the forward `calculate_decomposition_{i,n}_msa` + the sample path. 9
-    dangling `[fn()]` roxygen links delinked to `` `fn()` `` code text (no man page to
-    link). **(4) vignettes** (site + mode, 4 chunks): decomposition step rewritten from
-    the manual `nested` + kernel `bind_cols` to the one-call `calculate_decomposition_
-    {i,n}_msa(pp, a1, a2)`; the four-variant `nested` object + its plot KEPT (user
-    choice), the decomposition-only `nested_fit` in §6 dropped. Re-knit both from inside
-    `vignettes/`; previews rendered; **user approved the HTML**. phi values/figures
-    unchanged (same composition). **Deferred (next candidates):** the AGQ banded-analysis
-    pair — `predict_lrmsd_i_nested_models_agq` (nested MM/MS/MA/MSA with bands) AND
-    `predict_decomposition_i_agq` (phi_mut/phi_stab/phi_act with bands), both by
-    node-weighting the forward fns (names provisional); then decomposition→analysis
-    rehoming; MCMC removal (blocked until the decomposition-with-bands lands).
-    *(RESOLVED 2026-07-02: the pair shipped as `predict_lrmsd_i_nested_models_agq` +
-    `predict_decomposition_i_msa_agq` — see the DONE bullet at the top of this block;
-    MCMC removal is now unblocked and is the next active item.)*
-
-  - **DECISION (2026-07-01): MCMC is slated for REMOVAL**, not kept as a permanent
-    legacy arm (corrects the old "kept as legacy/fallback" in `dev/plan.md`). NOT
-    deleted until AGQ reproduces its one remaining unique piece — **phi decomposition
-    profiles with credible bands** (node-propagated). Wrappers
-    (`run_msa_bayesian_analysis`) out of scope for now. The v0.5 tree's stochastic
-    sampler is built fresh then, not preserved from this M-H.
-
-- **DONE — vignette redesign** (plan `~/.claude/plans/mighty-bubbling-scroll.md`).
-  Overview `msamodel.Rmd` + parallel `site-analysis` / `mode-analysis` (ML fit, strict
-  shared 6-section skeleton) + `inference-methods` (ML vs AGQ). Bayesian/MCMC dropped
-  from vignettes (NOT from `R/` — inference rework's job). **Milestone `check()` clean
-  2026-06-30: 0 errors / 1 warning / 2 notes — identical to the accepted v0.1 baseline
-  (LazyData-compression warning + data-size note + clock note; all pre-existing,
-  GitHub-only). All four vignettes re-knit OK, full suite OK.** Work item closed.
-  **Slices:**
-  - `782acd5`: `dr2n-analysis` → `mode-analysis` rename + sibling reframe.
-  - `3699ac7`: `msamodel-intro` → `site-analysis`, strip MCMC + AGQ-comparison, fit
-    now ML, §6 decomposition re-homed onto ML; mode gained §6; strict parallel pair
-    (byte-identical numbered headings).
-  - `8b51b9c`: **all three vignettes are now independent runnable "from your own
-    protein" tutorials** + the overview `msamodel.Rmd` added. Each runs its OWN build
-    chain (`read.pdb → setup_enm → generate_spm_data`, `eval=TRUE`) from two marked
-    inputs and consumes the built `wt`/`spm` (fixtures = optional skim shortcut).
-    Observed data (`lrmsd_i_obs`/`lrmsd_n_obs`) framed identically on both axes:
-    user-supplied, not computed (homologous-structure/alignment, out of scope), shape
-    shown. Mode §5 lost the circular truth-recovery block + the false real-vs-synthetic
-    contrast; synthetic is now a parenthetical. Knit cost ~20s scan ×3, once each.
-  - `2774b16`: **visible `library(msamodel)`+`library(dplyr)` attach chunk** in all
-    three vignettes (before `{r inputs}`). The naive-user reviewer found the first
-    package call failed because the attach lived in an `include=FALSE` chunk — no
-    `library()` visible on the page. Re-knit: only session-info pkg list reorders,
-    no analysis numbers change, figures byte-identical. Deferred (reviewer-flagged,
-    NOT fixed): hidden plot code (`echo=FALSE` by design), unexplained `i` vs
-    `pdb_site` keying on site, magic-number setup params.
-  - **`inference-methods.Rmd` DONE (2026-06-30):** fourth vignette, ML vs AGQ, both
-    deterministic (MCMC stays out of vignettes). NOT invented — **restored from the
-    deleted `msamodel-intro` methods-comparison section** (`git show
-    3699ac7~1:vignettes/msamodel-intro.Rmd.orig`, the `method-table`/`method-profile`/
-    `method-scatter`/`agq-band` chunks), MCMC arm stripped, `agq-vs-mcmc` retargeted to
-    `ml-vs-agq`. Shows: method table (ML est±se vs AGQ mean±sd, both R²≈0.605 to data),
-    observed-vs-two-fits profile, faceted obs-vs-{ML,AGQ} scatters w/ R², ML-vs-AGQ
-    scatter (R²=0.99996 → identical prediction), AGQ credible band vs observed. Both
-    sibling cross-links re-homed `?fit_lrmsd_i_msa_agq` → `[Inference
-    methods](inference-methods.html)` (re-knit; only session-info pkg reorder, figures
-    byte-identical). Naive-user review (skill) caught 2 real blockers — `r2()` helper
-    and the `predict_lrmsd_i_agq()` call were both buried in hidden chunks; fixed by
-    making both visible. Remaining reviewer flags (hidden plot code, ggplot2 not
-    visibly attached, user-supplied observed profile) are the by-design house
-    convention, same as all siblings — deferred, not blockers.
-  - `e908510`: **`check()` milestone clean** (above); work item closed, no release.
-  - **NEW reusable artifact (2026-06-30):** the naive-user review is now a skill,
-    `~/.claude/skills/vignette-naive-review/` — captures the winning prompt (persona
-    = method-USER not domain-peer; context-free, ONLY the rendered `.html`; no
-    checklist) so it stops being re-derived. Spawns one context-free sub-agent per
-    page. Reviewer scratch must go to the session scratchpad, NOT `dev/preview/`
-    (it polluted the dir once; skill now forbids it).
-  - **KEY workflow lesson (2026-06-29):** knit vignettes ONLY from inside `vignettes/`
-    (else `fig.path` is cwd-relative → figures land at repo root, `.Rmd` references
-    stale ones, new chunks show broken images — the §6 bug). The decisive test for
-    "does the doc teach a user to USE the package" was a **context-free naive-user
-    agent reading the RENDERED `.html`** (a scientist with their own PDB), not a
-    checklist-driven editor — it caught the "no path from raw input" failure that
-    prior checks missed.
-- **Test-suite redesign DONE + MERGED** to `main` 2026-06-26 (`8a9e4c1..06b4292`).
-  Default suite 284s → ~60s (`Config/testthat/parallel: true`; 81×81 ML grids →
-  local-max checks; ~21s SPM regen tiered behind `MSAMODEL_FULL_TESTS`; fit-agq
-  61×61→21×21 + dedup; profile-invariance snapshots KEPT). Suite 178 pass / 0 fail /
-  2 skip default.
-- **Workflow (OVERHAULED 2026-07-02):** cadence is now **work-item level**, not
-  per-commit slices — plan up front (user approves) → autonomous multi-commit
-  execution → user reviews the finished diff. "slice"/"WIP=1"/"stop-every-commit"
-  vocabulary RETIRED. Project `CLAUDE.md` slimmed 354→181 lines; migration workflow,
-  DoD ritual, and test-quality discipline moved to three project skills
-  (`.claude/skills/`): **`/migration`**, **`/done`** (DoD command-output gate, run at
-  the work-item milestone), **`/test-review`** (negative-control gate). Rigor
-  unchanged: the **diff-rule** still decides whether the full `test()` runs — fire it
-  before a code/data/roxygen commit; skip it for docs/vignette-only diffs.
-<!-- /NOW -->
+Docs-only throughout: no `R/`, `data/`, `tests/`, `man/`, `NAMESPACE`, or
+`vignettes/` bytes moved, so no `test()` (the run would have been vacuous). Verified
+by diff scope, plus a dead-reference sweep over every surviving doc and memory —
+35 dead references before, 0 after, and 13 broken memory cross-links repaired.
 
 ### 2026-08-04 — fitting coordinate renamed `t` → `theta` (rename-only, committed `b346d3e`)
 

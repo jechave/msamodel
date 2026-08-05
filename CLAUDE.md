@@ -9,94 +9,41 @@ structural evolution: it predicts site-specific structural divergence in protein
 evolution from single-point-mutation scans (SPMs). Structure/active-site input is a
 bio3d pdb object + a plain `pdb_site_active` integer vector.
 
-v0.1 and v0.2 (API cleanup) shipped; the 0.3.0 site+mode structural suite is done
-(predict + fit, both axes); the inference rework is in flight. The package computes
-structure-divergence profiles (structure × site and × mode) and fits them to data:
-SPM generation, divergence profiles, parameter estimation (ML) with delta-method
-error bands, and a site-level decomposition (the `phi_*` columns). **Read the `<!-- NOW -->` block in
-`dev/LOG.md` first each session** — it holds the live state; `dev/plan.md` is the
-roadmap.
+The package computes structure-divergence profiles (by site and by mode) and fits
+them to data: SPM generation, divergence profiles, parameter estimation (ML) with
+delta-method standard errors, and a decomposition into mutation/stability/activity
+contributions (the `phi_*` / `nphi_*` columns).
 
 It depends on `penm` (an `Imports:` dependency) for the ENM machinery — `set_enm()`,
 mutation scans, response matrices. **penm is a dependency, never a source**: call
 `penm::fn()`; never copy or wrap its code, and never rename a penm function to fit a
 local convention.
 
-## Planning & cadence (how work flows)
+## Development context files
 
-Planning lives in **two files**: `dev/plan.md` (coarse, durable roadmap — what each
-version *is*; edited only when a version's *goal* changes) and `dev/LOG.md`
-(append-only history + a delimited `<!-- NOW -->` … `<!-- /NOW -->` block at the top
-holding the live agenda). Read the NOW block first; keep it current.
+None of these is read at session start — the user says what the session is about.
 
-Work is reviewed at the **work-item level**, not per commit:
+- `dev/findings.md` — durable model/package knowledge that is expensive to
+  rediscover (the precompute architecture, why the package reports centred
+  quantities, the divergence grid).
+- `dev/LOG.md` — append-only history, newest first. Consult when you need history.
+  Entries describe the code *as it was on their date*; older function names are
+  frequently obsolete.
+- `dev/ideas.md` — parking lot for things to maybe do later. Not a plan.
 
-1. **Plan up front.** Enter plan mode, read the code the item touches, sketch the
-   approach, and get the user's approval before implementing. Skip the plan only for
-   changes you could describe in one sentence (typo, log line, rename).
-2. **Execute autonomously.** Run the inner loop (`load_all()` → targeted
-   `test_file()`) across as many atomic commits as the item needs. Commits are
-   logical units, but they are **not** individual review gates — don't stop the user
-   at each one. The test suite is the between-touchpoint verification loop, so keep
-   it strong (see the rigor gate below).
-3. **Review the diff.** At the item's end, show the user the finished diff plus a
-   verification artifact sized to the change (a scratchpad table/PNG for code; a
-   `dev/preview/<name>.html` render for a vignette). Nothing is pushed until the user
-   has reviewed and said go.
-
-If a change goes wrong mid-way, `git restore` the uncommitted tree and re-approach —
-nothing is committed mid-unit.
-
-### The rigor gate — decided by the DIFF, not by how big the change felt
-
-Before committing, whether the full `devtools::test()` runs is decided by one rule:
-
-- **Diff touches `R/`, `data/`, `data-raw/`, roxygen, `NAMESPACE`, or any test
-  snapshot value → run ONE full `devtools::test()`.** This is the rigor gate.
-- **Otherwise the diff is non-testable → SKIP `test()`.** No test exercises those
-  bytes, so the run is vacuous. This covers every docs-only diff *including a whole
-  vignette commit* — `.Rmd.orig`, the re-knit `.Rmd`, and `_files/` figures are
-  documentation, not code/data/roxygen. Verification is still sized to the change:
-  confirm `git diff --stat` shows only docs/vignette bytes moved. `check()` re-knits
-  + runs the full suite at milestones — that is where vignette-touching code gets its
-  test coverage, not the per-commit gate.
-
-While iterating, run only the relevant `test_file()` / `test(filter=)`. The full
-`test()` is a **gate action fired once** before a code/data/roxygen commit — never a
-mid-work "did it pass" reflex. `check()` runs at milestones only.
-
-### At the work-item milestone
-
-Run the **`/done` skill** (the command-output reconciliation gate: grep stale
-cross-refs across code + memory, confirm the LOG NOW block and a dated history entry
-are current, confirm git is clean + pushed). The principle: satellite state (LOG,
-memory, cross-references) goes stale silently, so it must show up in *command
-output*, not be asserted. Run `check()` at the milestone too.
+For what is currently true of the code, read the code.
 
 ## Test discipline
 
 A permanent test must be able to **fail for a real reason**. Before trusting any new
-invariant/value test, run a **negative control**: feed a deliberately-wrong input and
-confirm the assertion goes RED. If it can't go red, it's a tautology — drop it. A
+invariant/value test, run a negative control: feed a deliberately-wrong input and
+confirm the assertion goes red. If it can't go red, it's a tautology — drop it. A
 "numbers didn't change" refactor-invariance check is a one-time scratchpad artifact,
-**not** a permanent suite test. Invoke the **`/test-review` skill** when writing or
-reviewing tests — it holds the full checklist (permanence filter, negative control,
-anti-patterns, loop discipline).
-
-## Migration (essentially done — read only when resuming)
-
-`tmp_src/` is a **read-only frozen snapshot** of the source project that is *not*
-part of this package (it is `.Rbuildignore`d). **Never edit inside `tmp_src/`** —
-copy out of it only. Most planned migration is done; new work is developed directly.
-When migration resumes for a specific piece, **invoke the `/migration` skill** — it
-holds the mining procedure (`dev/find-source.sh`, hidden dirs), the copy rules, and
-the restructure-and-verify-vs-archive discipline. Provenance honesty is the global
-honesty rule applied to code origin: never claim code is new / migrated-from-X /
-has-no-source without having *just* searched to confirm.
+not a permanent suite test. The **`/test-review` skill** holds the full checklist.
 
 ## House conventions
 
-- **Naming:** `snake_case`, following the source.
+- **Naming:** `snake_case`.
 - **`dr2`-family index-signature convention.** Every `dr2`-family name msamodel
   *creates* is `dr2_<indices>`: one underscore, then exactly the free indices the
   object spans, in order **response index (`i` site / `n` mode), mutated site `j`,
@@ -109,11 +56,6 @@ has-no-source without having *just* searched to confirm.
 - **Roxygen on every function.** `#' @export` for public API, `#' @noRd` for internal
   helpers. Document `@param`, `@return`/`@returns`, add `@family` tags to group
   related functions. `@examples` in `\dontrun{}` when they need real data.
-- **Organize `R/` files by function family/role** (`@family`: setup / spm / model /
-  fitting / prediction / datasets), not by source filename. The family is fixed by a
-  function's **input type**: bare `(a1,a2)` → `model`; observed data → `fitting`; a fit
-  object → `prediction`. (`objective` and `decomposition` are retired as families — the
-  loglik is an internal of `fitting`; decomposition is a `model` function.)
 - **Imports live in one place:** `R/msamodel-package.R` carries the `"_PACKAGE"` doc
   and the `@importFrom` directives. Re-export `%>%` via `#' @importFrom magrittr %>%`.
 - **Tibbles** (not data.frames) for tabular returns; tidyverse for data manipulation.
@@ -129,11 +71,11 @@ Rscript -e "testthat::test_file('tests/testthat/test-fit-ml.R')"    # one file
 # Document (regenerate NAMESPACE + man/) — ONLY after a roxygen/@importFrom change
 Rscript -e "devtools::document()"
 
-# BEFORE A CODE/DATA/ROXYGEN COMMIT (rigor gate) — one full run of the whole suite
+# Full suite — the gate before a code/data/roxygen commit
 Rscript -e "devtools::test()"
 
-# AT A MILESTONE ONLY — full check (v0.1 baseline: 0 errors, 1 warning, 2 notes,
-# deliberately accepted, GitHub-only not CRAN; see dev/LOG.md).
+# AT A MILESTONE ONLY — full check (baseline: 0 errors, 1 warning, 2 notes,
+# deliberately accepted, GitHub-only not CRAN).
 Rscript -e "devtools::check()"
 
 # Install locally (only when a vignette needs the working tree's new functions)
@@ -179,6 +121,3 @@ so the data-prep script and that test must stay in sync.
 - **Tool choice:** read files with `Read` (use `offset`/`limit` for big files). Avoid
   `sed`/`head`/`cat`/`tail`/`awk`/`echo` in Bash for reading — they trigger permission
   prompts here.
-
-When this file and `dev/plan.md` disagree, the roadmap wins — update this file or flag
-the contradiction.
