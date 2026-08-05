@@ -20,8 +20,9 @@ znb_profile
 }
 \description{
 The per-site observed divergence used as the fitting target for the example
-protein. This is the template for the \code{observed_data} argument of the
-fitter \code{\link{fit_lrmsd_i_msa_ml}}.
+protein. The fitter \code{\link{fit_lrmsd_i_msa_ml}} takes the two columns as a
+\code{(pdb_site, lrmsd_obs)} vector pair, so this is example data rather than a
+required schema -- your own table may name its columns anything.
 }
 \details{
 The fit is keyed by \code{pdb_site}: the package maps it internally to

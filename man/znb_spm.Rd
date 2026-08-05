@@ -16,9 +16,9 @@ displacements; each site value is the squared displacement of a residue
 \item{dr2_njm}{Numeric \code{[mutant x mode]} matrix of per-mode squared
 displacements; each value is the squared projection of the displacement onto a
 normal mode. 2280 rows times 678 mode columns.}
-\item{site_map}{Tibble mapping the site index \code{i} to its PDB residue number
-\code{pdb_site} (228 rows). Modes are not residue-anchored, so there is no map
-for \code{dr2_njm}.}
+\item{site_map}{Tibble mapping the internal site index \code{site} to its PDB
+residue number \code{pdb_site} (228 rows). Modes are not residue-anchored, so
+there is no map for \code{dr2_njm}.}
 }
 }
 \usage{

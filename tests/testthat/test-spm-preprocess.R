@@ -18,15 +18,15 @@ test_that("dr2_ijm / dr2_njm have the expected shape and carry no column names",
   expect_null(colnames(znb_spm$dr2_njm))
 })
 
-test_that("site_map maps the internal index i to pdb_site as in the scan", {
-  expect_named(znb_spm$site_map, c("i", "pdb_site"))
+test_that("site_map maps the internal site index to pdb_site as in the scan", {
+  expect_named(znb_spm$site_map, c("site", "pdb_site"))
   expect_equal(nrow(znb_spm$site_map), 228L)
   # The mapping must match the raw scan's own site / pdb_site vectors -- the whole
   # pdb_site contract depends on this being correct.
   scan <- generate_spm_core(znb_wt, n_mutations = 1,
                             pdb_site_active = c(99, 101, 103, 162, 181, 184, 193, 223),
                             seed = 1024)
-  expect_equal(znb_spm$site_map$i, as.integer(scan$site[[1]]))
+  expect_equal(znb_spm$site_map$site, as.integer(scan$site[[1]]))
   expect_equal(znb_spm$site_map$pdb_site, as.integer(scan$pdb_site[[1]]))
 })
 

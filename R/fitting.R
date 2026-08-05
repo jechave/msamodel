@@ -3,7 +3,7 @@
 # (a1, log2(a2+1)) and returns a point estimate plus an asymptotic covariance.
 
 # ---- axis-blind fitting core ------------------------------------------------------
-# The site (i, keyed to pdb_site via site_map) and mode (n, keyed directly) fits are the
+# The site (keyed to pdb_site via site_map) and mode (keyed directly) fits are the
 # same machinery on a resolved (index, obs) pair. These cores hold that shared machinery;
 # they receive ALREADY-RESOLVED, ALREADY-VALIDATED predictions and observations (both bare
 # two-column tibbles keyed by the same integer index column named `idx`), so they carry no
@@ -151,51 +151,81 @@ fit_lrmsd_msa_ml_core <- function(nll, gof_fn,
 }
 
 # ---- axis-specific observation resolvers (the ONLY axis-aware boundary logic) ------
-# Each turns the user's observed_data into the canonical (idx, obs) frame the cores
-# consume, and owns its axis's unknown-key error. SITE: pdb_site -> internal index i via
-# site_map. MODE: n is the index directly (no map). These are the sole locus of the
-# site/mode asymmetry in fitting.
+# Each turns the user's two observation vectors into the canonical (idx, obs) frame the
+# cores consume, and owns its axis's unknown-key error. SITE: pdb_site -> internal index
+# via site_map. MODE: the mode number IS the index (no map). These are the sole locus of
+# the site/mode asymmetry in fitting.
+#
+# Observations arrive as a (key, value) VECTOR PAIR, not a tibble: the package never
+# looks up a column name in the user's data, so the caller's own frame can name its
+# columns whatever it likes. It also makes length disagreement checkable -- a tibble's
+# columns are equal-length by construction, so a misaligned pairing is invisible there.
+
+#' Validate a (key, value) observation vector pair (shared boundary check)
+#'
+#' Fail-loud gate both resolvers run before doing anything: equal lengths, non-empty, and
+#' no `NA` in either vector. Axis-blind; `key_name` only shapes the message.
+#'
+#' @param key The observation key vector (pdb_site labels, or mode numbers).
+#' @param value The observed lrmsd vector.
+#' @param key_name Name of the key argument, for the error message.
+#' @return Invisibly `NULL`; stops with a clear message on any violation.
+#' @noRd
+check_obs_vectors <- function(key, value, key_name) {
+  if (length(key) != length(value)) {
+    stop("`", key_name, "` and `lrmsd_obs` must have the same length; got ",
+         length(key), " and ", length(value), ".")
+  }
+  if (length(key) == 0L) {
+    stop("`", key_name, "` and `lrmsd_obs` must be non-empty.")
+  }
+  if (anyNA(key))   stop("`", key_name, "` must not contain NA.")
+  if (anyNA(value)) stop("`lrmsd_obs` must not contain NA.")
+  invisible(NULL)
+}
 
 #' Resolve site observations (pdb_site) to the internal index (site boundary)
 #'
-#' Translates user `pdb_site` labels to the model-internal site index `i` via
+#' Translates user `pdb_site` labels to the model-internal site index via
 #' `spm$site_map`, erroring on any `pdb_site` not present in the model. Returns the
 #' canonical `(idx, obs)` frame the fitting cores consume.
 #'
-#' @param spm The `spm` object (its `site_map` keys pdb_site -> i).
-#' @param observed_data Tibble with `pdb_site` and `lrmsd_i_obs`.
+#' @param spm The `spm` object (its `site_map` keys pdb_site -> site).
+#' @param pdb_site Integer vector of PDB residue numbers.
+#' @param lrmsd_obs Numeric vector of observed log divergences, same length.
 #' @return A tibble `(idx, obs)`.
 #' @noRd
-resolve_site_obs <- function(spm, observed_data) {
-  observations <- observed_data %>% dplyr::select(pdb_site, lrmsd_i_obs)
-  unknown <- setdiff(observations$pdb_site, spm$site_map$pdb_site)
+resolve_site_obs <- function(spm, pdb_site, lrmsd_obs) {
+  check_obs_vectors(pdb_site, lrmsd_obs, "pdb_site")
+  unknown <- setdiff(pdb_site, spm$site_map$pdb_site)
   if (length(unknown) > 0) {
-    stop("observed_data has pdb_site value(s) not present in the model: ",
+    stop("observed data has pdb_site value(s) not present in the model: ",
          paste(unknown, collapse = ", "))
   }
-  observations %>%
+  tibble::tibble(pdb_site = pdb_site, obs = lrmsd_obs) %>%
     inner_join(spm$site_map, by = "pdb_site") %>%
-    dplyr::transmute(idx = i, obs = lrmsd_i_obs)
+    dplyr::transmute(idx = site, obs = obs)
 }
 
-#' Resolve mode observations (n) to the internal index (mode boundary)
+#' Resolve mode observations to the internal index (mode boundary)
 #'
-#' Modes are not structure-anchored: the mode index `n` IS the internal index. Errors on
-#' any observed `n` not present in the model's predictions. Returns the canonical
+#' Modes are not structure-anchored: the mode number IS the internal index. Errors on
+#' any observed mode not present in the model's predictions. Returns the canonical
 #' `(idx, obs)` frame.
 #'
-#' @param predictions The mode predictions tibble carrying `n` (the valid index set).
-#' @param observed_data Tibble with `n` and `lrmsd_n_obs`.
+#' @param valid_modes Integer vector of the mode indices the model carries.
+#' @param mode Integer vector of observed mode indices.
+#' @param lrmsd_obs Numeric vector of observed log divergences, same length.
 #' @return A tibble `(idx, obs)`.
 #' @noRd
-resolve_mode_obs <- function(predictions, observed_data) {
-  observations <- observed_data %>% dplyr::select(n, lrmsd_n_obs)
-  unknown <- setdiff(observations$n, predictions$n)
+resolve_mode_obs <- function(valid_modes, mode, lrmsd_obs) {
+  check_obs_vectors(mode, lrmsd_obs, "mode")
+  unknown <- setdiff(mode, valid_modes)
   if (length(unknown) > 0) {
-    stop("observed_data has mode index(es) not present in the model: ",
+    stop("observed data has mode index(es) not present in the model: ",
          paste(unknown, collapse = ", "))
   }
-  observations %>% dplyr::transmute(idx = n, obs = lrmsd_n_obs)
+  tibble::tibble(idx = mode, obs = lrmsd_obs)
 }
 
 #' Maximum-likelihood point fit of the lrmsd_i MSA model
@@ -212,8 +242,12 @@ resolve_mode_obs <- function(predictions, observed_data) {
 #' of `a2` is obtained by the delta method (`da2/d(log2(a2+1)) = 2^(log2(a2+1)) * ln 2`).
 #'
 #' @param spm A single-point-mutation `spm` object from [generate_spm_data()] (its `site_map` keys the fit to PDB residues).
-#' @param observed_data Tibble with columns `pdb_site` and `lrmsd_i_obs` (the fit
-#'   target), as documented for `calculate_loglik_lrmsd_i_msa()`.
+#' @param pdb_site Integer vector of PDB residue numbers identifying the observations.
+#'   Observations are a `(pdb_site, lrmsd_obs)` vector pair rather than a data frame, so
+#'   the columns of your own table can be named anything. May cover a subset of the
+#'   model's sites; every value must exist in the model.
+#' @param lrmsd_obs Numeric vector of observed log structural divergences (the fit
+#'   target), the same length as `pdb_site`.
 #' @param a1_range Length-2 `[min, max]` box bound for `a1`.
 #' @param log2_a2_plus1_range Length-2 `[min, max]` box bound for `log2(a2 + 1)`.
 #' @param init Optional length-2 numeric start `c(a1, log2(a2+1))`. When `NULL`
@@ -247,24 +281,25 @@ resolve_mode_obs <- function(predictions, observed_data) {
 #' @examples
 #' \dontrun{
 #' spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
-#' ml <- fit_lrmsd_i_msa_ml(spm, znb_profile)
+#' ml <- fit_lrmsd_i_msa_ml(spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
 #' c(a1 = ml$a1, a2 = ml$a2)
 #' }
 fit_lrmsd_i_msa_ml <- function(spm,
-                       observed_data,
+                       pdb_site,
+                       lrmsd_obs,
                        a1_range = c(0, 10),
                        log2_a2_plus1_range = c(0, 13),
                        init = NULL,
                        grid_n = 25) {
-  # Site boundary: the nll and the sigma/GoF block both resolve observations pdb_site -> i
-  # via site_map (with the site-axis unknown-key error). The axis-blind core owns the
-  # optimisation, covariance, and return assembly.
+  # Site boundary: the nll and the sigma/GoF block both resolve observations pdb_site ->
+  # the internal index via site_map (with the site-axis unknown-key error). The axis-blind
+  # core owns the optimisation, covariance, and return assembly.
   nll <- function(theta) {
-    -calculate_loglik_lrmsd_i_msa(spm, observed_data,
+    -calculate_loglik_lrmsd_i_msa(spm, pdb_site, lrmsd_obs,
                           a1 = theta[1], a2 = 2^theta[2] - 1)
   }
   gof_fn <- function(a1_hat, a2_hat) {
-    obs  <- resolve_site_obs(spm, observed_data)
+    obs  <- resolve_site_obs(spm, pdb_site, lrmsd_obs)
     v    <- lrmsd_msa(spm$dr2_ijm, spm$energy_data, a1_hat, a2_hat)
     pred <- tibble::tibble(idx = seq_along(v), pred = v)
     fit_gof_primitives(pred, obs)
@@ -288,8 +323,11 @@ fit_lrmsd_i_msa_ml <- function(spm,
 #'
 #' @param spm A single-point-mutation `spm` object from [generate_spm_data()] (energy_data +
 #'   the `dr2_njm` matrix; no `site_map`).
-#' @param observed_data Tibble with columns `n` (mode index) and `lrmsd_n_obs` (the
-#'   fit target), as documented for `calculate_loglik_lrmsd_n_msa()`.
+#' @param mode Integer vector of mode indices identifying the observations. Observations
+#'   are a `(mode, lrmsd_obs)` vector pair rather than a data frame, so the columns of
+#'   your own table can be named anything. Every value must exist in the model.
+#' @param lrmsd_obs Numeric vector of observed log structural divergences (the fit
+#'   target), the same length as `mode`.
 #' @param a1_range Length-2 `[min, max]` box bound for `a1`.
 #' @param log2_a2_plus1_range Length-2 `[min, max]` box bound for `log2(a2 + 1)`.
 #' @param init Optional length-2 numeric start `c(a1, log2(a2+1))`. When `NULL`
@@ -324,26 +362,27 @@ fit_lrmsd_i_msa_ml <- function(spm,
 #' @examples
 #' \dontrun{
 #' spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
-#' ml <- fit_lrmsd_n_msa_ml(spm, znb_profile_n)
+#' ml <- fit_lrmsd_n_msa_ml(spm, znb_profile_n$n, znb_profile_n$lrmsd_n_obs)
 #' c(a1 = ml$a1, a2 = ml$a2)
 #' }
 fit_lrmsd_n_msa_ml <- function(spm,
-                       observed_data,
+                       mode,
+                       lrmsd_obs,
                        a1_range = c(0, 10),
                        log2_a2_plus1_range = c(0, 13),
                        init = NULL,
                        grid_n = 25) {
-  # Mode boundary: n is the internal index directly (no site_map). Same axis-blind core;
-  # the mode unknown-key check is on n, done inside resolve_mode_obs.
+  # Mode boundary: the mode number is the internal index directly (no site_map). Same
+  # axis-blind core; the unknown-key check is done inside resolve_mode_obs.
   nll <- function(theta) {
-    -calculate_loglik_lrmsd_n_msa(spm, observed_data,
+    -calculate_loglik_lrmsd_n_msa(spm, mode, lrmsd_obs,
                           a1 = theta[1], a2 = 2^theta[2] - 1)
   }
   gof_fn <- function(a1_hat, a2_hat) {
     v    <- lrmsd_msa(spm$dr2_njm, spm$energy_data, a1_hat, a2_hat)
-    pred <- tibble::tibble(n = seq_along(v), lrmsd_n_msa = v)  # n kept for resolve_mode_obs
-    obs  <- resolve_mode_obs(pred, observed_data)
-    fit_gof_primitives(dplyr::transmute(pred, idx = n, pred = lrmsd_n_msa), obs)
+    pred <- tibble::tibble(idx = seq_along(v), pred = v)
+    obs  <- resolve_mode_obs(pred$idx, mode, lrmsd_obs)
+    fit_gof_primitives(pred, obs)
   }
   fit_lrmsd_msa_ml_core(nll, gof_fn, a1_range, log2_a2_plus1_range, init, grid_n)
 }
@@ -381,15 +420,16 @@ calculate_null_deviance <- function(y) {
 #' scale is profiled out (`sigma = sqrt(mean(r^2))`). Maximised by [fit_lrmsd_i_msa_ml()].
 #'
 #' @param spm A single-point-mutation `spm` object from [generate_spm_data()] (its `site_map` keys the fit to PDB residues).
-#' @param observed_data Tibble with columns `pdb_site` and `lrmsd_i_obs`.
+#' @param pdb_site Integer vector of PDB residue numbers identifying the observations.
+#' @param lrmsd_obs Numeric vector of observed log divergences, same length as `pdb_site`.
 #' @param a1 Stability selection strength.
 #' @param a2 Activity selection strength.
 #' @return A single numeric log-likelihood.
 #' @noRd
-calculate_loglik_lrmsd_i_msa <- function(spm, observed_data, a1, a2) {
-  # Resolve user pdb_site -> internal site index i (site-only, at the boundary), with the
+calculate_loglik_lrmsd_i_msa <- function(spm, pdb_site, lrmsd_obs, a1, a2) {
+  # Resolve user pdb_site -> internal site index (site-only, at the boundary), with the
   # site-axis unknown-key check; then hand canonical (idx, obs)/(idx, pred) to the core.
-  obs         <- resolve_site_obs(spm, observed_data)             # tibble(idx, obs)
+  obs         <- resolve_site_obs(spm, pdb_site, lrmsd_obs)       # tibble(idx, obs)
   v           <- lrmsd_msa(spm$dr2_ijm, spm$energy_data, a1, a2)
   predictions <- tibble::tibble(idx = seq_along(v), pred = v)
   loglik_lrmsd_msa_core(predictions, obs)
@@ -402,16 +442,17 @@ calculate_loglik_lrmsd_i_msa <- function(spm, observed_data, a1, a2) {
 #' [fit_lrmsd_n_msa_ml()].
 #'
 #' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
-#' @param observed_data Tibble with columns `n` (mode index) and `lrmsd_n_obs`.
+#' @param mode Integer vector of mode indices identifying the observations.
+#' @param lrmsd_obs Numeric vector of observed log divergences, same length as `mode`.
 #' @param a1 Stability selection strength.
 #' @param a2 Activity selection strength.
 #' @return A single numeric log-likelihood.
 #' @noRd
-calculate_loglik_lrmsd_n_msa <- function(spm, observed_data, a1, a2) {
-  # Mode index n is the internal index directly (no site_map); resolve + unknown-key check
-  # at the boundary, then hand canonical frames to the axis-blind core.
+calculate_loglik_lrmsd_n_msa <- function(spm, mode, lrmsd_obs, a1, a2) {
+  # The mode number is the internal index directly (no site_map); resolve + unknown-key
+  # check at the boundary, then hand canonical frames to the axis-blind core.
   v           <- lrmsd_msa(spm$dr2_njm, spm$energy_data, a1, a2)
-  predictions <- tibble::tibble(n = seq_along(v), lrmsd_n_msa = v)  # n kept for resolve_mode_obs
-  obs         <- resolve_mode_obs(predictions, observed_data)     # tibble(idx, obs)
-  loglik_lrmsd_msa_core(dplyr::transmute(predictions, idx = n, pred = lrmsd_n_msa), obs)
+  predictions <- tibble::tibble(idx = seq_along(v), pred = v)
+  obs         <- resolve_mode_obs(predictions$idx, mode, lrmsd_obs)  # tibble(idx, obs)
+  loglik_lrmsd_msa_core(predictions, obs)
 }

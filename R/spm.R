@@ -146,7 +146,7 @@ generate_spm_core <- function(wt, n_mutations = 10,
 #'   per-mutant stability and activity energy changes, `j`, `m`, `ddg_jm`, `ddgact_jm`,
 #'   wild-type rows dropped), `dr2_ijm` (the mutant-by-site squared-divergence matrix),
 #'   `dr2_njm` (the mutant-by-mode squared-divergence matrix), and `site_map` (a tibble
-#'   mapping the site index `i` to its PDB residue number `pdb_site`).
+#'   mapping the internal site index `site` to its PDB residue number `pdb_site`).
 #' @seealso [setup_enm()] (builds the `wt` input); [calculate_profiles()] and
 #'   [fit_lrmsd_i_msa_ml()] (consume the returned object).
 #' @family spm
@@ -194,7 +194,7 @@ generate_spm_data <- function(wt, n_mutations = 10,
 #' @return A list with three elements: `energy_data` (a tibble of per-mutant
 #'   stability and activity energy changes), `dr2_ijm` (the mutant-by-site matrix
 #'   of per-site squared displacements; columns are sites), and `site_map` (a
-#'   tibble mapping the site index `i` to its PDB residue number `pdb_site`).
+#'   tibble mapping the internal site index `site` to its PDB residue number `pdb_site`).
 #' @noRd
 preprocess_spm <- function(spm) {
   # Filter out no-mutation cases (m = 0) to align outputs
@@ -216,13 +216,17 @@ preprocess_spm <- function(spm) {
     dr2_ijm[i, ] <- spm_filtered$dr2_ijm[[i]]
   }
 
-  # Map internal site index i to structure-anchored pdb_site. The site index is the
+  # Map the internal site index to the structure-anchored pdb_site. The index is the
   # dr2_ijm column position (site[[1]] is 1:n_cols by construction); it is carried here
   # explicitly rather than as matrix colnames (which would leak onto colSums results).
   # The site / pdb_site list-columns are per-row parallel vectors; the first row carries
   # the full ordered mapping.
+  #
+  # The column is `site`, not `i`: this map translates EITHER a response site (`i`) or a
+  # mutated site (`j`) to its PDB label -- it is indifferent to the role. `i`/`j` keep
+  # their role-specific meaning in the scan arrays, where the contrast is real.
   site_map <- tibble(
-    i = as.integer(spm_filtered$site[[1]]),
+    site = as.integer(spm_filtered$site[[1]]),
     pdb_site = as.integer(spm_filtered$pdb_site[[1]])
   )
 

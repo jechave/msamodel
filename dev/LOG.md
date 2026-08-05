@@ -23,6 +23,47 @@ changes. The same episode often earns a line in each. Things to maybe do later l
 in `dev/ideas.md`.
 
 
+### 2026-08-05 — fitters take vectors, not a tibble; `site_map` keys on `site`; `znb_spm` regenerated
+
+Slice 2 of the interface simplification. The mechanics are in the diff; what follows is not.
+
+**Why vectors beat a tibble, and why it is not merely cosmetic.** The old fitters
+required a frame whose columns were named exactly `pdb_site` + `lrmsd_i_obs` — names
+for the *user's own measurements*, so every user's first step was a rename that existed
+only to satisfy the package. Options considered and rejected: column-name arguments
+(`value_col = "..."`) and tidy-eval (`{{ }}`) both *parameterise* the contract; vectors
+**remove** it, cost no new dependency, and delete code (`resolve_*_obs` lost its
+`select`). The deciding argument was that the frame was never used as a frame — it was
+dismantled on arrival.
+
+The non-obvious payoff: **a tibble cannot express a misaligned pairing.** Its columns
+are equal-length by construction, so key/value length disagreement was undetectable.
+With two vectors it is checkable, and `check_obs_vectors()` now rejects mismatched
+lengths, empties, and `NA`s. That check has no pre-slice equivalent.
+
+**The `site_map` rename forced a fixture regeneration — this was missed at plan time.**
+`znb_spm` is a stored 15 MB `.rda`, so renaming the column in `preprocess_spm()` changed
+only *newly generated* objects; the embedded fixture still carried `i`, and
+`load_all()` proved it immediately. The options were regenerate now or defer the rename
+to a fixture slice; the user chose to regenerate. Verified surgical: `site_map`'s values
+identical under the new name, and `dr2_ijm`/`dr2_njm`/`energy_data`/`znb_profile`/
+`znb_profile_n`/`znb_wt`/`znb_pdb` all `identical()` before-vs-after. `usethis` rewrote
+only `data/znb_spm.rda`, which corroborates it independently.
+
+**Numerical invariance was the load-bearing check, and it was exact.** A pre-change
+baseline of both fits was captured before the first edit; after, `a1`/`a2`/`logLik`/`cov`
+were `identical()` — bit-equal, not merely within tolerance. For a pure plumbing change
+that is the right bar: anything looser would have hidden a real drift.
+
+**`key_profile()` stopped manufacturing its join key.** It built `tibble(i = seq_len(n))`
+and left-joined `site_map` onto it — reconstructing a table that already existed. After
+the rename `site_map` **is** the `(site, pdb_site)` key table, so the join collapsed to
+`bind_cols`. The point is not brevity: the old `left_join` silently filled `pdb_site`
+with `NA` on a row-count mismatch, where the bind fails loud. Negative control confirmed
+the guard is what produces the diagnostic — with the check disabled, the same input dies
+in dplyr's recycling error instead.
+
+
 ### 2026-08-05 — output columns lost their `_i`/`_n` axis tags; why `pdb_site` was kept beside `site`
 
 Slice 1 of a multi-slice interface simplification. The mechanical part (the rename

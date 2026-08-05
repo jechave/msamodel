@@ -19,11 +19,11 @@ test_that("gof accessors fail loud on a fit missing the primitives", {
 test_that("fitter -> gof accessor is wired on both axes (smoke)", {
   cols <- c("D2", "AIC", "BIC", "logLik", "deviance", "null_deviance", "nobs", "k")
 
-  gi <- gof_lrmsd_i_msa_ml(fit_lrmsd_i_msa_ml(znb_spm, znb_profile))
+  gi <- gof_lrmsd_i_msa_ml(fit_lrmsd_i_msa_ml(znb_spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs))
   expect_named(gi, cols)
   expect_true(all(vapply(gi, is.finite, logical(1))))
 
-  gn <- gof_lrmsd_n_msa_ml(fit_lrmsd_n_msa_ml(znb_spm, znb_profile_n))
+  gn <- gof_lrmsd_n_msa_ml(fit_lrmsd_n_msa_ml(znb_spm, znb_profile_n$n, znb_profile_n$lrmsd_n_obs))
   expect_named(gn, cols)
   expect_true(all(vapply(gn, is.finite, logical(1))))
 })

@@ -18,23 +18,26 @@
 #' siblings); `key_profile` only prepends the axis key and, for the site axis, joins
 #' `pdb_site` via `spm$site_map`.
 #'
-#' The emitted key is named for the axis (`site` / `mode`), not for the internal index
-#' letter: the join onto `site_map` still happens on the internal `i`, which is renamed
-#' to `site` on the way out. `site_map` itself is untouched.
+#' On the site axis `site_map` IS the key table -- `(site, pdb_site)`, one row per site,
+#' in `dr2_ijm` column order -- so it is bound on positionally rather than joined against
+#' a manufactured index. The row-count equality that makes that valid is asserted, not
+#' assumed: a positional bind fails loud on a mismatch where a join would have silently
+#' filled `pdb_site` with `NA`.
 #'
 #' @param cols A NAMED list of equal-length bare numeric vectors. Names become columns.
 #' @param spm The `spm` object (for `site_map` on the site axis).
-#' @param axis `"site"` (key `site`, join `pdb_site`) or `"mode"` (key `mode`, no join).
+#' @param axis `"site"` (keys `site`, `pdb_site`) or `"mode"` (key `mode`).
 #' @return A tibble: site -> `site, pdb_site, <cols...>`; mode -> `mode, <cols...>`.
 #' @noRd
 key_profile <- function(cols, spm, axis) {
   n <- length(cols[[1]])
   body <- tibble::as_tibble(cols)
   if (axis == "site") {
-    tibble(i = seq_len(n)) %>%
-      dplyr::left_join(spm$site_map, by = "i") %>%
-      dplyr::transmute(site = i, pdb_site = pdb_site) %>%
-      dplyr::bind_cols(body)
+    if (nrow(spm$site_map) != n) {
+      stop("site_map has ", nrow(spm$site_map), " rows but the profile has ", n,
+           " sites; the spm object is inconsistent.")
+    }
+    dplyr::bind_cols(spm$site_map, body)
   } else {
     dplyr::bind_cols(tibble(mode = seq_len(n)), body)
   }
@@ -143,7 +146,7 @@ calculate_profiles <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
 #' @examples
 #' \dontrun{
 #' spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
-#' ml  <- fit_lrmsd_i_msa_ml(spm, znb_profile)
+#' ml  <- fit_lrmsd_i_msa_ml(spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
 #' predict_profiles(ml, spm, which = "nlrmsd")$site
 #' }
 #' @export
@@ -250,7 +253,7 @@ calculate_decomposition <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
 #' @examples
 #' \dontrun{
 #' spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
-#' ml  <- fit_lrmsd_i_msa_ml(spm, znb_profile)
+#' ml  <- fit_lrmsd_i_msa_ml(spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
 #' predict_decomposition(ml, spm, which = "nlrmsd")$site
 #' }
 #' @export

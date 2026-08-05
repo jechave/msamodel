@@ -87,7 +87,7 @@ test_that("SPM mode column equals penm's mode index (guards the seq_along choice
 })
 
 test_that("add_site_properties returns the expected site-property columns", {
-  sd0 <- tibble::tibble(site = znb_spm$site_map$i)   # user-facing key is `site`
+  sd0 <- tibble::tibble(site = znb_spm$site_map$site)
   props <- add_site_properties(sd0, znb_wt, PDB_SITE_ACTIVE)
   expect_contains(names(props), c("site", "dactive", "cn", "msf", "shell"))
 })

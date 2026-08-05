@@ -21,8 +21,9 @@ znb_profile_n
 }
 \description{
 Per-mode observed divergence used as the fitting target for the mode arm
-(\code{fit_lrmsd_n_msa_ml}). This is the template for the \code{observed_data}
-argument of the mode fit, keyed by the mode index \code{n}.
+(\code{fit_lrmsd_n_msa_ml}), keyed by the mode index \code{n}. The fitter takes the
+two columns as a \code{(mode, lrmsd_obs)} vector pair, so this is example data
+rather than a required schema.
 }
 \details{
 \strong{This data is SYNTHETIC, not empirical.} No empirical mode profile exists

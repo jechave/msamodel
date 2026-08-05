@@ -6,7 +6,8 @@
 \usage{
 fit_lrmsd_i_msa_ml(
   spm,
-  observed_data,
+  pdb_site,
+  lrmsd_obs,
   a1_range = c(0, 10),
   log2_a2_plus1_range = c(0, 13),
   init = NULL,
@@ -16,8 +17,13 @@ fit_lrmsd_i_msa_ml(
 \arguments{
 \item{spm}{A single-point-mutation \code{spm} object from \code{\link[=generate_spm_data]{generate_spm_data()}} (its \code{site_map} keys the fit to PDB residues).}
 
-\item{observed_data}{Tibble with columns \code{pdb_site} and \code{lrmsd_i_obs} (the fit
-target), as documented for \code{calculate_loglik_lrmsd_i_msa()}.}
+\item{pdb_site}{Integer vector of PDB residue numbers identifying the observations.
+Observations are a \verb{(pdb_site, lrmsd_obs)} vector pair rather than a data frame, so
+the columns of your own table can be named anything. May cover a subset of the
+model's sites; every value must exist in the model.}
+
+\item{lrmsd_obs}{Numeric vector of observed log structural divergences (the fit
+target), the same length as \code{pdb_site}.}
 
 \item{a1_range}{Length-2 \verb{[min, max]} box bound for \code{a1}.}
 
@@ -66,7 +72,7 @@ of \code{a2} is obtained by the delta method (\verb{da2/d(log2(a2+1)) = 2^(log2(
 \examples{
 \dontrun{
 spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
-ml <- fit_lrmsd_i_msa_ml(spm, znb_profile)
+ml <- fit_lrmsd_i_msa_ml(spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
 c(a1 = ml$a1, a2 = ml$a2)
 }
 }

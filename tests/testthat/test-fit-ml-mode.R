@@ -5,7 +5,7 @@
 
 test_that("fit_lrmsd_n_msa_ml returns the documented list shape", {
   pp <- znb_spm
-  ml <- fit_lrmsd_n_msa_ml(pp, znb_profile_n)
+  ml <- fit_lrmsd_n_msa_ml(pp, znb_profile_n$n, znb_profile_n$lrmsd_n_obs)
 
   expect_named(ml, c("a1", "a2", "logLik", "deviance", "null_deviance",
                      "nobs", "k", "sigma_hat", "cov",
@@ -30,13 +30,13 @@ test_that("mode ML sits at a local max of its own objective (consistency)", {
   # optimum is, is pinned by the frozen-reference test below; THAT it is a max there,
   # is pinned here.
   pp <- znb_spm
-  ml <- fit_lrmsd_n_msa_ml(pp, znb_profile_n)
+  ml <- fit_lrmsd_n_msa_ml(pp, znb_profile_n$n, znb_profile_n$lrmsd_n_obs)
 
   a1g <- ml$a1 + c(-0.1, -0.05, 0, 0.05, 0.1)
   bg  <- log2(ml$a2 + 1) + c(-0.3, -0.15, 0, 0.15, 0.3)
   G   <- expand.grid(a1 = a1g, b = bg)
   ll  <- apply(G, 1L, function(r)
-    msamodel:::calculate_loglik_lrmsd_n_msa(pp, znb_profile_n, a1 = r[["a1"]], a2 = 2^r[["b"]] - 1))
+    msamodel:::calculate_loglik_lrmsd_n_msa(pp, znb_profile_n$n, znb_profile_n$lrmsd_n_obs, a1 = r[["a1"]], a2 = 2^r[["b"]] - 1))
 
   expect_gte(ml$logLik, max(ll) - 1e-8)
 })
@@ -46,7 +46,7 @@ test_that("fit_lrmsd_n_msa_ml matches frozen reference values", {
   # 2026-06-24) on the synthetic znb_profile_n. Catches drift in the mode fit math /
   # optimiser path, not a re-derivation.
   pp <- znb_spm
-  ml <- fit_lrmsd_n_msa_ml(pp, znb_profile_n)
+  ml <- fit_lrmsd_n_msa_ml(pp, znb_profile_n$n, znb_profile_n$lrmsd_n_obs)
 
   expect_equal(ml$a1,        0.449221, tolerance = 1e-4)
   expect_equal(ml$a2,       40.819573, tolerance = 1e-3)
@@ -58,40 +58,42 @@ test_that("fit_lrmsd_n_msa_ml matches frozen reference values", {
 
 test_that("fit_lrmsd_n_msa_ml validates box bounds and init (fail loud)", {
   pp <- znb_spm
-  expect_error(fit_lrmsd_n_msa_ml(pp, znb_profile_n, a1_range = c(5)),
+  expect_error(fit_lrmsd_n_msa_ml(pp, znb_profile_n$n, znb_profile_n$lrmsd_n_obs, a1_range = c(5)),
                "a1_range must be a vector of length 2")
-  expect_error(fit_lrmsd_n_msa_ml(pp, znb_profile_n, a1_range = c(10, 0)),
+  expect_error(fit_lrmsd_n_msa_ml(pp, znb_profile_n$n, znb_profile_n$lrmsd_n_obs, a1_range = c(10, 0)),
                "a1_range must be a vector of length 2 with min < max")
-  expect_error(fit_lrmsd_n_msa_ml(pp, znb_profile_n, log2_a2_plus1_range = c(13, 0)),
+  expect_error(fit_lrmsd_n_msa_ml(pp, znb_profile_n$n, znb_profile_n$lrmsd_n_obs, log2_a2_plus1_range = c(13, 0)),
                "log2_a2_plus1_range must be a vector of length 2 with min < max")
-  expect_error(fit_lrmsd_n_msa_ml(pp, znb_profile_n, init = c(1)),
+  expect_error(fit_lrmsd_n_msa_ml(pp, znb_profile_n$n, znb_profile_n$lrmsd_n_obs, init = c(1)),
                "init must be a length-2 numeric")
-  expect_error(fit_lrmsd_n_msa_ml(pp, znb_profile_n, init = c(99, 1)),
+  expect_error(fit_lrmsd_n_msa_ml(pp, znb_profile_n$n, znb_profile_n$lrmsd_n_obs, init = c(99, 1)),
                "init must lie within the box")
-  expect_error(fit_lrmsd_n_msa_ml(pp, znb_profile_n, init = c(a1 = 1, b = 1)),
+  expect_error(fit_lrmsd_n_msa_ml(pp, znb_profile_n$n, znb_profile_n$lrmsd_n_obs, init = c(a1 = 1, b = 1)),
                "init must be an unnamed positional")
 })
 
 test_that("unknown mode index in observed_data is an error, not a silent drop", {
   # The n-coverage guard, mode analogue of the site pdb_site guard.
   pp <- znb_spm
-  bad <- znb_profile_n
-  bad$n[1] <- 999999L
+  bad_mode <- znb_profile_n$n
+  bad_mode[1] <- 999999L
   expect_error(
-    msamodel:::calculate_loglik_lrmsd_n_msa(pp, bad, a1 = 2, a2 = 5),
+    msamodel:::calculate_loglik_lrmsd_n_msa(pp, bad_mode, znb_profile_n$lrmsd_n_obs,
+                                            a1 = 2, a2 = 5),
     "mode index\\(es\\) not present in the model"
   )
-  expect_error(fit_lrmsd_n_msa_ml(pp, bad), "not present in the model")
+  expect_error(fit_lrmsd_n_msa_ml(pp, bad_mode, znb_profile_n$lrmsd_n_obs),
+               "not present in the model")
 })
 
 test_that("calculate_loglik_lrmsd_n_msa is invariant to a constant shift in lrmsd_n_obs", {
   # Both profiles are mean-centered, so adding a constant to the observed column
   # leaves the log-likelihood unchanged. Independent property, not a re-derivation.
   pp <- znb_spm
-  ll1 <- msamodel:::calculate_loglik_lrmsd_n_msa(pp, znb_profile_n, a1 = 2, a2 = 5)
-  shifted <- znb_profile_n
-  shifted$lrmsd_n_obs <- shifted$lrmsd_n_obs + 3.7
-  ll2 <- msamodel:::calculate_loglik_lrmsd_n_msa(pp, shifted, a1 = 2, a2 = 5)
+  ll1 <- msamodel:::calculate_loglik_lrmsd_n_msa(pp, znb_profile_n$n, znb_profile_n$lrmsd_n_obs, a1 = 2, a2 = 5)
+  shifted <- znb_profile_n$lrmsd_n_obs + 3.7
+  ll2 <- msamodel:::calculate_loglik_lrmsd_n_msa(pp, znb_profile_n$n, shifted,
+                                                 a1 = 2, a2 = 5)
   expect_equal(ll1, ll2)
 })
 
@@ -99,7 +101,7 @@ test_that("znb_profile_n is reproducible from its seeded recipe", {
   # Determinism guard (hard project rule): re-derive the synthetic fixture from its
   # data-raw recipe and compare to the embedded data, to machine precision.
   ppm <- znb_spm
-  site_fit <- fit_lrmsd_i_msa_ml(znb_spm, znb_profile)
+  site_fit <- fit_lrmsd_i_msa_ml(znb_spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
   dr2_n <- dr2_msa(ppm$dr2_njm, ppm$energy_data, site_fit$a1, site_fit$a2)
   set.seed(2025)
   expected_obs <- log(sqrt(dr2_n)) + rnorm(length(dr2_n), 0, 0.30)

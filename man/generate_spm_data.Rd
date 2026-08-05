@@ -36,7 +36,7 @@ An \code{spm} object: a list with four elements -- \code{energy_data} (a tibble 
 per-mutant stability and activity energy changes, \code{j}, \code{m}, \code{ddg_jm}, \code{ddgact_jm},
 wild-type rows dropped), \code{dr2_ijm} (the mutant-by-site squared-divergence matrix),
 \code{dr2_njm} (the mutant-by-mode squared-divergence matrix), and \code{site_map} (a tibble
-mapping the site index \code{i} to its PDB residue number \code{pdb_site}).
+mapping the internal site index \code{site} to its PDB residue number \code{pdb_site}).
 }
 \description{
 Runs a single-point-mutation scan over a protein structure and returns the

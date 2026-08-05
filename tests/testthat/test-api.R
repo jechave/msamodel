@@ -19,7 +19,7 @@ test_that("calculate_profiles returns both axes with the which-selected column",
 
 test_that("predict_profiles adds an _se sibling to every value column, both axes", {
   spm <- znb_spm
-  ml  <- fit_lrmsd_i_msa_ml(spm, znb_profile)
+  ml  <- fit_lrmsd_i_msa_ml(spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
   for (which in c("lrmsd", "nlrmsd")) {
     out <- predict_profiles(ml, spm, which = which)
     expect_named(out$site, c("site", "pdb_site", paste0(which, "_msa"), paste0(which, "_msa_se")))
@@ -48,8 +48,8 @@ test_that("calculate_decomposition switches nested + component family in lockste
 
 test_that("predict_decomposition(nlrmsd) bands every nested + component column, both axes", {
   spm <- znb_spm
-  ml  <- fit_lrmsd_i_msa_ml(spm, znb_profile)
-  mln <- fit_lrmsd_n_msa_ml(spm, znb_profile_n)
+  ml  <- fit_lrmsd_i_msa_ml(spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
+  mln <- fit_lrmsd_n_msa_ml(spm, znb_profile_n$n, znb_profile_n$lrmsd_n_obs)
   out  <- predict_decomposition(ml, spm, which = "nlrmsd")
   # every value column has an adjacent _se; 7 value cols -> 7 _se cols on each axis
   # both branches share one value vocabulary, so one `vals` drives both assertions
@@ -62,7 +62,7 @@ test_that("predict_decomposition(nlrmsd) bands every nested + component column, 
 
 test_that("predict_decomposition(which='lrmsd') errors as to-be-developed", {
   spm <- znb_spm
-  ml  <- fit_lrmsd_i_msa_ml(spm, znb_profile)
+  ml  <- fit_lrmsd_i_msa_ml(spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
   expect_error(predict_decomposition(ml, spm, which = "lrmsd"), "to be developed")
   # and it must NOT be reachable via a partial-match or a silent default
   expect_error(predict_decomposition(ml, spm, which = "lr"))     # bad which -> match.arg stops
@@ -75,6 +75,17 @@ test_that("the verbs validate their inputs (which + fit contract)", {
   # predict_* fail loud on an object that is not an ML fit (missing a1/a2/cov)
   expect_error(predict_profiles(list(a1 = 1, a2 = 1), spm), "2x2 cov")
   expect_error(predict_decomposition(list(a1 = 1, a2 = 1), spm, "nlrmsd"), "2x2 cov")
+})
+
+test_that("a site_map inconsistent with the profile length fails loud, not silently NA", {
+  # key_profile binds site_map on POSITIONALLY (it is already the (site, pdb_site) key
+  # table in dr2_ijm column order). The previous left_join against a manufactured index
+  # would have silently filled pdb_site with NA on a mismatch; this must error instead.
+  bad <- znb_spm
+  bad$site_map <- bad$site_map[1:100, ]
+  expect_error(calculate_profiles(bad, 1, 1), "site_map has 100 rows")
+  # Control: the untampered object still works, so the guard is not blanket.
+  expect_no_error(calculate_profiles(znb_spm, 1, 1))
 })
 
 # ---- Frozen numeric reference ----------------------------------------------------
@@ -117,8 +128,8 @@ test_that("calculate_* reproduce frozen reference values (znb_spm at a1=1.3, a2=
 
 test_that("predict_* reproduce frozen reference values (fixed ML fit; _se pinned)", {
   spm  <- znb_spm
-  ml_i <- fit_lrmsd_i_msa_ml(spm, znb_profile)     # deterministic; a1>0 and a2>0
-  ml_n <- fit_lrmsd_n_msa_ml(spm, znb_profile_n)
+  ml_i <- fit_lrmsd_i_msa_ml(spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)     # deterministic; a1>0 and a2>0
+  ml_n <- fit_lrmsd_n_msa_ml(spm, znb_profile_n$n, znb_profile_n$lrmsd_n_obs)
   tol  <- 1e-6                                      # se's carry Hessian round-off; looser
   expect_true(ml_i$a1 > 0 && ml_i$a2 > 0)          # both arms live (guards the arm-point mix)
 

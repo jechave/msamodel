@@ -5,7 +5,7 @@
 # hard-coded LITERALS -- never recomputed by the code under test -- so that
 # `uncertainty = "parameter"` reproducing them is a real regression lock: a change in the
 # parameter arm makes the test go red. First six residues of the znb site fit
-# (fit_lrmsd_i_msa_ml(znb_spm, znb_profile)).
+# (fit_lrmsd_i_msa_ml(znb_spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)).
 PREREF <- list(
   lrmsd_lower  = c(-2.319570163, -3.291483151, -3.224439846, -3.541502590,
                    -3.646696482, -3.548340622),

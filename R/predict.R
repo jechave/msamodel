@@ -87,7 +87,7 @@ validate_gof_fit <- function(fit, producer) {
 #' @examples
 #' \dontrun{
 #' spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
-#' ml <- fit_lrmsd_i_msa_ml(spm, znb_profile)
+#' ml <- fit_lrmsd_i_msa_ml(spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
 #' gof_lrmsd_i_msa_ml(ml)
 #' }
 #' @export
@@ -113,7 +113,7 @@ gof_lrmsd_i_msa_ml <- function(fit) {
 #' @examples
 #' \dontrun{
 #' spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
-#' ml <- fit_lrmsd_n_msa_ml(spm, znb_profile_n)
+#' ml <- fit_lrmsd_n_msa_ml(spm, znb_profile_n$n, znb_profile_n$lrmsd_n_obs)
 #' gof_lrmsd_n_msa_ml(ml)
 #' }
 #' @export
