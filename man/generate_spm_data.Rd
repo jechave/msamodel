@@ -62,6 +62,6 @@ dim(spm$dr2_njm)
 }
 \seealso{
 \code{\link[=setup_enm]{setup_enm()}} (builds the \code{wt} input); \code{\link[=calculate_profiles]{calculate_profiles()}} and
-\code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}} (consume the returned object).
+\code{\link[=fit_lrmsd_msa_site]{fit_lrmsd_msa_site()}} (consume the returned object).
 }
 \concept{spm}

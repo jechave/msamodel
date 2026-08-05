@@ -4,25 +4,31 @@
 #   Rscript dev/callgraph.R
 #
 # Produces (git-ignored, in dev/preview/):
-#   callgraph.pdf   — a 2-page vector document, one arm per page, each sized to
-#                     print legibly on a single Letter sheet (portrait):
-#                       p1  site branch   (site fns + everything they call)
-#                       p2  mode branch   (mode fns + everything they call)
+#   callgraph.pdf   — a 3-page vector document, one PIPELINE STAGE per page, each sized
+#                     to print legibly on a single Letter sheet (landscape):
+#                       p1  build & fit   (setup -> spm -> fit -> gof)
+#                       p2  calculate     (the bare-(a1,a2) forward-map verbs)
+#                       p3  predict       (the fit-driven banded verbs + band machinery)
 #
 # HOW IT WORKS (no hand-drawn edges): mvbutils::foodweb does static analysis of the
 # loaded package's function bodies to get the real caller -> callee edges; those are
 # written to Graphviz DOT and rendered with `dot`. Every arrow means "A calls B". Each
-# page is an induced subgraph: an arm's own functions plus their transitive callees (so
-# the shared spine each arm reaches is shown, coloured grey). Re-run after any change to
-# R/ to refresh the picture.
+# page is an induced subgraph: a stage's entry-point functions plus their transitive
+# callees, so the shared primitive layer each stage reaches is shown (and repeats, grey,
+# across pages). Re-run after any change to R/ to refresh the picture.
+#
+# STRUCTURE THIS SHOWS (post old-grid retirement): the exported surface is the four
+# axis-agnostic leaf verbs (calculate_profiles / predict_profiles / calculate_decomposition
+# / predict_decomposition) + fit_*_ml + gof_*_ml + the setup/spm helpers. They fan down
+# into the shared @noRd forward-map primitives (dr2_msa, lrmsd_msa, nlrmsd_msa, the
+# nested_models / decomposition primitives, weights_jm) and the band machinery
+# (var_param_delta, var_spm_*, grad_theta, delta_band, spm_hmat). Nodes are coloured by ROLE
+# (setup / spm / model-primitive / fitting / prediction / api), NOT by site/mode axis —
+# the axis-specific grid was deleted, so there is no longer a site arm vs a mode arm.
 #
 # PRINT-LEGIBLE by design: high-contrast (black text, black arrows, saturated fills),
-# and each page is scaled UP to fill a Letter sheet at a readable font. The whole-graph
-# view was dropped — at this node count it cannot be both on one sheet and legible; the
-# two arm pages together already cover every function. The shared axis-blind primitive
-# layer (dr2_msa, lrmsd_msa, var_spm_*, the fit/loglik cores, weights_jm) has no _i_/_n_
-# token, so it classifies as "agnostic" and renders as the grey shared spine both arms
-# call into — which is exactly the post-unification structure the graph should show.
+# each page scaled to fill a Letter sheet at a readable font. dashed border = @noRd
+# internal; solid = exported.
 #
 # Requires: mvbutils + qpdf (R pkgs) and graphviz's `dot` on PATH
 # (`brew install graphviz`).
@@ -61,26 +67,51 @@ unlink(.tmpdev)
 m  <- fw$funmat
 nm <- rownames(m)
 
-# --- classify each node by axis; export status decides the border -------------------
+# --- classify each node by ROLE (the layer it belongs to) ---------------------------
+# The role decides the fill colour. Exported-vs-internal decides the border (solid vs
+# dashed). Roles are matched by name pattern against the current function inventory;
+# anything unmatched falls to "other" (magenta) so a new function is loud, not hidden.
 exported <- getNamespaceExports("msamodel")
-axis <- ifelse(grepl("_i(_|$)", nm), "site",
-        ifelse(grepl("_n(_|$)", nm), "mode", "agnostic"))
-axis[nm == "preprocess_spm_mode"] <- "mode"   # named mode, no _n token
 
-# --- high-contrast, print-first palette --------------------------------------------
-# Saturated arm fills, BLACK node text and BLACK arrows so it survives a b/w laser and
-# holds contrast in colour. Shared (non-arm) nodes are a solid mid-grey on branch pages.
-# dashed border = @noRd internal; solid = exported.
-ARM <- list(
-  site = list(fill = "#bfe0d8", border = "#0f4b41"),   # teal
-  mode = list(fill = "#f2dca6", border = "#7a4e00")     # gold
+role_of <- function(x) {
+  if (x %in% c("setup_enm", "add_site_properties")) return("setup")
+  if (x %in% c("generate_spm_data", "generate_spm_core",
+               "preprocess_spm", "preprocess_spm_mode")) return("spm")
+  if (grepl("^predict_", x) ||
+      x %in% c("var_param_delta", "var_spm_lrmsd", "var_spm_nlrmsd", "var_spm_nphi",
+               "grad_theta", "delta_band", "spm_hmat", "as_theta", "se_cols",
+               "key_profile", "uncertainty_gates", "validate_ml_fit")) return("prediction")
+  if (grepl("^fit_", x) || grepl("loglik", x) ||
+      x %in% c("gof_from_primitives", "fit_gof_primitives", "check_obs_vectors",
+               "calculate_null_deviance",
+               "match_lrmsd_obs_pred", "resolve_site_obs", "resolve_mode_obs")) return("fitting")
+  if (x %in% c("calculate_profiles", "calculate_decomposition")) return("api")
+  # everything else = the model / forward-map primitive layer
+  if (x %in% c("pfix_msa", "weights_jm", "weights_jm_spm", "dr2_msa", "lrmsd_msa",
+               "nlrmsd_msa", "lrmsd_nested_models", "nlrmsd_nested_models",
+               "lrmsd_msa_decomposition", "nlrmsd_msa_decomposition",
+               "decompose_nested", "axis_branches", "delta_structure_dr")) return("model")
+  "other"
+}
+role <- vapply(nm, role_of, character(1))
+
+# --- high-contrast, print-first palette, keyed by ROLE ------------------------------
+# Saturated fills, BLACK node text and BLACK arrows so it survives a b/w laser and holds
+# contrast in colour. dashed border = @noRd internal; solid = exported.
+ROLE_COL <- list(
+  setup      = list(fill = "#cfe8cf", border = "#245c24"),  # green
+  spm        = list(fill = "#cfe0f2", border = "#1f4e79"),  # blue
+  api        = list(fill = "#f6cfe0", border = "#8a1f52"),  # pink  (calculate_* leaf verbs)
+  prediction = list(fill = "#f2dca6", border = "#7a4e00"),  # gold  (predict_* + band machinery)
+  fitting    = list(fill = "#e3d4f2", border = "#4a237a"),  # purple
+  model      = list(fill = "#d9d7d2", border = "#3a3f4b"),  # grey  (shared primitive spine)
+  other      = list(fill = "#ff66cc", border = "#000000")   # loud: an unclassified function
 )
-GREY <- list(fill = "#d9d7d2", border = "#3a3f4b")      # shared spine
 
-# One node-declaration line. `grey` overrides the arm colour for shared nodes.
-node_line <- function(x, arm_axis, grey = FALSE, indent = "  ") {
+# One node-declaration line, coloured by role.
+node_line <- function(x, indent = "  ") {
   is_exp <- x %in% exported
-  col    <- if (grey) GREY else ARM[[arm_axis]]
+  col    <- ROLE_COL[[role[[x]]]]
   sprintf(paste0("%s\"%s\" [shape=box, style=\"filled,%s\", color=\"%s\", penwidth=1.6, ",
                  "fillcolor=\"%s\", fontcolor=\"black\"];"),
           indent, x, if (is_exp) "solid" else "dashed", col$border, col$fill)
@@ -99,18 +130,14 @@ reachable <- function(roots) {
   seen
 }
 
-# Induced-subgraph DOT for one arm, sized to fill a Letter portrait sheet.
-# `roots` = the arm's own functions; nodes NOT in `roots` are shared spine, drawn grey.
-arm_dot <- function(roots, title, arm_axis) {
+# Induced-subgraph DOT for one pipeline stage, sized to fill a Letter landscape sheet.
+stage_dot <- function(roots, title) {
   keep <- reachable(roots)
   L <- c(
-    "digraph arm {",
-    # These arm graphs are inherently WIDE and SHALLOW (many roots across the top, only
-    # a few ranks deep), so left alone dot renders a thin horizontal strip that scales
-    # to a tiny band on the sheet. ratio="fill" with an explicit size FORCES the drawing
-    # to the box's proportions -- it stretches the few ranks apart vertically to fill a
-    # landscape-Letter sheet, so nodes and text are large on paper. nodesep/ranksep set
-    # generous minimums so the fill has room to work.
+    "digraph stage {",
+    # ratio=fill + explicit size FORCES the drawing to the box's proportions so nodes and
+    # text are large on paper (these graphs are wide-and-shallow; left alone dot renders a
+    # thin strip). nodesep/ranksep give the fill room to work.
     "  size=\"10,7.5\"; ratio=fill; margin=0;",
     "  labelloc=\"t\";",
     sprintf("  label=\"%s\";", title),
@@ -120,15 +147,18 @@ arm_dot <- function(roots, title, arm_axis) {
     "  node  [fontname=\"Courier-Bold\", fontsize=15, margin=\"0.18,0.10\"];",
     "  edge  [color=\"black\", penwidth=1.2, arrowsize=0.9];"
   )
-  for (x in keep) L <- c(L, node_line(x, arm_axis, grey = !(x %in% roots)))
+  for (x in keep) L <- c(L, node_line(x))
   for (a in keep) for (b in intersect(colnames(m)[m[a, ] > 0], keep)) {
     L <- c(L, sprintf("  \"%s\" -> \"%s\";", a, b))
   }
   c(L, "}")
 }
 
-site_roots <- nm[axis == "site" | nm == "preprocess_spm"]
-mode_roots <- nm[axis == "mode"]
+# --- the three pipeline stages (entry points; callees follow transitively) ----------
+build_fit_roots <- c("setup_enm", "generate_spm_data", "add_site_properties",
+                     "fit_lrmsd_msa_site", "fit_lrmsd_msa_mode")
+calculate_roots <- c("calculate_profiles", "calculate_decomposition")
+predict_roots   <- c("predict_profiles", "predict_decomposition")
 
 # --- render each page to its own temp PDF, then merge --------------------------------
 outdir <- file.path(root, "dev", "preview")
@@ -138,25 +168,32 @@ render_pdf <- function(dot_lines) {
   dotfile <- tempfile(fileext = ".dot")
   pdffile <- tempfile(fileext = ".pdf")
   writeLines(dot_lines, dotfile)
-  # -Gsize is already in the DOT; force Letter media box so the sheet is standard.
   ok <- system2("dot", c("-Tpdf", shQuote(dotfile), "-o", shQuote(pdffile)))
   unlink(dotfile)
   if (ok != 0) stop("dot failed to render a page")
   pdffile
 }
 
+legend <- "roles: green=setup  blue=spm  pink=calculate(api)  gold=predict  purple=fitting  grey=model-primitive  |  solid=exported  dashed=@noRd  |  arrow: A calls B"
 pages <- c(
-  render_pdf(arm_dot(site_roots,
-                     "msamodel — site arm (i) + everything it calls   (arrow: A calls B; teal = site, grey = shared; dashed = @noRd)",
-                     "site")),
-  render_pdf(arm_dot(mode_roots,
-                     "msamodel — mode arm (n) + everything it calls   (arrow: A calls B; gold = mode, grey = shared; dashed = @noRd)",
-                     "mode"))
+  render_pdf(stage_dot(build_fit_roots,
+                       sprintf("msamodel — build & fit stage (setup -> spm -> fit -> gof)\\n%s", legend))),
+  render_pdf(stage_dot(calculate_roots,
+                       sprintf("msamodel — calculate stage (bare-(a1,a2) forward-map verbs)\\n%s", legend))),
+  render_pdf(stage_dot(predict_roots,
+                       sprintf("msamodel — predict stage (fit-driven banded verbs + band machinery)\\n%s", legend)))
 )
 on.exit(unlink(pages), add = TRUE)
 
 pdf_out <- file.path(outdir, "callgraph.pdf")
 qpdf::pdf_combine(pages, output = pdf_out)
 
-cat(sprintf("call graph: %d functions, %d edges — 2-page print-legible PDF\n  %s\n",
+cat(sprintf("call graph: %d functions, %d edges — 3-page print-legible PDF (by pipeline stage)\n  %s\n",
             length(nm), sum(m > 0), pdf_out))
+
+# Loud check: any function that fell through role classification (would render magenta).
+unclassified <- nm[role == "other"]
+if (length(unclassified)) {
+  cat("NOTE: unclassified functions (render magenta — assign a role in role_of()):\n  ",
+      paste(unclassified, collapse = ", "), "\n")
+}

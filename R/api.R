@@ -132,7 +132,7 @@ calculate_profiles <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
 #' which residues a given dataset observes; when overlaying observed data, centre it on
 #' its own matched support.
 #'
-#' @param fit A list from [fit_lrmsd_i_msa_ml()] (site) or [fit_lrmsd_n_msa_ml()] (mode),
+#' @param fit A list from [fit_lrmsd_msa_site()] (site) or [fit_lrmsd_msa_mode()] (mode),
 #'   carrying `a1`, `a2`, and the 2x2 `cov` on the `(a1, log2(a2+1))` scale. One fit
 #'   drives both axes.
 #' @param spm The `spm` object from [generate_spm_data()] (the same one used for the fit).
@@ -146,13 +146,13 @@ calculate_profiles <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
 #' @examples
 #' \dontrun{
 #' spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
-#' ml  <- fit_lrmsd_i_msa_ml(spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
+#' ml  <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
 #' predict_profiles(ml, spm, which = "nlrmsd")$site
 #' }
 #' @export
 predict_profiles <- function(fit, spm, which = c("lrmsd", "nlrmsd")) {
   which <- match.arg(which)
-  validate_ml_fit(fit, "fit_lrmsd_i_msa_ml() / fit_lrmsd_n_msa_ml()")
+  validate_ml_fit(fit, "fit_lrmsd_msa_site() / fit_lrmsd_msa_mode()")
   centred <- which == "nlrmsd"
   mean_fwd <- if (centred) nlrmsd_msa else lrmsd_msa     # value column primitive
   spm_var  <- if (centred) var_spm_nlrmsd else var_spm_lrmsd
@@ -239,7 +239,7 @@ calculate_decomposition <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
 #'   nested models on the same scan (retaining the between-model covariance), from
 #'   `var_spm_nphi()` at the fit point; the parameter arm is per contribution.
 #'
-#' @param fit A list from [fit_lrmsd_i_msa_ml()] (site) or [fit_lrmsd_n_msa_ml()] (mode),
+#' @param fit A list from [fit_lrmsd_msa_site()] (site) or [fit_lrmsd_msa_mode()] (mode),
 #'   carrying `a1`, `a2`, `cov`.
 #' @param spm The `spm` object from [generate_spm_data()] (the same one used for the fit).
 #' @param which Must be `"nlrmsd"` (default). `"lrmsd"` is accepted by the signature but
@@ -253,7 +253,7 @@ calculate_decomposition <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
 #' @examples
 #' \dontrun{
 #' spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
-#' ml  <- fit_lrmsd_i_msa_ml(spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
+#' ml  <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
 #' predict_decomposition(ml, spm, which = "nlrmsd")$site
 #' }
 #' @export
@@ -263,7 +263,7 @@ predict_decomposition <- function(fit, spm, which = c("lrmsd", "nlrmsd")) {
     stop("predict_decomposition(which = \"lrmsd\") is to be developed: the uncentred ",
          "component band (standard error) is not yet derived. Use which = \"nlrmsd\".")
   }
-  validate_ml_fit(fit, "fit_lrmsd_i_msa_ml() / fit_lrmsd_n_msa_ml()")
+  validate_ml_fit(fit, "fit_lrmsd_msa_site() / fit_lrmsd_msa_mode()")
   theta_hat <- as_theta(fit$a1, fit$a2)
   variant_a <- list(mm = c(0, 0), ms = c(fit$a1, 0),
                     ma = c(0, fit$a2), msa = c(fit$a1, fit$a2))

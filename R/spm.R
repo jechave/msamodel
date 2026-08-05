@@ -148,7 +148,7 @@ generate_spm_core <- function(wt, n_mutations = 10,
 #'   `dr2_njm` (the mutant-by-mode squared-divergence matrix), and `site_map` (a tibble
 #'   mapping the internal site index `site` to its PDB residue number `pdb_site`).
 #' @seealso [setup_enm()] (builds the `wt` input); [calculate_profiles()] and
-#'   [fit_lrmsd_i_msa_ml()] (consume the returned object).
+#'   [fit_lrmsd_msa_site()] (consume the returned object).
 #' @family spm
 #' @examples
 #' \dontrun{

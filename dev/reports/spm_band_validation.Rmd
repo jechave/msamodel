@@ -122,7 +122,7 @@ the cross-model correlation for $\phi$). The band is the SD across $B$ replicate
 ```{r compute}
 pp <- znb_spm; M <- pp$dr2_ijm
 N  <- nrow(M); S <- ncol(M); ed <- pp$energy_data
-ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
+ml <- fit_lrmsd_msa_site(pp, znb_profile)
 a1 <- ml$a1; a2 <- ml$a2
 B  <- 2000
 
@@ -224,13 +224,13 @@ ggplot(dat, aes(site, delta_sd / boot_sd, colour = group)) +
 
 The mode axis is the exact parallel of the site axis: the same delta and bootstrap
 procedures, on the per-mode divergence matrix `dr2_njm` (from `preprocess_spm_mode`)
-instead of the per-site `dr2_ijm`, and the mode fit `fit_lrmsd_n_msa_ml`. It is validated
+instead of the per-site `dr2_ijm`, and the mode fit `fit_lrmsd_msa_mode`. It is validated
 separately because the two axes have separate preprocessing and response matrices.
 
 ```{r compute-mode}
 ppm <- preprocess_spm_mode(znb_spm); Mn <- ppm$dr2_njm
 Nn  <- nrow(Mn); Sn <- ncol(Mn); edn <- ppm$energy_data
-mln <- fit_lrmsd_n_msa_ml(ppm, znb_profile_n)
+mln <- fit_lrmsd_msa_mode(ppm, znb_profile_n)
 a1n <- mln$a1; a2n <- mln$a2
 
 Wn <- list(MM  = pfix_msa(edn$ddg_jm, edn$ddgact_jm, 0, 0),

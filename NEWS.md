@@ -2,6 +2,49 @@
 
 ## API changes
 
+* **The fitters are renamed, and goodness of fit is part of the fit.**
+  `fit_lrmsd_i_msa_ml()` / `fit_lrmsd_n_msa_ml()` are now
+  **`fit_lrmsd_msa_site()`** / **`fit_lrmsd_msa_mode()`**: `lrmsd_msa` is the name of
+  the profile everywhere else in the package, so it stays intact and the axis goes at
+  the end as a word. The `_ml` suffix is dropped (it distinguished ML from an MCMC arm
+  that no longer exists).
+
+  `gof_lrmsd_i_msa_ml()` and `gof_lrmsd_n_msa_ml()` are **removed, not renamed**. The
+  fitter already computed those numbers at the optimum, so the accessors only
+  reassembled what they were handed. Goodness of fit is now `fit$gof`, a one-row tibble
+  (`D2`, `AIC`, `BIC`, `logLik`, `deviance`, `null_deviance`, `nobs`, `k`, `sigma_hat`).
+
+  ```r
+  ml <- fit_lrmsd_msa_site(spm, pdb_site, lrmsd_obs)
+  ml$gof$D2        # was: gof_lrmsd_i_msa_ml(ml)$D2
+  ```
+
+  The fit object's top level is now the **estimate** only — `a1`, `a2`, `logLik`, `cov`,
+  `se_a1`, `se_a2`, `convergence` — plus `gof` and `call`. `deviance`, `null_deviance`,
+  `nobs`, `k`, and `sigma_hat` moved off the top level into `$gof`. New `fit$call`
+  records the matched call: the fit object is axis-free (one fit drives both axes in
+  `predict_*`), so `$call` is what tells you which fitter produced it.
+
+* **Observations are supplied as a vector pair, not a data frame.** The fitters and the
+  internal likelihoods take `(spm, pdb_site, lrmsd_obs)` / `(spm, mode, lrmsd_obs)`
+  instead of an `observed_data` tibble with package-mandated column names. Your own
+  table can name its columns anything:
+
+  ```r
+  fit_lrmsd_msa_site(spm, my_data$residue, my_data$divergence)
+  ```
+
+  `znb_profile` / `znb_profile_n` are therefore example data, not a required schema.
+  Input is validated at the boundary: key and value must have equal length, be
+  non-empty, and contain no `NA` — a length mismatch a data frame could not express.
+
+* **Output columns dropped their `_i` / `_n` axis tags.** The four leaf verbs return
+  `list(site =, mode =)`, so the axis was stated three times per tibble. Both branches
+  now emit an identical value vocabulary (`lrmsd_msa`, `nlrmsd_msa`, `lrmsd_mm`, ...);
+  only the key column differs (`site` + `pdb_site` vs `mode`). `spm$site_map` keys on
+  `site` rather than `i`, since it maps *either* a response or a mutated site to its PDB
+  label.
+
 * **Four leaf verbs are the profile/decomposition surface; the per-axis
   `predict_*_ml` grid was retired.** `calculate_profiles()`, `predict_profiles()`,
   `calculate_decomposition()`, and `predict_decomposition()` each take `which =

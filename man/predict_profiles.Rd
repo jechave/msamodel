@@ -7,7 +7,7 @@
 predict_profiles(fit, spm, which = c("lrmsd", "nlrmsd"))
 }
 \arguments{
-\item{fit}{A list from \code{\link[=fit_lrmsd_i_msa_ml]{fit_lrmsd_i_msa_ml()}} (site) or \code{\link[=fit_lrmsd_n_msa_ml]{fit_lrmsd_n_msa_ml()}} (mode),
+\item{fit}{A list from \code{\link[=fit_lrmsd_msa_site]{fit_lrmsd_msa_site()}} (site) or \code{\link[=fit_lrmsd_msa_mode]{fit_lrmsd_msa_mode()}} (mode),
 carrying \code{a1}, \code{a2}, and the 2x2 \code{cov} on the \verb{(a1, log2(a2+1))} scale. One fit
 drives both axes.}
 
@@ -37,7 +37,7 @@ its own matched support.
 \examples{
 \dontrun{
 spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
-ml  <- fit_lrmsd_i_msa_ml(spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
+ml  <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
 predict_profiles(ml, spm, which = "nlrmsd")$site
 }
 }

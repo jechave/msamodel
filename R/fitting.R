@@ -67,6 +67,40 @@ fit_gof_primitives <- function(predictions, obs) {
   )
 }
 
+#' Derive the glance-style goodness-of-fit row from the primitives
+#'
+#' Pure arithmetic, called by the fitting core once the optimum is found. `D2` is
+#' deviance-explained (`= 1 - Var(resid)/Var(obs)` since both deviances are sums of
+#' squares on the same `n`); `AIC`/`BIC` use the full profiled Gaussian `logLik`.
+#'
+#' `D2` is at most `1` but has **no lower bound**: it is negative whenever the prediction
+#' is worse than the flat null. It is returned unclamped -- a negative `D2` is a real
+#' signal that the fit is poor, not an error. `AIC`/`BIC` are per-fit numbers, meaningful
+#' only *compared* against another model fit at its own maximum.
+#'
+#' @param logLik The profiled Gaussian log-likelihood at the fit.
+#' @param deviance The model deviance (residual sum of squares).
+#' @param null_deviance The flat/mean-only null deviance.
+#' @param nobs Number of observations.
+#' @param k Number of estimated parameters.
+#' @param sigma_hat The profiled noise scale at the optimum.
+#' @return A one-row tibble: `D2`, `AIC`, `BIC`, and the primitives (`logLik`,
+#'   `deviance`, `null_deviance`, `nobs`, `k`, `sigma_hat`).
+#' @noRd
+gof_from_primitives <- function(logLik, deviance, null_deviance, nobs, k, sigma_hat) {
+  tibble::tibble(
+    D2            = 1 - deviance / null_deviance,
+    AIC           = -2 * logLik + 2 * k,
+    BIC           = -2 * logLik + k * log(nobs),
+    logLik        = logLik,
+    deviance      = deviance,
+    null_deviance = null_deviance,
+    nobs          = nobs,
+    k             = k,
+    sigma_hat     = sigma_hat
+  )
+}
+
 #' Axis-blind ML optimisation + asymptotic covariance
 #'
 #' The shared machinery of `fit_lrmsd_{i,n}_msa_ml()`: validate the box, build the
@@ -79,12 +113,14 @@ fit_gof_primitives <- function(predictions, obs) {
 #'   at the optimum.
 #' @param a1_range,log2_a2_plus1_range,init,grid_n The box + start controls (see the
 #'   exported fits).
-#' @return The fit list (a1, a2, logLik, deviance, null_deviance, nobs, k, sigma_hat, cov,
-#'   se_a1, se_a2, convergence).
+#' @param call The user-facing `match.call()` of the exported wrapper, stored as `$call`
+#'   (the core cannot capture it itself).
+#' @return The fit list: the estimate (`a1`, `a2`, `logLik`, `cov`, `se_a1`, `se_a2`,
+#'   `convergence`), the `gof` tibble, and `call`.
 #' @noRd
 fit_lrmsd_msa_ml_core <- function(nll, gof_fn,
                                   a1_range, log2_a2_plus1_range,
-                                  init, grid_n) {
+                                  init, grid_n, call) {
   if (length(a1_range) != 2 || a1_range[1] >= a1_range[2]) {
     stop("a1_range must be a vector of length 2 with min < max")
   }
@@ -132,21 +168,28 @@ fit_lrmsd_msa_ml_core <- function(nll, gof_fn,
   se_theta2 <- se[2]
   se_a2 <- abs(2^theta2_hat * log(2)) * se_theta2  # delta: a2 = 2^theta2 - 1, da2/dtheta2 = 2^theta2 * ln 2
 
-  gof <- gof_fn(a1_hat, a2_hat)
+  prim <- gof_fn(a1_hat, a2_hat)
 
+  # Top level is the ESTIMATE; everything about fit quality lives in $gof. The GoF row is
+  # built here rather than by an exported accessor: these primitives are computed at the
+  # optimum anyway, so a separate accessor would only reassemble what it was handed.
   list(
-    a1            = a1_hat,
-    a2            = a2_hat,
-    logLik        = -opt$value,
-    deviance      = gof$deviance,
-    null_deviance = gof$null_deviance,
-    nobs          = gof$nobs,
-    k             = 3L,
-    sigma_hat     = gof$sigma_hat,
-    cov           = cov,
-    se_a1         = se_a1,
-    se_a2         = se_a2,
-    convergence   = opt$convergence
+    a1          = a1_hat,
+    a2          = a2_hat,
+    logLik      = -opt$value,
+    cov         = cov,
+    se_a1       = se_a1,
+    se_a2       = se_a2,
+    convergence = opt$convergence,
+    gof         = gof_from_primitives(
+      logLik        = -opt$value,
+      deviance      = prim$deviance,
+      null_deviance = prim$null_deviance,
+      nobs          = prim$nobs,
+      k             = 3L,                 # a1, a2, and the profiled sigma
+      sigma_hat     = prim$sigma_hat
+    ),
+    call        = call
   )
 }
 
@@ -255,36 +298,37 @@ resolve_mode_obs <- function(valid_modes, mode, lrmsd_obs) {
 #'   used as the start (robust against a bad local start; cheap).
 #' @param grid_n Number of points per axis for the default grid-max start (ignored
 #'   when `init` is supplied).
-#' @return A list with the point estimate and asymptotic uncertainty:
+#' @return A list. The top level is the **point estimate**; goodness of fit is the
+#'   `gof` tibble (computed here, so there is no accessor to call):
 #'   \describe{
 #'     \item{a1, a2}{Point estimate of the stability (`a1`) and activity (`a2`)
 #'       selection strengths, on the natural scale (the paper's `aS`, `aA`).}
 #'     \item{logLik}{Profiled Gaussian log-likelihood at the optimum.}
-#'     \item{deviance}{Residual deviance `sum(residuals^2)` (= `nobs * sigma_hat^2`).
-#'       A goodness-of-fit primitive; consumed by [gof_lrmsd_i_msa_ml()].}
-#'     \item{null_deviance}{Deviance of the flat/mean-only null (a constant profile),
-#'       `sum((observed - mean(observed))^2)`. With `deviance`, gives
-#'       `D2 = 1 - deviance/null_deviance`.}
-#'     \item{nobs}{Number of matched (observed) sites the likelihood scores.}
-#'     \item{k}{Free-parameter count for AIC/BIC: `a1`, `a2`, and the profiled `sigma`
-#'       (`3`), matching the `logLik.lm`/`broom` convention.}
-#'     \item{sigma_hat}{Profiled noise scale `sqrt(mean(residuals^2))` at the optimum.}
 #'     \item{cov}{2×2 covariance matrix on the `(a1, log2(a2+1))` scale.}
 #'     \item{se_a1, se_a2}{Standard errors; `se_a2` via the delta method.}
 #'     \item{convergence}{`optim` convergence code (0 = success).}
+#'     \item{gof}{One-row tibble of fit quality: `D2` (deviance explained vs the flat
+#'       null, `1 - deviance/null_deviance`; at most `1` but **unbounded below** --
+#'       negative means worse than a constant profile, a real signal, not an error),
+#'       `AIC`, `BIC`, and the primitives `logLik`, `deviance`, `null_deviance`,
+#'       `nobs` (matched observations scored), `k` (`3`: `a1`, `a2`, profiled `sigma`),
+#'       `sigma_hat`. `AIC`/`BIC` are per-fit numbers, meaningful only compared against
+#'       another model fit at its own maximum.}
+#'     \item{call}{The matched call that produced this fit -- the fit itself is
+#'       axis-free, so this is what records which fitter made it.}
 #'   }
-#' @seealso [gof_lrmsd_i_msa_ml()] (goodness-of-fit from this fit),
-#'   [predict_profiles()] (propagate the fit to a banded profile),
+#' @seealso [predict_profiles()] (propagate the fit to a banded profile),
+#'   [fit_lrmsd_msa_mode()] (the mode counterpart),
 #'   `calculate_loglik_lrmsd_i_msa()` (the objective).
 #' @family fitting
 #' @export
 #' @examples
 #' \dontrun{
 #' spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
-#' ml <- fit_lrmsd_i_msa_ml(spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
+#' ml <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
 #' c(a1 = ml$a1, a2 = ml$a2)
 #' }
-fit_lrmsd_i_msa_ml <- function(spm,
+fit_lrmsd_msa_site <- function(spm,
                        pdb_site,
                        lrmsd_obs,
                        a1_range = c(0, 10),
@@ -304,12 +348,13 @@ fit_lrmsd_i_msa_ml <- function(spm,
     pred <- tibble::tibble(idx = seq_along(v), pred = v)
     fit_gof_primitives(pred, obs)
   }
-  fit_lrmsd_msa_ml_core(nll, gof_fn, a1_range, log2_a2_plus1_range, init, grid_n)
+  fit_lrmsd_msa_ml_core(nll, gof_fn, a1_range, log2_a2_plus1_range, init, grid_n,
+                        call = match.call())
 }
 
 #' Maximum-likelihood point fit of the lrmsd_n MSA model (mode form)
 #'
-#' Mode counterpart of [fit_lrmsd_i_msa_ml()]: maximises the mode-form profiled
+#' Mode counterpart of [fit_lrmsd_msa_site()]: maximises the mode-form profiled
 #' Gaussian log-likelihood (`calculate_loglik_lrmsd_n_msa()`) over `(a1, a2)` by
 #' numerical optimisation, returning a point estimate plus an asymptotic covariance
 #' from the Hessian at the optimum. Identical machinery to the site fit; the response
@@ -335,37 +380,19 @@ fit_lrmsd_i_msa_ml <- function(spm,
 #'   used as the start (robust against a bad local start; cheap).
 #' @param grid_n Number of points per axis for the default grid-max start (ignored
 #'   when `init` is supplied).
-#' @return A list with the point estimate and asymptotic uncertainty, identical in
-#'   shape to [fit_lrmsd_i_msa_ml()]:
-#'   \describe{
-#'     \item{a1, a2}{Point estimate of the stability (`a1`) and activity (`a2`)
-#'       selection strengths, on the natural scale (the paper's `aS`, `aA`).}
-#'     \item{logLik}{Profiled Gaussian log-likelihood at the optimum.}
-#'     \item{deviance}{Residual deviance `sum(residuals^2)` (= `nobs * sigma_hat^2`).
-#'       A goodness-of-fit primitive; consumed by [gof_lrmsd_n_msa_ml()].}
-#'     \item{null_deviance}{Deviance of the flat/mean-only null (a constant profile),
-#'       `sum((observed - mean(observed))^2)`. With `deviance`, gives
-#'       `D2 = 1 - deviance/null_deviance`.}
-#'     \item{nobs}{Number of matched (observed) modes the likelihood scores.}
-#'     \item{k}{Free-parameter count for AIC/BIC: `a1`, `a2`, and the profiled `sigma`
-#'       (`3`), matching the `logLik.lm`/`broom` convention.}
-#'     \item{sigma_hat}{Profiled noise scale `sqrt(mean(residuals^2))` at the optimum.}
-#'     \item{cov}{2×2 covariance matrix on the `(a1, log2(a2+1))` scale.}
-#'     \item{se_a1, se_a2}{Standard errors; `se_a2` via the delta method.}
-#'     \item{convergence}{`optim` convergence code (0 = success).}
-#'   }
-#' @seealso [fit_lrmsd_i_msa_ml()] (the site counterpart),
-#'   [gof_lrmsd_n_msa_ml()] (goodness-of-fit from this fit),
+#' @inherit fit_lrmsd_msa_site return
+#' @seealso [fit_lrmsd_msa_site()] (the site counterpart),
+#'   [predict_profiles()] (propagate the fit to a banded profile),
 #'   `calculate_loglik_lrmsd_n_msa()` (the objective).
 #' @family fitting
 #' @export
 #' @examples
 #' \dontrun{
 #' spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
-#' ml <- fit_lrmsd_n_msa_ml(spm, znb_profile_n$n, znb_profile_n$lrmsd_n_obs)
+#' ml <- fit_lrmsd_msa_mode(spm, znb_profile_n$n, znb_profile_n$lrmsd_n_obs)
 #' c(a1 = ml$a1, a2 = ml$a2)
 #' }
-fit_lrmsd_n_msa_ml <- function(spm,
+fit_lrmsd_msa_mode <- function(spm,
                        mode,
                        lrmsd_obs,
                        a1_range = c(0, 10),
@@ -384,7 +411,8 @@ fit_lrmsd_n_msa_ml <- function(spm,
     obs  <- resolve_mode_obs(pred$idx, mode, lrmsd_obs)
     fit_gof_primitives(pred, obs)
   }
-  fit_lrmsd_msa_ml_core(nll, gof_fn, a1_range, log2_a2_plus1_range, init, grid_n)
+  fit_lrmsd_msa_ml_core(nll, gof_fn, a1_range, log2_a2_plus1_range, init, grid_n,
+                        call = match.call())
 }
 
 #' Flat/mean-only null deviance of an observed profile
@@ -417,7 +445,7 @@ calculate_null_deviance <- function(y) {
 #'
 #' Log-likelihood of an observed per-site divergence profile at `(a1, a2)`: mean-centre
 #' the model prediction and observations, compare under a Gaussian noise model whose
-#' scale is profiled out (`sigma = sqrt(mean(r^2))`). Maximised by [fit_lrmsd_i_msa_ml()].
+#' scale is profiled out (`sigma = sqrt(mean(r^2))`). Maximised by [fit_lrmsd_msa_site()].
 #'
 #' @param spm A single-point-mutation `spm` object from [generate_spm_data()] (its `site_map` keys the fit to PDB residues).
 #' @param pdb_site Integer vector of PDB residue numbers identifying the observations.
@@ -439,7 +467,7 @@ calculate_loglik_lrmsd_i_msa <- function(spm, pdb_site, lrmsd_obs, a1, a2) {
 #'
 #' Mode-form counterpart of `calculate_loglik_lrmsd_i_msa()`: scores over normal modes,
 #' with no `pdb_site` mapping (the mode index `n` is used directly). Maximised by
-#' [fit_lrmsd_n_msa_ml()].
+#' [fit_lrmsd_msa_mode()].
 #'
 #' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
 #' @param mode Integer vector of mode indices identifying the observations.

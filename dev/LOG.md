@@ -23,6 +23,51 @@ changes. The same episode often earns a line in each. Things to maybe do later l
 in `dev/ideas.md`.
 
 
+### 2026-08-05 — fitter names rebuilt around `lrmsd_msa` as a unit; `gof_*` deleted, not renamed
+
+Slice 3. The renames are in the diff; the reasoning that produced them is not.
+
+**Three naming attempts were rejected before the right one.** `fit_site_lrmsd` dropped
+the model entirely — it named the target and omitted the thing being estimated, when MSA
+is what has `(a1, a2)`. `fit_msa_site` restored the model but dropped the observable,
+leaving no room for a future `drmsf` arm. `fit_msa_lrmsd_site` had all three components
+but **reordered them**. The user's objection to that last one is the load-bearing
+insight: `lrmsd_msa` is a *unit* in this package — the forward-map primitive
+(`R/model.R:98`), the output column on both branches, the stem `nlrmsd_msa` normalizes.
+Splitting it to insert an axis makes the same concept read two ways depending on where
+you look. Hence `fit_lrmsd_msa_site`: the profile name intact, spelled as everywhere
+else, axis appended. A future arm is `fit_drmsf_msa_site` by the same rule.
+
+**`gof_*` was deleted rather than renamed, which was not the original plan.** The slice
+started as "collapse two identical accessors into one and pick a better name." The user
+pushed further: demote it, call it from the fitters, return `$gof`. That is strictly
+better, because the accessors were never computing anything —
+`fit_lrmsd_msa_ml_core()` already evaluated the GoF primitives at the optimum and
+scattered them into its return, and the accessor only reassembled five fields it had
+been handed and divided two of them. No second computation, no user choice, no reason to
+defer. Deleting it also made `validate_gof_fit()` dead: it existed solely because a fit
+*might* lack the primitives, and that state is now unrepresentable.
+
+**A test was deleted for the right reason.** `test-gof-ml.R`'s fail-loud test asserted
+that a fit missing the primitives errors. With `$gof` always attached that state cannot
+occur, so the test could no longer fail for a real reason — a tautology by the project's
+own test rule. It was deleted rather than contorted into still passing.
+
+**`$data` was considered and dropped.** Returning the matched `(obs, fitted)` rows the
+fit actually scored is attractive (the vignettes currently reconstruct them by hand). It
+was rejected on a naming collision the user identified: the centred columns would be
+centred on the **matched support**, while `predict_profiles(which="nlrmsd")` centres on
+the **full model support**. Same name, two centring domains — a trap worth avoiding
+rather than documenting around. Revisit only with a naming scheme that distinguishes
+them.
+
+**`$call` instead of an `axis` field.** An earlier draft proposed storing the axis. The
+user replaced it with the call, which is better on two counts: it generalises to a future
+`fit_drmsf_msa_mode` without a taxonomy, and it does not tempt anything to *gate* on the
+axis — `predict_*` legitimately drives both axes off one fit, because `(a1, a2)` is a
+property of the protein, not of the coordinate system.
+
+
 ### 2026-08-05 — fitters take vectors, not a tibble; `site_map` keys on `site`; `znb_spm` regenerated
 
 Slice 2 of the interface simplification. The mechanics are in the diff; what follows is not.

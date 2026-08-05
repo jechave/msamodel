@@ -20,7 +20,7 @@ znb_profile
 }
 \description{
 The per-site observed divergence used as the fitting target for the example
-protein. The fitter \code{\link{fit_lrmsd_i_msa_ml}} takes the two columns as a
+protein. The fitter \code{\link{fit_lrmsd_msa_site}} takes the two columns as a
 \code{(pdb_site, lrmsd_obs)} vector pair, so this is example data rather than a
 required schema -- your own table may name its columns anything.
 }
@@ -32,7 +32,7 @@ recomputable from \code{znb_wt} (see \code{add_site_properties}; log RMSF is
 \code{log(sqrt(get_msf_site(wt)))}).
 }
 \seealso{
-\code{\link{fit_lrmsd_i_msa_ml}}, \code{\link{add_site_properties}}
+\code{\link{fit_lrmsd_msa_site}}, \code{\link{add_site_properties}}
 
 Other datasets:
 \code{\link{znb_dataset}},
