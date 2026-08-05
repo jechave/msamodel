@@ -16,8 +16,9 @@ drives both axes.}
 \item{which}{\code{"lrmsd"} (absolute) or \code{"nlrmsd"} (mean-centred). Default \code{"lrmsd"}.}
 }
 \value{
-A list with two tibbles. \verb{$site}: \code{i}, \code{pdb_site}, the profile column, and its
-\verb{_se}. \verb{$mode}: \code{n}, the profile column, and its \verb{_se}.
+A list with two tibbles. \verb{$site}: \code{site}, \code{pdb_site}, the profile column
+(\code{lrmsd_msa} or \code{nlrmsd_msa}), and its \verb{_se}. \verb{$mode}: \code{mode}, the same profile
+column, and its \verb{_se}.
 }
 \description{
 \code{\link[=calculate_profiles]{calculate_profiles()}} with uncertainty: propagates a fit's \verb{(a1, a2)} uncertainty

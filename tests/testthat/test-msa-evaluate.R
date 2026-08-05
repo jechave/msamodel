@@ -48,7 +48,7 @@ test_that("nlrmsd_msa agrees with predict_profiles's point profile", {
   ml <- fit_lrmsd_i_msa_ml(pp, znb_profile)
   fwd  <- nlrmsd_msa(pp$dr2_ijm, pp$energy_data, ml$a1, ml$a2)
   pred <- predict_profiles(ml, pp, which = "nlrmsd")$site
-  expect_equal(fwd, pred$nlrmsd_i_msa)
+  expect_equal(fwd, pred$nlrmsd_msa)
 })
 
 test_that("nlrmsd_msa_decomposition contributions sum to the centred profile", {

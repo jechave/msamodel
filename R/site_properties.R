@@ -6,7 +6,7 @@
 #' of the active-site distance). Useful for relating predicted or observed
 #' divergence to a site's structural environment.
 #'
-#' @param site_data A per-site table keyed by the site index `i` (for example the
+#' @param site_data A per-site table keyed by the site index `site` (for example the
 #'   `$site` tibble from [calculate_profiles()]).
 #' @param wt Wild-type protein structure with an elastic network model, as
 #'   returned by [setup_enm()].
@@ -28,7 +28,7 @@
 add_site_properties <- function(site_data, wt, pdb_site_active) {
   # Create tibble with site properties
   site_props <- tibble(
-    i = get_site(wt),
+    site = get_site(wt),
     dactive = get_dactive(wt, pdb_site_active),
     cn = get_cn(wt),
     msf = get_msf_site(wt),
@@ -38,5 +38,5 @@ add_site_properties <- function(site_data, wt, pdb_site_active) {
 
   # Join with the site_data
   site_data %>%
-    left_join(site_props, by = "i")
+    left_join(site_props, by = "site")
 }

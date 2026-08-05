@@ -16,8 +16,9 @@ carrying \code{a1}, \code{a2}, \code{cov}.}
 errors -- the uncentred component band is not yet derived.}
 }
 \value{
-A list with two tibbles (\verb{$site}, \verb{$mode}). Each holds the axis key, the four
-nested-model columns and the three contribution columns, each with its \verb{_se}.
+A list with two tibbles (\verb{$site}, \verb{$mode}). Each holds the axis key (\code{site},
+\code{pdb_site} for site; \code{mode} for mode), the four nested-model columns
+(\code{nlrmsd_mm}...) and the three contribution columns (\verb{nphi_*}), each with its \verb{_se}.
 }
 \description{
 \code{\link[=calculate_decomposition]{calculate_decomposition()}} with uncertainty: the nested-model profiles and the three

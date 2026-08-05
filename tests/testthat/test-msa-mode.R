@@ -57,7 +57,7 @@ test_that("nlrmsd_msa centres the uncentred profile and agrees with its predicto
   mln  <- fit_lrmsd_n_msa_ml(znb_spm, znb_profile_n)
   fwd  <- nlrmsd_msa(znb_spm$dr2_njm, znb_spm$energy_data, mln$a1, mln$a2)
   pred <- predict_profiles(mln, znb_spm, which = "nlrmsd")$mode
-  expect_equal(fwd, pred$nlrmsd_n_msa)
+  expect_equal(fwd, pred$nlrmsd_msa)
 })
 
 test_that("nlrmsd_msa_decomposition contributions sum to the centred profile (mode)", {

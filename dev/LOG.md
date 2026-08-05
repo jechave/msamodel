@@ -23,6 +23,46 @@ changes. The same episode often earns a line in each. Things to maybe do later l
 in `dev/ideas.md`.
 
 
+### 2026-08-05 — output columns lost their `_i`/`_n` axis tags; why `pdb_site` was kept beside `site`
+
+Slice 1 of a multi-slice interface simplification. The mechanical part (the rename
+itself) is in the diff; what follows is the reasoning that is not.
+
+**Why the tag went.** The four leaf verbs already return `list(site=, mode=)`, so the
+axis was stated three times per tibble: branch name, key column, and every value column
+(`lrmsd_i_msa` / `lrmsd_n_msa`). The cost was not verbosity but that the two branches
+spoke *parallel dialects* — code written against `$site` did not run against `$mode`.
+After the slice both branches emit an identical value vocabulary, and `axis_branches()`
+no longer carries a `tag` field at all.
+
+**Rejected: collapsing `i` and `pdb_site` into one key.** The tempting version of this
+slice made `site` the PDB label and dropped the internal index from user-facing output,
+on the reasoning that `i` is a column position users never index with. The user rejected
+it: `site` (consecutive 1..N) and `pdb_site` (PDB numbering, with gaps) are *both*
+standard in structural bioinformatics, and a reader of that field distinguishes them
+without being told. So `i` → `site` is a rename, not a merge — the site branch keeps
+two identifiers and the mode branch has one, an asymmetry that reflects a real
+difference in the objects rather than an inconsistency to fix.
+
+**Discovered mid-slice: `site_map`'s column is misnamed, and the fix is not the obvious
+one.** Renaming output keys surfaced that `spm$site_map` keys on `i`. It should not —
+`i` means *response site* and `j` means *mutated site*, and `site_map` translates
+either one to `pdb_site`, so its column is the generic thing. Naming it `i` asserts a
+role the object does not have; it is the only bare `i` in the package with no `j` beside
+it to give it contrastive meaning. Deferred to slice 2 (it shares an edit with
+`resolve_site_obs()`). Note the direction: `i`/`j` stay in the scan arrays, where the
+contrast is real and the `dr2_ijm` index-signature convention needs them. The initial
+instinct — document the `site_map$i` vs `$site` mismatch as a harmless internal/external
+split — was wrong, because it would have enshrined a mislabel.
+
+**`key_profile()` still manufactures its join key.** It builds `tibble(i = seq_len(n))`
+and left-joins `site_map` onto it, reconstructing a table that already exists in the
+right order. The `left_join` also silently tolerates a length mismatch (fills `pdb_site`
+with `NA`), where a `bind_cols` would fail loud. Left alone this slice, folded into
+slice 2 — renaming the column while leaving the synthetic index in place would be half
+a job.
+
+
 ### 2026-08-05 — development-context rebuild: NOW block deleted, `plan.md` retired, memory corpus cut 47 → 23
 
 Prompted by the user reporting that sessions had felt degraded for a while, and

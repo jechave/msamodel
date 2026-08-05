@@ -16,9 +16,9 @@ calculate_profiles(spm, a1, a2, which = c("lrmsd", "nlrmsd"))
 \item{which}{\code{"lrmsd"} (absolute) or \code{"nlrmsd"} (mean-centred). Default \code{"lrmsd"}.}
 }
 \value{
-A list with two tibbles. \verb{$site}: \code{i}, \code{pdb_site}, and the profile column
-(\code{lrmsd_i_msa} or \code{nlrmsd_i_msa}). \verb{$mode}: \code{n} and the profile column
-(\code{lrmsd_n_msa} or \code{nlrmsd_n_msa}).
+A list with two tibbles. \verb{$site}: \code{site}, \code{pdb_site}, and the profile column
+(\code{lrmsd_msa} or \code{nlrmsd_msa}). \verb{$mode}: \code{mode} and the same profile column. Both
+branches use identical value-column names; only the key column differs.
 }
 \description{
 The model's forward per-response log structural-divergence profile at a single pair

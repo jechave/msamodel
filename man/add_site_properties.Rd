@@ -7,7 +7,7 @@
 add_site_properties(site_data, wt, pdb_site_active)
 }
 \arguments{
-\item{site_data}{A per-site table keyed by the site index \code{i} (for example the
+\item{site_data}{A per-site table keyed by the site index \code{site} (for example the
 \verb{$site} tibble from \code{\link[=calculate_profiles]{calculate_profiles()}}).}
 
 \item{wt}{Wild-type protein structure with an elastic network model, as

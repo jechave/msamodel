@@ -10,18 +10,22 @@
 
 # ---- internal assembly helpers ---------------------------------------------------
 
-#' Attach the axis index key (and, for site, pdb_site) to bare value vectors
+#' Attach the axis key (and, for site, pdb_site) to bare value vectors
 #'
 #' The forward-map primitives return bare per-response vectors; this wraps a NAMED list
 #' of equal-length bare vectors into the keyed tibble the verbs return. The list names
 #' become the value-column names verbatim -- the verb owns naming (including any `_se`
-#' siblings); `key_profile` only prepends the index key and, for the site axis, joins
+#' siblings); `key_profile` only prepends the axis key and, for the site axis, joins
 #' `pdb_site` via `spm$site_map`.
+#'
+#' The emitted key is named for the axis (`site` / `mode`), not for the internal index
+#' letter: the join onto `site_map` still happens on the internal `i`, which is renamed
+#' to `site` on the way out. `site_map` itself is untouched.
 #'
 #' @param cols A NAMED list of equal-length bare numeric vectors. Names become columns.
 #' @param spm The `spm` object (for `site_map` on the site axis).
-#' @param axis `"site"` (key `i`, join `pdb_site`) or `"mode"` (key `n`, no join).
-#' @return A tibble: site -> `i, pdb_site, <cols...>`; mode -> `n, <cols...>`.
+#' @param axis `"site"` (key `site`, join `pdb_site`) or `"mode"` (key `mode`, no join).
+#' @return A tibble: site -> `site, pdb_site, <cols...>`; mode -> `mode, <cols...>`.
 #' @noRd
 key_profile <- function(cols, spm, axis) {
   n <- length(cols[[1]])
@@ -29,10 +33,10 @@ key_profile <- function(cols, spm, axis) {
   if (axis == "site") {
     tibble(i = seq_len(n)) %>%
       dplyr::left_join(spm$site_map, by = "i") %>%
-      dplyr::select(i, pdb_site) %>%
+      dplyr::transmute(site = i, pdb_site = pdb_site) %>%
       dplyr::bind_cols(body)
   } else {
-    dplyr::bind_cols(tibble(n = seq_len(n)), body)
+    dplyr::bind_cols(tibble(mode = seq_len(n)), body)
   }
 }
 
@@ -53,18 +57,22 @@ se_cols <- function(value_v, var_v, name) {
   out
 }
 
-#' Per-axis dispatch table: the divergence matrix and axis tag for one branch
+#' Per-axis dispatch table: the divergence matrix for one branch
 #'
 #' The single place the site/mode branch is chosen: `dr2_ijm` + `"site"` or
 #' `dr2_njm` + `"mode"`. The verbs iterate over the two branches and call the axis-blind
 #' primitives with the branch's matrix.
 #'
+#' Carries no name tag: both branches emit the SAME value-column vocabulary
+#' (`lrmsd_msa`, `lrmsd_mm`, ...), so only the key column differs, and `key_profile()`
+#' derives that from `axis`.
+#'
 #' @param spm The `spm` object.
-#' @return A named list of two branches, each `list(dr2_mat =, axis =, tag =)`.
+#' @return A named list of two branches, each `list(dr2_mat =, axis =)`.
 #' @noRd
 axis_branches <- function(spm) {
-  list(site = list(dr2_mat = spm$dr2_ijm, axis = "site", tag = "i"),
-       mode = list(dr2_mat = spm$dr2_njm, axis = "mode", tag = "n"))
+  list(site = list(dr2_mat = spm$dr2_ijm, axis = "site"),
+       mode = list(dr2_mat = spm$dr2_njm, axis = "mode"))
 }
 
 # ---- calculate_profiles ----------------------------------------------------------
@@ -82,9 +90,9 @@ axis_branches <- function(spm) {
 #' @param a1 Stability selection strength (non-negative). `0` disables it.
 #' @param a2 Activity selection strength (non-negative). `0` disables it.
 #' @param which `"lrmsd"` (absolute) or `"nlrmsd"` (mean-centred). Default `"lrmsd"`.
-#' @return A list with two tibbles. `$site`: `i`, `pdb_site`, and the profile column
-#'   (`lrmsd_i_msa` or `nlrmsd_i_msa`). `$mode`: `n` and the profile column
-#'   (`lrmsd_n_msa` or `nlrmsd_n_msa`).
+#' @return A list with two tibbles. `$site`: `site`, `pdb_site`, and the profile column
+#'   (`lrmsd_msa` or `nlrmsd_msa`). `$mode`: `mode` and the same profile column. Both
+#'   branches use identical value-column names; only the key column differs.
 #' @seealso [predict_profiles()] (the same profiles with error bands, from a fit);
 #'   [calculate_decomposition()] (the profile split into contributions).
 #' @family api
@@ -99,7 +107,7 @@ calculate_profiles <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
   fwd   <- if (which == "nlrmsd") nlrmsd_msa else lrmsd_msa
   out <- lapply(axis_branches(spm), function(b) {
     v    <- fwd(b$dr2_mat, spm$energy_data, a1, a2)
-    name <- paste0(which, "_", b$tag, "_msa")
+    name <- paste0(which, "_msa")
     key_profile(stats::setNames(list(v), name), spm, b$axis)
   })
   out
@@ -126,8 +134,9 @@ calculate_profiles <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
 #'   drives both axes.
 #' @param spm The `spm` object from [generate_spm_data()] (the same one used for the fit).
 #' @param which `"lrmsd"` (absolute) or `"nlrmsd"` (mean-centred). Default `"lrmsd"`.
-#' @return A list with two tibbles. `$site`: `i`, `pdb_site`, the profile column, and its
-#'   `_se`. `$mode`: `n`, the profile column, and its `_se`.
+#' @return A list with two tibbles. `$site`: `site`, `pdb_site`, the profile column
+#'   (`lrmsd_msa` or `nlrmsd_msa`), and its `_se`. `$mode`: `mode`, the same profile
+#'   column, and its `_se`.
 #' @seealso [calculate_profiles()] (point values, no bands);
 #'   [predict_decomposition()] (the profile split into contributions, with bands).
 #' @family api
@@ -153,7 +162,7 @@ predict_profiles <- function(fit, spm, which = c("lrmsd", "nlrmsd")) {
     vp <- var_param_delta(f, theta_hat, fit$cov, centred = centred)
     w  <- weights_jm(spm$energy_data, fit$a1, fit$a2)
     vs <- spm_var(b$dr2_mat, w)
-    name <- paste0(which, "_", b$tag, "_msa")
+    name <- paste0(which, "_msa")
     key_profile(se_cols(mean_v, vp + vs, name), spm, b$axis)
   })
   out
@@ -165,9 +174,9 @@ predict_profiles <- function(fit, spm, which = c("lrmsd", "nlrmsd")) {
 #'
 #' The nested-model profiles AND the three sequential contributions of the divergence
 #' profile at a single `(a1, a2)`, on **both** response axes. `which` selects the family
-#' in lockstep: `"lrmsd"` gives the uncentred nested models (`lrmsd_i_mm`...) and the
+#' in lockstep: `"lrmsd"` gives the uncentred nested models (`lrmsd_mm`...) and the
 #' uncentred contributions (`phi_mut`, `phi_stab`, `phi_act`); `"nlrmsd"` gives the
-#' mean-centred nested models (`nlrmsd_i_mm`...) and the centred contributions
+#' mean-centred nested models (`nlrmsd_mm`...) and the centred contributions
 #' (`nphi_mut`, `nphi_stab`, `nphi_act`). Point values only; for bands from a fit use
 #' [predict_decomposition()].
 #'
@@ -178,8 +187,9 @@ predict_profiles <- function(fit, spm, which = c("lrmsd", "nlrmsd")) {
 #' @param a2 Activity selection strength (non-negative).
 #' @param which `"lrmsd"` (absolute) or `"nlrmsd"` (mean-centred). Default `"lrmsd"`.
 #' @return A list with two tibbles (`$site`, `$mode`). Each holds the axis key
-#'   (`i`, `pdb_site` for site; `n` for mode), the four nested-model columns, and the
-#'   three contribution columns, all in the family selected by `which`.
+#'   (`site`, `pdb_site` for site; `mode` for mode), the four nested-model columns, and
+#'   the three contribution columns, all in the family selected by `which`. Both branches
+#'   use identical value-column names.
 #' @seealso [predict_decomposition()] (the same, with error bands from a fit);
 #'   [calculate_profiles()] (the profile these contributions sum to).
 #' @family api
@@ -201,7 +211,7 @@ calculate_decomposition <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
     phi <- decomp_fwd(b$dr2_mat, spm$energy_data, a1, a2)          # list *_mut/stab/act
     nested_cols <- stats::setNames(
       nm[c("mm", "ms", "ma", "msa")],
-      paste0(which, "_", b$tag, "_", c("mm", "ms", "ma", "msa")))
+      paste0(which, "_", c("mm", "ms", "ma", "msa")))
     # decomp_fwd already names phi_mut/... (lrmsd) or nphi_mut/... (nlrmsd) -- take as is.
     key_profile(c(nested_cols, phi), spm, b$axis)
   })
@@ -231,8 +241,9 @@ calculate_decomposition <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
 #' @param spm The `spm` object from [generate_spm_data()] (the same one used for the fit).
 #' @param which Must be `"nlrmsd"` (default). `"lrmsd"` is accepted by the signature but
 #'   errors -- the uncentred component band is not yet derived.
-#' @return A list with two tibbles (`$site`, `$mode`). Each holds the axis key, the four
-#'   nested-model columns and the three contribution columns, each with its `_se`.
+#' @return A list with two tibbles (`$site`, `$mode`). Each holds the axis key (`site`,
+#'   `pdb_site` for site; `mode` for mode), the four nested-model columns
+#'   (`nlrmsd_mm`...) and the three contribution columns (`nphi_*`), each with its `_se`.
 #' @seealso [calculate_decomposition()] (point values, no bands);
 #'   [predict_profiles()] (the banded profile these contributions sum to).
 #' @family api
@@ -263,7 +274,7 @@ predict_decomposition <- function(fit, spm, which = c("lrmsd", "nlrmsd")) {
       a  <- variant_a[[v]]
       w  <- weights_jm(spm$energy_data, a[1], a[2])
       vs <- var_spm_nlrmsd(b$dr2_mat, w)
-      se_cols(nested_mean[[v]], vp + vs, paste0("nlrmsd_", b$tag, "_", v))
+      se_cols(nested_mean[[v]], vp + vs, paste0("nlrmsd_", v))
     }))
 
     # --- contributions: SPM arm once at the fit point (differenced, cross term kept)

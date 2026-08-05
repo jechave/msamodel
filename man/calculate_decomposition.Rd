@@ -17,15 +17,16 @@ calculate_decomposition(spm, a1, a2, which = c("lrmsd", "nlrmsd"))
 }
 \value{
 A list with two tibbles (\verb{$site}, \verb{$mode}). Each holds the axis key
-(\code{i}, \code{pdb_site} for site; \code{n} for mode), the four nested-model columns, and the
-three contribution columns, all in the family selected by \code{which}.
+(\code{site}, \code{pdb_site} for site; \code{mode} for mode), the four nested-model columns, and
+the three contribution columns, all in the family selected by \code{which}. Both branches
+use identical value-column names.
 }
 \description{
 The nested-model profiles AND the three sequential contributions of the divergence
 profile at a single \verb{(a1, a2)}, on \strong{both} response axes. \code{which} selects the family
-in lockstep: \code{"lrmsd"} gives the uncentred nested models (\code{lrmsd_i_mm}...) and the
+in lockstep: \code{"lrmsd"} gives the uncentred nested models (\code{lrmsd_mm}...) and the
 uncentred contributions (\code{phi_mut}, \code{phi_stab}, \code{phi_act}); \code{"nlrmsd"} gives the
-mean-centred nested models (\code{nlrmsd_i_mm}...) and the centred contributions
+mean-centred nested models (\code{nlrmsd_mm}...) and the centred contributions
 (\code{nphi_mut}, \code{nphi_stab}, \code{nphi_act}). Point values only; for bands from a fit use
 \code{\link[=predict_decomposition]{predict_decomposition()}}.
 }

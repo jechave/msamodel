@@ -10,8 +10,8 @@ test_that("calculate_profiles returns both axes with the which-selected column",
   for (which in c("lrmsd", "nlrmsd")) {
     out <- calculate_profiles(spm, a1 = 1, a2 = 1, which = which)
     expect_named(out, c("site", "mode"))
-    expect_named(out$site, c("i", "pdb_site", paste0(which, "_i_msa")))
-    expect_named(out$mode, c("n", paste0(which, "_n_msa")))
+    expect_named(out$site, c("site", "pdb_site", paste0(which, "_msa")))
+    expect_named(out$mode, c("mode", paste0(which, "_msa")))
     # point values only: no _se on calculate_*
     expect_false(any(grepl("_se$", names(out$site))))
   }
@@ -22,10 +22,10 @@ test_that("predict_profiles adds an _se sibling to every value column, both axes
   ml  <- fit_lrmsd_i_msa_ml(spm, znb_profile)
   for (which in c("lrmsd", "nlrmsd")) {
     out <- predict_profiles(ml, spm, which = which)
-    expect_named(out$site, c("i", "pdb_site", paste0(which, "_i_msa"), paste0(which, "_i_msa_se")))
-    expect_named(out$mode, c("n", paste0(which, "_n_msa"), paste0(which, "_n_msa_se")))
+    expect_named(out$site, c("site", "pdb_site", paste0(which, "_msa"), paste0(which, "_msa_se")))
+    expect_named(out$mode, c("mode", paste0(which, "_msa"), paste0(which, "_msa_se")))
     # SEs are real non-negative widths, not NA / all-zero placeholder
-    se <- out$site[[paste0(which, "_i_msa_se")]]
+    se <- out$site[[paste0(which, "_msa_se")]]
     expect_true(all(is.finite(se)) && all(se >= 0) && any(se > 0))
   }
 })
@@ -34,13 +34,16 @@ test_that("calculate_decomposition switches nested + component family in lockste
   spm <- znb_spm
   lr <- calculate_decomposition(spm, 1, 1, which = "lrmsd")
   nl <- calculate_decomposition(spm, 1, 1, which = "nlrmsd")
-  expect_named(lr$site, c("i", "pdb_site", "lrmsd_i_mm", "lrmsd_i_ms", "lrmsd_i_ma",
-                          "lrmsd_i_msa", "phi_mut", "phi_stab", "phi_act"))
-  expect_named(nl$site, c("i", "pdb_site", "nlrmsd_i_mm", "nlrmsd_i_ms", "nlrmsd_i_ma",
-                          "nlrmsd_i_msa", "nphi_mut", "nphi_stab", "nphi_act"))
+  expect_named(lr$site, c("site", "pdb_site", "lrmsd_mm", "lrmsd_ms", "lrmsd_ma",
+                          "lrmsd_msa", "phi_mut", "phi_stab", "phi_act"))
+  expect_named(nl$site, c("site", "pdb_site", "nlrmsd_mm", "nlrmsd_ms", "nlrmsd_ma",
+                          "nlrmsd_msa", "nphi_mut", "nphi_stab", "nphi_act"))
   # mode branch drops pdb_site (modes are not residues)
-  expect_named(nl$mode, c("n", "nlrmsd_n_mm", "nlrmsd_n_ms", "nlrmsd_n_ma",
-                          "nlrmsd_n_msa", "nphi_mut", "nphi_stab", "nphi_act"))
+  expect_named(nl$mode, c("mode", "nlrmsd_mm", "nlrmsd_ms", "nlrmsd_ma",
+                          "nlrmsd_msa", "nphi_mut", "nphi_stab", "nphi_act"))
+  # the two branches speak ONE value-column vocabulary: they differ only in the key
+  expect_identical(setdiff(names(nl$site), c("site", "pdb_site")),
+                   setdiff(names(nl$mode), "mode"))
 })
 
 test_that("predict_decomposition(nlrmsd) bands every nested + component column, both axes", {
@@ -49,14 +52,12 @@ test_that("predict_decomposition(nlrmsd) bands every nested + component column, 
   mln <- fit_lrmsd_n_msa_ml(spm, znb_profile_n)
   out  <- predict_decomposition(ml, spm, which = "nlrmsd")
   # every value column has an adjacent _se; 7 value cols -> 7 _se cols on each axis
-  val_site <- c("nlrmsd_i_mm","nlrmsd_i_ms","nlrmsd_i_ma","nlrmsd_i_msa",
-                "nphi_mut","nphi_stab","nphi_act")
-  expect_named(out$site, c("i", "pdb_site",
-                           as.vector(rbind(val_site, paste0(val_site, "_se")))))
-  val_mode <- c("nlrmsd_n_mm","nlrmsd_n_ms","nlrmsd_n_ma","nlrmsd_n_msa",
-                "nphi_mut","nphi_stab","nphi_act")
-  expect_named(out$mode, c("n",
-                           as.vector(rbind(val_mode, paste0(val_mode, "_se")))))
+  # both branches share one value vocabulary, so one `vals` drives both assertions
+  vals <- c("nlrmsd_mm","nlrmsd_ms","nlrmsd_ma","nlrmsd_msa",
+            "nphi_mut","nphi_stab","nphi_act")
+  banded <- as.vector(rbind(vals, paste0(vals, "_se")))
+  expect_named(out$site, c("site", "pdb_site", banded))
+  expect_named(out$mode, c("mode", banded))
 })
 
 test_that("predict_decomposition(which='lrmsd') errors as to-be-developed", {
@@ -91,13 +92,13 @@ test_that("calculate_* reproduce frozen reference values (znb_spm at a1=1.3, a2=
 
   cp_l <- calculate_profiles(spm, 1.3, 0.7, "lrmsd")
   cp_n <- calculate_profiles(spm, 1.3, 0.7, "nlrmsd")
-  expect_equal(cp_l$site$lrmsd_i_msa[1:3],
+  expect_equal(cp_l$site$lrmsd_msa[1:3],
                c(-2.38860098918393, -3.41729557242227, -3.40211980354922), tolerance = tol)
-  expect_equal(cp_l$mode$lrmsd_n_msa[1:3],
+  expect_equal(cp_l$mode$lrmsd_msa[1:3],
                c(-1.5687305271568, -1.82327102574257, -2.21838411202063), tolerance = tol)
-  expect_equal(cp_n$site$nlrmsd_i_msa[1:3],
+  expect_equal(cp_n$site$nlrmsd_msa[1:3],
                c(1.81659196313855, 0.787897379900211, 0.803073148773266), tolerance = tol)
-  expect_equal(cp_n$mode$nlrmsd_n_msa[1:3],
+  expect_equal(cp_n$mode$nlrmsd_msa[1:3],
                c(4.02007678194882, 3.76553628336305, 3.37042319708499), tolerance = tol)
   expect_equal(cp_l$site$pdb_site[1:3], c(20L, 21L, 22L))
   expect_equal(nrow(cp_l$site), 228L)
@@ -105,7 +106,7 @@ test_that("calculate_* reproduce frozen reference values (znb_spm at a1=1.3, a2=
 
   cd_l <- calculate_decomposition(spm, 1.3, 0.7, "lrmsd")
   cd_n <- calculate_decomposition(spm, 1.3, 0.7, "nlrmsd")
-  expect_equal(cd_l$site$lrmsd_i_mm[1], -2.42154799236766, tolerance = tol)
+  expect_equal(cd_l$site$lrmsd_mm[1], -2.42154799236766, tolerance = tol)
   expect_equal(cd_l$site$phi_stab[1],    0.0287338535954338, tolerance = tol)
   expect_equal(cd_l$site$phi_act[1],     0.00421314958829955, tolerance = tol)
   expect_equal(cd_n$site$nphi_stab[1],   0.379280436055831, tolerance = tol)
@@ -123,25 +124,25 @@ test_that("predict_* reproduce frozen reference values (fixed ML fit; _se pinned
 
   pp_i <- predict_profiles(ml_i, spm, "nlrmsd")
   pp_n <- predict_profiles(ml_n, spm, "nlrmsd")
-  expect_equal(pp_i$site$nlrmsd_i_msa[1],    1.81683984987468, tolerance = tol)
-  expect_equal(pp_i$site$nlrmsd_i_msa_se[1], 0.110443916713325, tolerance = tol)
-  expect_equal(pp_n$mode$nlrmsd_n_msa[1],    3.2741642946694,  tolerance = tol)
-  expect_equal(pp_n$mode$nlrmsd_n_msa_se[1], 0.0826541993570476, tolerance = tol)
+  expect_equal(pp_i$site$nlrmsd_msa[1],    1.81683984987468, tolerance = tol)
+  expect_equal(pp_i$site$nlrmsd_msa_se[1], 0.110443916713325, tolerance = tol)
+  expect_equal(pp_n$mode$nlrmsd_msa[1],    3.2741642946694,  tolerance = tol)
+  expect_equal(pp_n$mode$nlrmsd_msa_se[1], 0.0826541993570476, tolerance = tol)
 
   pd_i <- predict_decomposition(ml_i, spm, "nlrmsd")
   pd_n <- predict_decomposition(ml_n, spm, "nlrmsd")
   # nested-model _se (the load-bearing columns: a mis-wired arm/point would hide here)
-  expect_equal(pd_i$site$nlrmsd_i_mm_se[1],  0.102662779822919, tolerance = tol)
-  expect_equal(pd_i$site$nlrmsd_i_ms_se[1],  0.108697825909678, tolerance = tol)
-  expect_equal(pd_i$site$nlrmsd_i_msa_se[1], 0.110443916713325, tolerance = tol)
+  expect_equal(pd_i$site$nlrmsd_mm_se[1],  0.102662779822919, tolerance = tol)
+  expect_equal(pd_i$site$nlrmsd_ms_se[1],  0.108697825909678, tolerance = tol)
+  expect_equal(pd_i$site$nlrmsd_msa_se[1], 0.110443916713325, tolerance = tol)
   # component _se
   expect_equal(pd_i$site$nphi_stab_se[1],    0.0851289549563722, tolerance = tol)
   expect_equal(pd_i$site$nphi_act_se[1],     0.035098062683972,  tolerance = tol)
-  expect_equal(pd_n$mode$nlrmsd_n_mm_se[1],  0.0738708293607008, tolerance = tol)
+  expect_equal(pd_n$mode$nlrmsd_mm_se[1],  0.0738708293607008, tolerance = tol)
   expect_equal(pd_n$mode$nphi_stab_se[1],    0.041478920753972,  tolerance = tol)
 
   # Exact structural invariants (hold regardless of the frozen numbers): the mutation
   # contribution IS the MM nested model, value and band.
-  expect_identical(pd_i$site$nphi_mut,    pd_i$site$nlrmsd_i_mm)
-  expect_identical(pd_i$site$nphi_mut_se, pd_i$site$nlrmsd_i_mm_se)
+  expect_identical(pd_i$site$nphi_mut,    pd_i$site$nlrmsd_mm)
+  expect_identical(pd_i$site$nphi_mut_se, pd_i$site$nlrmsd_mm_se)
 })
