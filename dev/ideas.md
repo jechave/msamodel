@@ -50,6 +50,73 @@ full-suite gate; it was deliberately left out of the docs-only cleanup.
 component band is not yet derived (`R/api.R:263`). Either derive the uncentred
 component SE, or make `"nlrmsd"` the default so a bare call works.
 
+## Flatten the error-band plumbing (as the fitters were flattened)
+
+`fit_lrmsd_msa()` was flattened 2026-08-05 (`f504a8f`) from seven pieces and two
+injected closures into four linear functions. The band machinery still has the shape the
+fitter had, and reads the same way.
+
+Concretely, in `predict_decomposition()` (`R/api.R:271-294`) each of seven columns is
+built by constructing an **anonymous closure** over `theta`, handing it to
+`var_param_delta()` for a numeric gradient, computing an SPM arm separately, and adding
+the two:
+
+```r
+f  <- function(theta) lrmsd_nested_models(b$dr2_mat, spm$energy_data, theta[1], 2^theta[2] - 1)[[v]]
+vp <- var_param_delta(f, theta_hat, fit$cov, centred = TRUE)
+```
+
+Same pattern in `predict_profiles()` (`R/api.R:158-168`). Symptoms worth checking against
+what the fitter turned out to be hiding:
+
+- The forward map is **re-evaluated per column** — `lrmsd_nested_models()` computes all
+  four variants, then is called again inside each variant's closure, and again by
+  `grad_theta` at several `theta` points.
+- Two variance arms (`var_param_delta` + `var_spm_*`) are summed at every call site
+  rather than in one place that owns "the variance of this quantity".
+- `var_spm_nphi()` is a third path again, because the contribution SPM arm keeps a
+  between-model covariance the others do not.
+
+Related, and probably the same piece of work: the two existing entries on the terse
+`spm_hmat`/`grad_theta`/`var_param_delta`/`as_theta` names and the band/`_se` vocabulary.
+Do the structure first, then the naming — as with the fitters, the structure change
+revealed which names were even needed.
+
+**Same bar as the fitter work:** capture a baseline first; every `_se` value must come
+out `identical()` afterwards. `test-api.R` already pins band values, and
+`helper-preref-band.R` holds frozen pre-refactor literals.
+
+## Review the shipped `znb_*` datasets
+
+Six exported datasets, six man pages (`man/znb_*.Rd`) — the user's doubt is whether that
+is more surface than the package needs.
+
+Facts to start from:
+
+| dataset | size | referenced in |
+|---|---|---|
+| `znb_spm` | 15.5 MB | 19 files |
+| `znb_wt` | 6.3 MB | 11 files |
+| `znb_profile` | 2 KB | 16 files |
+| `znb_profile_n` | 5 KB | 10 files |
+| `znb_pdb` | 33 KB | 5 files |
+| `znb_dataset` | 384 B | 3 files |
+
+Two specific things to weigh:
+
+- **`znb_spm` + `znb_wt` are 22 MB of the package's 25.8 MB installed size**, and are the
+  direct cause of the standing `check()` WARNING (LazyData DB without
+  `LazyDataCompression`) and NOTE (installed size). `DESCRIPTION:16` sets
+  `LazyData: true` with no `LazyDataCompression` — exactly what the WARNING names. Try
+  adding `LazyDataCompression: xz` and re-running `check()` BEFORE considering dropping
+  any dataset; that may be the whole fix, but it is untested.
+- **`znb_dataset`** is a 1-row CSV of active-site info used in 3 places; `znb_pdb` is
+  recoverable from the shipped `inst/extdata/1znb_A.pdb`. Both are candidates for
+  demotion to internal or deletion, if the vignettes do not need them by name.
+
+Not a rename job: dropping an exported dataset is a user-visible break, and `znb_spm`
+in particular saves users a minutes-long scan.
+
 ## Joint site + mode fit
 
 A single `(a1, a2)` estimated from BOTH observed profiles at once, rather than two
