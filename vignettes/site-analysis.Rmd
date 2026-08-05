@@ -103,23 +103,25 @@ site:
 - `msf` — mean square fluctuation, a flexibility measure from the ENM normal modes;
   we report `lrmsf = log(sqrt(msf))`, the log RMSF.
 
-The site index `i` is msamodel's internal 1..N residue index; `spm$site_map` is the
-key from `i` to `pdb_site`, the PDB residue number used on the chain-plot x-axis.
+Two residue identities appear side by side throughout. `site` is msamodel's internal
+1..N index; `pdb_site` is the PDB residue number, used on the chain-plot x-axis.
+`spm$site_map` is the key between them, and every per-residue tibble the package returns
+carries both.
 
 
 ```r
-site_ids   <- spm$site_map$i   # the internal site indices i
-site_props <- add_site_properties(tibble::tibble(i = site_ids), wt, pdb_site_active) |>
+site_ids   <- spm$site_map$site   # the internal site indices
+site_props <- add_site_properties(tibble::tibble(site = site_ids), wt, pdb_site_active) |>
   mutate(lrmsf = log(sqrt(msf))) |>               # log RMSF (flexibility)
-  left_join(spm$site_map, by = "i") |>            # attach pdb_site (i -> PDB number)
-  select(i, pdb_site, dactive, lrmsf)
+  left_join(spm$site_map, by = "site") |>            # attach pdb_site (i -> PDB number)
+  select(site, pdb_site, dactive, lrmsf)
 ```
 
 ## 2. Divergence profile at given (a1, a2)
 
 For any choice of `(a1, a2)`, `calculate_profiles()` returns the divergence profile.
-We ask for the per-residue reading with `$site`; the site tibble has the index `i`, the
-PDB number `pdb_site`, and the profile `lrmsd_i_msa` (the `msa` marks the full model,
+We ask for the per-residue reading with `$site`; the site tibble has the index `site`,
+the PDB number `pdb_site`, and the profile `lrmsd_msa` (the `msa` marks the full model,
 with both selection pressures active; section 3 introduces the variants with one or both
 switched off). The `which` argument picks the quantity: `"lrmsd"` (used through sections
 2–4) is the absolute profile, keeping the overall level; `"nlrmsd"` is the same profile
@@ -130,33 +132,33 @@ with its mean subtracted off — its *shape* — which section 5 uses to compare
 a1 <- 2; a2 <- 500
 calculate_profiles(spm, a1, a2, which = "lrmsd")$site |> head()
 #> # A tibble: 6 × 3
-#>       i pdb_site lrmsd_i_msa
-#>   <int>    <int>       <dbl>
-#> 1     1       20       -2.40
-#> 2     2       21       -3.31
-#> 3     3       22       -3.44
-#> 4     4       23       -3.45
-#> 5     5       24       -3.64
-#> 6     6       25       -3.65
+#>    site pdb_site lrmsd_msa
+#>   <int>    <int>     <dbl>
+#> 1     1       20     -2.40
+#> 2     2       21     -3.31
+#> 3     3       22     -3.44
+#> 4     4       23     -3.45
+#> 5     5       24     -3.64
+#> 6     6       25     -3.65
 ```
 
 Here we pick illustrative values to see the model in action — `a1 = 2` (moderate
 stability selection) and `a2 = 500` (strong activity selection); the two live on
 different scales, so their numbers are not comparable to each other. Section 5 replaces
-these guesses with values estimated from data. The profile is keyed by `i` and
+these guesses with values estimated from data. The profile is keyed by `site` and
 `pdb_site`, so we attach the two structural descriptors from `site_props`:
 
 
 ```r
 profile_demo <- calculate_profiles(spm, a1, a2, which = "lrmsd")$site |>
-  left_join(select(site_props, i, dactive, lrmsf), by = "i")
+  left_join(select(site_props, site, dactive, lrmsf), by = "site")
 ```
 
 The divergence profile along the chain (active sites marked in red):
 
 
 ```r
-ggplot(profile_demo, aes(pdb_site, lrmsd_i_msa)) +
+ggplot(profile_demo, aes(pdb_site, lrmsd_msa)) +
   geom_vline(xintercept = pdb_site_active, colour = "firebrick", alpha = 0.4, linewidth = 0.3) +
   geom_line(colour = "grey40") +
   geom_point(size = 0.8, colour = "grey20") +
@@ -175,7 +177,7 @@ with a smooth, makes those trends explicit:
 
 
 ```r
-ggplot(profile_demo, aes(lrmsf, lrmsd_i_msa)) +
+ggplot(profile_demo, aes(lrmsf, lrmsd_msa)) +
   geom_point(alpha = 0.5, colour = "grey30") +
   geom_smooth(method = "loess", formula = y ~ x, se = TRUE, colour = "steelblue") +
   labs(title = "Divergence vs. flexibility",
@@ -186,7 +188,7 @@ ggplot(profile_demo, aes(lrmsf, lrmsd_i_msa)) +
 
 
 ```r
-ggplot(profile_demo, aes(dactive, lrmsd_i_msa)) +
+ggplot(profile_demo, aes(dactive, lrmsd_msa)) +
   geom_point(alpha = 0.5, colour = "grey30") +
   geom_smooth(method = "loess", formula = y ~ x, se = TRUE, colour = "darkorange") +
   labs(title = "Divergence vs. distance to active site",
@@ -210,7 +212,7 @@ pressures switched off:
 | **MSA** | a1 | a2 | full model — both selections |
 
 `calculate_decomposition()` returns, in one `$site` tibble, both the four nested lrmsd
-profiles (`lrmsd_i_mm`, `lrmsd_i_ms`, `lrmsd_i_ma`, `lrmsd_i_msa`) and their split
+profiles (`lrmsd_mm`, `lrmsd_ms`, `lrmsd_ma`, `lrmsd_msa`) and their split
 (`phi_mut`, `phi_stab`, `phi_act`). `which = "lrmsd"` keeps everything on the absolute
 scale:
 
@@ -219,15 +221,14 @@ scale:
 decomp <- calculate_decomposition(spm, a1, a2, which = "lrmsd")$site   # a1 = 2, a2 = 500 from section 2
 head(decomp)
 #> # A tibble: 6 × 9
-#>       i pdb_site lrmsd_i_mm lrmsd_i_ms lrmsd_i_ma lrmsd_i_msa phi_mut phi_stab
-#>   <int>    <int>      <dbl>      <dbl>      <dbl>       <dbl>   <dbl>    <dbl>
-#> 1     1       20      -2.42      -2.43      -2.40       -2.40   -2.42 -0.00387
-#> 2     2       21      -3.35      -3.48      -3.29       -3.31   -3.35 -0.132  
-#> 3     3       22      -3.27      -3.54      -3.20       -3.44   -3.27 -0.272  
-#> 4     4       23      -3.62      -3.66      -3.44       -3.45   -3.62 -0.0364 
-#> 5     5       24      -3.67      -3.83      -3.55       -3.64   -3.67 -0.164  
-#> 6     6       25      -3.60      -3.82      -3.41       -3.65   -3.60 -0.221  
-#> # ℹ 1 more variable: phi_act <dbl>
+#>    site pdb_site lrmsd_mm lrmsd_ms lrmsd_ma lrmsd_msa phi_mut phi_stab phi_act
+#>   <int>    <int>    <dbl>    <dbl>    <dbl>     <dbl>   <dbl>    <dbl>   <dbl>
+#> 1     1       20    -2.42    -2.43    -2.40     -2.40   -2.42 -0.00387  0.0228
+#> 2     2       21    -3.35    -3.48    -3.29     -3.31   -3.35 -0.132    0.172 
+#> 3     3       22    -3.27    -3.54    -3.20     -3.44   -3.27 -0.272    0.106 
+#> 4     4       23    -3.62    -3.66    -3.44     -3.45   -3.62 -0.0364   0.213 
+#> 5     5       24    -3.67    -3.83    -3.55     -3.64   -3.67 -0.164    0.197 
+#> 6     6       25    -3.60    -3.82    -3.41     -3.65   -3.60 -0.221    0.176
 ```
 
 The four profiles along the chain — each model adds one more selection pressure,
@@ -237,9 +238,9 @@ suppressing divergence further (active sites marked in red):
 ```r
 model_cols <- c(MM = "#FF8C00", MS = "#0000CD", MA = "#1B9E77", MSA = "#C41E3A")
 nested_long <- decomp |>
-  tidyr::pivot_longer(c(lrmsd_i_mm, lrmsd_i_ms, lrmsd_i_ma, lrmsd_i_msa),
+  tidyr::pivot_longer(c(lrmsd_mm, lrmsd_ms, lrmsd_ma, lrmsd_msa),
                       names_to = "model", values_to = "lrmsd") |>
-  mutate(model = factor(toupper(sub("lrmsd_i_", "", model)),
+  mutate(model = factor(toupper(sub("lrmsd_", "", model)),
                         levels = c("MM", "MS", "MA", "MSA")))
 ggplot(nested_long, aes(pdb_site, lrmsd, colour = model)) +
   geom_vline(xintercept = pdb_site_active, colour = "firebrick",
@@ -323,17 +324,17 @@ time and overlay the resulting profiles:
 a1_values <- c(0, 1, 2, 4, 8)
 sweep_a1 <- purrr::map_dfr(a1_values, function(a1)
   calculate_profiles(spm, a1, 0, which = "lrmsd")$site |>
-    rename(lrmsd = lrmsd_i_msa) |>
+    rename(lrmsd = lrmsd_msa) |>
     mutate(a1 = a1) |>
-    left_join(select(site_props, i, dactive, lrmsf), by = "i"))
+    left_join(select(site_props, site, dactive, lrmsf), by = "site"))
 
 # Activity sweep: vary a2, hold a1 = 0
 a2_values <- c(0, 31, 127, 511, 2047)
 sweep_a2 <- purrr::map_dfr(a2_values, function(a2)
   calculate_profiles(spm, 0, a2, which = "lrmsd")$site |>
-    rename(lrmsd = lrmsd_i_msa) |>
+    rename(lrmsd = lrmsd_msa) |>
     mutate(a2 = a2) |>
-    left_join(select(site_props, i, dactive, lrmsf), by = "i"))
+    left_join(select(site_props, site, dactive, lrmsf), by = "site"))
 ```
 
 
@@ -374,32 +375,35 @@ Sections 2–4 chose `(a1, a2)` by hand. In practice you estimate them: you find
 To fit, you supply that **observed** divergence profile — **your** data, not something
 `msamodel` computes. You obtain it by superimposing homologous structures onto your
 protein over a sequence alignment and measuring how much each residue's position varies
-across the family; `lrmsd_i_obs` is the log of that per-residue variation. `msamodel`
-does not do this step — you bring the result as a table with columns `pdb_site` and
-`lrmsd_i_obs`. The package ships one for the worked example, `znb_profile`:
+across the family; the observed value is the log of that per-residue variation.
+`msamodel` does not do this step — you bring the result as **two vectors**: which
+residues you measured (PDB numbering), and the value at each. Nothing constrains where
+they come from, so your own table keeps whatever column names it already has. The
+package ships one for the worked example, `znb_profile`:
 
 
 ```r
-data("znb_profile")   # the example observed data; supply your own in this shape
+data("znb_profile")   # the example observed data
 head(znb_profile)
 #> # A tibble: 6 × 2
-#>   pdb_site lrmsd_i_obs
-#>      <int>       <dbl>
-#> 1       20        1.65
-#> 2       21        1.68
-#> 3       22        1.23
-#> 4       23        1.30
-#> 5       24        1.95
-#> 6       25        1.69
+#>   pdb_site lrmsd_obs
+#>      <int>     <dbl>
+#> 1       20      1.65
+#> 2       21      1.68
+#> 3       22      1.23
+#> 4       23      1.30
+#> 5       24      1.95
+#> 6       25      1.69
 ```
 
-`fit_lrmsd_i_msa_ml()` estimates `a1, a2` from it by maximum likelihood, returning a
+`fit_lrmsd_msa_site()` estimates `a1, a2` from it by maximum likelihood, returning a
 point estimate plus an asymptotic covariance from the Hessian at the optimum. It is
 fast and deterministic:
 
 
 ```r
-ml <- fit_lrmsd_i_msa_ml(spm, znb_profile)   # spm from section 1; znb_profile is the target
+# the two vectors: the residues, and the observed value at each
+ml <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)
 c(a1 = ml$a1, a2 = ml$a2)
 #>         a1         a2 
 #>  0.4580022 42.3021911
@@ -425,7 +429,7 @@ decomposition.
 An observed profile fixes the *shape* of divergence along the chain but not its overall
 level, so the fit compares shapes: each profile with its own average subtracted off. We
 write that centred form `nlrmsd = lrmsd - mean(lrmsd)` (the leading `n` = "centred"). We
-take the MSA prediction at the ML estimate — the `lrmsd_i_msa` column of the fitted
+take the MSA prediction at the ML estimate — the `lrmsd_msa` column of the fitted
 decomposition — join it to the observed profile, centre both over the compared residues,
 and annotate with R²:
 
@@ -435,17 +439,17 @@ and annotate with R²:
 r2 <- function(obs, pred) 1 - sum((obs - pred)^2) / sum((obs - mean(obs))^2)
 
 fit_msa <- calculate_decomposition(spm, ml$a1, ml$a2, which = "lrmsd")$site |>
-  select(pdb_site, lrmsd_fit = lrmsd_i_msa)
+  select(pdb_site, lrmsd_fit = lrmsd_msa)
 
 cmp <- znb_profile |>
   inner_join(fit_msa, by = "pdb_site") |>
   left_join(select(site_props, pdb_site, dactive, lrmsf), by = "pdb_site") |>
   mutate(
-    nlrmsd_i_obs = lrmsd_i_obs - mean(lrmsd_i_obs),
+    nlrmsd_obs = lrmsd_obs - mean(lrmsd_obs),
     nlrmsd_fit = lrmsd_fit - mean(lrmsd_fit)
   )
 
-r2_fit <- r2(cmp$nlrmsd_i_obs, cmp$nlrmsd_fit)
+r2_fit <- r2(cmp$nlrmsd_obs, cmp$nlrmsd_fit)
 ```
 
 
@@ -470,7 +474,7 @@ Fitted vs observed as a scatter (points on the dashed line are a perfect match):
 
 
 ```r
-ggplot(cmp, aes(nlrmsd_i_obs, nlrmsd_fit)) +
+ggplot(cmp, aes(nlrmsd_obs, nlrmsd_fit)) +
   geom_abline(slope = 1, intercept = 0, colour = "grey70", linetype = 2) +
   geom_point(alpha = 0.5, colour = "steelblue") +
   annotate("text", x = -Inf, y = Inf, hjust = -0.15, vjust = 1.4,

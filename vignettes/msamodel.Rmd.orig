@@ -62,7 +62,7 @@ shows both, end to end.
 
 |                              | what it is                                              |
 |------------------------------|--------------------------------------------------------|
-| **You provide**              | a PDB file; a vector of active-site residue numbers; (to fit) an observed divergence table `{pdb_site, lrmsd_i_obs}` |
+| **You provide**              | a PDB file; a vector of active-site residue numbers; (to fit) observed divergence as two vectors — the residue numbers, and the value at each |
 | **`msamodel` computes**      | the elastic network model (`setup_enm`), the mutation scan (`generate_spm_data`), the fit of `(a1, a2)` to your data (`fit_*`), and the predicted divergence profiles (`predict_profiles`) |
 
 ## From your structure to a mutation scan
@@ -107,20 +107,22 @@ mode. The functions below read whichever they need from it.
 To fit, you supply an **observed** per-residue divergence profile — this is **your**
 data, not something `msamodel` computes. You obtain it upstream by superimposing a set
 of homologous structures onto your protein over a sequence alignment and measuring, at
-each residue, how much its position varies across the family; `lrmsd_i_obs` is the log
-of that per-residue variation. `msamodel` does not do this step — you bring the result
-as a table with columns `pdb_site` and `lrmsd_i_obs`. The package ships one for the
-worked example, `znb_profile`:
+each residue, how much its position varies across the family; the observed value is the
+log of that per-residue variation. `msamodel` does not do this step — you bring the
+result as **two vectors**: the PDB residue numbers, and the observed value at each. They
+can live in a table of any shape, with columns named whatever you already call them. The
+package ships one for the worked example, `znb_profile`:
 
 ```{r obs}
-data("znb_profile")   # the example observed data; supply your own in this shape
+data("znb_profile")   # the example observed data
 head(znb_profile)
 ```
 
-We fit the two selection parameters to that observed profile by maximum likelihood:
+We fit the two selection parameters to that observed profile by maximum likelihood,
+passing the two columns as the key and the values:
 
 ```{r fit}
-ml <- fit_lrmsd_i_msa_ml(spm, znb_profile)
+ml <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)
 c(a1 = ml$a1, a2 = ml$a2)
 ```
 
@@ -139,8 +141,10 @@ average subtracted off (`nlrmsd = lrmsd - mean`), i.e. its *shape*, while `"lrms
 the absolute profile with its overall level kept. An observed divergence profile pins
 down shape but not overall level, so `"nlrmsd"` is what you compare against data.
 
-Each tibble carries the profile value (`nlrmsd_i_msa` / `nlrmsd_n_msa`) and a standard
-error (`..._se`) that propagates the fit's `(a1, a2)` uncertainty to every point. To draw
+Both tibbles use the same column names — `nlrmsd_msa` for the profile value and
+`nlrmsd_msa_se` for its standard error, which propagates the fit's `(a1, a2)` uncertainty
+to every point. Only the key column differs: `$site` is keyed by residue (`site` and
+`pdb_site`), `$mode` by mode number (`mode`). To draw
 a confidence band, turn the standard error into lower/upper bounds — a 95% band is the
 value plus or minus `z` standard errors, with `z = qnorm(0.975) ≈ 1.96`:
 
@@ -154,15 +158,15 @@ data to compare shapes, and read the mode axis from the same prediction:
 ```{r predict}
 # Per-residue profile from the fit, with a 95% band, joined to the observed data
 site <- pred$site |>
-  mutate(lower = nlrmsd_i_msa - z * nlrmsd_i_msa_se,
-         upper = nlrmsd_i_msa + z * nlrmsd_i_msa_se) |>
+  mutate(lower = nlrmsd_msa - z * nlrmsd_msa_se,
+         upper = nlrmsd_msa + z * nlrmsd_msa_se) |>
   inner_join(znb_profile, by = "pdb_site") |>
-  mutate(nlrmsd_obs = lrmsd_i_obs - mean(lrmsd_i_obs))
+  mutate(nlrmsd_obs = lrmsd_obs - mean(lrmsd_obs))
 
 # Per-mode profile: the same fitted (a1, a2) read on the normal-mode axis
-mode <- pred$mode |>
-  mutate(lower = nlrmsd_n_msa - z * nlrmsd_n_msa_se,
-         upper = nlrmsd_n_msa + z * nlrmsd_n_msa_se)
+mode_profile <- pred$mode |>
+  mutate(lower = nlrmsd_msa - z * nlrmsd_msa_se,
+         upper = nlrmsd_msa + z * nlrmsd_msa_se)
 ```
 
 **Per residue** — the fitted profile (red, with its band) tracked against the observed
@@ -171,7 +175,7 @@ shape (grey). This is the model compared to real data along the chain.
 ```{r panel-site, eval = has_ggplot}
 ggplot(site, aes(pdb_site)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), fill = "firebrick", alpha = 0.2) +
-  geom_line(aes(y = nlrmsd_i_msa, colour = "fitted (MSA)")) +
+  geom_line(aes(y = nlrmsd_msa, colour = "fitted (MSA)")) +
   geom_line(aes(y = nlrmsd_obs, colour = "observed"), alpha = 0.8) +
   scale_colour_manual(values = c("observed" = "grey25", "fitted (MSA)" = "firebrick")) +
   labs(title = "Per residue: observed vs. fitted divergence",
@@ -186,11 +190,11 @@ here — this panel is a prediction from the fit we already have. (The mode axis
 be fit to its own data; see the [mode analysis](mode-analysis.html) vignette.)
 
 ```{r panel-mode, eval = has_ggplot}
-ggplot(mode, aes(n)) +
+ggplot(mode_profile, aes(mode)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), fill = "grey70", alpha = 0.4) +
-  geom_line(aes(y = nlrmsd_n_msa), colour = "grey30") +
+  geom_line(aes(y = nlrmsd_msa), colour = "grey30") +
   labs(title = "Per mode: predicted divergence (from the site fit)",
-       x = "Normal-mode index n", y = "nlrmsd (shape)")
+       x = "Normal-mode index", y = "nlrmsd (shape)")
 ```
 
 The same evolutionary divergence, read per residue and per mode.

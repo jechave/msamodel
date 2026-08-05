@@ -99,8 +99,10 @@ dim(spm$dr2_njm)   # rows = mutants (228 sites x 10 mutations), columns = normal
 
 The model runs at any `(a1, a2)` you choose. `calculate_profiles()` returns the
 divergence profile; we take the per-mode reading with `$mode`. Its tibble has the mode
-index `n` and the profile `lrmsd_n_msa` — the per-mode analogue of the site profile
-`lrmsd`. The `which` argument picks the quantity: `"lrmsd"` (used through sections 2–4) is
+index `mode` and the profile `lrmsd_msa`. That value column is named exactly as on the
+site axis — both branches share one vocabulary, and only the key column differs — so
+anything you write for one axis reads the other unchanged.
+The `which` argument picks the quantity: `"lrmsd"` (used through sections 2–4) is
 the absolute profile, and `"nlrmsd"` is the same profile with its mean subtracted off (its
 shape), which section 5 uses to compare against data. Here we pick illustrative values
 (`a1 = 2`, `a2 = 500`); section 5 estimates them from data instead.
@@ -111,25 +113,25 @@ a1 <- 2; a2 <- 500
 prof_mode <- calculate_profiles(spm, a1, a2, which = "lrmsd")$mode
 head(prof_mode)
 #> # A tibble: 6 × 2
-#>       n lrmsd_n_msa
-#>   <int>       <dbl>
-#> 1     1       -2.91
-#> 2     2       -2.92
-#> 3     3       -2.49
-#> 4     4       -2.72
-#> 5     5       -2.82
-#> 6     6       -3.00
+#>    mode lrmsd_msa
+#>   <int>     <dbl>
+#> 1     1     -2.91
+#> 2     2     -2.92
+#> 3     3     -2.49
+#> 4     4     -2.72
+#> 5     5     -2.82
+#> 6     6     -3.00
 ```
 
 
 ```r
-ggplot(prof_mode, aes(n, lrmsd_n_msa)) +
+ggplot(prof_mode, aes(mode, lrmsd_msa)) +
   geom_line(colour = "grey40") +
   geom_point(size = 0.7, colour = "grey20") +
   labs(
     title = sprintf("Mode-divergence profile (a1 = %g, a2 = %g)", a1, a2),
     subtitle = "Low mode indices are the soft, collective motions",
-    x = "Normal-mode index n", y = expression(lrmsd[n])
+    x = "Normal-mode index", y = "lrmsd"
   )
 ```
 
@@ -153,37 +155,37 @@ model variants** — the model with one or both selection pressures switched off
 
 (`MSA` — mutation, stability, activity — names the full model, and is the `msa` you see
 throughout the function names.) `calculate_decomposition()` returns, in one `$mode`
-tibble, both the four `lrmsd_n` nested profiles (`lrmsd_n_mm`, `lrmsd_n_ms`,
-`lrmsd_n_ma`, `lrmsd_n_msa`) and their split (`phi_mut`, `phi_stab`, `phi_act`):
+tibble, both the four nested profiles (`lrmsd_mm`, `lrmsd_ms`,
+`lrmsd_ma`, `lrmsd_msa`) and their split (`phi_mut`, `phi_stab`, `phi_act`):
 
 
 ```r
 decomp <- calculate_decomposition(spm, a1, a2, which = "lrmsd")$mode   # a1 = 2, a2 = 500
 head(decomp)
 #> # A tibble: 6 × 8
-#>       n lrmsd_n_mm lrmsd_n_ms lrmsd_n_ma lrmsd_n_msa phi_mut phi_stab phi_act
-#>   <int>      <dbl>      <dbl>      <dbl>       <dbl>   <dbl>    <dbl>   <dbl>
-#> 1     1      -1.80      -1.51      -3.48       -2.91   -1.80  0.289    -1.40 
-#> 2     2      -2.14      -1.76      -3.55       -2.92   -2.14  0.380    -1.16 
-#> 3     3      -2.41      -2.16      -2.96       -2.49   -2.41  0.249    -0.329
-#> 4     4      -2.55      -2.56      -2.72       -2.72   -2.55 -0.00555  -0.161
-#> 5     5      -2.63      -2.60      -2.85       -2.82   -2.63  0.0276   -0.226
-#> 6     6      -2.68      -2.58      -3.25       -3.00   -2.68  0.0992   -0.420
+#>    mode lrmsd_mm lrmsd_ms lrmsd_ma lrmsd_msa phi_mut phi_stab phi_act
+#>   <int>    <dbl>    <dbl>    <dbl>     <dbl>   <dbl>    <dbl>   <dbl>
+#> 1     1    -1.80    -1.51    -3.48     -2.91   -1.80  0.289    -1.40 
+#> 2     2    -2.14    -1.76    -3.55     -2.92   -2.14  0.380    -1.16 
+#> 3     3    -2.41    -2.16    -2.96     -2.49   -2.41  0.249    -0.329
+#> 4     4    -2.55    -2.56    -2.72     -2.72   -2.55 -0.00555  -0.161
+#> 5     5    -2.63    -2.60    -2.85     -2.82   -2.63  0.0276   -0.226
+#> 6     6    -2.68    -2.58    -3.25     -3.00   -2.68  0.0992   -0.420
 ```
 
 
 ```r
 model_cols <- c(MM = "#FF8C00", MS = "#0000CD", MA = "#1B9E77", MSA = "#C41E3A")
 nested_long <- decomp |>
-  tidyr::pivot_longer(c(lrmsd_n_mm, lrmsd_n_ms, lrmsd_n_ma, lrmsd_n_msa),
-                      names_to = "model", values_to = "lrmsd_n_msa") |>
-  mutate(model = factor(toupper(sub("lrmsd_n_", "", model)),
+  tidyr::pivot_longer(c(lrmsd_mm, lrmsd_ms, lrmsd_ma, lrmsd_msa),
+                      names_to = "model", values_to = "lrmsd_msa") |>
+  mutate(model = factor(toupper(sub("lrmsd_", "", model)),
                         levels = c("MM", "MS", "MA", "MSA")))
-ggplot(nested_long, aes(n, lrmsd_n_msa, colour = model)) +
+ggplot(nested_long, aes(mode, lrmsd_msa, colour = model)) +
   geom_line(alpha = 0.85) +
   scale_colour_manual(values = model_cols) +
   labs(title = sprintf("Nested-model mode profiles (a1 = %g, a2 = %g)", a1, a2),
-       x = "Normal-mode index n", y = expression(lrmsd[n]), colour = "model")
+       x = "Normal-mode index", y = "lrmsd", colour = "model")
 ```
 
 ![plot of chunk nested-profiles](mode-analysis_files/figure-html/nested-profiles-1.png)
@@ -214,13 +216,13 @@ phi_long <- decomp |>
   tidyr::pivot_longer(c(phi_mut, phi_stab, phi_act),
                       names_to = "component", values_to = "phi") |>
   mutate(component = factor(labs_comp[component], levels = labs_comp))
-ggplot(phi_long, aes(n, phi, colour = component)) +
+ggplot(phi_long, aes(mode, phi, colour = component)) +
   geom_hline(yintercept = 0, colour = "grey80") +
   geom_line() +
   scale_colour_manual(values = comp_cols, guide = "none") +
   facet_wrap(~ component, ncol = 1, scales = "free_y") +
   labs(title = sprintf("Decomposition of the mode profile (a1 = %g, a2 = %g)", a1, a2),
-       x = "Normal-mode index n", y = "contribution to lrmsd_n")
+       x = "Normal-mode index", y = "contribution to lrmsd")
 ```
 
 ![plot of chunk decomp-plot](mode-analysis_files/figure-html/decomp-plot-1.png)
@@ -246,22 +248,22 @@ sweep_a2 <- purrr::map_dfr(a2_values, function(a2)
 
 
 ```r
-ggplot(sweep_a1, aes(n, lrmsd_n_msa, colour = factor(a1), group = a1)) +
+ggplot(sweep_a1, aes(mode, lrmsd_msa, colour = factor(a1), group = a1)) +
   geom_line(alpha = 0.85) +
   scale_colour_viridis_d(end = 0.9) +
-  labs(title = "Stability sweep (a2 = 0)", x = "Normal-mode index n",
-       y = expression(lrmsd[n]), colour = "a1")
+  labs(title = "Stability sweep (a2 = 0)", x = "Normal-mode index",
+       y = "lrmsd", colour = "a1")
 ```
 
 ![plot of chunk sweep-a1](mode-analysis_files/figure-html/sweep-a1-1.png)
 
 
 ```r
-ggplot(sweep_a2, aes(n, lrmsd_n_msa, colour = factor(a2), group = a2)) +
+ggplot(sweep_a2, aes(mode, lrmsd_msa, colour = factor(a2), group = a2)) +
   geom_line(alpha = 0.85) +
   scale_colour_viridis_d(option = "C", end = 0.9) +
-  labs(title = "Activity sweep (a1 = 0)", x = "Normal-mode index n",
-       y = expression(lrmsd[n]), colour = "a2")
+  labs(title = "Activity sweep (a1 = 0)", x = "Normal-mode index",
+       y = "lrmsd", colour = "a2")
 ```
 
 ![plot of chunk sweep-a2](mode-analysis_files/figure-html/sweep-a2-1.png)
@@ -272,11 +274,11 @@ according to selection on activity.
 
 ## 5. Fitting a1 and a2 to observed divergence
 
-Fitting needs an **observed** per-mode divergence profile: a table with columns `n`
-(mode index) and `lrmsd_n_obs` (observed log-RMSD for that mode). This is the awkward
-input on the mode axis — measured divergence is naturally per residue, and turning it
-into a per-mode profile is not something `msamodel` does. So the fixture `znb_profile_n`
-used here is **synthetic**, included only to run the fitting machinery end to end (see
+Fitting needs an **observed** per-mode divergence profile: two vectors, the mode indices
+and the observed log-RMSD at each. The real obstacle on this axis is not the format but
+the data itself — measured divergence is naturally *per residue*, and turning it into a
+per-mode profile is not something `msamodel` does. So the fixture `znb_profile_n` used
+here is **synthetic**, included only to run the fitting machinery end to end (see
 `?znb_profile_n`):
 
 
@@ -284,12 +286,12 @@ used here is **synthetic**, included only to run the fitting machinery end to en
 data("znb_profile_n")   # synthetic observed mode profile, for illustration
 ```
 
-`fit_lrmsd_n_msa_ml()` estimates `a1, a2` from it by maximum likelihood, returning a
+`fit_lrmsd_msa_mode()` estimates `a1, a2` from it by maximum likelihood, returning a
 point estimate plus an asymptotic covariance from the Hessian:
 
 
 ```r
-ml_n <- fit_lrmsd_n_msa_ml(spm, znb_profile_n)
+ml_n <- fit_lrmsd_msa_mode(spm, znb_profile_n$mode, znb_profile_n$lrmsd_obs)
 c(a1 = ml_n$a1, a2 = ml_n$a2)
 #>         a1         a2 
 #>  0.4492209 40.8195734
@@ -310,7 +312,7 @@ Table: ML estimate of the selection parameters (se from the Hessian)
 
 An observed profile fixes the *shape* of the mode divergence but not its overall level,
 so we compare shapes: each profile with its own mean subtracted off (`nlrmsd = lrmsd -
-mean`). We build the fitted profile at the ML estimate — the `lrmsd_n_msa` column of the
+mean`). We build the fitted profile at the ML estimate — the `lrmsd_msa` column of the
 fitted decomposition — join it to the observed one, centre both, and score with R²:
 
 
@@ -319,33 +321,33 @@ fitted decomposition — join it to the observed one, centre both, and score wit
 r2 <- function(obs, pred) 1 - sum((obs - pred)^2) / sum((obs - mean(obs))^2)
 
 fitted_n <- calculate_profiles(spm, ml_n$a1, ml_n$a2, which = "lrmsd")$mode |>
-  transmute(n, lrmsd_n_fit = lrmsd_n_msa)
+  transmute(mode, lrmsd_fit = lrmsd_msa)
 
 cmp_n <- znb_profile_n |>
-  inner_join(fitted_n, by = "n") |>
+  inner_join(fitted_n, by = "mode") |>
   mutate(
-    nlrmsd_n_obs = lrmsd_n_obs - mean(lrmsd_n_obs),
-    nlrmsd_n_fit = lrmsd_n_fit - mean(lrmsd_n_fit)
+    nlrmsd_obs = lrmsd_obs - mean(lrmsd_obs),
+    nlrmsd_fit = lrmsd_fit - mean(lrmsd_fit)
   )
 
-r2_n <- r2(cmp_n$nlrmsd_n_obs, cmp_n$nlrmsd_n_fit)
+r2_n <- r2(cmp_n$nlrmsd_obs, cmp_n$nlrmsd_fit)
 ```
 
 
 ```r
 cmp_n_long <- cmp_n |>
-  tidyr::pivot_longer(c(nlrmsd_n_obs, nlrmsd_n_fit),
+  tidyr::pivot_longer(c(nlrmsd_obs, nlrmsd_fit),
                       names_to = "source", values_to = "nlrmsd") |>
   mutate(source = dplyr::recode(source,
-                                nlrmsd_n_obs = "observed",
-                                nlrmsd_n_fit = "fitted"))
-ggplot(cmp_n_long, aes(n, nlrmsd, colour = source)) +
+                                nlrmsd_obs = "observed",
+                                nlrmsd_fit = "fitted"))
+ggplot(cmp_n_long, aes(mode, nlrmsd, colour = source)) +
   geom_line(alpha = 0.8) +
   scale_colour_manual(values = c("observed" = "grey25", "fitted" = "firebrick")) +
   annotate("text", x = -Inf, y = Inf, hjust = -0.15, vjust = 1.8,
            label = sprintf("R^2 == %.3f", r2_n), parse = TRUE) +
   labs(title = "Observed vs. fitted mode profile",
-       x = "Normal-mode index n", y = "nlrmsd_n (mean-centered)", colour = NULL) +
+       x = "Normal-mode index", y = "nlrmsd (mean-centered)", colour = NULL) +
   theme(legend.position = "top")
 ```
 
@@ -353,13 +355,13 @@ ggplot(cmp_n_long, aes(n, nlrmsd, colour = source)) +
 
 
 ```r
-ggplot(cmp_n, aes(nlrmsd_n_obs, nlrmsd_n_fit)) +
+ggplot(cmp_n, aes(nlrmsd_obs, nlrmsd_fit)) +
   geom_abline(slope = 1, intercept = 0, colour = "grey70", linetype = 2) +
   geom_point(alpha = 0.4, colour = "steelblue") +
   annotate("text", x = -Inf, y = Inf, hjust = -0.15, vjust = 1.4,
            label = sprintf("R^2 == %.3f", r2_n), parse = TRUE) +
   labs(title = "Fitted vs. observed mode divergence (mean-centered)",
-       x = "observed nlrmsd_n", y = "fitted nlrmsd_n")
+       x = "observed nlrmsd", y = "fitted nlrmsd")
 ```
 
 ![plot of chunk mode-fit-scatter](mode-analysis_files/figure-html/mode-fit-scatter-1.png)
@@ -392,13 +394,13 @@ phi_fit_long <- phi_fit |>
   tidyr::pivot_longer(c(phi_mut, phi_stab, phi_act),
                       names_to = "component", values_to = "phi") |>
   mutate(component = factor(labs_comp[component], levels = labs_comp))
-ggplot(phi_fit_long, aes(n, phi, colour = component)) +
+ggplot(phi_fit_long, aes(mode, phi, colour = component)) +
   geom_hline(yintercept = 0, colour = "grey80") +
   geom_line() +
   scale_colour_manual(values = comp_cols, guide = "none") +
   facet_wrap(~ component, ncol = 1, scales = "free_y") +
   labs(title = "Decomposition of the fitted profile",
-       x = "Normal-mode index n", y = "contribution to lrmsd_n")
+       x = "Normal-mode index", y = "contribution to lrmsd")
 ```
 
 ![plot of chunk decomp-fit](mode-analysis_files/figure-html/decomp-fit-1.png)
