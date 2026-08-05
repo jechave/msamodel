@@ -82,9 +82,9 @@ role_of <- function(x) {
                "grad_theta", "delta_band", "spm_hmat", "as_theta", "se_cols",
                "key_profile", "uncertainty_gates", "validate_ml_fit")) return("prediction")
   if (grepl("^fit_", x) || grepl("loglik", x) ||
-      x %in% c("gof_from_primitives", "fit_gof_primitives", "check_obs_vectors",
+      x %in% c("residuals_lrmsd_msa", "gof_lrmsd_msa", "check_obs_vectors",
                "calculate_null_deviance",
-               "match_lrmsd_obs_pred", "resolve_site_obs", "resolve_mode_obs")) return("fitting")
+               "resolve_site_obs", "resolve_mode_obs")) return("fitting")
   if (x %in% c("calculate_profiles", "calculate_decomposition")) return("api")
   # everything else = the model / forward-map primitive layer
   if (x %in% c("pfix_msa", "weights_jm", "weights_jm_spm", "dr2_msa", "lrmsd_msa",

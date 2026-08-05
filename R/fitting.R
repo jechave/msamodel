@@ -1,93 +1,86 @@
 # MSA model fitting — maximum-likelihood point estimation
-# Maximises the profiled Gaussian log-likelihood (calculate_loglik_lrmsd_i_msa) over
-# (a1, log2(a2+1)) and returns a point estimate plus an asymptotic covariance.
+#
+# The whole job: find the (a1, a2) that make the model's predicted divergence profile
+# match an observed one, then report how well they match.
+#
+# Four functions, in dependency order — each one a reduction of the one above:
+#   residuals_lrmsd_msa()  matched, mean-centred residuals at one (a1, a2)
+#   loglik_lrmsd_msa()     those residuals -> profiled Gaussian log-likelihood (the criterion)
+#   gof_lrmsd_msa()        those residuals -> the goodness-of-fit row
+#   fit_lrmsd_msa()        optimise the criterion, then build the fit object
+#
+# All four are AXIS-BLIND: they take a bare [mutant x response] divergence matrix and an
+# ALREADY-RESOLVED (idx, obs) frame, so they carry no notion of site vs mode, no site_map,
+# and no unknown-key check. Resolving observations to the internal index is the exported
+# wrappers' job (bottom of this file), done ONCE before optimising -- so the unknown-key
+# error fires at the boundary rather than on every likelihood evaluation.
+#
+# The wrappers pass VALUES (a matrix, a resolved frame), not functions. An earlier design
+# injected `nll` and `gof_fn` closures into a "core"; that hid the fact that the
+# likelihood and the goodness of fit are the same residuals reduced two ways, and it
+# recomputed them on a second path at the optimum.
 
-# ---- axis-blind fitting core ------------------------------------------------------
-# The site (keyed to pdb_site via site_map) and mode (keyed directly) fits are the
-# same machinery on a resolved (index, obs) pair. These cores hold that shared machinery;
-# they receive ALREADY-RESOLVED, ALREADY-VALIDATED predictions and observations (both bare
-# two-column tibbles keyed by the same integer index column named `idx`), so they carry no
-# notion of site vs mode, no site_map, and no unknown-key check -- those stay in the
-# exported wrappers (the wrapper owns key resolution + its own unknown-key error).
-
-#' Match a resolved prediction/observation pair and mean-centre both
+#' Matched, mean-centred residuals at one (a1, a2)
 #'
-#' Inner-joins predictions to observations on the shared integer key `idx`, then centres
-#' each over the MATCHED support (its own mean over the joined rows). Axis-blind: the
-#' caller has already resolved any label->index mapping and named both value columns
-#' generically. The matched-set centring is the fit's centring domain (distinct from the
-#' full-support centring of the calculate_nlrmsd_* forward maps).
+#' The single definition of "how far the model is from the data" -- everything else in the
+#' fit is a reduction of this. Evaluates the forward map at `(a1, a2)`, inner-joins it to
+#' the observations on the internal index, and centres BOTH over the matched support (each
+#' by its own mean over the joined rows).
 #'
-#' @param predictions Tibble `(idx, pred)`: model lrmsd keyed by the internal index.
-#' @param obs Tibble `(idx, obs)`: observed lrmsd keyed by the same index.
-#' @return A tibble of the matched rows with `obs`, `pred`, and their centred forms
-#'   `obs_c`, `pred_c` (residuals = `obs_c - pred_c`).
+#' The matched-support centring is the fit's centring domain, and it differs deliberately
+#' from the full-support centring of `nlrmsd_msa()`: the fit compares only the responses
+#' actually observed, whereas prediction centres over every response in the model.
+#'
+#' @param dr2_mat A `[mutant x response]` divergence matrix (`dr2_ijm` or `dr2_njm`).
+#' @param energy_data The per-mutant energy tibble (for the fixation weights).
+#' @param obs Tibble `(idx, obs)`: observations already keyed by the internal index.
+#' @param a1,a2 Selection strengths.
+#' @return A list: `resid` (numeric vector, `obs - pred` after centring) and `obs_matched`
+#'   (the raw observed values on the matched rows, for the null deviance).
 #' @noRd
-match_lrmsd_obs_pred <- function(predictions, obs) {
-  obs %>%
-    inner_join(predictions, by = "idx") %>%
-    mutate(obs_c = obs - mean(obs), pred_c = pred - mean(pred))
+residuals_lrmsd_msa <- function(dr2_mat, energy_data, obs, a1, a2) {
+  v    <- lrmsd_msa(dr2_mat, energy_data, a1, a2)
+  cmp  <- inner_join(obs, tibble::tibble(idx = seq_along(v), pred = v), by = "idx")
+  list(resid       = (cmp$obs - mean(cmp$obs)) - (cmp$pred - mean(cmp$pred)),
+       obs_matched = cmp$obs)
 }
 
-#' Axis-blind profiled Gaussian log-likelihood from a resolved (pred, obs) pair
+#' Profiled Gaussian log-likelihood at one (a1, a2)
 #'
-#' The shared core of `calculate_loglik_lrmsd_{i,n}_msa()`: mean-centre matched model and
-#' observations, compare under a Gaussian whose scale is profiled out
-#' (`sigma = sqrt(mean(r^2))`). Receives resolved, validated frames; performs no key
-#' resolution or unknown-key check.
+#' The criterion the fitter maximises. Compares matched, centred model and observations
+#' under a Gaussian whose scale is profiled out (`sigma = sqrt(mean(r^2))`), so the only
+#' free parameters are `(a1, a2)`.
 #'
-#' @param predictions Tibble `(idx, pred)`.
-#' @param obs Tibble `(idx, obs)`.
+#' @inheritParams residuals_lrmsd_msa
 #' @return A single numeric log-likelihood.
 #' @noRd
-loglik_lrmsd_msa_core <- function(predictions, obs) {
-  cmp <- match_lrmsd_obs_pred(predictions, obs)
-  residuals <- cmp$obs_c - cmp$pred_c
-  sigma <- sqrt(mean(residuals^2))
-  sum(dnorm(residuals, 0, sigma, log = TRUE))
+loglik_lrmsd_msa <- function(dr2_mat, energy_data, obs, a1, a2) {
+  r     <- residuals_lrmsd_msa(dr2_mat, energy_data, obs, a1, a2)$resid
+  sigma <- sqrt(mean(r^2))
+  sum(dnorm(r, 0, sigma, log = TRUE))
 }
 
-#' Axis-blind goodness-of-fit primitives from a resolved (pred, obs) pair
+#' Goodness-of-fit row from the residuals at the optimum
 #'
-#' The shared sigma/deviance block of `fit_lrmsd_{i,n}_msa_ml()`: matched residuals, the
-#' profiled noise scale, residual deviance, and the flat-null deviance. Axis-blind.
+#' Turns the same residuals the likelihood scores into the reportable summary. Attached by
+#' the fitter as `fit$gof`; there is no accessor to call.
 #'
-#' @param predictions Tibble `(idx, pred)` at the fit's point estimate.
-#' @param obs Tibble `(idx, obs)`.
-#' @return A list `sigma_hat`, `deviance`, `null_deviance`, `nobs`.
+#' `D2` is deviance-explained (`= 1 - Var(resid)/Var(obs)`, since both deviances are sums
+#' of squares on the same `n`). It is at most `1` but has **no lower bound**: negative
+#' means the prediction is worse than a flat/mean-only null. Returned unclamped -- a
+#' negative `D2` is a real signal that the fit is poor, not an error. `AIC`/`BIC` are
+#' per-fit numbers, meaningful only *compared* against another model fit at its own maximum.
+#'
+#' @param r The `residuals_lrmsd_msa()` list at the fit's point estimate.
+#' @param logLik The profiled Gaussian log-likelihood at that point.
+#' @param k Free-parameter count for AIC/BIC.
+#' @return A one-row tibble: `D2`, `AIC`, `BIC`, `logLik`, `deviance`, `null_deviance`,
+#'   `nobs`, `k`, `sigma_hat`.
 #' @noRd
-fit_gof_primitives <- function(predictions, obs) {
-  cmp <- match_lrmsd_obs_pred(predictions, obs)
-  residuals <- cmp$obs_c - cmp$pred_c
-  list(
-    sigma_hat     = sqrt(mean(residuals^2)),
-    deviance      = sum(residuals^2),
-    null_deviance = calculate_null_deviance(cmp$obs),
-    nobs          = length(residuals)
-  )
-}
-
-#' Derive the glance-style goodness-of-fit row from the primitives
-#'
-#' Pure arithmetic, called by the fitting core once the optimum is found. `D2` is
-#' deviance-explained (`= 1 - Var(resid)/Var(obs)` since both deviances are sums of
-#' squares on the same `n`); `AIC`/`BIC` use the full profiled Gaussian `logLik`.
-#'
-#' `D2` is at most `1` but has **no lower bound**: it is negative whenever the prediction
-#' is worse than the flat null. It is returned unclamped -- a negative `D2` is a real
-#' signal that the fit is poor, not an error. `AIC`/`BIC` are per-fit numbers, meaningful
-#' only *compared* against another model fit at its own maximum.
-#'
-#' @param logLik The profiled Gaussian log-likelihood at the fit.
-#' @param deviance The model deviance (residual sum of squares).
-#' @param null_deviance The flat/mean-only null deviance.
-#' @param nobs Number of observations.
-#' @param k Number of estimated parameters.
-#' @param sigma_hat The profiled noise scale at the optimum.
-#' @return A one-row tibble: `D2`, `AIC`, `BIC`, and the primitives (`logLik`,
-#'   `deviance`, `null_deviance`, `nobs`, `k`, `sigma_hat`).
-#' @noRd
-gof_from_primitives <- function(logLik, deviance, null_deviance, nobs, k, sigma_hat) {
+gof_lrmsd_msa <- function(r, logLik, k) {
+  deviance      <- sum(r$resid^2)
+  null_deviance <- calculate_null_deviance(r$obs_matched)
+  nobs          <- length(r$resid)
   tibble::tibble(
     D2            = 1 - deviance / null_deviance,
     AIC           = -2 * logLik + 2 * k,
@@ -97,30 +90,32 @@ gof_from_primitives <- function(logLik, deviance, null_deviance, nobs, k, sigma_
     null_deviance = null_deviance,
     nobs          = nobs,
     k             = k,
-    sigma_hat     = sigma_hat
+    sigma_hat     = sqrt(mean(r$resid^2))
   )
 }
 
-#' Axis-blind ML optimisation + asymptotic covariance
+#' Fit the MSA model to a resolved observation frame
 #'
-#' The shared machinery of `fit_lrmsd_{i,n}_msa_ml()`: validate the box, build the
-#' grid-max start, optimise the supplied negative log-likelihood in `(a1, log2(a2+1))`
-#' coordinates, form the asymptotic covariance from the Hessian, and assemble the return
-#' list. The axis-specific likelihood and goodness-of-fit are injected as closures.
+#' The shared fitter both exported wrappers delegate to, top to bottom: validate the box,
+#' optimise, form the asymptotic covariance, build the goodness-of-fit row, return.
 #'
-#' @param nll Negative profiled log-likelihood, a function of `theta = c(a1, log2(a2+1))`.
-#' @param gof_fn A function of `(a1_hat, a2_hat)` returning the `fit_gof_primitives()` list
-#'   at the optimum.
-#' @param a1_range,log2_a2_plus1_range,init,grid_n The box + start controls (see the
-#'   exported fits).
-#' @param call The user-facing `match.call()` of the exported wrapper, stored as `$call`
-#'   (the core cannot capture it itself).
-#' @return The fit list: the estimate (`a1`, `a2`, `logLik`, `cov`, `se_a1`, `se_a2`,
-#'   `convergence`), the `gof` tibble, and `call`.
+#' Optimisation runs in the coordinates `theta = (a1, log2(a2 + 1))` -- the coordinates in
+#' which the prior is uniform, and in which `a2 = 2^theta2 - 1 >= 0` holds by construction.
+#'
+#' @inheritParams residuals_lrmsd_msa
+#' @param a1_range,log2_a2_plus1_range Length-2 `[min, max]` box bounds.
+#' @param init Optional length-2 unnamed numeric start `c(a1, log2(a2+1))`; `NULL` uses a
+#'   deterministic coarse grid-max over the box.
+#' @param grid_n Points per axis for the default grid-max start.
+#' @param call The exported wrapper's `match.call()`, stored as `$call`.
+#' @return The fit list (see [fit_lrmsd_msa_site()] for the documented shape).
 #' @noRd
-fit_lrmsd_msa_ml_core <- function(nll, gof_fn,
-                                  a1_range, log2_a2_plus1_range,
-                                  init, grid_n, call) {
+fit_lrmsd_msa <- function(dr2_mat, energy_data, obs,
+                          a1_range, log2_a2_plus1_range, init, grid_n, call) {
+  # --- 1. the objective, and the box it is optimised over ---------------------------
+  nll <- function(theta) -loglik_lrmsd_msa(dr2_mat, energy_data, obs,
+                                           a1 = theta[1], a2 = 2^theta[2] - 1)
+
   if (length(a1_range) != 2 || a1_range[1] >= a1_range[2]) {
     stop("a1_range must be a vector of length 2 with min < max")
   }
@@ -128,16 +123,14 @@ fit_lrmsd_msa_ml_core <- function(nll, gof_fn,
       log2_a2_plus1_range[1] >= log2_a2_plus1_range[2]) {
     stop("log2_a2_plus1_range must be a vector of length 2 with min < max")
   }
-
   lower <- c(a1_range[1], log2_a2_plus1_range[1])
   upper <- c(a1_range[2], log2_a2_plus1_range[2])
 
   if (is.null(init)) {
-    theta1_grid <- seq(lower[1], upper[1], length.out = grid_n)
-    theta2_grid <- seq(lower[2], upper[2], length.out = grid_n)
-    grid    <- expand.grid(theta1 = theta1_grid, theta2 = theta2_grid)
-    ll      <- apply(grid, 1L, function(row) -nll(c(row[["theta1"]], row[["theta2"]])))
-    init    <- as.numeric(grid[which.max(ll), c("theta1", "theta2")])
+    grid <- expand.grid(theta1 = seq(lower[1], upper[1], length.out = grid_n),
+                        theta2 = seq(lower[2], upper[2], length.out = grid_n))
+    ll   <- apply(grid, 1L, function(row) -nll(c(row[["theta1"]], row[["theta2"]])))
+    init <- as.numeric(grid[which.max(ll), c("theta1", "theta2")])
   } else {
     if (length(init) != 2) stop("init must be a length-2 numeric c(a1, log2(a2+1))")
     if (!is.null(names(init))) stop("init must be an unnamed positional c(a1, log2(a2+1))")
@@ -147,51 +140,65 @@ fit_lrmsd_msa_ml_core <- function(nll, gof_fn,
     }
   }
 
+  # --- 2. optimise ------------------------------------------------------------------
   opt <- optim(init, nll, method = "L-BFGS-B", lower = lower, upper = upper)
 
-  theta_hat  <- opt$par
-  theta1_hat <- theta_hat[1]
-  theta2_hat <- theta_hat[2]
-  # Un-transform to the natural scale. theta1 == a1 (identity); a2 = 2^theta2 - 1.
-  a1_hat <- theta1_hat
-  a2_hat <- 2^theta2_hat - 1
+  theta_hat <- opt$par
+  a1_hat    <- theta_hat[1]                 # theta1 IS a1 (identity)
+  a2_hat    <- 2^theta_hat[2] - 1
 
-  H <- optimHess(theta_hat, nll)
+  # --- 3. asymptotic covariance, and SEs on the natural scale -----------------------
+  H   <- optimHess(theta_hat, nll)
   cov <- tryCatch(solve(H), error = function(e) NULL)
   if (is.null(cov) || any(!is.finite(cov)) || any(diag(cov) <= 0)) {
     stop("Hessian at the ML optimum is singular or not positive-definite; ",
          "cannot form the asymptotic covariance. The likelihood may be flat in ",
          "one direction (e.g. a parameter pinned at a box bound).")
   }
-  se <- sqrt(diag(cov))
-  se_a1     <- se[1]                          # theta1 == a1, so da1/dtheta1 = 1
-  se_theta2 <- se[2]
-  se_a2 <- abs(2^theta2_hat * log(2)) * se_theta2  # delta: a2 = 2^theta2 - 1, da2/dtheta2 = 2^theta2 * ln 2
+  se    <- sqrt(diag(cov))
+  se_a1 <- se[1]                                     # da1/dtheta1 = 1
+  se_a2 <- abs(2^theta_hat[2] * log(2)) * se[2]      # delta method: da2/dtheta2
 
-  prim <- gof_fn(a1_hat, a2_hat)
+  # --- 4. goodness of fit, from the residuals at the optimum ------------------------
+  logLik <- -opt$value
+  gof    <- gof_lrmsd_msa(residuals_lrmsd_msa(dr2_mat, energy_data, obs, a1_hat, a2_hat),
+                          logLik = logLik,
+                          k      = 3L)   # a1, a2, and the profiled sigma
 
-  # Top level is the ESTIMATE; everything about fit quality lives in $gof. The GoF row is
-  # built here rather than by an exported accessor: these primitives are computed at the
-  # optimum anyway, so a separate accessor would only reassemble what it was handed.
+  # --- 5. the fit object: estimate at the top, fit quality in $gof -------------------
   list(
     a1          = a1_hat,
     a2          = a2_hat,
-    logLik      = -opt$value,
+    logLik      = logLik,
     cov         = cov,
     se_a1       = se_a1,
     se_a2       = se_a2,
     convergence = opt$convergence,
-    gof         = gof_from_primitives(
-      logLik        = -opt$value,
-      deviance      = prim$deviance,
-      null_deviance = prim$null_deviance,
-      nobs          = prim$nobs,
-      k             = 3L,                 # a1, a2, and the profiled sigma
-      sigma_hat     = prim$sigma_hat
-    ),
+    gof         = gof,
     call        = call
   )
 }
+
+#' Flat/mean-only null deviance of an observed profile
+#'
+#' The total sum of squares of the observed profile about its mean,
+#' `sum((y - mean(y))^2)` (glm's `null.deviance` for a Gaussian; `= (n-1)*var(y)`). It
+#' is the deviance of the best constant prediction, so it depends only on the data, not
+#' on any model -- the same null for every model fit to that data, which is what makes
+#' `D^2 = 1 - deviance/null_deviance` comparable. Centres internally, so the result is
+#' the same whether the caller passes raw or already-centred `y`. Axis-agnostic, pure.
+#'
+#' @param y Numeric vector of observed profile values (raw or already mean-centred).
+#' @return A single numeric: the null deviance. Stops if `y` is empty or all-equal.
+#' @noRd
+calculate_null_deviance <- function(y) {
+  n <- length(y)
+  if (n < 1L) stop("y must be non-empty")
+  nd <- sum((y - mean(y))^2)
+  if (nd <= 0) stop("null deviance is zero (observations are all equal)")
+  nd
+}
+
 
 # ---- axis-specific observation resolvers (the ONLY axis-aware boundary logic) ------
 # Each turns the user's two observation vectors into the canonical (idx, obs) frame the
@@ -271,6 +278,7 @@ resolve_mode_obs <- function(valid_modes, mode, lrmsd_obs) {
   tibble::tibble(idx = mode, obs = lrmsd_obs)
 }
 
+
 #' Maximum-likelihood point fit of the lrmsd_i MSA model
 #'
 #' Maximises the profiled Gaussian log-likelihood (`calculate_loglik_lrmsd_i_msa()`)
@@ -335,21 +343,12 @@ fit_lrmsd_msa_site <- function(spm,
                        log2_a2_plus1_range = c(0, 13),
                        init = NULL,
                        grid_n = 25) {
-  # Site boundary: the nll and the sigma/GoF block both resolve observations pdb_site ->
-  # the internal index via site_map (with the site-axis unknown-key error). The axis-blind
-  # core owns the optimisation, covariance, and return assembly.
-  nll <- function(theta) {
-    -calculate_loglik_lrmsd_i_msa(spm, pdb_site, lrmsd_obs,
-                          a1 = theta[1], a2 = 2^theta[2] - 1)
-  }
-  gof_fn <- function(a1_hat, a2_hat) {
-    obs  <- resolve_site_obs(spm, pdb_site, lrmsd_obs)
-    v    <- lrmsd_msa(spm$dr2_ijm, spm$energy_data, a1_hat, a2_hat)
-    pred <- tibble::tibble(idx = seq_along(v), pred = v)
-    fit_gof_primitives(pred, obs)
-  }
-  fit_lrmsd_msa_ml_core(nll, gof_fn, a1_range, log2_a2_plus1_range, init, grid_n,
-                        call = match.call())
+  # The only axis-aware step: map pdb_site -> the internal site index (and raise the
+  # site-axis unknown-key error), ONCE, before optimising. Everything after is axis-blind.
+  fit_lrmsd_msa(spm$dr2_ijm, spm$energy_data,
+                obs = resolve_site_obs(spm, pdb_site, lrmsd_obs),
+                a1_range, log2_a2_plus1_range, init, grid_n,
+                call = match.call())
 }
 
 #' Maximum-likelihood point fit of the lrmsd_n MSA model (mode form)
@@ -399,88 +398,10 @@ fit_lrmsd_msa_mode <- function(spm,
                        log2_a2_plus1_range = c(0, 13),
                        init = NULL,
                        grid_n = 25) {
-  # Mode boundary: the mode number is the internal index directly (no site_map). Same
-  # axis-blind core; the unknown-key check is done inside resolve_mode_obs.
-  nll <- function(theta) {
-    -calculate_loglik_lrmsd_n_msa(spm, mode, lrmsd_obs,
-                          a1 = theta[1], a2 = 2^theta[2] - 1)
-  }
-  gof_fn <- function(a1_hat, a2_hat) {
-    v    <- lrmsd_msa(spm$dr2_njm, spm$energy_data, a1_hat, a2_hat)
-    pred <- tibble::tibble(idx = seq_along(v), pred = v)
-    obs  <- resolve_mode_obs(pred$idx, mode, lrmsd_obs)
-    fit_gof_primitives(pred, obs)
-  }
-  fit_lrmsd_msa_ml_core(nll, gof_fn, a1_range, log2_a2_plus1_range, init, grid_n,
-                        call = match.call())
-}
-
-#' Flat/mean-only null deviance of an observed profile
-#'
-#' The total sum of squares of the observed profile about its mean,
-#' `sum((y - mean(y))^2)` (glm's `null.deviance` for a Gaussian; `= (n-1)*var(y)`). It
-#' is the deviance of the best constant prediction, so it depends only on the data, not
-#' on any model -- the same null for every model fit to that data, which is what makes
-#' `D^2 = 1 - deviance/null_deviance` comparable. Centres internally, so the result is
-#' the same whether the caller passes raw or already-centred `y`. Axis-agnostic, pure.
-#'
-#' @param y Numeric vector of observed profile values (raw or already mean-centred).
-#' @return A single numeric: the null deviance. Stops if `y` is empty or all-equal.
-#' @noRd
-calculate_null_deviance <- function(y) {
-  n <- length(y)
-  if (n < 1L) stop("y must be non-empty")
-  nd <- sum((y - mean(y))^2)
-  if (nd <= 0) stop("null deviance is zero (observations are all equal)")
-  nd
-}
-
-# ---- fitting objective: profiled Gaussian log-likelihood (internal) --------------
-# The criterion the fitter optimises. Internal (@noRd): users never call the raw
-# likelihood; the goodness-of-fit surface (AIC etc.) is separate public functions.
-# Kept a distinct function so the criterion stays swappable (a future
-# stochastic-likelihood tree plugs in here without touching the fitter).
-
-#' Profiled Gaussian log-likelihood of a per-site divergence profile
-#'
-#' Log-likelihood of an observed per-site divergence profile at `(a1, a2)`: mean-centre
-#' the model prediction and observations, compare under a Gaussian noise model whose
-#' scale is profiled out (`sigma = sqrt(mean(r^2))`). Maximised by [fit_lrmsd_msa_site()].
-#'
-#' @param spm A single-point-mutation `spm` object from [generate_spm_data()] (its `site_map` keys the fit to PDB residues).
-#' @param pdb_site Integer vector of PDB residue numbers identifying the observations.
-#' @param lrmsd_obs Numeric vector of observed log divergences, same length as `pdb_site`.
-#' @param a1 Stability selection strength.
-#' @param a2 Activity selection strength.
-#' @return A single numeric log-likelihood.
-#' @noRd
-calculate_loglik_lrmsd_i_msa <- function(spm, pdb_site, lrmsd_obs, a1, a2) {
-  # Resolve user pdb_site -> internal site index (site-only, at the boundary), with the
-  # site-axis unknown-key check; then hand canonical (idx, obs)/(idx, pred) to the core.
-  obs         <- resolve_site_obs(spm, pdb_site, lrmsd_obs)       # tibble(idx, obs)
-  v           <- lrmsd_msa(spm$dr2_ijm, spm$energy_data, a1, a2)
-  predictions <- tibble::tibble(idx = seq_along(v), pred = v)
-  loglik_lrmsd_msa_core(predictions, obs)
-}
-
-#' Profiled Gaussian log-likelihood of a per-mode divergence profile
-#'
-#' Mode-form counterpart of `calculate_loglik_lrmsd_i_msa()`: scores over normal modes,
-#' with no `pdb_site` mapping (the mode index `n` is used directly). Maximised by
-#' [fit_lrmsd_msa_mode()].
-#'
-#' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
-#' @param mode Integer vector of mode indices identifying the observations.
-#' @param lrmsd_obs Numeric vector of observed log divergences, same length as `mode`.
-#' @param a1 Stability selection strength.
-#' @param a2 Activity selection strength.
-#' @return A single numeric log-likelihood.
-#' @noRd
-calculate_loglik_lrmsd_n_msa <- function(spm, mode, lrmsd_obs, a1, a2) {
-  # The mode number is the internal index directly (no site_map); resolve + unknown-key
-  # check at the boundary, then hand canonical frames to the axis-blind core.
-  v           <- lrmsd_msa(spm$dr2_njm, spm$energy_data, a1, a2)
-  predictions <- tibble::tibble(idx = seq_along(v), pred = v)
-  obs         <- resolve_mode_obs(predictions$idx, mode, lrmsd_obs)  # tibble(idx, obs)
-  loglik_lrmsd_msa_core(predictions, obs)
+  # The only axis-aware step: the mode number IS the internal index (no site_map), so this
+  # just range-checks it, ONCE, before optimising. Everything after is axis-blind.
+  fit_lrmsd_msa(spm$dr2_njm, spm$energy_data,
+                obs = resolve_mode_obs(seq_len(ncol(spm$dr2_njm)), mode, lrmsd_obs),
+                a1_range, log2_a2_plus1_range, init, grid_n,
+                call = match.call())
 }

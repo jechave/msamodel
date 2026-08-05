@@ -36,7 +36,7 @@ test_that("ML sits at a local max of its own objective (consistency)", {
   # Replaces the retired 81x81 grid search (~58 s). Evaluate the SAME objective the
   # ML fit optimises on a tiny grid centred on the fit's own (a1, a2): optim's logLik
   # must be no worse than any nearby point, i.e. it sits at a local max. Self-
-  # contained -- depends only on fit_lrmsd_msa_site + calculate_loglik_lrmsd_i_msa.
+  # contained -- depends only on fit_lrmsd_msa_site + loglik_lrmsd_msa.
   # Honest scope: this is a local-max CONSISTENCY
   # check on the ML path, NOT an independent-correctness proof (the grid recomputes
   # the same objective). WHERE the optimum is, is pinned by the frozen-reference test
@@ -48,7 +48,7 @@ test_that("ML sits at a local max of its own objective (consistency)", {
   bg  <- log2(ml$a2 + 1) + c(-0.3, -0.15, 0, 0.15, 0.3)
   G   <- expand.grid(a1 = a1g, b = bg)
   ll  <- apply(G, 1L, function(r)
-    msamodel:::calculate_loglik_lrmsd_i_msa(pp, znb_profile$pdb_site, znb_profile$lrmsd_i_obs, a1 = r[["a1"]], a2 = 2^r[["b"]] - 1))
+    msamodel:::loglik_lrmsd_msa(pp$dr2_ijm, pp$energy_data, msamodel:::resolve_site_obs(pp, znb_profile$pdb_site, znb_profile$lrmsd_i_obs), a1 = r[["a1"]], a2 = 2^r[["b"]] - 1))
 
   expect_gte(ml$logLik, max(ll) - 1e-8)
 })
@@ -112,7 +112,7 @@ test_that("the (key, value) observation pair is validated (fail loud)", {
 test_that("fit_lrmsd_msa_site inherits the pdb_site contract from the likelihood", {
   pp <- znb_spm
 
-  # Unknown pdb_site -> error (not a silent drop), inherited from calculate_loglik_lrmsd_i_msa.
+  # Unknown pdb_site -> error (not a silent drop), inherited from loglik_lrmsd_msa.
   bad_site <- znb_profile$pdb_site
   bad_site[1] <- 999999L
   expect_error(fit_lrmsd_msa_site(pp, bad_site, znb_profile$lrmsd_i_obs),

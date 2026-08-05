@@ -23,6 +23,53 @@ changes. The same episode often earns a line in each. Things to maybe do later l
 in `dev/ideas.md`.
 
 
+### 2026-08-05 — the fitting code was flattened: closures out, five numbered steps in
+
+Slice 4, and the reason for it is the important part. The user, reading their own
+package: *"what does gof_fn do? idk wtf it does"*, *"why do we have such a complicated
+structure for such a simple task"*, *"I have become completely alienated from my own
+code."*
+
+That is a correctness problem, not an aesthetic one. This is a scientific package with
+one maintainer; code the maintainer cannot read is code whose correctness nobody checks.
+
+**What the structure was hiding.** `fit_lrmsd_msa_ml_core()` took two injected closures
+(`nll`, `gof_fn`) so it could stay axis-blind. Reading it closely turned up two defects
+the indirection concealed:
+
+1. **Observations were re-resolved on every likelihood evaluation.**
+   `calculate_loglik_lrmsd_i_msa()` called `resolve_site_obs()` — a join plus a `setdiff`
+   unknown-key scan — inside `nll`, which `optim` calls ~50 times, plus the Hessian.
+2. **The residuals were computed twice, by two different code paths.** `optim` computed
+   them at every step and discarded them; `gof_fn` recomputed them at the optimum. The
+   likelihood and the goodness of fit ARE the same residuals reduced two ways, and the
+   old code never said so — which is exactly why `gof_fn` looked like it did nothing
+   comprehensible.
+
+**The fix was to pass values, not functions.** The wrappers now resolve their own axis
+once and hand `fit_lrmsd_msa()` a matrix and a resolved `(idx, obs)` frame. Nothing is
+duplicated — the optimiser, Hessian, delta method and GoF are still written once — but
+the shared function reads top to bottom in five numbered steps instead of dispatching
+through closures. 13 functions to 10, and the tangled 8 became a linear 4:
+`residuals_lrmsd_msa` → `loglik_lrmsd_msa` → `gof_lrmsd_msa` → `fit_lrmsd_msa`.
+
+**Measured side effect:** the full suite went from ~84 s to ~65 s. That is the removed
+per-evaluation re-resolution, and it is a useful corroboration that defect (1) was real
+rather than theoretical.
+
+**What was deliberately given up.** A comment claimed the closure structure kept the
+criterion swappable for a future stochastic likelihood. That hook was speculative; the
+unreadability was actual. If a stochastic criterion ever lands, `loglik_lrmsd_msa()` is
+a named function with a clean signature — swapping it is a smaller problem than the one
+just solved.
+
+**The snapshot test earned its place.** `_snaps/profile-invariance.md` pins the loglik
+scalar. Two sabotage runs (drop the centring; use `sd()` instead of the MLE sigma) both
+went red through it. Verification bar held: every field of both fits, and the loglik at
+the snapshot point, `identical()` to a pre-change baseline — bit-equal, not merely
+within tolerance. Resolving once did not perturb the optimiser's path.
+
+
 ### 2026-08-05 — fitter names rebuilt around `lrmsd_msa` as a unit; `gof_*` deleted, not renamed
 
 Slice 3. The renames are in the diff; the reasoning that produced them is not.

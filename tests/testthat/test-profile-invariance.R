@@ -2,7 +2,7 @@
 #
 # These snapshots pin the FULL per-element profiles -- the dr2_i (site) and dr2_n
 # (mode) vectors at a fixed (a1, a2), plus the loglik scalar -- against any future
-# change to the dr2_msa forward-map primitive / calculate_loglik_lrmsd_i_msa.
+# change to the dr2_msa forward-map primitive / loglik_lrmsd_msa.
 # This is the ONLY value-level guard on those whole vectors: the frozen loglik
 # literal elsewhere is a scalar REDUCTION (a bug that permutes sites or flips signs
 # symmetric about the mean leaves it unchanged while the profile drifts), and the
@@ -34,7 +34,7 @@ test_that("dr2 mode profile is unchanged by the rename", {
 test_that("loglik is unchanged by the rename", {
   pp <- znb_spm
   expect_snapshot_value(
-    msamodel:::calculate_loglik_lrmsd_i_msa(pp, znb_profile$pdb_site, znb_profile$lrmsd_i_obs, a1 = 2, a2 = 5),
+    msamodel:::loglik_lrmsd_msa(pp$dr2_ijm, pp$energy_data, msamodel:::resolve_site_obs(pp, znb_profile$pdb_site, znb_profile$lrmsd_i_obs), a1 = 2, a2 = 5),
     style = "serialize"
   )
 })

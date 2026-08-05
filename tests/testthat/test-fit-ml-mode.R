@@ -1,5 +1,5 @@
 # Drift-guards for the mode ML fit arm (fit_lrmsd_msa_mode) and its objective
-# (calculate_loglik_lrmsd_n_msa). Regression / contract tests: once trusted, later
+# (loglik_lrmsd_msa). Regression / contract tests: once trusted, later
 # edits must not change results or failure behaviour. They are NOT claims that the
 # model is scientifically correct. The fit target is the SYNTHETIC znb_profile_n.
 
@@ -25,7 +25,7 @@ test_that("mode ML sits at a local max of its own objective (consistency)", {
   # check in test-fit-ml.R: evaluate the SAME objective the mode fit optimises on a
   # tiny grid centred on the fit's own (a1, a2); optim's logLik must be no worse than
   # any nearby point. Self-contained -- depends only on fit_lrmsd_msa_mode +
-  # calculate_loglik_lrmsd_n_msa. Honest scope: a local-max CONSISTENCY check, NOT
+  # loglik_lrmsd_msa. Honest scope: a local-max CONSISTENCY check, NOT
   # independent correctness (the grid recomputes the same objective). WHERE the
   # optimum is, is pinned by the frozen-reference test below; THAT it is a max there,
   # is pinned here.
@@ -36,7 +36,7 @@ test_that("mode ML sits at a local max of its own objective (consistency)", {
   bg  <- log2(ml$a2 + 1) + c(-0.3, -0.15, 0, 0.15, 0.3)
   G   <- expand.grid(a1 = a1g, b = bg)
   ll  <- apply(G, 1L, function(r)
-    msamodel:::calculate_loglik_lrmsd_n_msa(pp, znb_profile_n$n, znb_profile_n$lrmsd_n_obs, a1 = r[["a1"]], a2 = 2^r[["b"]] - 1))
+    msamodel:::loglik_lrmsd_msa(pp$dr2_njm, pp$energy_data, msamodel:::resolve_mode_obs(seq_len(ncol(pp$dr2_njm)), znb_profile_n$n, znb_profile_n$lrmsd_n_obs), a1 = r[["a1"]], a2 = 2^r[["b"]] - 1))
 
   expect_gte(ml$logLik, max(ll) - 1e-8)
 })
@@ -78,22 +78,24 @@ test_that("unknown mode index in observed_data is an error, not a silent drop", 
   bad_mode <- znb_profile_n$n
   bad_mode[1] <- 999999L
   expect_error(
-    msamodel:::calculate_loglik_lrmsd_n_msa(pp, bad_mode, znb_profile_n$lrmsd_n_obs,
-                                            a1 = 2, a2 = 5),
+    msamodel:::resolve_mode_obs(seq_len(ncol(pp$dr2_njm)), bad_mode,
+                                znb_profile_n$lrmsd_n_obs),
     "mode index\\(es\\) not present in the model"
   )
   expect_error(fit_lrmsd_msa_mode(pp, bad_mode, znb_profile_n$lrmsd_n_obs),
                "not present in the model")
 })
 
-test_that("calculate_loglik_lrmsd_n_msa is invariant to a constant shift in lrmsd_n_obs", {
+test_that("loglik_lrmsd_msa is invariant to a constant shift in lrmsd_n_obs", {
   # Both profiles are mean-centered, so adding a constant to the observed column
   # leaves the log-likelihood unchanged. Independent property, not a re-derivation.
   pp <- znb_spm
-  ll1 <- msamodel:::calculate_loglik_lrmsd_n_msa(pp, znb_profile_n$n, znb_profile_n$lrmsd_n_obs, a1 = 2, a2 = 5)
+  ll1 <- msamodel:::loglik_lrmsd_msa(pp$dr2_njm, pp$energy_data, msamodel:::resolve_mode_obs(seq_len(ncol(pp$dr2_njm)), znb_profile_n$n, znb_profile_n$lrmsd_n_obs), a1 = 2, a2 = 5)
   shifted <- znb_profile_n$lrmsd_n_obs + 3.7
-  ll2 <- msamodel:::calculate_loglik_lrmsd_n_msa(pp, znb_profile_n$n, shifted,
-                                                 a1 = 2, a2 = 5)
+  ll2 <- msamodel:::loglik_lrmsd_msa(
+    pp$dr2_njm, pp$energy_data,
+    msamodel:::resolve_mode_obs(seq_len(ncol(pp$dr2_njm)), znb_profile_n$n, shifted),
+    a1 = 2, a2 = 5)
   expect_equal(ll1, ll2)
 })
 
