@@ -8,7 +8,7 @@
 A tibble with 225 rows and 2 columns:
 \describe{
 \item{pdb_site}{Integer PDB residue number (the structure-anchored site key).}
-\item{lrmsd_i_obs}{Observed log structural divergence (log RMSD).}
+\item{lrmsd_obs}{Observed log structural divergence (log RMSD).}
 }
 }
 \source{

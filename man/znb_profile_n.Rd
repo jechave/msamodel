@@ -7,9 +7,9 @@
 \format{
 A tibble with 678 rows (one per normal mode) and 2 columns:
 \describe{
-\item{n}{Integer mode index (the response-mode key; modes are not
+\item{mode}{Integer mode index (the response-mode key; modes are not
 structure-anchored, so there is no \code{pdb_site}).}
-\item{lrmsd_n_obs}{Synthetic observed log structural divergence per mode.}
+\item{lrmsd_obs}{Synthetic observed log structural divergence per mode.}
 }
 }
 \source{
@@ -21,9 +21,9 @@ znb_profile_n
 }
 \description{
 Per-mode observed divergence used as the fitting target for the mode arm
-(\code{fit_lrmsd_msa_mode}), keyed by the mode index \code{n}. The fitter takes the
-two columns as a \code{(mode, lrmsd_obs)} vector pair, so this is example data
-rather than a required schema.
+(\code{fit_lrmsd_msa_mode}), keyed by the mode index. The fitter takes the two
+columns as a \code{(mode, lrmsd_obs)} vector pair, so this is example data rather
+than a required schema.
 }
 \details{
 \strong{This data is SYNTHETIC, not empirical.} No empirical mode profile exists

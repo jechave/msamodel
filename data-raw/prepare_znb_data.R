@@ -50,14 +50,14 @@ znb_dataset <- readr::read_csv(
 
 # --- 4. znb_profile: observed divergence profile ---------------------------
 # Keyed by pdb_site (the structure-anchored identity a user can actually supply),
-# NOT the internal index i. dactive/lrmsf are NOT embedded: they are derivable
+# NOT the internal site index. dactive/lrmsf are NOT embedded: they are derivable
 # from znb_wt (add_site_properties; lrmsf = log(sqrt(get_msf_site))), so storing
 # them would duplicate data the package can regenerate.
 znb_profile <- readr::read_csv(
   here("data-raw", "raw", "profiles_1znb_A.csv"),
   col_types = readr::cols(pdb_site = readr::col_integer(), .default = readr::col_guess())
 ) %>%
-  dplyr::transmute(pdb_site, lrmsd_i_obs = lrmsd)
+  dplyr::transmute(pdb_site, lrmsd_obs = lrmsd)
 
 # --- 5. active-site residues -----------------------------------------------
 # 1znb_A active-site residues (PDB numbering), from the vendored CSV
@@ -122,23 +122,23 @@ SYN_PROFILE_N_SEED     <- 2025
 SYN_PROFILE_N_NOISE_SD <- 0.30
 
 site_fit    <- fit_lrmsd_msa_site(znb_spm, znb_profile$pdb_site,
-                                  znb_profile$lrmsd_i_obs)  # deterministic truth (a1,a2)
+                                  znb_profile$lrmsd_obs)  # deterministic truth (a1,a2)
 
 dr2_n_true   <- dr2_msa(znb_spm$dr2_njm, znb_spm$energy_data, site_fit$a1, site_fit$a2)
-lrmsd_n_true <- tibble::tibble(n = seq_along(dr2_n_true),
+lrmsd_n_true <- tibble::tibble(mode = seq_along(dr2_n_true),
                                lrmsd_n_true = log(sqrt(dr2_n_true)))
 
 set.seed(SYN_PROFILE_N_SEED)
 znb_profile_n <- lrmsd_n_true %>%
   dplyr::transmute(
-    n,
-    lrmsd_n_obs = lrmsd_n_true + rnorm(dplyr::n(), 0, SYN_PROFILE_N_NOISE_SD)
+    mode,
+    lrmsd_obs = lrmsd_n_true + rnorm(dplyr::n(), 0, SYN_PROFILE_N_NOISE_SD)
   )
 
 # Sanity check (message only): the mode fit on the synthetic data should recover
 # the truth (a1,a2) closely. NOT an assertion -- the drift guard is the test.
-mode_fit_check <- fit_lrmsd_msa_mode(znb_spm, znb_profile_n$n,
-                                     znb_profile_n$lrmsd_n_obs)
+mode_fit_check <- fit_lrmsd_msa_mode(znb_spm, znb_profile_n$mode,
+                                     znb_profile_n$lrmsd_obs)
 message(sprintf(
   "znb_profile_n: truth (a1=%.4f, a2=%.4f) -> mode-fit recovers (a1=%.4f, a2=%.4f)",
   site_fit$a1, site_fit$a2, mode_fit_check$a1, mode_fit_check$a2))

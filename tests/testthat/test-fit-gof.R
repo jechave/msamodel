@@ -12,12 +12,12 @@ test_that("both fitters attach a well-formed $gof (both axes)", {
   cols <- c("D2", "AIC", "BIC", "logLik", "deviance", "null_deviance",
             "nobs", "k", "sigma_hat")
 
-  gi <- fit_lrmsd_msa_site(znb_spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)$gof
+  gi <- fit_lrmsd_msa_site(znb_spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)$gof
   expect_named(gi, cols)
   expect_equal(nrow(gi), 1L)
   expect_true(all(vapply(gi, is.finite, logical(1))))
 
-  gn <- fit_lrmsd_msa_mode(znb_spm, znb_profile_n$n, znb_profile_n$lrmsd_n_obs)$gof
+  gn <- fit_lrmsd_msa_mode(znb_spm, znb_profile_n$mode, znb_profile_n$lrmsd_obs)$gof
   expect_named(gn, cols)
   expect_equal(nrow(gn), 1L)
   expect_true(all(vapply(gn, is.finite, logical(1))))
@@ -33,7 +33,7 @@ test_that("D2 relates deviance to the null the way the formula claims", {
   # Independent route: D2 is recomputed from the two deviances stored beside it, so a
   # mis-wired numerator/denominator (or a clamped D2) goes red. Negative control:
   # returning deviance/null_deviance instead of 1 - that ratio fails this.
-  g <- fit_lrmsd_msa_site(znb_spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)$gof
+  g <- fit_lrmsd_msa_site(znb_spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)$gof
   expect_equal(g$D2, 1 - g$deviance / g$null_deviance)
   expect_lt(g$D2, 1)                        # at most 1, never exactly (noise remains)
 

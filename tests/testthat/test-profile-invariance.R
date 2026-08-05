@@ -34,7 +34,7 @@ test_that("dr2 mode profile is unchanged by the rename", {
 test_that("loglik is unchanged by the rename", {
   pp <- znb_spm
   expect_snapshot_value(
-    msamodel:::loglik_lrmsd_msa(pp$dr2_ijm, pp$energy_data, msamodel:::resolve_site_obs(pp, znb_profile$pdb_site, znb_profile$lrmsd_i_obs), a1 = 2, a2 = 5),
+    msamodel:::loglik_lrmsd_msa(pp$dr2_ijm, pp$energy_data, msamodel:::resolve_site_obs(pp, znb_profile$pdb_site, znb_profile$lrmsd_obs), a1 = 2, a2 = 5),
     style = "serialize"
   )
 })

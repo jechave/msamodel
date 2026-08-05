@@ -146,7 +146,7 @@ calculate_profiles <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
 #' @examples
 #' \dontrun{
 #' spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
-#' ml  <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
+#' ml  <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)
 #' predict_profiles(ml, spm, which = "nlrmsd")$site
 #' }
 #' @export
@@ -253,7 +253,7 @@ calculate_decomposition <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
 #' @examples
 #' \dontrun{
 #' spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
-#' ml  <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
+#' ml  <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)
 #' predict_decomposition(ml, spm, which = "nlrmsd")$site
 #' }
 #' @export

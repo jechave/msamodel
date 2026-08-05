@@ -19,7 +19,7 @@ test_that("calculate_profiles returns both axes with the which-selected column",
 
 test_that("predict_profiles adds an _se sibling to every value column, both axes", {
   spm <- znb_spm
-  ml  <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
+  ml  <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)
   for (which in c("lrmsd", "nlrmsd")) {
     out <- predict_profiles(ml, spm, which = which)
     expect_named(out$site, c("site", "pdb_site", paste0(which, "_msa"), paste0(which, "_msa_se")))
@@ -48,8 +48,8 @@ test_that("calculate_decomposition switches nested + component family in lockste
 
 test_that("predict_decomposition(nlrmsd) bands every nested + component column, both axes", {
   spm <- znb_spm
-  ml  <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
-  mln <- fit_lrmsd_msa_mode(spm, znb_profile_n$n, znb_profile_n$lrmsd_n_obs)
+  ml  <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)
+  mln <- fit_lrmsd_msa_mode(spm, znb_profile_n$mode, znb_profile_n$lrmsd_obs)
   out  <- predict_decomposition(ml, spm, which = "nlrmsd")
   # every value column has an adjacent _se; 7 value cols -> 7 _se cols on each axis
   # both branches share one value vocabulary, so one `vals` drives both assertions
@@ -62,7 +62,7 @@ test_that("predict_decomposition(nlrmsd) bands every nested + component column, 
 
 test_that("predict_decomposition(which='lrmsd') errors as to-be-developed", {
   spm <- znb_spm
-  ml  <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
+  ml  <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)
   expect_error(predict_decomposition(ml, spm, which = "lrmsd"), "to be developed")
   # and it must NOT be reachable via a partial-match or a silent default
   expect_error(predict_decomposition(ml, spm, which = "lr"))     # bad which -> match.arg stops
@@ -128,8 +128,8 @@ test_that("calculate_* reproduce frozen reference values (znb_spm at a1=1.3, a2=
 
 test_that("predict_* reproduce frozen reference values (fixed ML fit; _se pinned)", {
   spm  <- znb_spm
-  ml_i <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)     # deterministic; a1>0 and a2>0
-  ml_n <- fit_lrmsd_msa_mode(spm, znb_profile_n$n, znb_profile_n$lrmsd_n_obs)
+  ml_i <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)     # deterministic; a1>0 and a2>0
+  ml_n <- fit_lrmsd_msa_mode(spm, znb_profile_n$mode, znb_profile_n$lrmsd_obs)
   tol  <- 1e-6                                      # se's carry Hessian round-off; looser
   expect_true(ml_i$a1 > 0 && ml_i$a2 > 0)          # both arms live (guards the arm-point mix)
 

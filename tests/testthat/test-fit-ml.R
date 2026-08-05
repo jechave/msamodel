@@ -5,7 +5,7 @@
 
 test_that("fit_lrmsd_msa_site returns the documented list shape", {
   pp <- znb_spm
-  ml <- fit_lrmsd_msa_site(pp, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
+  ml <- fit_lrmsd_msa_site(pp, znb_profile$pdb_site, znb_profile$lrmsd_obs)
 
   # Top level is the ESTIMATE; fit quality is the $gof tibble; $call records the fitter.
   expect_named(ml, c("a1", "a2", "logLik", "cov", "se_a1", "se_a2",
@@ -42,13 +42,13 @@ test_that("ML sits at a local max of its own objective (consistency)", {
   # the same objective). WHERE the optimum is, is pinned by the frozen-reference test
   # below; THAT it is a max there, is pinned here.
   pp <- znb_spm
-  ml <- fit_lrmsd_msa_site(pp, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
+  ml <- fit_lrmsd_msa_site(pp, znb_profile$pdb_site, znb_profile$lrmsd_obs)
 
   a1g <- ml$a1 + c(-0.1, -0.05, 0, 0.05, 0.1)
   bg  <- log2(ml$a2 + 1) + c(-0.3, -0.15, 0, 0.15, 0.3)
   G   <- expand.grid(a1 = a1g, b = bg)
   ll  <- apply(G, 1L, function(r)
-    msamodel:::loglik_lrmsd_msa(pp$dr2_ijm, pp$energy_data, msamodel:::resolve_site_obs(pp, znb_profile$pdb_site, znb_profile$lrmsd_i_obs), a1 = r[["a1"]], a2 = 2^r[["b"]] - 1))
+    msamodel:::loglik_lrmsd_msa(pp$dr2_ijm, pp$energy_data, msamodel:::resolve_site_obs(pp, znb_profile$pdb_site, znb_profile$lrmsd_obs), a1 = r[["a1"]], a2 = 2^r[["b"]] - 1))
 
   expect_gte(ml$logLik, max(ll) - 1e-8)
 })
@@ -57,7 +57,7 @@ test_that("fit_lrmsd_msa_site matches frozen reference values", {
   # Frozen literals captured once from the current implementation (devtools state,
   # 2026-06-24). Catches drift in the fit math / optimiser path, not a re-derivation.
   pp <- znb_spm
-  ml <- fit_lrmsd_msa_site(pp, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
+  ml <- fit_lrmsd_msa_site(pp, znb_profile$pdb_site, znb_profile$lrmsd_obs)
 
   expect_equal(ml$a1,     0.458002, tolerance = 1e-4)
   expect_equal(ml$a2,    42.302191, tolerance = 1e-3)
@@ -69,17 +69,17 @@ test_that("fit_lrmsd_msa_site matches frozen reference values", {
 
 test_that("fit_lrmsd_msa_site validates box bounds (fail loud)", {
   pp <- znb_spm
-  expect_error(fit_lrmsd_msa_site(pp, znb_profile$pdb_site, znb_profile$lrmsd_i_obs, a1_range = c(5)),
+  expect_error(fit_lrmsd_msa_site(pp, znb_profile$pdb_site, znb_profile$lrmsd_obs, a1_range = c(5)),
                "a1_range must be a vector of length 2")
-  expect_error(fit_lrmsd_msa_site(pp, znb_profile$pdb_site, znb_profile$lrmsd_i_obs, a1_range = c(10, 0)),
+  expect_error(fit_lrmsd_msa_site(pp, znb_profile$pdb_site, znb_profile$lrmsd_obs, a1_range = c(10, 0)),
                "a1_range must be a vector of length 2 with min < max")
-  expect_error(fit_lrmsd_msa_site(pp, znb_profile$pdb_site, znb_profile$lrmsd_i_obs, log2_a2_plus1_range = c(13, 0)),
+  expect_error(fit_lrmsd_msa_site(pp, znb_profile$pdb_site, znb_profile$lrmsd_obs, log2_a2_plus1_range = c(13, 0)),
                "log2_a2_plus1_range must be a vector of length 2 with min < max")
-  expect_error(fit_lrmsd_msa_site(pp, znb_profile$pdb_site, znb_profile$lrmsd_i_obs, init = c(1)),
+  expect_error(fit_lrmsd_msa_site(pp, znb_profile$pdb_site, znb_profile$lrmsd_obs, init = c(1)),
                "init must be a length-2 numeric")
-  expect_error(fit_lrmsd_msa_site(pp, znb_profile$pdb_site, znb_profile$lrmsd_i_obs, init = c(99, 1)),
+  expect_error(fit_lrmsd_msa_site(pp, znb_profile$pdb_site, znb_profile$lrmsd_obs, init = c(99, 1)),
                "init must lie within the box")
-  expect_error(fit_lrmsd_msa_site(pp, znb_profile$pdb_site, znb_profile$lrmsd_i_obs, init = c(a1 = 1, b = 1)),
+  expect_error(fit_lrmsd_msa_site(pp, znb_profile$pdb_site, znb_profile$lrmsd_obs, init = c(a1 = 1, b = 1)),
                "init must be an unnamed positional")
 })
 
@@ -90,7 +90,7 @@ test_that("the (key, value) observation pair is validated (fail loud)", {
   # correctly-paired call, which passes.
   pp <- znb_spm
   site <- znb_profile$pdb_site
-  obs  <- znb_profile$lrmsd_i_obs
+  obs  <- znb_profile$lrmsd_obs
 
   expect_error(fit_lrmsd_msa_site(pp, site[1:10], obs),
                "must have the same length")
@@ -102,7 +102,7 @@ test_that("the (key, value) observation pair is validated (fail loud)", {
                "must be non-empty")
 
   # Mode axis names its own key argument in the message.
-  expect_error(fit_lrmsd_msa_mode(pp, znb_profile_n$n[1:5], znb_profile_n$lrmsd_n_obs),
+  expect_error(fit_lrmsd_msa_mode(pp, znb_profile_n$mode[1:5], znb_profile_n$lrmsd_obs),
                "`mode` and `lrmsd_obs` must have the same length")
 
   # Control: the correctly-paired call does NOT error (so the guards are not blanket).
@@ -115,11 +115,11 @@ test_that("fit_lrmsd_msa_site inherits the pdb_site contract from the likelihood
   # Unknown pdb_site -> error (not a silent drop), inherited from loglik_lrmsd_msa.
   bad_site <- znb_profile$pdb_site
   bad_site[1] <- 999999L
-  expect_error(fit_lrmsd_msa_site(pp, bad_site, znb_profile$lrmsd_i_obs),
+  expect_error(fit_lrmsd_msa_site(pp, bad_site, znb_profile$lrmsd_obs),
                "not present in the model")
 
   # Partial coverage still yields a finite fit.
   expect_lt(nrow(znb_profile), nrow(pp$site_map))   # genuinely a subset
-  ml <- fit_lrmsd_msa_site(pp, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
+  ml <- fit_lrmsd_msa_site(pp, znb_profile$pdb_site, znb_profile$lrmsd_obs)
   expect_true(is.finite(ml$a1) && is.finite(ml$a2) && is.finite(ml$logLik))
 })

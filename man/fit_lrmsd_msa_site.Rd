@@ -73,7 +73,7 @@ of \code{a2} is obtained by the delta method (\verb{da2/d(log2(a2+1)) = 2^(log2(
 \examples{
 \dontrun{
 spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
-ml <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
+ml <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)
 c(a1 = ml$a1, a2 = ml$a2)
 }
 }

@@ -20,7 +20,7 @@ utils::globalVariables(c(
   "a1", "a2", "dactive", "ddg_dv_jm", "ddg_jm", "ddg_tds_jm", "ddgact_dv_jm",
   "ddgact_jm", "ddgact_tds_jm", "dr2_i", "dr2_ijm", "dr2_n", "dr2_njm",
   "i", "j", "lower", "lrmsd", "lrmsd_ma", "lrmsd_mm", "lrmsd_ms", "lrmsd_msa",
-  "lrmsd_i_obs", "lrmsd_n_obs", "lrmsd_n_true", "m", "mode", "model", "n", "site",
+  "lrmsd_obs", "lrmsd_n_true", "m", "mode", "model", "n", "site",
   "lrmsd_msa_mean", "lrmsd_msa_lower", "lrmsd_msa_upper", "log_weight",
   "nlrmsd_ma", "nlrmsd_mm", "nlrmsd_ms", "nlrmsd_msa",
   "nlrmsd_i_obs", "nlrmsd_n_obs",

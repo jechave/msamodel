@@ -45,7 +45,7 @@ test_that("nlrmsd_msa agrees with predict_profiles's point profile", {
   # profile. Negative control: centring over the wrong support (or not at all) would
   # make the predictor -- which centres over the full model support -- disagree.
   pp <- znb_spm
-  ml <- fit_lrmsd_msa_site(pp, znb_profile$pdb_site, znb_profile$lrmsd_i_obs)
+  ml <- fit_lrmsd_msa_site(pp, znb_profile$pdb_site, znb_profile$lrmsd_obs)
   fwd  <- nlrmsd_msa(pp$dr2_ijm, pp$energy_data, ml$a1, ml$a2)
   pred <- predict_profiles(ml, pp, which = "nlrmsd")$site
   expect_equal(fwd, pred$nlrmsd_msa)
@@ -84,6 +84,6 @@ test_that("loglik_lrmsd_msa matches a frozen reference value", {
   # sd(residuals) to the profile MLE sqrt(mean(residuals^2)); the value shifted by
   # a constant ~+0.0011 and the (a1,a2) argmax is unchanged.)
   pp <- znb_spm
-  ll <- msamodel:::loglik_lrmsd_msa(pp$dr2_ijm, pp$energy_data, msamodel:::resolve_site_obs(pp, znb_profile$pdb_site, znb_profile$lrmsd_i_obs), a1 = 2, a2 = 5)
+  ll <- msamodel:::loglik_lrmsd_msa(pp$dr2_ijm, pp$energy_data, msamodel:::resolve_site_obs(pp, znb_profile$pdb_site, znb_profile$lrmsd_obs), a1 = 2, a2 = 5)
   expect_equal(ll, -184.3230779142, tolerance = 1e-6)
 })
