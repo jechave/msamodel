@@ -56,8 +56,12 @@ for orig in $(git diff --cached --name-only | grep '^vignettes/.*\.Rmd\.orig$');
   $orig is the source of truth; $rendered is pre-rendered from it and ships in
   the package. Re-knit and stage the result before committing:
 
-      Rscript -e 'knitr::knit("$orig", output = "$rendered")'
+      Rscript dev/knit-vignette.R $name
       git add $rendered vignettes/${name}_files/
+
+  Use the wrapper, NOT a hand-rolled knitr::knit() call: knitr writes figures
+  relative to the working directory, so knitting from the package root leaves
+  vignettes/${name}_files/ stale while nothing errors (2026-08-06).
 
   If this .orig change genuinely needs no re-render (e.g. a comment-only edit),
   bypass with:  git commit --no-verify
