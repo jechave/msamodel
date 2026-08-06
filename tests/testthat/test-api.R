@@ -46,7 +46,7 @@ test_that("calculate_decomposition switches nested + component family in lockste
                    setdiff(names(nl$mode), "mode"))
 })
 
-test_that("predict_decomposition(nlrmsd) bands every nested + component column, both axes", {
+test_that("predict_decomposition(nlrmsd) gives every nested + component column an _se, both axes", {
   spm <- znb_spm
   ml  <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)
   mln <- fit_lrmsd_msa_mode(spm, znb_profile_n$mode, znb_profile_n$lrmsd_obs)
@@ -55,17 +55,24 @@ test_that("predict_decomposition(nlrmsd) bands every nested + component column, 
   # both branches share one value vocabulary, so one `vals` drives both assertions
   vals <- c("nlrmsd_mm","nlrmsd_ms","nlrmsd_ma","nlrmsd_msa",
             "nphi_mut","nphi_stab","nphi_act")
-  banded <- as.vector(rbind(vals, paste0(vals, "_se")))
-  expect_named(out$site, c("site", "pdb_site", banded))
-  expect_named(out$mode, c("mode", banded))
+  with_se <- as.vector(rbind(vals, paste0(vals, "_se")))
+  expect_named(out$site, c("site", "pdb_site", with_se))
+  expect_named(out$mode, c("mode", with_se))
 })
 
 test_that("predict_decomposition(which='lrmsd') errors as to-be-developed", {
   spm <- znb_spm
   ml  <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)
+  # The error now comes from the se_*_lrmsd stubs in R/predict_se.R, not from a guard at
+  # the top of the verb: the uncentred branch is undeveloped, and the stub is where it
+  # will be developed.
   expect_error(predict_decomposition(ml, spm, which = "lrmsd"), "to be developed")
-  # and it must NOT be reachable via a partial-match or a silent default
-  expect_error(predict_decomposition(ml, spm, which = "lr"))     # bad which -> match.arg stops
+  expect_error(predict_decomposition(ml, spm, which = "lr"), "to be developed")  # partial match
+  expect_error(predict_decomposition(ml, spm, which = "bogus"))                  # match.arg stops
+  # The DEFAULT is nlrmsd, so a bare call reaches the working branch instead of erroring
+  # on its own default (which is what it used to do).
+  expect_identical(predict_decomposition(ml, spm),
+                   predict_decomposition(ml, spm, which = "nlrmsd"))
 })
 
 test_that("the verbs validate their inputs (which + fit contract)", {
@@ -153,7 +160,7 @@ test_that("predict_* reproduce frozen reference values (fixed ML fit; _se pinned
   expect_equal(pd_n$mode$nphi_stab_se[1],    0.041478920753972,  tolerance = tol)
 
   # Exact structural invariants (hold regardless of the frozen numbers): the mutation
-  # contribution IS the MM nested model, value and band.
+  # contribution IS the MM nested model, value and se.
   expect_identical(pd_i$site$nphi_mut,    pd_i$site$nlrmsd_mm)
   expect_identical(pd_i$site$nphi_mut_se, pd_i$site$nlrmsd_mm_se)
 })

@@ -8,25 +8,21 @@ Delete an entry when it is done, or when it stops being a good idea.
 
 ---
 
-## Terse band-machinery names
+## Terse names in the se machinery
 
-`spm_hmat`, `grad_theta`, `var_param_delta`, `as_theta` (all in
-`R/predict_band_helpers.R`, some also used in `R/api.R`) are named in a terse style
-the author rejects — as are the internal `M`/`G`/`Gc`/`h`/`w` inside `spm_hmat`.
+`spm_hmat` and `grad_theta` (`R/predict_se.R`) are named in a terse style the author
+rejects — as are the internal `M`/`G`/`Gc`/`h`/`w` inside `spm_hmat`. Both were kept
+deliberately when that file was flattened: `spm_hmat` because
+`dev/reports/spm_band_validation.Rmd` calls it by name in 7 places under `load_all()`,
+`grad_theta` because it names real math. (`var_param_delta` and `as_theta` are gone.)
 
-The `t` → `theta` coordinate piece of this was done (2026-08-04); the rest was not.
+Rename the code first so the validated behaviour is preserved, then follow the PDF
+notation to match.
 
-Coupled to the notation in `dev/reports/spm_band_validation.Rmd`, which calls
-`spm_hmat` by name in 7 places under `load_all()` and mirrors the terse notation
-throughout. Rename the code first so the validated behaviour is preserved, then
-follow the PDF notation to match.
+## "band" → "se" vocabulary in the validation report
 
-## "band" → "se" vocabulary
-
-The uncertainty vocabulary is inconsistent: `R/` carries ~28 uses of
-band/bands/banded/banding, while the public API returns `_se` columns. Worth
-settling on one word. Touches `R/predict_band_helpers.R` (including its filename),
-roxygen, and the validation report.
+Purged from `R/` when the se machinery was flattened. `dev/reports/spm_band_validation.Rmd`
+still uses band/bands throughout, including in its filename.
 
 ## Rethink the `R/` family / file structure
 
@@ -35,30 +31,27 @@ The `CLAUDE.md` rule fixing how `R/` files map to `@family` tags was **removed
 
 Two concrete inputs for that thinking:
 
-- `api` had become a seventh family the rule never listed (`R/api.R:101,145,198,252`)
-  — and it holds the main public surface.
+- `api` is a seventh family the rule never listed, and it holds the main public surface:
+  the four verbs now split across `R/model.R` (`calculate_*`) and `R/predict.R`
+  (`predict_*`), all still tagged `@family api`.
 - `R/msa_decomposition.R` carries no `@family` tag at all (`decompose_nested`,
   `R/msa_decomposition.R:28`).
 
 Fixing the missing tag is an `R/` + roxygen change, so it needs `document()` and the
 full-suite gate; it was deliberately left out of the docs-only cleanup.
 
-## `predict_decomposition` errors on its own default
+## Derive the uncentred (lrmsd) nested-model and component SEs
 
-`predict_decomposition(fit, spm)` cannot succeed as written: `match.arg` defaults
-`which` to `"lrmsd"`, and that branch is an explicit `stop()` saying the uncentred
-component band is not yet derived (`R/api.R:263`). Either derive the uncentred
-component SE, or make `"nlrmsd"` the default so a bare call works.
+`se_nested_lrmsd()` and `se_components_lrmsd()` (`R/predict_se.R`) are stubs that
+`stop("... to be developed")`, so `predict_decomposition(which = "lrmsd")` errors. The
+maths was never derived. The stubs are where it goes.
 
-## Flatten the error-band plumbing
+## Flatten `calculate_profiles` / `calculate_decomposition` too
 
-The fitters were flattened 2026-08-05 (`f504a8f`); the band machinery
-(`R/predict_band_helpers.R` + the band code in `R/api.R`) still has the shape they had —
-anonymous closures over `theta` built per column and handed to `var_param_delta()`, with
-the forward map re-evaluated each time. Probably the same treatment.
-
-Coupled to the two entries above on the terse band-helper names and the band/`_se`
-vocabulary; structure first, then naming.
+The `predict_*` verbs were flattened and made explicit (both axes written out, no
+`lapply`, no closures hiding a calculation). The `calculate_*` verbs were deliberately
+moved byte-for-byte in that same work and still have the old shape — `lapply` over
+`axis_branches()`. Same treatment, when there is appetite for it.
 
 ## Are the six shipped `znb_*` datasets right?
 

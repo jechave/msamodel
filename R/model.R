@@ -172,3 +172,144 @@ nlrmsd_msa_decomposition <- function(dr2_mat, energy_data, a1, a2) {
        nphi_act  = phi$phi_act  - mean(phi$phi_act))
 }
 
+# ---- assembly helpers: bare vectors -> the keyed tibble the verbs return ----------
+
+#' Attach the axis key (and, for site, pdb_site) to bare value vectors
+#'
+#' The forward-map primitives return bare per-response vectors; this wraps a NAMED list
+#' of equal-length bare vectors into the keyed tibble the verbs return. The list names
+#' become the value-column names verbatim -- the verb owns naming (including any `_se`
+#' siblings); `key_profile` only prepends the axis key and, for the site axis, joins
+#' `pdb_site` via `spm$site_map`.
+#'
+#' On the site axis `site_map` IS the key table -- `(site, pdb_site)`, one row per site,
+#' in `dr2_ijm` column order -- so it is bound on positionally rather than joined against
+#' a manufactured index. The row-count equality that makes that valid is asserted, not
+#' assumed: a positional bind fails loud on a mismatch where a join would have silently
+#' filled `pdb_site` with `NA`.
+#'
+#' @param cols A NAMED list of equal-length bare numeric vectors. Names become columns.
+#' @param spm The `spm` object (for `site_map` on the site axis).
+#' @param axis `"site"` (keys `site`, `pdb_site`) or `"mode"` (key `mode`).
+#' @return A tibble: site -> `site, pdb_site, <cols...>`; mode -> `mode, <cols...>`.
+#' @noRd
+key_profile <- function(cols, spm, axis) {
+  n <- length(cols[[1]])
+  body <- tibble::as_tibble(cols)
+  if (axis == "site") {
+    if (nrow(spm$site_map) != n) {
+      stop("site_map has ", nrow(spm$site_map), " rows but the profile has ", n,
+           " sites; the spm object is inconsistent.")
+    }
+    dplyr::bind_cols(spm$site_map, body)
+  } else {
+    dplyr::bind_cols(tibble(mode = seq_len(n)), body)
+  }
+}
+
+#' Per-axis dispatch table: the divergence matrix for one branch
+#'
+#' The single place the site/mode branch is chosen: `dr2_ijm` + `"site"` or
+#' `dr2_njm` + `"mode"`. The verbs iterate over the two branches and call the axis-blind
+#' primitives with the branch's matrix.
+#'
+#' Carries no name tag: both branches emit the SAME value-column vocabulary
+#' (`lrmsd_msa`, `lrmsd_mm`, ...), so only the key column differs, and `key_profile()`
+#' derives that from `axis`.
+#'
+#' @param spm The `spm` object.
+#' @return A named list of two branches, each `list(dr2_mat =, axis =)`.
+#' @noRd
+axis_branches <- function(spm) {
+  list(site = list(dr2_mat = spm$dr2_ijm, axis = "site"),
+       mode = list(dr2_mat = spm$dr2_njm, axis = "mode"))
+}
+
+# ---- the model layer public verbs: evaluate at a GIVEN (a1, a2), no fit ----------
+
+
+#' Predicted divergence profiles at one selection strength (both axes)
+#'
+#' The model's forward per-response log structural-divergence profile at a single pair
+#' of selection strengths `(a1, a2)`, on **both** response axes at once. `which` selects
+#' the quantity: `"lrmsd"` (the absolute profile `log(sqrt(dr2))`) or `"nlrmsd"` (the
+#' mean-centred profile the fit is on). Returns point values only -- no error bands
+#' (there is no fit and hence no parameter covariance); for bands from a fit use
+#' [predict_profiles()].
+#'
+#' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
+#' @param a1 Stability selection strength (non-negative). `0` disables it.
+#' @param a2 Activity selection strength (non-negative). `0` disables it.
+#' @param which `"lrmsd"` (absolute) or `"nlrmsd"` (mean-centred). Default `"lrmsd"`.
+#' @return A list with two tibbles. `$site`: `site`, `pdb_site`, and the profile column
+#'   (`lrmsd_msa` or `nlrmsd_msa`). `$mode`: `mode` and the same profile column. Both
+#'   branches use identical value-column names; only the key column differs.
+#' @seealso [predict_profiles()] (the same profiles with error bands, from a fit);
+#'   [calculate_decomposition()] (the profile split into contributions).
+#' @family api
+#' @examples
+#' \dontrun{
+#' spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
+#' calculate_profiles(spm, a1 = 1, a2 = 1, which = "nlrmsd")$site
+#' }
+#' @export
+calculate_profiles <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
+  which <- match.arg(which)
+  fwd   <- if (which == "nlrmsd") nlrmsd_msa else lrmsd_msa
+  out <- lapply(axis_branches(spm), function(b) {
+    v    <- fwd(b$dr2_mat, spm$energy_data, a1, a2)
+    name <- paste0(which, "_msa")
+    key_profile(stats::setNames(list(v), name), spm, b$axis)
+  })
+  out
+}
+
+# ---- calculate_decomposition -----------------------------------------------------
+
+#' Divergence decomposition at one selection strength (both axes)
+#'
+#' The nested-model profiles AND the three sequential contributions of the divergence
+#' profile at a single `(a1, a2)`, on **both** response axes. `which` selects the family
+#' in lockstep: `"lrmsd"` gives the uncentred nested models (`lrmsd_mm`...) and the
+#' uncentred contributions (`phi_mut`, `phi_stab`, `phi_act`); `"nlrmsd"` gives the
+#' mean-centred nested models (`nlrmsd_mm`...) and the centred contributions
+#' (`nphi_mut`, `nphi_stab`, `nphi_act`). Point values only; for bands from a fit use
+#' [predict_decomposition()].
+#'
+#' The three contributions sum exactly to the full-model (`msa`) profile.
+#'
+#' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
+#' @param a1 Stability selection strength (non-negative).
+#' @param a2 Activity selection strength (non-negative).
+#' @param which `"lrmsd"` (absolute) or `"nlrmsd"` (mean-centred). Default `"lrmsd"`.
+#' @return A list with two tibbles (`$site`, `$mode`). Each holds the axis key
+#'   (`site`, `pdb_site` for site; `mode` for mode), the four nested-model columns, and
+#'   the three contribution columns, all in the family selected by `which`. Both branches
+#'   use identical value-column names.
+#' @seealso [predict_decomposition()] (the same, with error bands from a fit);
+#'   [calculate_profiles()] (the profile these contributions sum to).
+#' @family api
+#' @examples
+#' \dontrun{
+#' spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
+#' calculate_decomposition(spm, a1 = 1, a2 = 1, which = "nlrmsd")$site
+#' }
+#' @export
+calculate_decomposition <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
+  which <- match.arg(which)
+  centred     <- which == "nlrmsd"
+  nested_fwd  <- if (centred) nlrmsd_nested_models else lrmsd_nested_models
+  decomp_fwd  <- if (centred) nlrmsd_msa_decomposition else lrmsd_msa_decomposition
+  phi_prefix  <- if (centred) "nphi" else "phi"
+
+  out <- lapply(axis_branches(spm), function(b) {
+    nm  <- nested_fwd(b$dr2_mat, spm$energy_data, a1, a2)          # list mm/ms/ma/msa
+    phi <- decomp_fwd(b$dr2_mat, spm$energy_data, a1, a2)          # list *_mut/stab/act
+    nested_cols <- stats::setNames(
+      nm[c("mm", "ms", "ma", "msa")],
+      paste0(which, "_", c("mm", "ms", "ma", "msa")))
+    # decomp_fwd already names phi_mut/... (lrmsd) or nphi_mut/... (nlrmsd) -- take as is.
+    key_profile(c(nested_cols, phi), spm, b$axis)
+  })
+  out
+}
