@@ -23,6 +23,56 @@ changes. The same episode often earns a line in each. Things to maybe do later l
 in `dev/ideas.md`.
 
 
+### 2026-08-06 — the se layer was flattened, and a first attempt at it was discarded
+
+The refactor itself is in `e277a3d`; the commit message covers what changed and how it
+was verified. Two things worth recording that the diff cannot show.
+
+**A numerically perfect attempt was thrown away.** The first pass produced output that
+was `identical()` to the baseline across all 12 captured objects, passed four sabotage
+runs, left NAMESPACE untouched, and went green on 216 tests — and the user stopped it,
+because the code was *worse to read* than what it replaced. Every gate in that plan
+measured numbers; none measured the thing the work existed for. It also rewrote
+`calculate_decomposition` (which the plan said to MOVE), inventing a closure and making
+readable code opaque.
+
+The lesson is about plans, not about `se`. The plan had said "no lapply, values not
+closures" under a heading scoped to the two public verbs; I satisfied it there and then
+filled the `se` layer beneath with `variance_of()`, `se_of()`, `hmat_at()` — the same
+hiding, one level down, where the plan had not thought to forbid it. A guideline stated
+as a property of two functions does not bind the rest of the file. The second plan put
+the guideline first, applying at every depth, and added a HARD STOP after every slice so
+the user saw actual code four times instead of once at the end.
+
+**What the guideline actually is.** Not "no closures" — `R/fitting.R` (f504a8f, which the
+user approved) contains `nll` and an `apply`. `nll` earns its place: it is the objective,
+handed to `optim`, and it names a real thing. What does not earn its place is a closure
+that exists only to avoid typing a line four times. Writing the four nested variants out
+as four lines makes "the SPM arm uses each variant’s own `(a1, a2)`" *be* the code rather
+than a comment above a loop. The user, on the result: *"It looks a bit ugly, but at least
+I can understand it, so in the future it’d be easier for me to further polish it without
+sacrificing understanding."* Ugly and understandable is a base to polish from.
+
+**Two empirical facts established while doing it**, both previously assumed:
+
+- The `pmax(., 0)` clamp on the total variance never fires. No `_se` is zero or
+  non-finite anywhere in the fixtures. Its comment had claimed it guarded "tiny negative
+  round-off only"; that had never been checked. It is now a fail-loud assertion.
+- `nphi_mut` and `nlrmsd_mm` are bit-identical on both axes, value *and* se, despite
+  being computed by two different code paths. `test-api.R`’s `expect_identical` is
+  therefore load-bearing, and the double computation had to be actively preserved.
+
+**A separate incident the same day, unrelated to the refactor:** all four vignettes were
+knitted from the package root, which silently wrote figures to stray root-level
+`<name>_files/` dirs and left `vignettes/<name>_files/` a week stale. The knitted `.Rmd`
+carried new numbers, the previews embedded old figures, nothing errored. The stray dirs
+were then deleted as "byproducts" — they were the knit’s only output. This was the
+*second* occurrence (first: 2026-06-24) and the correct command was already recorded in
+memory, so the fix is not another instruction: `dev/knit-vignette.R` is now the only
+sanctioned knit path, it prints the figure timestamps it wrote, and a PreToolUse hook
+blocks the hand-rolled form and any deletion of untracked repo paths (`fa63f20`).
+CLAUDE.md and `.githooks/pre-commit` had both *documented* the broken invocation.
+
 ### 2026-08-05 — the fitting code was flattened: closures out, five numbered steps in
 
 Slice 4, and the reason for it is the important part. The user, reading their own

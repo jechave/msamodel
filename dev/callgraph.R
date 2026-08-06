@@ -21,8 +21,9 @@
 # axis-agnostic leaf verbs (calculate_profiles / predict_profiles / calculate_decomposition
 # / predict_decomposition) + fit_*_ml + gof_*_ml + the setup/spm helpers. They fan down
 # into the shared @noRd forward-map primitives (dr2_msa, lrmsd_msa, nlrmsd_msa, the
-# nested_models / decomposition primitives, weights_jm) and the band machinery
-# (var_param_delta, var_spm_*, grad_theta, delta_band, spm_hmat). Nodes are coloured by ROLE
+# nested_models / decomposition primitives, weights_jm) and the se machinery in
+# R/predict_se.R (se_profile_* / se_nested_* / se_components_*, over var_param_* and
+# var_spm_*, on grad_theta + spm_hmat). Nodes are coloured by ROLE
 # (setup / spm / model-primitive / fitting / prediction / api), NOT by site/mode axis —
 # the axis-specific grid was deleted, so there is no longer a site arm vs a mode arm.
 #
@@ -77,10 +78,10 @@ role_of <- function(x) {
   if (x %in% c("setup_enm", "add_site_properties")) return("setup")
   if (x %in% c("generate_spm_data", "generate_spm_core",
                "preprocess_spm", "preprocess_spm_mode")) return("spm")
-  if (grepl("^predict_", x) ||
-      x %in% c("var_param_delta", "var_spm_lrmsd", "var_spm_nlrmsd", "var_spm_nphi",
-               "grad_theta", "delta_band", "spm_hmat", "as_theta", "se_cols",
-               "key_profile", "uncertainty_gates", "validate_ml_fit")) return("prediction")
+  if (grepl("^predict_", x) || grepl("^se_", x) ||
+      grepl("^var_param_", x) || grepl("^var_spm_", x) ||
+      x %in% c("grad_theta", "spm_hmat",
+               "key_profile", "validate_ml_fit")) return("prediction")
   if (grepl("^fit_", x) || grepl("loglik", x) ||
       x %in% c("residuals_lrmsd_msa", "gof_lrmsd_msa", "check_obs_vectors",
                "calculate_null_deviance",

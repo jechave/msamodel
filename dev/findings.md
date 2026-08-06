@@ -41,9 +41,10 @@ Three stages, easy to conflate:
    builds the `[mutant × site]` and `[mutant × mode]` matrices and the `i ↔ pdb_site`
    `site_map`. Cheap, deterministic, `a1`/`a2`-independent.
 3. **Reweighting** — the axis-blind primitive `dr2_msa(dr2_mat, energy_data, a1, a2)`
-   (`R/model.R:85`), which takes either `dr2_ijm` or `dr2_njm`. The site/mode split
-   lives in the dispatch table `axis_branches()` (`R/api.R:65`), not in separate
-   per-axis calculators.
+   (`R/model.R:85`), which takes either `dr2_ijm` or `dr2_njm`. The site/mode split is
+   not in per-axis calculators: `calculate_*` still iterate the dispatch table
+   `axis_branches()` (`R/model.R`), while `predict_*` (`R/predict.R`) write the two
+   axes out explicitly, passing `spm$dr2_ijm` / `spm$dr2_njm` directly.
 
 `generate_spm_data()` returns a classed `spm` list `{energy_data, dr2_ijm, dr2_njm,
 site_map}` (stages 1+2 fused, `R/spm.R:173-180`).
@@ -55,13 +56,14 @@ stages 1–2 sees them.
 
 Two qualifications, so this is not mistaken for a global "only place":
 
-- The **band machinery** consumes the parameters separately, as a coordinate
-  transform rather than a reweighting: `as_theta(a1, a2) = c(a1, log2(a2 + 1))`
-  (`R/predict_band_helpers.R:73`), used by `var_param_delta()` for the parameter arm
-  of the standard errors, with the inverse in `R/fitting.R:120-133`.
+- The **se machinery** (`R/predict_se.R`) consumes the parameters separately, as a
+  coordinate transform rather than a reweighting: `c(fit$a1, log2(fit$a2 + 1))`,
+  written inline in each `var_param_*` function, with the inverse in
+  `R/fitting.R:120-133`.
 - The **nested variants** dispatch the same parameters into four combinations —
   `(0,0)`, `(a1,0)`, `(0,a2)`, `(a1,a2)` — for MM/MS/MA/MSA (`R/model.R:126-129`,
-  `R/predict_band_helpers.R:167-169`). Still one path, evaluated four times.
+  and `var_spm_nested_nlrmsd()` in `R/predict_se.R`). Still one path, evaluated four
+  times.
 
 ### Why this generalizes
 
