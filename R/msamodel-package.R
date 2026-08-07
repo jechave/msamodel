@@ -13,18 +13,16 @@
 ## usethis namespace: end
 NULL
 
-# Quiet R CMD check's "no visible binding for global variable" NOTEs from
-# tidyverse non-standard evaluation (column names referenced bare inside
-# dplyr/tidyr verbs). These are data-column / grouping names, not real globals.
-utils::globalVariables(c(
-  "a1", "a2", "dactive", "ddg_dv_jm", "ddg_jm", "ddg_tds_jm", "ddgact_dv_jm",
-  "ddgact_jm", "ddgact_tds_jm", "dr2_i", "dr2_ijm", "dr2_n", "dr2_njm",
-  "i", "j", "lower", "lrmsd", "lrmsd_ma", "lrmsd_mm", "lrmsd_ms", "lrmsd_msa",
-  "lrmsd_obs", "lrmsd_n_true", "m", "mode", "model", "n", "site",
-  "lrmsd_msa_mean", "lrmsd_msa_lower", "lrmsd_msa_upper", "log_weight",
-  "nlrmsd_ma", "nlrmsd_mm", "nlrmsd_ms", "nlrmsd_msa",
-  "parameter", "pdb_site",
-  "phi_act", "phi_mut", "phi_stab", "sample_id",
-  "idx", "obs", "pred",
-  "upper", "value", "variable"
-))
+# NOTE: R CMD check reports "no visible binding for global variable" for column
+# names referenced bare inside dplyr/tidyr verbs (NSE). It is a NOTE, not an error
+# or a warning -- the code is correct. A utils::globalVariables() call used to
+# suppress it; that list had grown to 47 names of which only 11 corresponded to a
+# real complaint, so it was asserting things about the package that were not true.
+# The note is left visible rather than silenced.
+#
+# The 11 names R actually cannot resolve, in 4 functions:
+#   preprocess_spm / preprocess_spm_mode : m, j, ddg_dv_jm, ddg_tds_jm,
+#                                          ddgact_dv_jm, ddgact_tds_jm,
+#                                          ddg_jm, ddgact_jm
+#   resolve_site_obs                     : site, obs
+#   add_site_properties                  : dactive

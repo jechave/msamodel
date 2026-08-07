@@ -74,8 +74,10 @@ Rscript -e "devtools::document()"
 # Full suite — the gate before a code/data/roxygen commit
 Rscript -e "devtools::test()"
 
-# AT A MILESTONE ONLY — full check (baseline: 0 errors, 1 warning, 2 notes,
-# deliberately accepted, GitHub-only not CRAN).
+# AT A MILESTONE ONLY — full check (baseline: 0 errors, 1 warning, 3 notes,
+# deliberately accepted, GitHub-only not CRAN). The third note is the NSE
+# "no visible binding" one — left visible instead of suppressed with
+# globalVariables(); see the comment in R/msamodel-package.R.
 Rscript -e "devtools::check()"
 
 # Install locally (only when a vignette needs the working tree's new functions)
