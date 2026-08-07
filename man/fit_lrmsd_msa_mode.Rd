@@ -2,7 +2,7 @@
 % Please edit documentation in R/fitting.R
 \name{fit_lrmsd_msa_mode}
 \alias{fit_lrmsd_msa_mode}
-\title{Maximum-likelihood point fit of the lrmsd_n MSA model (mode form)}
+\title{Maximum-likelihood point fit of the MSA model to a mode-axis profile}
 \usage{
 fit_lrmsd_msa_mode(
   spm,
@@ -58,11 +58,12 @@ axis-free, so this is what records which fitter made it.}
 }
 }
 \description{
-Mode counterpart of \code{\link[=fit_lrmsd_msa_site]{fit_lrmsd_msa_site()}}: maximises the mode-form profiled
-Gaussian log-likelihood (\code{calculate_loglik_lrmsd_n_msa()}) over \verb{(a1, a2)} by
-numerical optimisation, returning a point estimate plus an asymptotic covariance
-from the Hessian at the optimum. Identical machinery to the site fit; the response
-index is the mode \code{n} (no \code{site_map} / \code{pdb_site}).
+Mode counterpart of \code{\link[=fit_lrmsd_msa_site]{fit_lrmsd_msa_site()}}: maximises the profiled Gaussian
+log-likelihood over \verb{(a1, a2)} by numerical optimisation, returning a point estimate
+plus an asymptotic covariance from the Hessian at the optimum. Identical machinery to
+the site fit -- the same axis-blind objective \code{loglik_lrmsd_msa()}, evaluated on
+\code{spm$dr2_njm} instead of \code{spm$dr2_ijm}; the response index is the mode (no \code{site_map}
+/ \code{pdb_site}).
 }
 \details{
 The optimiser works in the same coordinates as the site fit: \code{a1} and
@@ -81,7 +82,7 @@ c(a1 = ml$a1, a2 = ml$a2)
 \seealso{
 \code{\link[=fit_lrmsd_msa_site]{fit_lrmsd_msa_site()}} (the site counterpart),
 \code{\link[=predict_profiles]{predict_profiles()}} (propagate the fit to a banded profile),
-\code{calculate_loglik_lrmsd_n_msa()} (the objective).
+\code{loglik_lrmsd_msa()} (the objective).
 
 Other fitting:
 \code{\link[=fit_lrmsd_msa_site]{fit_lrmsd_msa_site()}}

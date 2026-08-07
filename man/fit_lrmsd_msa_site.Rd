@@ -2,7 +2,7 @@
 % Please edit documentation in R/fitting.R
 \name{fit_lrmsd_msa_site}
 \alias{fit_lrmsd_msa_site}
-\title{Maximum-likelihood point fit of the lrmsd_i MSA model}
+\title{Maximum-likelihood point fit of the MSA model to a site-axis profile}
 \usage{
 fit_lrmsd_msa_site(
   spm,
@@ -58,7 +58,8 @@ axis-free, so this is what records which fitter made it.}
 }
 }
 \description{
-Maximises the profiled Gaussian log-likelihood (\code{calculate_loglik_lrmsd_i_msa()})
+Maximises the profiled Gaussian log-likelihood (\code{loglik_lrmsd_msa()}, evaluated on
+\code{spm$dr2_ijm})
 over \verb{(a1, a2)} by numerical optimisation, returning a point estimate plus an
 asymptotic covariance from the Hessian at the optimum. Intended for large proteins
 and path simulations.
@@ -80,7 +81,7 @@ c(a1 = ml$a1, a2 = ml$a2)
 \seealso{
 \code{\link[=predict_profiles]{predict_profiles()}} (propagate the fit to a banded profile),
 \code{\link[=fit_lrmsd_msa_mode]{fit_lrmsd_msa_mode()}} (the mode counterpart),
-\code{calculate_loglik_lrmsd_i_msa()} (the objective).
+\code{loglik_lrmsd_msa()} (the objective).
 
 Other fitting:
 \code{\link[=fit_lrmsd_msa_mode]{fit_lrmsd_msa_mode()}}

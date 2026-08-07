@@ -23,7 +23,6 @@ utils::globalVariables(c(
   "lrmsd_obs", "lrmsd_n_true", "m", "mode", "model", "n", "site",
   "lrmsd_msa_mean", "lrmsd_msa_lower", "lrmsd_msa_upper", "log_weight",
   "nlrmsd_ma", "nlrmsd_mm", "nlrmsd_ms", "nlrmsd_msa",
-  "nlrmsd_i_obs", "nlrmsd_n_obs",
   "parameter", "pdb_site",
   "phi_act", "phi_mut", "phi_stab", "sample_id",
   "idx", "obs", "pred",
