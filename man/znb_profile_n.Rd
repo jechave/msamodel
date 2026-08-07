@@ -27,7 +27,7 @@ than a required schema.
 }
 \details{
 \strong{This data is SYNTHETIC, not empirical.} No empirical mode profile exists
-yet (computing observed \code{dr2_n} from homologous structures + an alignment is
+yet (computing observed per-mode divergence from homologous structures + an alignment is
 out of scope for \pkg{msamodel} -- it belongs to a future
 protein-evolution-patterns package). It is a stand-in so the mode fit can be
 exercised end-to-end until that package exists.

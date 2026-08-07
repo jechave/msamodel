@@ -364,7 +364,8 @@ names(dec)
 
 ### The nested-model variants
 
-The nested columns are `nlrmsd_i_{mm,ms,ma,msa}` with an `_se` sibling each. We build a
+The nested columns are `nlrmsd_{mm,ms,ma,msa}`, each with an `_se` column further along
+(the value columns come first, then the matching `_se` columns). We build a
 band from the standard error and plot MM, MS, and MSA on one shape scale (MA omitted to
 keep the panel readable):
 
@@ -466,7 +467,7 @@ what genuinely differs on this axis.
 
 You work from the same `spm` object built in A1; the mode reading uses its per-mode
 divergence matrix `dr2_njm`. Your data on this axis is a mode-indexed profile, columns
-`n` and `lrmsd_obs`; the package ships `znb_profile_n`:
+`mode` and `lrmsd_obs`; the package ships `znb_profile_n`:
 
 
 ```r
@@ -512,7 +513,7 @@ The same profile prediction, read from `$mode`:
 
 
 ```r
-mnband <- predict_profiles(mln, spm, which = "nlrmsd")$mode   # centred nlrmsd_n + se
+mnband <- predict_profiles(mln, spm, which = "nlrmsd")$mode   # nlrmsd_msa + its _se
 head(mnband)
 #> # A tibble: 6 × 3
 #>    mode nlrmsd_msa nlrmsd_msa_se

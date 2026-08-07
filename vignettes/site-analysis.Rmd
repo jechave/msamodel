@@ -32,7 +32,8 @@ The per-residue quantity is `lrmsd`, the log root-mean-square structural displac
 at each residue. It is built from a **single-point-mutation scan (SPM)**: the package
 mutates every site many times and records how far each mutation displaces the structure.
 Averaging that displacement over mutations — weighted by how likely each mutation is to
-survive selection — gives `dr2_i` per residue, and `lrmsd = log(sqrt(dr2_i))`. Two
+survive selection — gives a mean squared displacement per residue, and `lrmsd` is the
+log of its square root. Two
 parameters set the selection weighting: `a1` (strength of selection on **stability**)
 and `a2` (strength of selection on **activity**, proximity to the active site), both
 non-negative with `0` meaning that pressure is off.

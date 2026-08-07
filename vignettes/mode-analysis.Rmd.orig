@@ -56,11 +56,11 @@ data. Its sibling, the [site analysis vignette](site-analysis.html), runs the sa
 arc **per residue**; the two are companion views of one model. For a short
 end-to-end tour of both axes, see the [package overview](msamodel.html).
 
-A single mutation displaces the structure by a vector `dr`. The site form sums `dr`
-per residue (`dr2_i`); the mode form projects `dr` onto the elastic-network normal
-modes and squares each contribution (`dr2_n = (mode n component of dr)^2`). The two
-are the same displacement in two bases, so for any single mutant the totals agree:
-`sum_i dr2_i == sum_n dr2_n`. Low-index modes are the soft, collective motions of
+A single mutation displaces the structure by a vector `dr`. The site form squares that
+displacement per residue; the mode form projects `dr` onto the elastic-network normal
+modes and squares each mode's contribution. The two are the same displacement written in
+two different bases, so for any single mutant the totals agree — summing over residues
+and summing over modes give the same number. Low-index modes are the soft, collective motions of
 the protein; the mode profile shows **which motions** carry the predicted
 divergence, where the site profile shows **which residues** do. We use the worked
 example `1znb_A` (zinc beta-lactamase), whose data ship as the `znb_*` datasets.
