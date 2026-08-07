@@ -44,15 +44,26 @@ not a permanent suite test. The **`/test-review` skill** holds the full checklis
 ## House conventions
 
 - **Naming:** `snake_case`.
-- **`dr2`-family index-signature convention.** Every `dr2`-family name msamodel
-  *creates* is `dr2_<indices>`: one underscore, then exactly the free indices the
-  object spans, in order **response index (`i` site / `n` mode), mutated site `j`,
-  mutation `m`**. A reduction over an axis drops that axis's letter (`dr2_ijm` →
-  `dr2_i`). Transform prefixes (`l`=log, `n`=normalized) and source labels
-  (`_msa`/`_obs`) are kept, index still underscore-set: `lrmsd_i`, `nlrmsd_i_msa`,
-  `dr2_i_msa`. This governs names msamodel **creates**, not what it **calls** — call
-  penm's own names (`penm::delta_structure_dr2i`) directly; never wrap or rename a
-  dependency. Applies to future motion-arm names (`dh_*`, `nh_*`) too.
+- **Index signatures on the scan matrices; axis-blind everywhere else.** The two
+  divergence matrices carry their free indices, in order **response index (`i` site /
+  `n` mode), mutated site `j`, mutation `m`**: `dr2_ijm` (mutant × site) and `dr2_njm`
+  (mutant × mode). Those letters do real work — they say what the matrix spans.
+
+  **Everything downstream is axis-blind.** A reduction does NOT keep an axis letter:
+  the forward maps are `dr2_msa`, `lrmsd_msa`, `nlrmsd_msa`; the fitter objective is
+  `loglik_lrmsd_msa()`; the output columns are `lrmsd_mm`/`nlrmsd_msa`/`nphi_stab`.
+  The same function serves both axes — the axis is carried by **which matrix you pass**
+  and by the **key column of the returned tibble** (`site`+`pdb_site`, or `mode`), never
+  by a letter in the name. Only the public `fit_*` verbs name their axis, and they name
+  it in words: `fit_lrmsd_msa_site()` / `fit_lrmsd_msa_mode()`.
+
+  An earlier convention did suffix reductions (`lrmsd_i`, `nlrmsd_i_msa`, `dr2_i_msa`).
+  It was dropped; those names exist nowhere in the package. Do not reintroduce them.
+
+  Transform prefixes (`l`=log, `n`=normalized) and source labels (`_msa`/`_obs`) are
+  kept: `lrmsd_obs`, `nlrmsd_msa`. This governs names msamodel **creates**, not what it
+  **calls** — call penm's own names (`penm::delta_structure_dr2i`) directly; never wrap
+  or rename a dependency. Applies to future motion-arm names (`dh_*`, `nh_*`) too.
 - **Roxygen on every function.** `#' @export` for public API, `#' @noRd` for internal
   helpers. Document `@param`, `@return`/`@returns`, add `@family` tags to group
   related functions. `@examples` in `\dontrun{}` when they need real data.
