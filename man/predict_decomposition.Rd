@@ -18,11 +18,13 @@ carrying \code{a1}, \code{a2}, \code{cov}.}
 \value{
 A list with two tibbles (\verb{$site}, \verb{$mode}). Each holds the axis key (\code{site},
 \code{pdb_site} for site; \code{mode} for mode), the four nested-model columns
-(\code{nlrmsd_mm}...) and the three contribution columns (\verb{nphi_*}), each with its \verb{_se}.
+(\code{nlrmsd_mm}...), the three contribution columns (\verb{nphi_*}), and then the seven
+corresponding \verb{_se} columns in the same order.
 }
 \description{
 \code{\link[=calculate_decomposition]{calculate_decomposition()}} with uncertainty: the four nested-model profiles and the
-three sequential contributions, each followed by its \verb{_se}, on \strong{both} response axes.
+three sequential contributions, then the seven matching \verb{_se} columns, on \strong{both}
+response axes.
 }
 \details{
 Only the \code{"nlrmsd"} family is currently available, and it is the default so a bare

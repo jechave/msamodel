@@ -173,39 +173,6 @@ nlrmsd_msa_decomposition <- function(dr2_mat, energy_data, a1, a2) {
 
 # ---- assembly helpers: bare vectors -> the keyed tibble the verbs return ----------
 
-#' Attach the axis key (and, for site, pdb_site) to bare value vectors
-#'
-#' The forward-map primitives return bare per-response vectors; this wraps a NAMED list
-#' of equal-length bare vectors into the keyed tibble the verbs return. The list names
-#' become the value-column names verbatim -- the verb owns naming (including any `_se`
-#' siblings); `key_profile` only prepends the axis key and, for the site axis, joins
-#' `pdb_site` via `spm$site_map`.
-#'
-#' On the site axis `site_map` IS the key table -- `(site, pdb_site)`, one row per site,
-#' in `dr2_ijm` column order -- so it is bound on positionally rather than joined against
-#' a manufactured index. The row-count equality that makes that valid is asserted, not
-#' assumed: a positional bind fails loud on a mismatch where a join would have silently
-#' filled `pdb_site` with `NA`.
-#'
-#' @param cols A NAMED list of equal-length bare numeric vectors. Names become columns.
-#' @param spm The `spm` object (for `site_map` on the site axis).
-#' @param axis `"site"` (keys `site`, `pdb_site`) or `"mode"` (key `mode`).
-#' @return A tibble: site -> `site, pdb_site, <cols...>`; mode -> `mode, <cols...>`.
-#' @noRd
-key_profile <- function(cols, spm, axis) {
-  n <- length(cols[[1]])
-  body <- tibble::as_tibble(cols)
-  if (axis == "site") {
-    if (nrow(spm$site_map) != n) {
-      stop("site_map has ", nrow(spm$site_map), " rows but the profile has ", n,
-           " sites; the spm object is inconsistent.")
-    }
-    dplyr::bind_cols(spm$site_map, body)
-  } else {
-    dplyr::bind_cols(tibble(mode = seq_len(n)), body)
-  }
-}
-
 #' Prepend the site key to a site-axis value tibble
 #'
 #' `site_map` IS the key table -- `(site, pdb_site)`, one row per site, already in

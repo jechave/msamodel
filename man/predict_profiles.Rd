@@ -23,7 +23,7 @@ column, and its \verb{_se}.
 \description{
 \code{\link[=calculate_profiles]{calculate_profiles()}} with uncertainty: the model's per-response log
 structural-divergence profile evaluated at a fit's \verb{(a1, a2)}, on \strong{both} response
-axes, each value column followed by an adjacent \verb{_se} sibling. \code{which} selects
+axes, with the value column followed by its \verb{_se} sibling. \code{which} selects
 \code{"lrmsd"} (the absolute profile) or \code{"nlrmsd"} (the mean-centred profile the fit is on).
 }
 \details{

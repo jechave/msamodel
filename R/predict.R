@@ -41,7 +41,7 @@ validate_ml_fit <- function(fit, producer) {
 #'
 #' [calculate_profiles()] with uncertainty: the model's per-response log
 #' structural-divergence profile evaluated at a fit's `(a1, a2)`, on **both** response
-#' axes, each value column followed by an adjacent `_se` sibling. `which` selects
+#' axes, with the value column followed by its `_se` sibling. `which` selects
 #' `"lrmsd"` (the absolute profile) or `"nlrmsd"` (the mean-centred profile the fit is on).
 #'
 #' The standard error sums two independent sources: the fit's parameter uncertainty
@@ -74,28 +74,32 @@ validate_ml_fit <- function(fit, producer) {
 predict_profiles <- function(fit, spm, which = c("lrmsd", "nlrmsd")) {
   which <- match.arg(which)
   validate_ml_fit(fit, "fit_lrmsd_msa_site() / fit_lrmsd_msa_mode()")
-  column <- paste0(which, "_msa")
 
+  # --- site axis (responses are residues; dr2_ijm)
   if (which == "nlrmsd") {
-    site_value <- nlrmsd_msa(spm$dr2_ijm, spm$energy_data, fit$a1, fit$a2)
-    site_se    <- se_profile_nlrmsd(spm$dr2_ijm, spm$energy_data, fit)
-    mode_value <- nlrmsd_msa(spm$dr2_njm, spm$energy_data, fit$a1, fit$a2)
-    mode_se    <- se_profile_nlrmsd(spm$dr2_njm, spm$energy_data, fit)
+    site_profile <- tibble(
+      nlrmsd_msa    = nlrmsd_msa(spm$dr2_ijm, spm$energy_data, fit$a1, fit$a2),
+      nlrmsd_msa_se = se_profile_nlrmsd(spm$dr2_ijm, spm$energy_data, fit))
   } else {
-    site_value <- lrmsd_msa(spm$dr2_ijm, spm$energy_data, fit$a1, fit$a2)
-    site_se    <- se_profile_lrmsd(spm$dr2_ijm, spm$energy_data, fit)
-    mode_value <- lrmsd_msa(spm$dr2_njm, spm$energy_data, fit$a1, fit$a2)
-    mode_se    <- se_profile_lrmsd(spm$dr2_njm, spm$energy_data, fit)
+    site_profile <- tibble(
+      lrmsd_msa    = lrmsd_msa(spm$dr2_ijm, spm$energy_data, fit$a1, fit$a2),
+      lrmsd_msa_se = se_profile_lrmsd(spm$dr2_ijm, spm$energy_data, fit))
   }
+  site_profile <- prepend_site_key(spm$site_map, site_profile)
 
-  site_columns <- list(site_value, site_se)
-  mode_columns <- list(mode_value, mode_se)
-  names(site_columns) <- c(column, paste0(column, "_se"))
-  names(mode_columns) <- c(column, paste0(column, "_se"))
+  # --- mode axis (responses are normal modes; dr2_njm)
+  if (which == "nlrmsd") {
+    mode_profile <- tibble(
+      nlrmsd_msa    = nlrmsd_msa(spm$dr2_njm, spm$energy_data, fit$a1, fit$a2),
+      nlrmsd_msa_se = se_profile_nlrmsd(spm$dr2_njm, spm$energy_data, fit))
+  } else {
+    mode_profile <- tibble(
+      lrmsd_msa    = lrmsd_msa(spm$dr2_njm, spm$energy_data, fit$a1, fit$a2),
+      lrmsd_msa_se = se_profile_lrmsd(spm$dr2_njm, spm$energy_data, fit))
+  }
+  mode_profile <- prepend_mode_key(spm$mode_map, mode_profile)
 
-  # key_profile prepends the axis key: site + pdb_site, or mode.
-  list(site = key_profile(site_columns, spm, "site"),
-       mode = key_profile(mode_columns, spm, "mode"))
+  list(site = site_profile, mode = mode_profile)
 }
 
 # ---- predict_decomposition -------------------------------------------------------
@@ -103,7 +107,8 @@ predict_profiles <- function(fit, spm, which = c("lrmsd", "nlrmsd")) {
 #' Divergence decomposition with standard errors from an ML fit (both axes)
 #'
 #' [calculate_decomposition()] with uncertainty: the four nested-model profiles and the
-#' three sequential contributions, each followed by its `_se`, on **both** response axes.
+#' three sequential contributions, then the seven matching `_se` columns, on **both**
+#' response axes.
 #'
 #' Only the `"nlrmsd"` family is currently available, and it is the default so a bare
 #' call works. `which = "lrmsd"` stops: the uncentred standard error is not yet derived.
@@ -124,7 +129,8 @@ predict_profiles <- function(fit, spm, which = c("lrmsd", "nlrmsd")) {
 #'   (accepted by the signature but not yet derived -- it stops).
 #' @return A list with two tibbles (`$site`, `$mode`). Each holds the axis key (`site`,
 #'   `pdb_site` for site; `mode` for mode), the four nested-model columns
-#'   (`nlrmsd_mm`...) and the three contribution columns (`nphi_*`), each with its `_se`.
+#'   (`nlrmsd_mm`...), the three contribution columns (`nphi_*`), and then the seven
+#'   corresponding `_se` columns in the same order.
 #' @seealso [calculate_decomposition()] (point values at a given `(a1, a2)`, no fit);
 #'   [predict_profiles()] (the profile these contributions sum to).
 #' @family api
@@ -139,63 +145,99 @@ predict_decomposition <- function(fit, spm, which = c("nlrmsd", "lrmsd")) {
   which <- match.arg(which)
   validate_ml_fit(fit, "fit_lrmsd_msa_site() / fit_lrmsd_msa_mode()")
 
+  # Each block: the four nested-model columns then the three contributions, and only
+  # then the seven matching `_se` columns. The source lists name their elements three
+  # different ways -- `nested`/`nested_se` are mm/ms/ma/msa, `decomposition` is
+  # nphi_mut/..., and `decomposition_se` is a bare mut/stab/act -- so every column is
+  # named where it is built.
+
   # --- site axis (responses are residues; dr2_ijm)
   if (which == "nlrmsd") {
-    site_nested     <- nlrmsd_nested_models(spm$dr2_ijm, spm$energy_data, fit$a1, fit$a2)
-    site_nested_se  <- se_nested_nlrmsd(spm$dr2_ijm, spm$energy_data, fit)
-    site_phi        <- nlrmsd_msa_decomposition(spm$dr2_ijm, spm$energy_data, fit$a1, fit$a2)
-    site_phi_se     <- se_components_nlrmsd(spm$dr2_ijm, spm$energy_data, fit)
+    nested           <- nlrmsd_nested_models(spm$dr2_ijm, spm$energy_data, fit$a1, fit$a2)
+    nested_se        <- se_nested_nlrmsd(spm$dr2_ijm, spm$energy_data, fit)
+    decomposition    <- nlrmsd_msa_decomposition(spm$dr2_ijm, spm$energy_data, fit$a1, fit$a2)
+    decomposition_se <- se_components_nlrmsd(spm$dr2_ijm, spm$energy_data, fit)
+    site_decomposition <- tibble(
+      nlrmsd_mm     = nested$mm,
+      nlrmsd_ms     = nested$ms,
+      nlrmsd_ma     = nested$ma,
+      nlrmsd_msa    = nested$msa,
+      nphi_mut      = decomposition$nphi_mut,
+      nphi_stab     = decomposition$nphi_stab,
+      nphi_act      = decomposition$nphi_act,
+      nlrmsd_mm_se  = nested_se$mm,
+      nlrmsd_ms_se  = nested_se$ms,
+      nlrmsd_ma_se  = nested_se$ma,
+      nlrmsd_msa_se = nested_se$msa,
+      nphi_mut_se   = decomposition_se$mut,
+      nphi_stab_se  = decomposition_se$stab,
+      nphi_act_se   = decomposition_se$act)
   } else {
-    site_nested     <- lrmsd_nested_models(spm$dr2_ijm, spm$energy_data, fit$a1, fit$a2)
-    site_nested_se  <- se_nested_lrmsd(spm$dr2_ijm, spm$energy_data, fit)        # stops
-    site_phi        <- lrmsd_msa_decomposition(spm$dr2_ijm, spm$energy_data, fit$a1, fit$a2)
-    site_phi_se     <- se_components_lrmsd(spm$dr2_ijm, spm$energy_data, fit)    # stops
+    nested           <- lrmsd_nested_models(spm$dr2_ijm, spm$energy_data, fit$a1, fit$a2)
+    nested_se        <- se_nested_lrmsd(spm$dr2_ijm, spm$energy_data, fit)       # stops
+    decomposition    <- lrmsd_msa_decomposition(spm$dr2_ijm, spm$energy_data, fit$a1, fit$a2)
+    decomposition_se <- se_components_lrmsd(spm$dr2_ijm, spm$energy_data, fit)   # stops
+    site_decomposition <- tibble(
+      lrmsd_mm     = nested$mm,
+      lrmsd_ms     = nested$ms,
+      lrmsd_ma     = nested$ma,
+      lrmsd_msa    = nested$msa,
+      phi_mut      = decomposition$phi_mut,
+      phi_stab     = decomposition$phi_stab,
+      phi_act      = decomposition$phi_act,
+      lrmsd_mm_se  = nested_se$mm,
+      lrmsd_ms_se  = nested_se$ms,
+      lrmsd_ma_se  = nested_se$ma,
+      lrmsd_msa_se = nested_se$msa,
+      phi_mut_se   = decomposition_se$mut,
+      phi_stab_se  = decomposition_se$stab,
+      phi_act_se   = decomposition_se$act)
   }
+  site_decomposition <- prepend_site_key(spm$site_map, site_decomposition)
 
   # --- mode axis (responses are normal modes; dr2_njm)
   if (which == "nlrmsd") {
-    mode_nested     <- nlrmsd_nested_models(spm$dr2_njm, spm$energy_data, fit$a1, fit$a2)
-    mode_nested_se  <- se_nested_nlrmsd(spm$dr2_njm, spm$energy_data, fit)
-    mode_phi        <- nlrmsd_msa_decomposition(spm$dr2_njm, spm$energy_data, fit$a1, fit$a2)
-    mode_phi_se     <- se_components_nlrmsd(spm$dr2_njm, spm$energy_data, fit)
+    nested           <- nlrmsd_nested_models(spm$dr2_njm, spm$energy_data, fit$a1, fit$a2)
+    nested_se        <- se_nested_nlrmsd(spm$dr2_njm, spm$energy_data, fit)
+    decomposition    <- nlrmsd_msa_decomposition(spm$dr2_njm, spm$energy_data, fit$a1, fit$a2)
+    decomposition_se <- se_components_nlrmsd(spm$dr2_njm, spm$energy_data, fit)
+    mode_decomposition <- tibble(
+      nlrmsd_mm     = nested$mm,
+      nlrmsd_ms     = nested$ms,
+      nlrmsd_ma     = nested$ma,
+      nlrmsd_msa    = nested$msa,
+      nphi_mut      = decomposition$nphi_mut,
+      nphi_stab     = decomposition$nphi_stab,
+      nphi_act      = decomposition$nphi_act,
+      nlrmsd_mm_se  = nested_se$mm,
+      nlrmsd_ms_se  = nested_se$ms,
+      nlrmsd_ma_se  = nested_se$ma,
+      nlrmsd_msa_se = nested_se$msa,
+      nphi_mut_se   = decomposition_se$mut,
+      nphi_stab_se  = decomposition_se$stab,
+      nphi_act_se   = decomposition_se$act)
   } else {
-    mode_nested     <- lrmsd_nested_models(spm$dr2_njm, spm$energy_data, fit$a1, fit$a2)
-    mode_nested_se  <- se_nested_lrmsd(spm$dr2_njm, spm$energy_data, fit)        # stops
-    mode_phi        <- lrmsd_msa_decomposition(spm$dr2_njm, spm$energy_data, fit$a1, fit$a2)
-    mode_phi_se     <- se_components_lrmsd(spm$dr2_njm, spm$energy_data, fit)    # stops
+    nested           <- lrmsd_nested_models(spm$dr2_njm, spm$energy_data, fit$a1, fit$a2)
+    nested_se        <- se_nested_lrmsd(spm$dr2_njm, spm$energy_data, fit)       # stops
+    decomposition    <- lrmsd_msa_decomposition(spm$dr2_njm, spm$energy_data, fit$a1, fit$a2)
+    decomposition_se <- se_components_lrmsd(spm$dr2_njm, spm$energy_data, fit)   # stops
+    mode_decomposition <- tibble(
+      lrmsd_mm     = nested$mm,
+      lrmsd_ms     = nested$ms,
+      lrmsd_ma     = nested$ma,
+      lrmsd_msa    = nested$msa,
+      phi_mut      = decomposition$phi_mut,
+      phi_stab     = decomposition$phi_stab,
+      phi_act      = decomposition$phi_act,
+      lrmsd_mm_se  = nested_se$mm,
+      lrmsd_ms_se  = nested_se$ms,
+      lrmsd_ma_se  = nested_se$ma,
+      lrmsd_msa_se = nested_se$msa,
+      phi_mut_se   = decomposition_se$mut,
+      phi_stab_se  = decomposition_se$stab,
+      phi_act_se   = decomposition_se$act)
   }
+  mode_decomposition <- prepend_mode_key(spm$mode_map, mode_decomposition)
 
-  # Column order: each nested model then each component, value immediately followed by
-  # its _se. `phi` names itself (phi_mut / nphi_mut ...); the nested list does not.
-  phi <- if (which == "nlrmsd") "nphi" else "phi"
-
-  site_columns <- list(site_nested$mm,  site_nested_se$mm,
-                       site_nested$ms,  site_nested_se$ms,
-                       site_nested$ma,  site_nested_se$ma,
-                       site_nested$msa, site_nested_se$msa,
-                       site_phi[[paste0(phi, "_mut")]],  site_phi_se$mut,
-                       site_phi[[paste0(phi, "_stab")]], site_phi_se$stab,
-                       site_phi[[paste0(phi, "_act")]],  site_phi_se$act)
-
-  mode_columns <- list(mode_nested$mm,  mode_nested_se$mm,
-                       mode_nested$ms,  mode_nested_se$ms,
-                       mode_nested$ma,  mode_nested_se$ma,
-                       mode_nested$msa, mode_nested_se$msa,
-                       mode_phi[[paste0(phi, "_mut")]],  mode_phi_se$mut,
-                       mode_phi[[paste0(phi, "_stab")]], mode_phi_se$stab,
-                       mode_phi[[paste0(phi, "_act")]],  mode_phi_se$act)
-
-  column_names <- c(paste0(which, "_mm"),  paste0(which, "_mm_se"),
-                    paste0(which, "_ms"),  paste0(which, "_ms_se"),
-                    paste0(which, "_ma"),  paste0(which, "_ma_se"),
-                    paste0(which, "_msa"), paste0(which, "_msa_se"),
-                    paste0(phi, "_mut"),   paste0(phi, "_mut_se"),
-                    paste0(phi, "_stab"),  paste0(phi, "_stab_se"),
-                    paste0(phi, "_act"),   paste0(phi, "_act_se"))
-  names(site_columns) <- column_names
-  names(mode_columns) <- column_names
-
-  # key_profile prepends the axis key: site + pdb_site, or mode.
-  list(site = key_profile(site_columns, spm, "site"),
-       mode = key_profile(mode_columns, spm, "mode"))
+  list(site = site_decomposition, mode = mode_decomposition)
 }
