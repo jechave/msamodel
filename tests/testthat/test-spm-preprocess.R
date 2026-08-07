@@ -2,9 +2,9 @@
 # znb_spm). The site/mode reshapers are internal; what users hold and every calculator
 # consumes is this object, so the contract is pinned here on znb_spm directly.
 
-test_that("znb_spm is a classed spm with the four expected elements", {
+test_that("znb_spm is a classed spm with the five expected elements", {
   expect_s3_class(znb_spm, "spm")
-  expect_named(znb_spm, c("energy_data", "dr2_ijm", "dr2_njm", "site_map"))
+  expect_named(znb_spm, c("energy_data", "dr2_ijm", "dr2_njm", "site_map", "mode_map"))
 })
 
 test_that("dr2_ijm / dr2_njm have the expected shape and carry no column names", {
@@ -28,6 +28,20 @@ test_that("site_map maps the internal site index to pdb_site as in the scan", {
                             seed = 1024)
   expect_equal(znb_spm$site_map$site, as.integer(scan$site[[1]]))
   expect_equal(znb_spm$site_map$pdb_site, as.integer(scan$pdb_site[[1]]))
+})
+
+test_that("mode_map carries the mode index as in the scan", {
+  expect_named(znb_spm$mode_map, "mode")
+  expect_equal(nrow(znb_spm$mode_map), 678L)
+  # Same shape of check as site_map above: the stored map must match the raw scan's own
+  # mode vector, which is where preprocess_spm_mode takes it from. Modes are not
+  # residue-anchored, so there is no pdb_ counterpart -- the index is the whole map.
+  scan <- generate_spm_core(znb_wt, n_mutations = 1,
+                            pdb_site_active = c(99, 101, 103, 162, 181, 184, 193, 223),
+                            seed = 1024)
+  expect_equal(znb_spm$mode_map$mode, as.integer(scan$mode[[1]]))
+  # The map must span the matrix it keys -- the invariant prepend_mode_key relies on.
+  expect_equal(nrow(znb_spm$mode_map), ncol(znb_spm$dr2_njm))
 })
 
 test_that("energy_data has the expected columns and drops wild-type rows", {

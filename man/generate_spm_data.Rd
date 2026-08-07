@@ -32,11 +32,12 @@ returned by \code{\link[=setup_enm]{setup_enm()}}.}
 \item{seed}{Optional random seed, for a reproducible scan.}
 }
 \value{
-An \code{spm} object: a list with four elements -- \code{energy_data} (a tibble of
+An \code{spm} object: a list with five elements -- \code{energy_data} (a tibble of
 per-mutant stability and activity energy changes, \code{j}, \code{m}, \code{ddg_jm}, \code{ddgact_jm},
 wild-type rows dropped), \code{dr2_ijm} (the mutant-by-site squared-divergence matrix),
-\code{dr2_njm} (the mutant-by-mode squared-divergence matrix), and \code{site_map} (a tibble
-mapping the internal site index \code{site} to its PDB residue number \code{pdb_site}).
+\code{dr2_njm} (the mutant-by-mode squared-divergence matrix), \code{site_map} (a tibble
+mapping the internal site index \code{site} to its PDB residue number \code{pdb_site}), and
+\code{mode_map} (a tibble carrying the mode index \code{mode}).
 }
 \description{
 Runs a single-point-mutation scan over a protein structure and returns the

@@ -41,7 +41,7 @@ NULL
 #' It carries, for the 2280 mutants (228 sites times 10 replicates, wild-type states
 #' dropped), the per-mutant energy changes and both response-axis divergence matrices.
 #'
-#' @format An \code{spm} object (a list of class \code{"spm"}) with four elements:
+#' @format An \code{spm} object (a list of class \code{"spm"}) with five elements:
 #' \describe{
 #'   \item{energy_data}{Tibble, one row per mutant, columns \code{j} (mutated site),
 #'     \code{m} (replicate), \code{ddg_jm} (stability change), \code{ddgact_jm}
@@ -53,8 +53,10 @@ NULL
 #'     displacements; each value is the squared projection of the displacement onto a
 #'     normal mode. 2280 rows times 678 mode columns.}
 #'   \item{site_map}{Tibble mapping the internal site index \code{site} to its PDB
-#'     residue number \code{pdb_site} (228 rows). Modes are not residue-anchored, so
-#'     there is no map for \code{dr2_njm}.}
+#'     residue number \code{pdb_site} (228 rows), in \code{dr2_ijm} column order.}
+#'   \item{mode_map}{Tibble carrying the mode index \code{mode} (678 rows), in
+#'     \code{dr2_njm} column order. Modes are not residue-anchored, so there is no
+#'     \code{pdb_} counterpart here: the index is the whole map.}
 #' }
 #' @details Generated (not copied) by \code{generate_spm_data(znb_wt,
 #'   n_mutations = 10, model = "lfenm", sigma = 0.3, min_sd = 2,

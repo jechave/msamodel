@@ -5,7 +5,7 @@
 \alias{znb_spm}
 \title{Single-point-mutation scan (SPM) for 1znb_A}
 \format{
-An \code{spm} object (a list of class \code{"spm"}) with four elements:
+An \code{spm} object (a list of class \code{"spm"}) with five elements:
 \describe{
 \item{energy_data}{Tibble, one row per mutant, columns \code{j} (mutated site),
 \code{m} (replicate), \code{ddg_jm} (stability change), \code{ddgact_jm}
@@ -17,8 +17,10 @@ displacements; each site value is the squared displacement of a residue
 displacements; each value is the squared projection of the displacement onto a
 normal mode. 2280 rows times 678 mode columns.}
 \item{site_map}{Tibble mapping the internal site index \code{site} to its PDB
-residue number \code{pdb_site} (228 rows). Modes are not residue-anchored, so
-there is no map for \code{dr2_njm}.}
+residue number \code{pdb_site} (228 rows), in \code{dr2_ijm} column order.}
+\item{mode_map}{Tibble carrying the mode index \code{mode} (678 rows), in
+\code{dr2_njm} column order. Modes are not residue-anchored, so there is no
+\code{pdb_} counterpart here: the index is the whole map.}
 }
 }
 \usage{

@@ -142,11 +142,12 @@ generate_spm_core <- function(wt, n_mutations = 10,
 #' @param pdb_site_active Optional integer vector of active-site residue numbers
 #'   (PDB numbering).
 #' @param seed Optional random seed, for a reproducible scan.
-#' @return An `spm` object: a list with four elements -- `energy_data` (a tibble of
+#' @return An `spm` object: a list with five elements -- `energy_data` (a tibble of
 #'   per-mutant stability and activity energy changes, `j`, `m`, `ddg_jm`, `ddgact_jm`,
 #'   wild-type rows dropped), `dr2_ijm` (the mutant-by-site squared-divergence matrix),
-#'   `dr2_njm` (the mutant-by-mode squared-divergence matrix), and `site_map` (a tibble
-#'   mapping the internal site index `site` to its PDB residue number `pdb_site`).
+#'   `dr2_njm` (the mutant-by-mode squared-divergence matrix), `site_map` (a tibble
+#'   mapping the internal site index `site` to its PDB residue number `pdb_site`), and
+#'   `mode_map` (a tibble carrying the mode index `mode`).
 #' @seealso [setup_enm()] (builds the `wt` input); [calculate_profiles()] and
 #'   [fit_lrmsd_msa_site()] (consume the returned object).
 #' @family spm
@@ -174,7 +175,8 @@ generate_spm_data <- function(wt, n_mutations = 10,
     energy_data = site$energy_data,
     dr2_ijm     = site$dr2_ijm,
     dr2_njm     = mode$dr2_njm,
-    site_map    = site$site_map
+    site_map    = site$site_map,
+    mode_map    = mode$mode_map
   )
   class(spm) <- "spm"
   spm
@@ -243,9 +245,10 @@ preprocess_spm <- function(spm) {
 #'
 #' @param spm A raw single-point-mutation scan, as returned by `generate_spm_core()`
 #'   (with the `mode` and `dr2_njm` list-columns).
-#' @return A list with two elements: `energy_data` (a tibble with `j`, `m`,
-#'   `ddg_jm`, `ddgact_jm`) and `dr2_njm` (the mutant-by-mode matrix of per-mode
-#'   squared displacements; columns are mode indices).
+#' @return A list with three elements: `energy_data` (a tibble with `j`, `m`,
+#'   `ddg_jm`, `ddgact_jm`), `dr2_njm` (the mutant-by-mode matrix of per-mode
+#'   squared displacements; columns are mode indices), and `mode_map` (a tibble
+#'   carrying the mode index `mode`).
 #' @noRd
 preprocess_spm_mode <- function(spm) {
   # Filter out no-mutation cases (m = 0) to align outputs
@@ -266,8 +269,13 @@ preprocess_spm_mode <- function(spm) {
   for (k in 1:n_rows) {
     dr2_njm[k, ] <- spm_filtered$dr2_njm[[k]]
   }
-  # Mode index n is the dr2_njm column position (mode[[1]] is 1:n_cols); not stored as
-  # matrix colnames, which would leak onto colSums results.
+  # Map the mode index to its dr2_njm column position. The mode-axis counterpart of
+  # site_map, and built the same way: taken FROM THE SCAN (mode[[1]], the per-row
+  # parallel vector whose first row carries the full ordered index), not manufactured
+  # here. Carried explicitly as a one-column tibble rather than as matrix colnames,
+  # which would leak onto colSums results. Modes are not residue-anchored, so there is
+  # no pdb_ analogue -- the index is the whole map.
+  mode_map <- tibble(mode = as.integer(spm_filtered$mode[[1]]))
 
-  list(energy_data = energy_data, dr2_njm = dr2_njm)
+  list(energy_data = energy_data, dr2_njm = dr2_njm, mode_map = mode_map)
 }
