@@ -1,148 +1,88 @@
 # msamodel (development version)
 
-## API changes
+## New features
 
-* **The fitters are renamed, and goodness of fit is part of the fit.**
-  `fit_lrmsd_i_msa_ml()` / `fit_lrmsd_n_msa_ml()` are now
-  **`fit_lrmsd_msa_site()`** / **`fit_lrmsd_msa_mode()`**: `lrmsd_msa` is the name of
-  the profile everywhere else in the package, so it stays intact and the axis goes at
-  the end as a word. The `_ml` suffix is dropped (it distinguished ML from an MCMC arm
-  that no longer exists).
-
-  `gof_lrmsd_i_msa_ml()` and `gof_lrmsd_n_msa_ml()` are **removed, not renamed**. The
-  fitter already computed those numbers at the optimum, so the accessors only
-  reassembled what they were handed. Goodness of fit is now `fit$gof`, a one-row tibble
-  (`D2`, `AIC`, `BIC`, `logLik`, `deviance`, `null_deviance`, `nobs`, `k`, `sigma_hat`).
+* **Structural divergence is predicted per normal mode, as well as per residue.**
+  Every `calculate_*` and `predict_*` verb returns `list(site =, mode =)` — both
+  response axes from one call, computed from the same mutation scan. The site axis
+  answers "which residues diverge?"; the mode axis answers "which collective motions
+  does divergence live in?".
 
   ```r
-  ml <- fit_lrmsd_msa_site(spm, pdb_site, lrmsd_obs)
-  ml$gof$D2        # was: gof_lrmsd_i_msa_ml(ml)$D2
+  spm  <- generate_spm_data(znb_wt, pdb_site_active = active, seed = 1024)
+  prof <- calculate_profiles(spm, a1 = 1, a2 = 1)
+  prof$site   # site, pdb_site, lrmsd_msa
+  prof$mode   # mode, lrmsd_msa
   ```
 
-  The fit object's top level is now the **estimate** only — `a1`, `a2`, `logLik`, `cov`,
-  `se_a1`, `se_a2`, `convergence` — plus `gof` and `call`. `deviance`, `null_deviance`,
-  `nobs`, `k`, and `sigma_hat` moved off the top level into `$gof`. New `fit$call`
-  records the matched call: the fit object is axis-free (one fit drives both axes in
-  `predict_*`), so `$call` is what tells you which fitter produced it.
+  `fit_lrmsd_msa_mode()` fits the model to an observed per-mode profile. No empirical
+  per-mode profile exists yet (deriving one from structural alignments is out of scope
+  here), so the shipped `znb_profile_n` is a synthetic stand-in and the mode fit is
+  exercised against it. The `mode-analysis` vignette walks through both.
 
-* **Observations are supplied as a vector pair, not a data frame.** The fitters and the
-  internal likelihoods take `(spm, pdb_site, lrmsd_obs)` / `(spm, mode, lrmsd_obs)`
-  instead of an `observed_data` tibble with package-mandated column names. Your own
-  table can name its columns anything:
+* **Prediction bands include the scan's own sampling error.** The `_se` columns from
+  `predict_profiles()` / `predict_decomposition()` combine two independent sources: the
+  `(a1, a2)` parameter uncertainty, and the fact that each divergence value is a mean
+  over a *finite* mutant scan rather than the infinite limit. Build a band as
+  `value ± qnorm(0.975) * se`.
+
+  A consequence worth knowing: the mutation-only (MM) variant has no parameter
+  uncertainty but still carries a real, nonzero band from the finite scan.
+
+* **The divergence profile can be split into its causes.**
+  `calculate_decomposition()` / `predict_decomposition()` return the four nested model
+  variants (MM/MS/MA/MSA) together with the mutation, stability, and activity
+  contributions (`phi_mut`, `phi_stab`, `phi_act`), which sum exactly to the full
+  profile. Currently available for `which = "nlrmsd"`; `which = "lrmsd"` errors, as the
+  uncentred standard error has not been derived.
+
+## API changes
+
+* **One scan object feeds everything.** `generate_spm_data()` returns a ready-to-use
+  `spm` object carrying both response axes; pass it straight to any `calculate_*`,
+  `fit_*`, or `predict_*` function. There is no separate preprocessing step.
+
+* **Observations are a vector pair, not a data frame.** The fitters take
+  `(spm, pdb_site, lrmsd_obs)` / `(spm, mode, lrmsd_obs)`, so your own table can name
+  its columns anything:
 
   ```r
   fit_lrmsd_msa_site(spm, my_data$residue, my_data$divergence)
   ```
 
-  `znb_profile` / `znb_profile_n` are therefore example data, not a required schema.
-  Input is validated at the boundary: key and value must have equal length, be
-  non-empty, and contain no `NA` — a length mismatch a data frame could not express.
+  `znb_profile` / `znb_profile_n` are example data, not a required schema. Inputs are
+  validated at the boundary: equal length, non-empty, no `NA`.
 
-* **Output columns dropped their `_i` / `_n` axis tags.** The four leaf verbs return
-  `list(site =, mode =)`, so the axis was stated three times per tibble. Both branches
-  now emit an identical value vocabulary (`lrmsd_msa`, `nlrmsd_msa`, `lrmsd_mm`, ...);
-  only the key column differs (`site` + `pdb_site` vs `mode`). `spm$site_map` keys on
-  `site` rather than `i`, since it maps *either* a response or a mutated site to its PDB
-  label.
+* **Goodness of fit comes with the fit.** `fit$gof` is a one-row tibble (`D2`, `AIC`,
+  `BIC`, `logLik`, `deviance`, `null_deviance`, `nobs`, `k`, `sigma_hat`); the fit's top
+  level carries the estimate (`a1`, `a2`, `logLik`, `cov`, `se_a1`, `se_a2`,
+  `convergence`) plus `call`. There is no separate accessor to call.
 
-* **Four leaf verbs are the profile/decomposition surface; the per-axis
-  `predict_*_ml` grid was retired.** `calculate_profiles()`, `predict_profiles()`,
-  `calculate_decomposition()`, and `predict_decomposition()` each take `which =
-  c("lrmsd", "nlrmsd")` and return `list(site = , mode = )` — both response axes from
-  one call. `predict_*` attach a `_se` standard-error column per value (parameter +
-  SPM-sampling arms summed); build a band as `value ± qnorm(0.975) * se`. The ten old
-  `predict_{lrmsd,nlrmsd}_{i,n}_{msa,nested_models,msa_decomposition}_ml()` functions
-  (and their `uncertainty=` / `level=` arguments) were **removed** — use the leaf verbs.
-  `predict_decomposition(which = "lrmsd")` is not yet available (errors); use
-  `which = "nlrmsd"`. The old per-axis `calculate_*` grid — `calculate_{dr2,lrmsd,nlrmsd}_{i,n}_msa()`,
-  `calculate_{lrmsd,nlrmsd}_{i,n}_nested_models()`, `calculate_decomposition_{i,n}_msa()`,
-  `calculate_nlrmsd_{i,n}_msa_decomposition()` — was **removed** in the same retirement; the
-  four leaf verbs (plus `fit_*_ml` / `gof_*_ml`) are the whole exported model/prediction API.
+* **Value columns carry no axis tag.** Both branches emit the same vocabulary
+  (`lrmsd_msa`, `nlrmsd_mm`, `nphi_stab`, ...); only the key column differs — `site` +
+  `pdb_site` on one axis, `mode` on the other. Names like `lrmsd_i_msa` from earlier
+  development versions no longer exist.
 
-* **`weights_jm_spm()` was removed.** The exported one-line wrapper over the internal
-  SPM-ensemble weights had no callers. The averaging weights are computed internally from
-  the `spm` object's `energy_data` inside the forward maps; there is no public entry point
-  for them. Users needing the raw weights can read them off a profile or recompute from
-  `pfix_msa()`.
-
-* **The single-point-mutation scan is now one object.** `generate_spm_data()` returns a
-  ready-to-use `spm` object — a list `{energy_data, dr2_ijm, dr2_njm, site_map}` carrying
-  both the per-residue and per-mode divergence — that every `calculate_*`, `fit_*`, and
-  `predict_*` function consumes directly. The separate `preprocess_spm()` /
-  `preprocess_spm_mode()` step is gone (both are now internal), and those functions'
-  arguments (`spm_pp`, `spm_pp_mode`) are replaced by a single `spm` argument throughout.
-  Migration: drop the `preprocess_spm(spm)` / `preprocess_spm_mode(spm)` call and pass the
-  `generate_spm_data()` result straight to the downstream functions.
-
-## New features
-
-* **SPM sampling error in the prediction bands.** Each `_se` reported by
-  `predict_profiles()` / `predict_decomposition()` combines two sources of uncertainty:
-  the `(a1, a2)` parameter uncertainty and the **SPM sampling error** — each divergence
-  value is a mean over a *finite* mutant scan, not the infinite limit. The two arms are
-  added as variances under an independence assumption. A consequence: the MM variant,
-  which has no parameter-uncertainty band, still carries its (nonzero) SPM band, so the
-  nested-model MM column and the `nphi_mut` decomposition term report a real (narrowest)
-  band. The SPM delta-method formula is validated against a naive bootstrap for
-  every band quantity (see `dev/reports/spm_band_validation.Rmd`).
-
-* **Nested-model profiles and decomposition** — the four nested model variants
-  (MM/MS/MA/MSA) and their mutation/stability/activity split at a given `(a1, a2)` are
-  returned together by `calculate_decomposition()` (both response axes; see the API note
-  above), with `predict_decomposition()` the fit-driven banded form.
-
-* **Mode-form structural divergence.** Structural divergence is now also predicted
-  **per normal mode**, not only per site (the first slice of the motion/mode arm).
-  `generate_spm_data()` carries two new SPM list-columns, `mode` and `dr2_njm`
-  (per-mode squared contribution to the mutant displacement), computed in the same
-  per-mutant scan. New exported functions, parallel to the site path:
-  * `preprocess_spm_mode()` — reshapes the scan into a `[mutant x mode]` matrix
-    (`dr2_njm`); mode counterpart of `preprocess_spm()`.
-  * the per-mode forward map (selection-weighted mean `dr2_n` per mode), read from the
-    `$mode` tibble of `calculate_profiles()`.
-  * `calculate_loglik_lrmsd_n_msa()` / `fit_lrmsd_n_msa_ml()` — mode-form profiled
-    Gaussian log-likelihood and its ML fit, parallel to the site path's
-    `calculate_loglik_lrmsd_i_msa()` / `fit_lrmsd_i_msa_ml()`.
-
-  No *empirical* per-mode divergence profile exists yet (deriving observed `dr2_n`
-  from structural alignments is out of scope for `msamodel`), so the mode fit is
-  exercised against a synthetic stand-in target; the site fit is unchanged. The new
-  `mode-analysis` vignette walks through both the prediction and the (synthetic)
-  fit.
+* **`predict_decomposition()` groups its `_se` columns.** The seven value columns come
+  first, then the seven matching `_se` columns, rather than alternating.
 
 ## Breaking changes
 
-* **Inference is maximum-likelihood point estimation with delta-method error
-  bands.** The Metropolis–Hastings MCMC fitter and its sample-averaging analysis
-  chain were removed (`fit_lrmsd_i_msa_mcmc()`, `run_msa_bayesian_analysis()`,
-  `calculate_prediction_samples()`, `calculate_parameter_summary()`,
-  `calculate_prediction_summary()`, `calculate_decomposition_samples()`,
-  `calculate_decomposition_summary()`), and so was the adaptive Gauss–Hermite
-  quadrature arm that briefly replaced it (`fit_lrmsd_i_msa_agq()`,
-  `predict_lrmsd_i_msa_agq()`, `predict_lrmsd_i_nested_models_agq()`,
-  `predict_decomposition_i_msa_agq()`). `fit_lrmsd_i_msa_ml()` is the fitter, and
-  profiles/decompositions with error bands come from `predict_profiles()` and
-  `predict_decomposition()` (see the API-changes note above) — deterministic
-  delta-method confidence bands, no seed, burn-in, or draw-averaging.
+* **Inference is maximum-likelihood with delta-method bands.** The MCMC fitter, its
+  sample-averaging analysis chain, and the adaptive Gauss–Hermite quadrature arm that
+  briefly replaced it were all removed. Fitting is `fit_lrmsd_msa_site()` /
+  `fit_lrmsd_msa_mode()`; bands come from `predict_profiles()` /
+  `predict_decomposition()` — deterministic, with no seed, burn-in, or draw-averaging.
 
-* **`dr2`-family names now follow one index-signature convention:**
-  `dr2_<indices>` — one underscore, then the free indices the object spans
-  (response `i`/`n`, then mutated site `j`, then mutation `m`), letters joined; a
-  reduction over an axis drops its letter. Concretely:
-  * SPM list-columns are `dr2_ijm` (per site) and `dr2_njm` (per mode); each cell a
-    per-mutant `(dr2_i)` / `(dr2_n)` vector. Affects `generate_spm_data()` output
-    and the embedded `znb_spm`.
-  * The assembled `spm` object exposes the matrices in fields `dr2_ijm` / `dr2_njm`,
-    and the forward map's profile columns are `dr2_i` / `dr2_n`.
+* **The exported surface is ten functions:** `setup_enm()`, `generate_spm_data()`,
+  `add_site_properties()`, `pfix_msa()`, `calculate_profiles()`,
+  `calculate_decomposition()`, `fit_lrmsd_msa_site()`, `fit_lrmsd_msa_mode()`,
+  `predict_profiles()`, `predict_decomposition()`. The earlier per-axis grid of
+  `calculate_*` / `predict_*_ml` functions, the `gof_*` accessors, `weights_jm_spm()`,
+  and the `preprocess_spm*()` reshapers are gone or internal.
 
-* **The local `delta_structure_dr2()` helper was removed.** It duplicated
-  `penm::delta_structure_dr2i()` (verified bit-identical); `generate_spm_data()`
-  now calls penm directly. penm's own (no-underscore) names are unchanged — the
-  convention governs names msamodel *creates*, not what it calls.
-
-* The embedded `znb_spm` dataset was regenerated for the new `mode` / `dr2_njm`
-  columns and the `dr2_ijm` rename (data unchanged, verified against the migration
-  source to 1e-8; profile values bit-for-bit unchanged).
+* **The embedded `znb_spm` dataset was regenerated** for the mode axis. Values are
+  unchanged (verified to 1e-8 against the migration source).
 
 # msamodel 0.2.0
 
