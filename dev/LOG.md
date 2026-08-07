@@ -23,6 +23,34 @@ changes. The same episode often earns a line in each. Things to maybe do later l
 in `dev/ideas.md`.
 
 
+### 2026-08-07 — the calculate_* twins were flattened; the mode axis gained a real key
+
+The refactor is in the commit; the diff shows what changed. Two things it cannot show.
+
+**The mode axis had been keyed by a manufactured index, and nobody had noticed.**
+`key_profile()` looked symmetric — one call, an `axis` string, both branches served. It
+was not: the site branch bound `spm$site_map` (a stored key, row count asserted) while
+the mode branch built `tibble(mode = seq_len(n))` on the spot and checked nothing. The
+uniform-looking call was hiding the asymmetry. Flattening the verbs made it visible,
+which is the argument for flattening that the numbers cannot make. Hence `mode_map` as a
+fifth field of `spm`, and two helpers instead of one dispatching helper.
+
+**A test that compared two spellings of the same expression.** The first `mode_map` was
+built with `seq_len(n_cols)` and then "verified" against the scan's own `mode` column —
+but that column is `seq_along(dr2_n)` (`generate_spm_core`), so both sides were the same
+construction and the check could only ever catch a length change. The user caught it:
+*"then OBVIOUSLY it is that mode of the mode scan that we have to use for mode_map, not
+regenerate it!"* Taking the vector from the scan — as `preprocess_spm` already did for
+`site_map` — makes the stored map and the cross-check independent, and makes the test
+able to fail. `site_map`'s equivalent check has always had content because `pdb_site`
+starts at 20, not 1; the mode index has no such tell, which is exactly why the
+circularity was easy to miss.
+
+**Deliberately left alone:** `key_profile()` still exists and still serves `predict.R`'s
+four call sites. Reconciling those onto `prepend_site_key` / `prepend_mode_key` is a
+separate slice, not folded in here.
+
+
 ### 2026-08-06 — the se layer was flattened, and a first attempt at it was discarded
 
 The refactor itself is in `e277a3d`; the commit message covers what changed and how it

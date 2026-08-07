@@ -49,9 +49,8 @@ pfix_msa <- function(ddg, ddgact, a1, a2) {
 # a bare [mutant x response] matrix `dr2_mat` (either dr2_ijm or dr2_njm) plus the
 # `energy_data` tibble, and return bare vectors (or a named list of bare vectors) in
 # matrix-column order -- no index, no tibble, no site_map. Alignment is by column
-# POSITION (the dr2 matrices carry no column names by construction); the exported
-# calculate_*_i/n skins below attach the axis index (and, site only, the pdb_site label)
-# at the boundary.
+# POSITION (the dr2 matrices carry no column names by construction); the exported verbs
+# below attach the axis key at the boundary, via prepend_site_key / prepend_mode_key.
 
 #' SPM-ensemble averaging weights from an energy table
 #'
@@ -207,22 +206,42 @@ key_profile <- function(cols, spm, axis) {
   }
 }
 
-#' Per-axis dispatch table: the divergence matrix for one branch
+#' Prepend the site key to a site-axis value tibble
 #'
-#' The single place the site/mode branch is chosen: `dr2_ijm` + `"site"` or
-#' `dr2_njm` + `"mode"`. The verbs iterate over the two branches and call the axis-blind
-#' primitives with the branch's matrix.
+#' `site_map` IS the key table -- `(site, pdb_site)`, one row per site, already in
+#' `dr2_ijm` column order -- so it is bound on positionally rather than joined against a
+#' manufactured index. The row-count equality that makes that valid is asserted, not
+#' assumed: a positional bind fails loud on a mismatch where a join would have silently
+#' filled `pdb_site` with `NA`.
 #'
-#' Carries no name tag: both branches emit the SAME value-column vocabulary
-#' (`lrmsd_msa`, `lrmsd_mm`, ...), so only the key column differs, and `key_profile()`
-#' derives that from `axis`.
-#'
-#' @param spm The `spm` object.
-#' @return A named list of two branches, each `list(dr2_mat =, axis =)`.
+#' @param site_map The `(site, pdb_site)` key tibble, i.e. `spm$site_map`.
+#' @param body A tibble of value columns, one row per site, in `dr2_ijm` column order.
+#' @return `body` with `site` and `pdb_site` prepended.
 #' @noRd
-axis_branches <- function(spm) {
-  list(site = list(dr2_mat = spm$dr2_ijm, axis = "site"),
-       mode = list(dr2_mat = spm$dr2_njm, axis = "mode"))
+prepend_site_key <- function(site_map, body) {
+  if (nrow(site_map) != nrow(body)) {
+    stop("site_map has ", nrow(site_map), " rows but the profile has ", nrow(body),
+         " sites; the spm object is inconsistent.")
+  }
+  dplyr::bind_cols(site_map, body)
+}
+
+#' Prepend the mode key to a mode-axis value tibble
+#'
+#' The mode-axis counterpart of `prepend_site_key()`. Modes are not residue-anchored, so
+#' `mode_map` is a single `mode` column -- the index is the whole map -- but it is a
+#' STORED key bound on positionally, and its row count is asserted for the same reason.
+#'
+#' @param mode_map The `(mode)` key tibble, i.e. `spm$mode_map`.
+#' @param body A tibble of value columns, one row per mode, in `dr2_njm` column order.
+#' @return `body` with `mode` prepended.
+#' @noRd
+prepend_mode_key <- function(mode_map, body) {
+  if (nrow(mode_map) != nrow(body)) {
+    stop("mode_map has ", nrow(mode_map), " rows but the profile has ", nrow(body),
+         " modes; the spm object is inconsistent.")
+  }
+  dplyr::bind_cols(mode_map, body)
 }
 
 # ---- the model layer public verbs: evaluate at a GIVEN (a1, a2), no fit ----------
@@ -255,13 +274,24 @@ axis_branches <- function(spm) {
 #' @export
 calculate_profiles <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
   which <- match.arg(which)
-  fwd   <- if (which == "nlrmsd") nlrmsd_msa else lrmsd_msa
-  out <- lapply(axis_branches(spm), function(b) {
-    v    <- fwd(b$dr2_mat, spm$energy_data, a1, a2)
-    name <- paste0(which, "_msa")
-    key_profile(stats::setNames(list(v), name), spm, b$axis)
-  })
-  out
+
+  # --- site axis (responses are residues; dr2_ijm)
+  if (which == "nlrmsd") {
+    site_profile <- tibble(nlrmsd_msa = nlrmsd_msa(spm$dr2_ijm, spm$energy_data, a1, a2))
+  } else {
+    site_profile <- tibble(lrmsd_msa = lrmsd_msa(spm$dr2_ijm, spm$energy_data, a1, a2))
+  }
+  site_profile <- prepend_site_key(spm$site_map, site_profile)
+
+  # --- mode axis (responses are normal modes; dr2_njm)
+  if (which == "nlrmsd") {
+    mode_profile <- tibble(nlrmsd_msa = nlrmsd_msa(spm$dr2_njm, spm$energy_data, a1, a2))
+  } else {
+    mode_profile <- tibble(lrmsd_msa = lrmsd_msa(spm$dr2_njm, spm$energy_data, a1, a2))
+  }
+  mode_profile <- prepend_mode_key(spm$mode_map, mode_profile)
+
+  list(site = site_profile, mode = mode_profile)
 }
 
 # ---- calculate_decomposition -----------------------------------------------------
@@ -297,19 +327,58 @@ calculate_profiles <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
 #' @export
 calculate_decomposition <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
   which <- match.arg(which)
-  centred     <- which == "nlrmsd"
-  nested_fwd  <- if (centred) nlrmsd_nested_models else lrmsd_nested_models
-  decomp_fwd  <- if (centred) nlrmsd_msa_decomposition else lrmsd_msa_decomposition
-  phi_prefix  <- if (centred) "nphi" else "phi"
 
-  out <- lapply(axis_branches(spm), function(b) {
-    nm  <- nested_fwd(b$dr2_mat, spm$energy_data, a1, a2)          # list mm/ms/ma/msa
-    phi <- decomp_fwd(b$dr2_mat, spm$energy_data, a1, a2)          # list *_mut/stab/act
-    nested_cols <- stats::setNames(
-      nm[c("mm", "ms", "ma", "msa")],
-      paste0(which, "_", c("mm", "ms", "ma", "msa")))
-    # decomp_fwd already names phi_mut/... (lrmsd) or nphi_mut/... (nlrmsd) -- take as is.
-    key_profile(c(nested_cols, phi), spm, b$axis)
-  })
-  out
+  # --- site axis (responses are residues; dr2_ijm)
+  if (which == "nlrmsd") {
+    nested        <- nlrmsd_nested_models(spm$dr2_ijm, spm$energy_data, a1, a2)
+    decomposition <- nlrmsd_msa_decomposition(spm$dr2_ijm, spm$energy_data, a1, a2)
+    site_decomposition <- tibble(
+      nlrmsd_mm  = nested$mm,
+      nlrmsd_ms  = nested$ms,
+      nlrmsd_ma  = nested$ma,
+      nlrmsd_msa = nested$msa,
+      nphi_mut   = decomposition$nphi_mut,
+      nphi_stab  = decomposition$nphi_stab,
+      nphi_act   = decomposition$nphi_act)
+  } else {
+    nested        <- lrmsd_nested_models(spm$dr2_ijm, spm$energy_data, a1, a2)
+    decomposition <- lrmsd_msa_decomposition(spm$dr2_ijm, spm$energy_data, a1, a2)
+    site_decomposition <- tibble(
+      lrmsd_mm  = nested$mm,
+      lrmsd_ms  = nested$ms,
+      lrmsd_ma  = nested$ma,
+      lrmsd_msa = nested$msa,
+      phi_mut   = decomposition$phi_mut,
+      phi_stab  = decomposition$phi_stab,
+      phi_act   = decomposition$phi_act)
+  }
+  site_decomposition <- prepend_site_key(spm$site_map, site_decomposition)
+
+  # --- mode axis (responses are normal modes; dr2_njm)
+  if (which == "nlrmsd") {
+    nested        <- nlrmsd_nested_models(spm$dr2_njm, spm$energy_data, a1, a2)
+    decomposition <- nlrmsd_msa_decomposition(spm$dr2_njm, spm$energy_data, a1, a2)
+    mode_decomposition <- tibble(
+      nlrmsd_mm  = nested$mm,
+      nlrmsd_ms  = nested$ms,
+      nlrmsd_ma  = nested$ma,
+      nlrmsd_msa = nested$msa,
+      nphi_mut   = decomposition$nphi_mut,
+      nphi_stab  = decomposition$nphi_stab,
+      nphi_act   = decomposition$nphi_act)
+  } else {
+    nested        <- lrmsd_nested_models(spm$dr2_njm, spm$energy_data, a1, a2)
+    decomposition <- lrmsd_msa_decomposition(spm$dr2_njm, spm$energy_data, a1, a2)
+    mode_decomposition <- tibble(
+      lrmsd_mm  = nested$mm,
+      lrmsd_ms  = nested$ms,
+      lrmsd_ma  = nested$ma,
+      lrmsd_msa = nested$msa,
+      phi_mut   = decomposition$phi_mut,
+      phi_stab  = decomposition$phi_stab,
+      phi_act   = decomposition$phi_act)
+  }
+  mode_decomposition <- prepend_mode_key(spm$mode_map, mode_decomposition)
+
+  list(site = site_decomposition, mode = mode_decomposition)
 }
