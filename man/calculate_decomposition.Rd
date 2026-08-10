@@ -4,7 +4,7 @@
 \alias{calculate_decomposition}
 \title{Divergence decomposition at one selection strength (both axes)}
 \usage{
-calculate_decomposition(spm, a1, a2, which = c("lrmsd", "nlrmsd"))
+calculate_decomposition(spm, a1, a2, metric = c("lrmsd", "nlrmsd"))
 }
 \arguments{
 \item{spm}{A single-point-mutation \code{spm} object from \code{\link[=generate_spm_data]{generate_spm_data()}}.}
@@ -13,21 +13,22 @@ calculate_decomposition(spm, a1, a2, which = c("lrmsd", "nlrmsd"))
 
 \item{a2}{Activity selection strength (non-negative).}
 
-\item{which}{\code{"lrmsd"} (absolute) or \code{"nlrmsd"} (mean-centred). Default \code{"lrmsd"}.}
+\item{metric}{\code{"lrmsd"} (absolute) or \code{"nlrmsd"} (mean-centred). Default \code{"lrmsd"}.}
 }
 \value{
 A list with two tibbles (\verb{$site}, \verb{$mode}). Each holds the axis key
 (\code{site}, \code{pdb_site} for site; \code{mode} for mode), the four nested-model columns, and
-the three contribution columns, all in the family selected by \code{which}. Both branches
+the three contribution columns, all on the \code{metric} you asked for. Both branches
 use identical value-column names.
 }
 \description{
 The nested-model profiles AND the three sequential contributions of the divergence
-profile at a single \verb{(a1, a2)}, on \strong{both} response axes. \code{which} selects the family
-in lockstep: \code{"lrmsd"} gives the uncentred nested models (\code{lrmsd_mm}...) and the
-uncentred contributions (\code{phi_mut}, \code{phi_stab}, \code{phi_act}); \code{"nlrmsd"} gives the
-mean-centred nested models (\code{nlrmsd_mm}...) and the centred contributions
-(\code{nphi_mut}, \code{nphi_stab}, \code{nphi_act}). Point values only; for bands from a fit use
+profile at a single \verb{(a1, a2)}, on \strong{both} response axes. \code{metric} applies to every
+returned column at once -- you never get some columns absolute and others centred.
+\code{"lrmsd"} returns the absolute nested models (\code{lrmsd_mm}...) with the absolute
+contributions (\code{phi_mut}, \code{phi_stab}, \code{phi_act}); \code{"nlrmsd"} returns the mean-centred
+nested models (\code{nlrmsd_mm}...) with the centred contributions (\code{nphi_mut},
+\code{nphi_stab}, \code{nphi_act}). Point values only; for bands from a fit use
 \code{\link[=predict_decomposition]{predict_decomposition()}}.
 }
 \details{
@@ -36,7 +37,7 @@ The three contributions sum exactly to the full-model (\code{msa}) profile.
 \examples{
 \dontrun{
 spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
-calculate_decomposition(spm, a1 = 1, a2 = 1, which = "nlrmsd")$site
+calculate_decomposition(spm, a1 = 1, a2 = 1, metric = "nlrmsd")$site
 }
 }
 \seealso{

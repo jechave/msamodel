@@ -4,7 +4,7 @@
 \alias{predict_decomposition}
 \title{Divergence decomposition with standard errors from an ML fit (both axes)}
 \usage{
-predict_decomposition(fit, spm, which = c("nlrmsd", "lrmsd"))
+predict_decomposition(fit, spm, metric = c("nlrmsd", "lrmsd"))
 }
 \arguments{
 \item{fit}{A list from \code{\link[=fit_lrmsd_msa_site]{fit_lrmsd_msa_site()}} (site) or \code{\link[=fit_lrmsd_msa_mode]{fit_lrmsd_msa_mode()}} (mode),
@@ -12,7 +12,7 @@ carrying \code{a1}, \code{a2}, \code{cov}.}
 
 \item{spm}{The \code{spm} object from \code{\link[=generate_spm_data]{generate_spm_data()}} (the same one used for the fit).}
 
-\item{which}{\code{"nlrmsd"} (default, the mean-centred family the fit is on) or \code{"lrmsd"}
+\item{metric}{\code{"nlrmsd"} (default, the mean-centred profile the fit is on) or \code{"lrmsd"}
 (accepted by the signature but not yet derived -- it stops).}
 }
 \value{
@@ -27,8 +27,8 @@ three sequential contributions, then the seven matching \verb{_se} columns, on \
 response axes.
 }
 \details{
-Only the \code{"nlrmsd"} family is currently available, and it is the default so a bare
-call works. \code{which = "lrmsd"} stops: the uncentred standard error is not yet derived.
+Only \code{"nlrmsd"} is currently available, and it is the default so a bare call works.
+\code{metric = "lrmsd"} stops: the uncentred standard error is not yet derived.
 
 The standard-error construction differs between the two objects, for mathematical
 reasons set out in \code{R/predict_se.R}:

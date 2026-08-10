@@ -290,12 +290,16 @@ se_nested_nlrmsd <- function(dr2_mat, energy_data, fit) {
 #' so the gap has a named home rather than a guard at the top of the calling verb: the
 #' lrmsd branch is undeveloped, not absent.
 #'
+#' The message is what a user sees from `predict_decomposition(metric = "lrmsd")`, so it
+#' names that call and the way forward -- not this helper, which they never called.
+#'
 #' @inheritParams var_param_profile_lrmsd
 #' @return Never returns; stops.
 #' @noRd
 se_nested_lrmsd <- function(dr2_mat, energy_data, fit) {
-  stop("se_nested_lrmsd() is to be developed: the uncentred nested-model standard ",
-       "error is not yet derived. Use the nlrmsd family.")
+  stop("standard errors for metric = \"lrmsd\" are still to be developed; ",
+       "use metric = \"nlrmsd\" for a decomposition with error bands, or ",
+       "calculate_decomposition() for lrmsd point values without them.")
 }
 
 # ===================================================================================
@@ -380,10 +384,14 @@ se_components_nlrmsd <- function(dr2_mat, energy_data, fit) {
 #' the gap has a named home rather than a guard at the top of the calling verb: the lrmsd
 #' branch is undeveloped, not absent.
 #'
+#' The message is what a user sees from `predict_decomposition(metric = "lrmsd")`, so it
+#' names that call and the way forward -- not this helper, which they never called.
+#'
 #' @inheritParams var_param_profile_lrmsd
 #' @return Never returns; stops.
 #' @noRd
 se_components_lrmsd <- function(dr2_mat, energy_data, fit) {
-  stop("se_components_lrmsd() is to be developed: the uncentred component standard ",
-       "error is not yet derived. Use the nlrmsd family.")
+  stop("standard errors for metric = \"lrmsd\" are still to be developed; ",
+       "use metric = \"nlrmsd\" for a decomposition with error bands, or ",
+       "calculate_decomposition() for lrmsd point values without them.")
 }

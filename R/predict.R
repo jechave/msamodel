@@ -41,14 +41,14 @@ validate_ml_fit <- function(fit, producer) {
 #'
 #' [calculate_profiles()] with uncertainty: the model's per-response log
 #' structural-divergence profile evaluated at a fit's `(a1, a2)`, on **both** response
-#' axes, with the value column followed by its `_se` sibling. `which` selects
+#' axes, with the value column followed by its `_se` sibling. `metric` selects
 #' `"lrmsd"` (the absolute profile) or `"nlrmsd"` (the mean-centred profile the fit is on).
 #'
 #' The standard error sums two independent sources: the fit's parameter uncertainty
 #' (propagated by the delta method) and the SPM finite-mutation sampling error of the
 #' scan itself.
 #'
-#' For `which = "nlrmsd"` the profile is centred by its own mean over the full model
+#' For `metric = "nlrmsd"` the profile is centred by its own mean over the full model
 #' support. Prediction centres over all model residues, agnostic to which residues a
 #' given dataset observes; when overlaying observed data, centre it on its own matched
 #' support.
@@ -57,7 +57,7 @@ validate_ml_fit <- function(fit, producer) {
 #'   carrying `a1`, `a2`, and the 2x2 `cov` on the `(a1, log2(a2+1))` scale. One fit
 #'   drives both axes.
 #' @param spm The `spm` object from [generate_spm_data()] (the same one used for the fit).
-#' @param which `"lrmsd"` (absolute) or `"nlrmsd"` (mean-centred). Default `"lrmsd"`.
+#' @param metric `"lrmsd"` (absolute) or `"nlrmsd"` (mean-centred). Default `"lrmsd"`.
 #' @return A list with two tibbles. `$site`: `site`, `pdb_site`, the profile column
 #'   (`lrmsd_msa` or `nlrmsd_msa`), and its `_se`. `$mode`: `mode`, the same profile
 #'   column, and its `_se`.
@@ -68,34 +68,38 @@ validate_ml_fit <- function(fit, producer) {
 #' \dontrun{
 #' spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
 #' ml  <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)
-#' predict_profiles(ml, spm, which = "nlrmsd")$site
+#' predict_profiles(ml, spm, metric = "nlrmsd")$site
 #' }
 #' @export
-predict_profiles <- function(fit, spm, which = c("lrmsd", "nlrmsd")) {
-  which <- match.arg(which)
+predict_profiles <- function(fit, spm, metric = c("lrmsd", "nlrmsd")) {
+  metric <- match.arg(metric)
   validate_ml_fit(fit, "fit_lrmsd_msa_site() / fit_lrmsd_msa_mode()")
 
   # --- site axis (responses are residues; dr2_ijm)
-  if (which == "nlrmsd") {
+  if (metric == "nlrmsd") {
     site_profile <- tibble(
       nlrmsd_msa    = nlrmsd_msa(spm$dr2_ijm, spm$energy_data, fit$a1, fit$a2),
       nlrmsd_msa_se = se_profile_nlrmsd(spm$dr2_ijm, spm$energy_data, fit))
-  } else {
+  } else if (metric == "lrmsd") {
     site_profile <- tibble(
       lrmsd_msa    = lrmsd_msa(spm$dr2_ijm, spm$energy_data, fit$a1, fit$a2),
       lrmsd_msa_se = se_profile_lrmsd(spm$dr2_ijm, spm$energy_data, fit))
+  } else {
+    stop(unimplemented_metric_message(metric))
   }
   site_profile <- prepend_site_key(spm$site_map, site_profile)
 
   # --- mode axis (responses are normal modes; dr2_njm)
-  if (which == "nlrmsd") {
+  if (metric == "nlrmsd") {
     mode_profile <- tibble(
       nlrmsd_msa    = nlrmsd_msa(spm$dr2_njm, spm$energy_data, fit$a1, fit$a2),
       nlrmsd_msa_se = se_profile_nlrmsd(spm$dr2_njm, spm$energy_data, fit))
-  } else {
+  } else if (metric == "lrmsd") {
     mode_profile <- tibble(
       lrmsd_msa    = lrmsd_msa(spm$dr2_njm, spm$energy_data, fit$a1, fit$a2),
       lrmsd_msa_se = se_profile_lrmsd(spm$dr2_njm, spm$energy_data, fit))
+  } else {
+    stop(unimplemented_metric_message(metric))
   }
   mode_profile <- prepend_mode_key(spm$mode_map, mode_profile)
 
@@ -110,8 +114,8 @@ predict_profiles <- function(fit, spm, which = c("lrmsd", "nlrmsd")) {
 #' three sequential contributions, then the seven matching `_se` columns, on **both**
 #' response axes.
 #'
-#' Only the `"nlrmsd"` family is currently available, and it is the default so a bare
-#' call works. `which = "lrmsd"` stops: the uncentred standard error is not yet derived.
+#' Only `"nlrmsd"` is currently available, and it is the default so a bare call works.
+#' `metric = "lrmsd"` stops: the uncentred standard error is not yet derived.
 #'
 #' The standard-error construction differs between the two objects, for mathematical
 #' reasons set out in `R/predict_se.R`:
@@ -125,7 +129,7 @@ predict_profiles <- function(fit, spm, which = c("lrmsd", "nlrmsd")) {
 #' @param fit A list from [fit_lrmsd_msa_site()] (site) or [fit_lrmsd_msa_mode()] (mode),
 #'   carrying `a1`, `a2`, `cov`.
 #' @param spm The `spm` object from [generate_spm_data()] (the same one used for the fit).
-#' @param which `"nlrmsd"` (default, the mean-centred family the fit is on) or `"lrmsd"`
+#' @param metric `"nlrmsd"` (default, the mean-centred profile the fit is on) or `"lrmsd"`
 #'   (accepted by the signature but not yet derived -- it stops).
 #' @return A list with two tibbles (`$site`, `$mode`). Each holds the axis key (`site`,
 #'   `pdb_site` for site; `mode` for mode), the four nested-model columns
@@ -141,8 +145,8 @@ predict_profiles <- function(fit, spm, which = c("lrmsd", "nlrmsd")) {
 #' predict_decomposition(ml, spm)$site
 #' }
 #' @export
-predict_decomposition <- function(fit, spm, which = c("nlrmsd", "lrmsd")) {
-  which <- match.arg(which)
+predict_decomposition <- function(fit, spm, metric = c("nlrmsd", "lrmsd")) {
+  metric <- match.arg(metric)
   validate_ml_fit(fit, "fit_lrmsd_msa_site() / fit_lrmsd_msa_mode()")
 
   # Each block: the four nested-model columns then the three contributions, and only
@@ -152,7 +156,7 @@ predict_decomposition <- function(fit, spm, which = c("nlrmsd", "lrmsd")) {
   # named where it is built.
 
   # --- site axis (responses are residues; dr2_ijm)
-  if (which == "nlrmsd") {
+  if (metric == "nlrmsd") {
     nested           <- nlrmsd_nested_models(spm$dr2_ijm, spm$energy_data, fit$a1, fit$a2)
     nested_se        <- se_nested_nlrmsd(spm$dr2_ijm, spm$energy_data, fit)
     decomposition    <- nlrmsd_msa_decomposition(spm$dr2_ijm, spm$energy_data, fit$a1, fit$a2)
@@ -172,7 +176,7 @@ predict_decomposition <- function(fit, spm, which = c("nlrmsd", "lrmsd")) {
       nphi_mut_se   = decomposition_se$mut,
       nphi_stab_se  = decomposition_se$stab,
       nphi_act_se   = decomposition_se$act)
-  } else {
+  } else if (metric == "lrmsd") {
     nested           <- lrmsd_nested_models(spm$dr2_ijm, spm$energy_data, fit$a1, fit$a2)
     nested_se        <- se_nested_lrmsd(spm$dr2_ijm, spm$energy_data, fit)       # stops
     decomposition    <- lrmsd_msa_decomposition(spm$dr2_ijm, spm$energy_data, fit$a1, fit$a2)
@@ -192,11 +196,13 @@ predict_decomposition <- function(fit, spm, which = c("nlrmsd", "lrmsd")) {
       phi_mut_se   = decomposition_se$mut,
       phi_stab_se  = decomposition_se$stab,
       phi_act_se   = decomposition_se$act)
+  } else {
+    stop(unimplemented_metric_message(metric))
   }
   site_decomposition <- prepend_site_key(spm$site_map, site_decomposition)
 
   # --- mode axis (responses are normal modes; dr2_njm)
-  if (which == "nlrmsd") {
+  if (metric == "nlrmsd") {
     nested           <- nlrmsd_nested_models(spm$dr2_njm, spm$energy_data, fit$a1, fit$a2)
     nested_se        <- se_nested_nlrmsd(spm$dr2_njm, spm$energy_data, fit)
     decomposition    <- nlrmsd_msa_decomposition(spm$dr2_njm, spm$energy_data, fit$a1, fit$a2)
@@ -216,7 +222,7 @@ predict_decomposition <- function(fit, spm, which = c("nlrmsd", "lrmsd")) {
       nphi_mut_se   = decomposition_se$mut,
       nphi_stab_se  = decomposition_se$stab,
       nphi_act_se   = decomposition_se$act)
-  } else {
+  } else if (metric == "lrmsd") {
     nested           <- lrmsd_nested_models(spm$dr2_njm, spm$energy_data, fit$a1, fit$a2)
     nested_se        <- se_nested_lrmsd(spm$dr2_njm, spm$energy_data, fit)       # stops
     decomposition    <- lrmsd_msa_decomposition(spm$dr2_njm, spm$energy_data, fit$a1, fit$a2)
@@ -236,6 +242,8 @@ predict_decomposition <- function(fit, spm, which = c("nlrmsd", "lrmsd")) {
       phi_mut_se   = decomposition_se$mut,
       phi_stab_se  = decomposition_se$stab,
       phi_act_se   = decomposition_se$act)
+  } else {
+    stop(unimplemented_metric_message(metric))
   }
   mode_decomposition <- prepend_mode_key(spm$mode_map, mode_decomposition)
 

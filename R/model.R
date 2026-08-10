@@ -211,13 +211,35 @@ prepend_mode_key <- function(mode_map, body) {
   dplyr::bind_cols(mode_map, body)
 }
 
+#' Error message for a metric that `match.arg` accepted but no branch implements
+#'
+#' Error message for a metric that `match.arg` accepted but no branch implements
+#'
+#' The metric-dispatching verbs branch explicitly on each metric they implement and end
+#' in a `stop()` rather than an `else` that means "lrmsd". `match.arg` already rejects
+#' misspellings, so this cannot fire through the public API today. It exists for the
+#' case `match.arg` cannot catch: a metric ADDED to a verb's formals (`drmsf`, `dnh`,
+#' ...) whose branch was never written. Without it the unwritten metric would silently
+#' return lrmsd numbers under its own name.
+#'
+#' TO THE MAINTAINER, if you are reading this from a traceback: add the missing branch
+#' to the verb that raised it, or drop the metric from that verb's formals. The message
+#' itself stays user-facing -- it says what happened, not what to go edit.
+#'
+#' @param metric The metric string that reached no branch.
+#' @return A character message for `stop()`.
+#' @noRd
+unimplemented_metric_message <- function(metric) {
+  paste0("metric \"", metric, "\" is not available for this function.")
+}
+
 # ---- the model layer public verbs: evaluate at a GIVEN (a1, a2), no fit ----------
 
 
 #' Predicted divergence profiles at one selection strength (both axes)
 #'
 #' The model's forward per-response log structural-divergence profile at a single pair
-#' of selection strengths `(a1, a2)`, on **both** response axes at once. `which` selects
+#' of selection strengths `(a1, a2)`, on **both** response axes at once. `metric` selects
 #' the quantity: `"lrmsd"` (the absolute profile `log(sqrt(dr2))`) or `"nlrmsd"` (the
 #' mean-centred profile the fit is on). Returns point values only -- no error bands
 #' (there is no fit and hence no parameter covariance); for bands from a fit use
@@ -226,7 +248,7 @@ prepend_mode_key <- function(mode_map, body) {
 #' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
 #' @param a1 Stability selection strength (non-negative). `0` disables it.
 #' @param a2 Activity selection strength (non-negative). `0` disables it.
-#' @param which `"lrmsd"` (absolute) or `"nlrmsd"` (mean-centred). Default `"lrmsd"`.
+#' @param metric `"lrmsd"` (absolute) or `"nlrmsd"` (mean-centred). Default `"lrmsd"`.
 #' @return A list with two tibbles. `$site`: `site`, `pdb_site`, and the profile column
 #'   (`lrmsd_msa` or `nlrmsd_msa`). `$mode`: `mode` and the same profile column. Both
 #'   branches use identical value-column names; only the key column differs.
@@ -236,25 +258,29 @@ prepend_mode_key <- function(mode_map, body) {
 #' @examples
 #' \dontrun{
 #' spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
-#' calculate_profiles(spm, a1 = 1, a2 = 1, which = "nlrmsd")$site
+#' calculate_profiles(spm, a1 = 1, a2 = 1, metric = "nlrmsd")$site
 #' }
 #' @export
-calculate_profiles <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
-  which <- match.arg(which)
+calculate_profiles <- function(spm, a1, a2, metric = c("lrmsd", "nlrmsd")) {
+  metric <- match.arg(metric)
 
   # --- site axis (responses are residues; dr2_ijm)
-  if (which == "nlrmsd") {
+  if (metric == "nlrmsd") {
     site_profile <- tibble(nlrmsd_msa = nlrmsd_msa(spm$dr2_ijm, spm$energy_data, a1, a2))
-  } else {
+  } else if (metric == "lrmsd") {
     site_profile <- tibble(lrmsd_msa = lrmsd_msa(spm$dr2_ijm, spm$energy_data, a1, a2))
+  } else {
+    stop(unimplemented_metric_message(metric))
   }
   site_profile <- prepend_site_key(spm$site_map, site_profile)
 
   # --- mode axis (responses are normal modes; dr2_njm)
-  if (which == "nlrmsd") {
+  if (metric == "nlrmsd") {
     mode_profile <- tibble(nlrmsd_msa = nlrmsd_msa(spm$dr2_njm, spm$energy_data, a1, a2))
-  } else {
+  } else if (metric == "lrmsd") {
     mode_profile <- tibble(lrmsd_msa = lrmsd_msa(spm$dr2_njm, spm$energy_data, a1, a2))
+  } else {
+    stop(unimplemented_metric_message(metric))
   }
   mode_profile <- prepend_mode_key(spm$mode_map, mode_profile)
 
@@ -266,11 +292,12 @@ calculate_profiles <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
 #' Divergence decomposition at one selection strength (both axes)
 #'
 #' The nested-model profiles AND the three sequential contributions of the divergence
-#' profile at a single `(a1, a2)`, on **both** response axes. `which` selects the family
-#' in lockstep: `"lrmsd"` gives the uncentred nested models (`lrmsd_mm`...) and the
-#' uncentred contributions (`phi_mut`, `phi_stab`, `phi_act`); `"nlrmsd"` gives the
-#' mean-centred nested models (`nlrmsd_mm`...) and the centred contributions
-#' (`nphi_mut`, `nphi_stab`, `nphi_act`). Point values only; for bands from a fit use
+#' profile at a single `(a1, a2)`, on **both** response axes. `metric` applies to every
+#' returned column at once -- you never get some columns absolute and others centred.
+#' `"lrmsd"` returns the absolute nested models (`lrmsd_mm`...) with the absolute
+#' contributions (`phi_mut`, `phi_stab`, `phi_act`); `"nlrmsd"` returns the mean-centred
+#' nested models (`nlrmsd_mm`...) with the centred contributions (`nphi_mut`,
+#' `nphi_stab`, `nphi_act`). Point values only; for bands from a fit use
 #' [predict_decomposition()].
 #'
 #' The three contributions sum exactly to the full-model (`msa`) profile.
@@ -278,10 +305,10 @@ calculate_profiles <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
 #' @param spm A single-point-mutation `spm` object from [generate_spm_data()].
 #' @param a1 Stability selection strength (non-negative).
 #' @param a2 Activity selection strength (non-negative).
-#' @param which `"lrmsd"` (absolute) or `"nlrmsd"` (mean-centred). Default `"lrmsd"`.
+#' @param metric `"lrmsd"` (absolute) or `"nlrmsd"` (mean-centred). Default `"lrmsd"`.
 #' @return A list with two tibbles (`$site`, `$mode`). Each holds the axis key
 #'   (`site`, `pdb_site` for site; `mode` for mode), the four nested-model columns, and
-#'   the three contribution columns, all in the family selected by `which`. Both branches
+#'   the three contribution columns, all on the `metric` you asked for. Both branches
 #'   use identical value-column names.
 #' @seealso [predict_decomposition()] (the same, with error bands from a fit);
 #'   [calculate_profiles()] (the profile these contributions sum to).
@@ -289,14 +316,14 @@ calculate_profiles <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
 #' @examples
 #' \dontrun{
 #' spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
-#' calculate_decomposition(spm, a1 = 1, a2 = 1, which = "nlrmsd")$site
+#' calculate_decomposition(spm, a1 = 1, a2 = 1, metric = "nlrmsd")$site
 #' }
 #' @export
-calculate_decomposition <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
-  which <- match.arg(which)
+calculate_decomposition <- function(spm, a1, a2, metric = c("lrmsd", "nlrmsd")) {
+  metric <- match.arg(metric)
 
   # --- site axis (responses are residues; dr2_ijm)
-  if (which == "nlrmsd") {
+  if (metric == "nlrmsd") {
     nested        <- nlrmsd_nested_models(spm$dr2_ijm, spm$energy_data, a1, a2)
     decomposition <- nlrmsd_msa_decomposition(spm$dr2_ijm, spm$energy_data, a1, a2)
     site_decomposition <- tibble(
@@ -307,7 +334,7 @@ calculate_decomposition <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
       nphi_mut   = decomposition$nphi_mut,
       nphi_stab  = decomposition$nphi_stab,
       nphi_act   = decomposition$nphi_act)
-  } else {
+  } else if (metric == "lrmsd") {
     nested        <- lrmsd_nested_models(spm$dr2_ijm, spm$energy_data, a1, a2)
     decomposition <- lrmsd_msa_decomposition(spm$dr2_ijm, spm$energy_data, a1, a2)
     site_decomposition <- tibble(
@@ -318,11 +345,13 @@ calculate_decomposition <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
       phi_mut   = decomposition$phi_mut,
       phi_stab  = decomposition$phi_stab,
       phi_act   = decomposition$phi_act)
+  } else {
+    stop(unimplemented_metric_message(metric))
   }
   site_decomposition <- prepend_site_key(spm$site_map, site_decomposition)
 
   # --- mode axis (responses are normal modes; dr2_njm)
-  if (which == "nlrmsd") {
+  if (metric == "nlrmsd") {
     nested        <- nlrmsd_nested_models(spm$dr2_njm, spm$energy_data, a1, a2)
     decomposition <- nlrmsd_msa_decomposition(spm$dr2_njm, spm$energy_data, a1, a2)
     mode_decomposition <- tibble(
@@ -333,7 +362,7 @@ calculate_decomposition <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
       nphi_mut   = decomposition$nphi_mut,
       nphi_stab  = decomposition$nphi_stab,
       nphi_act   = decomposition$nphi_act)
-  } else {
+  } else if (metric == "lrmsd") {
     nested        <- lrmsd_nested_models(spm$dr2_njm, spm$energy_data, a1, a2)
     decomposition <- lrmsd_msa_decomposition(spm$dr2_njm, spm$energy_data, a1, a2)
     mode_decomposition <- tibble(
@@ -344,6 +373,8 @@ calculate_decomposition <- function(spm, a1, a2, which = c("lrmsd", "nlrmsd")) {
       phi_mut   = decomposition$phi_mut,
       phi_stab  = decomposition$phi_stab,
       phi_act   = decomposition$phi_act)
+  } else {
+    stop(unimplemented_metric_message(metric))
   }
   mode_decomposition <- prepend_mode_key(spm$mode_map, mode_decomposition)
 

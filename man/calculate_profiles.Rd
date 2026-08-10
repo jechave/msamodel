@@ -4,7 +4,7 @@
 \alias{calculate_profiles}
 \title{Predicted divergence profiles at one selection strength (both axes)}
 \usage{
-calculate_profiles(spm, a1, a2, which = c("lrmsd", "nlrmsd"))
+calculate_profiles(spm, a1, a2, metric = c("lrmsd", "nlrmsd"))
 }
 \arguments{
 \item{spm}{A single-point-mutation \code{spm} object from \code{\link[=generate_spm_data]{generate_spm_data()}}.}
@@ -13,7 +13,7 @@ calculate_profiles(spm, a1, a2, which = c("lrmsd", "nlrmsd"))
 
 \item{a2}{Activity selection strength (non-negative). \code{0} disables it.}
 
-\item{which}{\code{"lrmsd"} (absolute) or \code{"nlrmsd"} (mean-centred). Default \code{"lrmsd"}.}
+\item{metric}{\code{"lrmsd"} (absolute) or \code{"nlrmsd"} (mean-centred). Default \code{"lrmsd"}.}
 }
 \value{
 A list with two tibbles. \verb{$site}: \code{site}, \code{pdb_site}, and the profile column
@@ -22,7 +22,7 @@ branches use identical value-column names; only the key column differs.
 }
 \description{
 The model's forward per-response log structural-divergence profile at a single pair
-of selection strengths \verb{(a1, a2)}, on \strong{both} response axes at once. \code{which} selects
+of selection strengths \verb{(a1, a2)}, on \strong{both} response axes at once. \code{metric} selects
 the quantity: \code{"lrmsd"} (the absolute profile \code{log(sqrt(dr2))}) or \code{"nlrmsd"} (the
 mean-centred profile the fit is on). Returns point values only -- no error bands
 (there is no fit and hence no parameter covariance); for bands from a fit use
@@ -31,7 +31,7 @@ mean-centred profile the fit is on). Returns point values only -- no error bands
 \examples{
 \dontrun{
 spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
-calculate_profiles(spm, a1 = 1, a2 = 1, which = "nlrmsd")$site
+calculate_profiles(spm, a1 = 1, a2 = 1, metric = "nlrmsd")$site
 }
 }
 \seealso{

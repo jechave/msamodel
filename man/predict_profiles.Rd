@@ -4,7 +4,7 @@
 \alias{predict_profiles}
 \title{Predicted divergence profiles with standard errors from an ML fit (both axes)}
 \usage{
-predict_profiles(fit, spm, which = c("lrmsd", "nlrmsd"))
+predict_profiles(fit, spm, metric = c("lrmsd", "nlrmsd"))
 }
 \arguments{
 \item{fit}{A list from \code{\link[=fit_lrmsd_msa_site]{fit_lrmsd_msa_site()}} (site) or \code{\link[=fit_lrmsd_msa_mode]{fit_lrmsd_msa_mode()}} (mode),
@@ -13,7 +13,7 @@ drives both axes.}
 
 \item{spm}{The \code{spm} object from \code{\link[=generate_spm_data]{generate_spm_data()}} (the same one used for the fit).}
 
-\item{which}{\code{"lrmsd"} (absolute) or \code{"nlrmsd"} (mean-centred). Default \code{"lrmsd"}.}
+\item{metric}{\code{"lrmsd"} (absolute) or \code{"nlrmsd"} (mean-centred). Default \code{"lrmsd"}.}
 }
 \value{
 A list with two tibbles. \verb{$site}: \code{site}, \code{pdb_site}, the profile column
@@ -23,7 +23,7 @@ column, and its \verb{_se}.
 \description{
 \code{\link[=calculate_profiles]{calculate_profiles()}} with uncertainty: the model's per-response log
 structural-divergence profile evaluated at a fit's \verb{(a1, a2)}, on \strong{both} response
-axes, with the value column followed by its \verb{_se} sibling. \code{which} selects
+axes, with the value column followed by its \verb{_se} sibling. \code{metric} selects
 \code{"lrmsd"} (the absolute profile) or \code{"nlrmsd"} (the mean-centred profile the fit is on).
 }
 \details{
@@ -31,7 +31,7 @@ The standard error sums two independent sources: the fit's parameter uncertainty
 (propagated by the delta method) and the SPM finite-mutation sampling error of the
 scan itself.
 
-For \code{which = "nlrmsd"} the profile is centred by its own mean over the full model
+For \code{metric = "nlrmsd"} the profile is centred by its own mean over the full model
 support. Prediction centres over all model residues, agnostic to which residues a
 given dataset observes; when overlaying observed data, centre it on its own matched
 support.
@@ -40,7 +40,7 @@ support.
 \dontrun{
 spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
 ml  <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)
-predict_profiles(ml, spm, which = "nlrmsd")$site
+predict_profiles(ml, spm, metric = "nlrmsd")$site
 }
 }
 \seealso{
