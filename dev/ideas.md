@@ -79,10 +79,6 @@ Does this belong in `msamodel` at all? If it stays: it joins on the internal `si
 index where `pdb_site` would be unambiguous, and its `left_join` silently yields `NA`
 properties for an unmatched row instead of failing loud.
 
-## `dev/tmp2/` scratch
-
-~14 MB of untracked throwaway scratch. Delete when convenient.
-
 ## v0.4 — motion arm
 
 The motion/fluctuation quantities (`dh_ijm`, `dh_njm`, `nh_njm`) are unimplemented;

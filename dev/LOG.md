@@ -23,6 +23,47 @@ changes. The same episode often earns a line in each. Things to maybe do later l
 in `dev/ideas.md`.
 
 
+### 2026-08-07 — the axis-suffix convention was half-understood, and a check was being silenced
+
+Two clean-ups the same day as the flattening, both of which went wrong first.
+
+**`i`/`n` were never "dropped" — only banished from user-facing names.** Prompted by a
+vignette line saying the nested columns are `nlrmsd_i_{mm,ms,ma,msa}` (they are
+`nlrmsd_{...}`; the same vignette's printed `names(dec)` output contradicted it thirty
+lines below), an audit found stale axis names across roxygen, NEWS, and three vignettes.
+The worst were four `R/fitting.R` roxygen references to `calculate_loglik_lrmsd_i_msa()`
+/ `_n_msa()` — functions that do not exist; the objective is the axis-blind
+`loglik_lrmsd_msa()`. They shipped in `man/` because they were written in backticks
+rather than `[foo()]` link syntax, so roxygen never resolved them and `check()` never
+complained. Two `@title` lines naming an `lrmsd_i` object shipped the same way.
+
+I then concluded the whole convention had been retired and rewrote CLAUDE.md's
+house-conventions block to say a reduction never keeps an axis letter — and started
+stripping `i`/`n` from `R/spm.R`, `R/model.R`, and four test files. That is wrong, and
+`R/spm.R` proves it: `dr2_i <- penm::delta_structure_dr2i(...)` is a reduction that
+correctly keeps its letter. The rule is a **vocabulary split**: `i`/`n` internally,
+`site`/`mode` in user-facing names. The CLAUDE.md rewrite was reverted (`fc2b215` /
+`900d428`); every internal edit was reverted; only user-facing prose changed. A future
+reader seeing that commit-and-revert pair should read it as "one wrong rule replaced by
+a differently wrong rule", not as an unresolved question.
+
+**`globalVariables()` had become a way of making `check()` quiet.** The list held 47
+names. Emptying it and re-running `check()` showed only **11** produce a real complaint,
+all plain NSE in four functions (`preprocess_spm`, `preprocess_spm_mode`,
+`resolve_site_obs`, `add_site_properties`). The other 36 suppressed nothing — including
+`dr2_i`/`dr2_n`, which are locals in `generate_spm_core` and not columns of anything, and
+a set of leftovers from the deleted MCMC arm. Two prior commits are titled `fix(check)`
+and `declare new NSE globals`: entries were added whenever `check()` complained, and
+never removed when the code changed.
+
+The obvious repairs were rejected. Trimming the list to 11 keeps the suppression;
+rewriting the four functions with `.data$` changes working code to remove a **NOTE** —
+not an error, not a warning — on code that is correct. The call was deleted outright and
+the note left visible, with the 11 names recorded in a comment where the list used to be.
+Baseline moved deliberately from 2 notes to 3, and CLAUDE.md now says so. The general
+point: a quiet `check()` is not evidence of anything if the quiet was purchased.
+
+
 ### 2026-08-07 — the calculate_* twins were flattened; the mode axis gained a real key
 
 The refactor is in the commit; the diff shows what changed. Two things it cannot show.
