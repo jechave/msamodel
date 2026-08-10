@@ -45,6 +45,52 @@ if git diff --cached --name-only | grep -q '^vignettes/'; then
 EOF
   fi
 fi
+# --- Gate 2: no new R CMD check suppressions ---------------------------------
+# A check finding is information. Silencing one makes check() quiet without
+# making anything true, and the quiet is indistinguishable from a clean run.
+#
+# On 2026-08-07 utils::globalVariables() was found holding 47 names of which only
+# 11 corresponded to a real complaint; the rest had accumulated across commits
+# titled "fix(check)" and "declare new NSE globals". Nothing was hidden -- the
+# commits were honestly named -- but nobody ever asked whether suppressing was
+# the right response, and the baseline note count concealed the growth.
+#
+# This gate blocks a commit that ADDS a suppression construct. It does not care
+# about removals. If a suppression is genuinely warranted, the MAINTAINER decides
+# and records it by setting the override:
+#   SUPPRESSION_APPROVED=1 git commit ...
+added_suppressions=$(
+  git diff --cached -U0 -- '*.R' '*.Rmd' DESCRIPTION NAMESPACE .Rbuildignore 2>/dev/null \
+    | grep '^+' | grep -v '^+++' \
+    | grep -nE 'globalVariables|suppressWarnings|suppressMessages|\bna\.rm[[:space:]]*=[[:space:]]*TRUE|@importFrom[[:space:]]+rlang[[:space:]]+\.data' \
+    || true
+)
+if [ -n "$added_suppressions" ] && [ "$SUPPRESSION_APPROVED" != "1" ]; then
+  blocked=1
+  {
+    echo "✖ Commit blocked: it ADDS a construct that can silence a check finding."
+    echo
+    echo "$added_suppressions" | sed 's/^/    /'
+    echo
+    cat <<'EOF'
+  A check NOTE/WARNING is information about the code. Suppressing it makes
+  check() quiet without making anything true -- and a quiet check() is then no
+  longer evidence of anything.
+
+  Before committing, answer: is the finding WRONG (the code is correct and the
+  checker cannot see it), or is the code worth changing? Say which, out loud, to
+  the maintainer. Do not decide alone.
+
+  If the maintainer agrees the suppression is right:
+
+      SUPPRESSION_APPROVED=1 git commit ...
+
+  (Removing a suppression is never blocked. na.rm=TRUE and suppressMessages()
+  are matched too: both hide a condition the maintainer may want to see.)
+EOF
+  } >&2
+fi
+
 for orig in $(git diff --cached --name-only | grep '^vignettes/.*\.Rmd\.orig$'); do
   rendered=$(printf '%s' "$orig" | sed 's/\.orig$//')
   name=$(basename "$rendered" .Rmd)
