@@ -124,14 +124,14 @@ For any choice of `(a1, a2)`, `calculate_profiles()` returns the divergence prof
 We ask for the per-residue reading with `$site`; the site tibble has the index `site`,
 the PDB number `pdb_site`, and the profile `lrmsd_msa` (the `msa` marks the full model,
 with both selection pressures active; section 3 introduces the variants with one or both
-switched off). The `which` argument picks the quantity: `"lrmsd"` (used through sections
+switched off). The `metric` argument picks the quantity: `"lrmsd"` (used through sections
 2–4) is the absolute profile, keeping the overall level; `"nlrmsd"` is the same profile
 with its mean subtracted off — its *shape* — which section 5 uses to compare against data.
 
 
 ```r
 a1 <- 2; a2 <- 500
-calculate_profiles(spm, a1, a2, which = "lrmsd")$site |> head()
+calculate_profiles(spm, a1, a2, metric = "lrmsd")$site |> head()
 #> # A tibble: 6 × 3
 #>    site pdb_site lrmsd_msa
 #>   <int>    <int>     <dbl>
@@ -151,7 +151,7 @@ these guesses with values estimated from data. The profile is keyed by `site` an
 
 
 ```r
-profile_demo <- calculate_profiles(spm, a1, a2, which = "lrmsd")$site |>
+profile_demo <- calculate_profiles(spm, a1, a2, metric = "lrmsd")$site |>
   left_join(select(site_props, site, dactive, lrmsf), by = "site")
 ```
 
@@ -214,12 +214,12 @@ pressures switched off:
 
 `calculate_decomposition()` returns, in one `$site` tibble, both the four nested lrmsd
 profiles (`lrmsd_mm`, `lrmsd_ms`, `lrmsd_ma`, `lrmsd_msa`) and their split
-(`phi_mut`, `phi_stab`, `phi_act`). `which = "lrmsd"` keeps everything on the absolute
+(`phi_mut`, `phi_stab`, `phi_act`). `metric = "lrmsd"` keeps everything on the absolute
 scale:
 
 
 ```r
-decomp <- calculate_decomposition(spm, a1, a2, which = "lrmsd")$site   # a1 = 2, a2 = 500 from section 2
+decomp <- calculate_decomposition(spm, a1, a2, metric = "lrmsd")$site   # a1 = 2, a2 = 500 from section 2
 head(decomp)
 #> # A tibble: 6 × 9
 #>    site pdb_site lrmsd_mm lrmsd_ms lrmsd_ma lrmsd_msa phi_mut phi_stab phi_act
@@ -324,7 +324,7 @@ time and overlay the resulting profiles:
 # Stability sweep: vary a1, hold a2 = 0
 a1_values <- c(0, 1, 2, 4, 8)
 sweep_a1 <- purrr::map_dfr(a1_values, function(a1)
-  calculate_profiles(spm, a1, 0, which = "lrmsd")$site |>
+  calculate_profiles(spm, a1, 0, metric = "lrmsd")$site |>
     rename(lrmsd = lrmsd_msa) |>
     mutate(a1 = a1) |>
     left_join(select(site_props, site, dactive, lrmsf), by = "site"))
@@ -332,7 +332,7 @@ sweep_a1 <- purrr::map_dfr(a1_values, function(a1)
 # Activity sweep: vary a2, hold a1 = 0
 a2_values <- c(0, 31, 127, 511, 2047)
 sweep_a2 <- purrr::map_dfr(a2_values, function(a2)
-  calculate_profiles(spm, 0, a2, which = "lrmsd")$site |>
+  calculate_profiles(spm, 0, a2, metric = "lrmsd")$site |>
     rename(lrmsd = lrmsd_msa) |>
     mutate(a2 = a2) |>
     left_join(select(site_props, site, dactive, lrmsf), by = "site"))
@@ -439,7 +439,7 @@ and annotate with R²:
 # Coefficient of determination, R^2 = 1 - SSE/SST, used to score the fit.
 r2 <- function(obs, pred) 1 - sum((obs - pred)^2) / sum((obs - mean(obs))^2)
 
-fit_msa <- calculate_decomposition(spm, ml$a1, ml$a2, which = "lrmsd")$site |>
+fit_msa <- calculate_decomposition(spm, ml$a1, ml$a2, metric = "lrmsd")$site |>
   select(pdb_site, lrmsd_fit = lrmsd_msa)
 
 cmp <- znb_profile |>
@@ -524,7 +524,7 @@ the **fitted** profile — call `calculate_decomposition()` at the ML estimate
 
 
 ```r
-phi_fit <- calculate_decomposition(spm, ml$a1, ml$a2, which = "lrmsd")$site
+phi_fit <- calculate_decomposition(spm, ml$a1, ml$a2, metric = "lrmsd")$site
 ```
 
 The mutation term is the divergence under no selection (it still varies among

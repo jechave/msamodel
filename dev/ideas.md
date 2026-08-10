@@ -43,7 +43,7 @@ full-suite gate; it was deliberately left out of the docs-only cleanup.
 ## Derive the uncentred (lrmsd) nested-model and component SEs
 
 `se_nested_lrmsd()` and `se_components_lrmsd()` (`R/predict_se.R`) are stubs that
-`stop("... to be developed")`, so `predict_decomposition(which = "lrmsd")` errors. The
+`stop("... to be developed")`, so `predict_decomposition(metric = "lrmsd")` errors. The
 maths was never derived. The stubs are where it goes.
 
 ## Flatten `calculate_profiles` / `calculate_decomposition` too

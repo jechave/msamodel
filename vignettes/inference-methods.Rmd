@@ -66,12 +66,12 @@ and uncertainty.)
 
 ## One idea to grasp first: `lrmsd` vs. `nlrmsd`
 
-Each prediction verb takes a `which` argument selecting one of two forms, and knowing
+Each prediction verb takes a `metric` argument selecting one of two forms, and knowing
 which to reach for is the one thing worth understanding before you start.
 
-- **`lrmsd`** (`which = "lrmsd"`) is the profile the model predicts directly: the log of
+- **`lrmsd`** (`metric = "lrmsd"`) is the profile the model predicts directly: the log of
   each residue's structural divergence. Think of it as the raw predicted curve.
-- **`nlrmsd`** (`which = "nlrmsd"`) is that same curve with its average subtracted off:
+- **`nlrmsd`** (`metric = "nlrmsd"`) is that same curve with its average subtracted off:
   `nlrmsd = lrmsd - mean(lrmsd)`. It describes the *shape* of the profile — which
   residues are above or below average — with the overall level removed. (The leading
   `n` marks this centred form. Do not confuse it with the axis reading `$mode`, which is
@@ -242,14 +242,14 @@ Every band in the rest of Part A is built from `ml`.
 
 Now the payoff: the predicted profile. `predict_profiles()` takes the fit and the scan
 and returns, on each axis, one row per residue with the profile value and its standard
-error. `which` selects the quantity — `"lrmsd"` for the raw curve or `"nlrmsd"` for the
+error. `metric` selects the quantity — `"lrmsd"` for the raw curve or `"nlrmsd"` for the
 centred shape. We read the `$site` tibble here.
 
 ### The raw curve (`lrmsd`)
 
 
 ```r
-band <- predict_profiles(ml, spm, which = "lrmsd")$site   # lrmsd_msa + lrmsd_msa_se
+band <- predict_profiles(ml, spm, metric = "lrmsd")$site   # lrmsd_msa + lrmsd_msa_se
 head(band)
 #> # A tibble: 6 × 4
 #>    site pdb_site lrmsd_msa lrmsd_msa_se
@@ -269,7 +269,7 @@ narrower — standard error:
 
 
 ```r
-nband <- predict_profiles(ml, spm, which = "nlrmsd")$site  # nlrmsd_msa + nlrmsd_msa_se
+nband <- predict_profiles(ml, spm, metric = "nlrmsd")$site  # nlrmsd_msa + nlrmsd_msa_se
 head(nband)
 #> # A tibble: 6 × 4
 #>    site pdb_site nlrmsd_msa nlrmsd_msa_se
@@ -338,7 +338,7 @@ sit inside the band, the fit accounts for them.
 
 ## A4. Nested models and the decomposition
 
-Two related readings come from one call, `predict_decomposition(ml, spm, which =
+Two related readings come from one call, `predict_decomposition(ml, spm, metric =
 "nlrmsd")`. It returns, per axis, both:
 
 - the four **nested-model variants** — the *same* profile under each selection regime:
@@ -348,13 +348,13 @@ Two related readings come from one call, `predict_decomposition(ml, spm, which =
   **stability**, **activity**), each with its standard error.
 
 The nested models are four separate what-if profiles you compare; the decomposition
-splits the one full profile into contributions you read residue by residue. Both live in
-the centred (`nlrmsd`) family — there is no meaningful way to band an overall level the
-data cannot see — so `which = "nlrmsd"` is the reading here:
+splits the one full profile into contributions you read residue by residue. Both are
+reported on the centred (`nlrmsd`) metric — there is no meaningful way to band an overall
+level the data cannot see — so `metric = "nlrmsd"` is the reading here:
 
 
 ```r
-dec <- predict_decomposition(ml, spm, which = "nlrmsd")$site
+dec <- predict_decomposition(ml, spm, metric = "nlrmsd")$site
 names(dec)
 #>  [1] "site"          "pdb_site"      "nlrmsd_mm"     "nlrmsd_ms"    
 #>  [5] "nlrmsd_ma"     "nlrmsd_msa"    "nphi_mut"      "nphi_stab"    
@@ -513,7 +513,7 @@ The same profile prediction, read from `$mode`:
 
 
 ```r
-mnband <- predict_profiles(mln, spm, which = "nlrmsd")$mode   # nlrmsd_msa + its _se
+mnband <- predict_profiles(mln, spm, metric = "nlrmsd")$mode   # nlrmsd_msa + its _se
 head(mnband)
 #> # A tibble: 6 × 3
 #>    mode nlrmsd_msa nlrmsd_msa_se
@@ -562,7 +562,7 @@ The mode reading of `predict_decomposition()`, as in A4:
 
 
 ```r
-mdec <- predict_decomposition(mln, spm, which = "nlrmsd")$mode
+mdec <- predict_decomposition(mln, spm, metric = "nlrmsd")$mode
 ```
 
 

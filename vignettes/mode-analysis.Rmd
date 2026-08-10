@@ -102,7 +102,7 @@ divergence profile; we take the per-mode reading with `$mode`. Its tibble has th
 index `mode` and the profile `lrmsd_msa`. That value column is named exactly as on the
 site axis — both branches share one vocabulary, and only the key column differs — so
 anything you write for one axis reads the other unchanged.
-The `which` argument picks the quantity: `"lrmsd"` (used through sections 2–4) is
+The `metric` argument picks the quantity: `"lrmsd"` (used through sections 2–4) is
 the absolute profile, and `"nlrmsd"` is the same profile with its mean subtracted off (its
 shape), which section 5 uses to compare against data. Here we pick illustrative values
 (`a1 = 2`, `a2 = 500`); section 5 estimates them from data instead.
@@ -110,7 +110,7 @@ shape), which section 5 uses to compare against data. Here we pick illustrative 
 
 ```r
 a1 <- 2; a2 <- 500
-prof_mode <- calculate_profiles(spm, a1, a2, which = "lrmsd")$mode
+prof_mode <- calculate_profiles(spm, a1, a2, metric = "lrmsd")$mode
 head(prof_mode)
 #> # A tibble: 6 × 2
 #>    mode lrmsd_msa
@@ -160,7 +160,7 @@ tibble, both the four nested profiles (`lrmsd_mm`, `lrmsd_ms`,
 
 
 ```r
-decomp <- calculate_decomposition(spm, a1, a2, which = "lrmsd")$mode   # a1 = 2, a2 = 500
+decomp <- calculate_decomposition(spm, a1, a2, metric = "lrmsd")$mode   # a1 = 2, a2 = 500
 head(decomp)
 #> # A tibble: 6 × 8
 #>    mode lrmsd_mm lrmsd_ms lrmsd_ma lrmsd_msa phi_mut phi_stab phi_act
@@ -238,12 +238,12 @@ resulting profiles.
 # Stability sweep: vary a1, hold a2 = 0
 a1_values <- c(0, 1, 2, 4, 8)
 sweep_a1 <- purrr::map_dfr(a1_values, function(a1)
-  calculate_profiles(spm, a1, 0, which = "lrmsd")$mode |> mutate(a1 = a1))
+  calculate_profiles(spm, a1, 0, metric = "lrmsd")$mode |> mutate(a1 = a1))
 
 # Activity sweep: vary a2, hold a1 = 0
 a2_values <- c(0, 31, 127, 511, 2047)
 sweep_a2 <- purrr::map_dfr(a2_values, function(a2)
-  calculate_profiles(spm, 0, a2, which = "lrmsd")$mode |> mutate(a2 = a2))
+  calculate_profiles(spm, 0, a2, metric = "lrmsd")$mode |> mutate(a2 = a2))
 ```
 
 
@@ -320,7 +320,7 @@ fitted decomposition — join it to the observed one, centre both, and score wit
 # Coefficient of determination, R^2 = 1 - SSE/SST, used to score the fit.
 r2 <- function(obs, pred) 1 - sum((obs - pred)^2) / sum((obs - mean(obs))^2)
 
-fitted_n <- calculate_profiles(spm, ml_n$a1, ml_n$a2, which = "lrmsd")$mode |>
+fitted_n <- calculate_profiles(spm, ml_n$a1, ml_n$a2, metric = "lrmsd")$mode |>
   transmute(mode, lrmsd_fit = lrmsd_msa)
 
 cmp_n <- znb_profile_n |>
@@ -376,7 +376,7 @@ the **fitted** profile — call `calculate_decomposition()` at the ML estimate
 
 
 ```r
-phi_fit <- calculate_decomposition(spm, ml_n$a1, ml_n$a2, which = "lrmsd")$mode
+phi_fit <- calculate_decomposition(spm, ml_n$a1, ml_n$a2, metric = "lrmsd")$mode
 ```
 
 The mutation term is the divergence under no selection; a negative selection term

@@ -128,7 +128,7 @@ and a `$mode` tibble (the profile per normal mode):
 
 
 ```r
-pred <- predict_profiles(ml, spm, which = "nlrmsd")
+pred <- predict_profiles(ml, spm, metric = "nlrmsd")
 head(pred$site)
 #> # A tibble: 6 × 4
 #>    site pdb_site nlrmsd_msa nlrmsd_msa_se
@@ -141,7 +141,7 @@ head(pred$site)
 #> 6     6       25      0.605        0.0913
 ```
 
-The `which` argument picks the quantity: `"nlrmsd"` (used here) is the profile with its
+The `metric` argument picks the quantity: `"nlrmsd"` (used here) is the profile with its
 average subtracted off (`nlrmsd = lrmsd - mean`), i.e. its *shape*, while `"lrmsd"` is
 the absolute profile with its overall level kept. An observed divergence profile pins
 down shape but not overall level, so `"nlrmsd"` is what you compare against data.

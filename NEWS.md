@@ -33,7 +33,7 @@
   `calculate_decomposition()` / `predict_decomposition()` return the four nested model
   variants (MM/MS/MA/MSA) together with the mutation, stability, and activity
   contributions (`phi_mut`, `phi_stab`, `phi_act`), which sum exactly to the full
-  profile. Currently available for `which = "nlrmsd"`; `which = "lrmsd"` errors, as the
+  profile. Currently available for `metric = "nlrmsd"`; `metric = "lrmsd"` errors, as the
   uncentred standard error has not been derived.
 
 ## API changes
@@ -65,6 +65,20 @@
 
 * **`predict_decomposition()` groups its `_se` columns.** The seven value columns come
   first, then the seven matching `_se` columns, rather than alternating.
+
+* **The `which` argument is now `metric`.** `calculate_profiles()`,
+  `calculate_decomposition()`, `predict_profiles()`, and `predict_decomposition()` select
+  the quantity with `metric`; `which` is gone and calling with it is an error. Accepted
+  values and defaults are unchanged.
+
+  ```r
+  calculate_profiles(spm, a1 = 1, a2 = 1, metric = "nlrmsd")   # was: which = "nlrmsd"
+  ```
+
+  The old name said nothing about what was being selected, and shadowed base R's
+  `which()`. `metric` also leaves room for the quantity set to grow beyond
+  `lrmsd`/`nlrmsd`. Relatedly, asking for a metric a function does not implement now
+  errors instead of quietly returning the `lrmsd` result.
 
 ## Breaking changes
 

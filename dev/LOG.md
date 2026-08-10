@@ -23,6 +23,49 @@ changes. The same episode often earns a line in each. Things to maybe do later l
 in `dev/ideas.md`.
 
 
+### 2026-08-10 — `which` became `metric`, and the catch-all `else` was closed
+
+The rename itself is in the diff. What is not: why `metric`, and why four `else`
+branches turned into `stop()`s in the same commit.
+
+**Why `metric` and not the obvious alternatives.** `which` had to go (it shadows base
+`which()` and names nothing), but the replacement was argued down twice before landing.
+`profile` was rejected because `calculate_decomposition()` returns seven profile columns
+at once — `profile = "lrmsd"` reads as "give me the profile" when it means "put all of
+these on the lrmsd scale". `family` was rejected as a name I had invented and then cited
+back as if it were established package vocabulary; it appeared in the roxygen only
+because I had written it there, which is not evidence. `scale` collides with the
+`(a1, log2(a2+1))` fitting coordinate. `variant` says nothing.
+
+What settled it was a *future* requirement, not a present one: the value set is expected
+to grow to `drmsf`, `dnh`, and similar. Once those join, the values really are different
+measured quantities, and the "lrmsd and nlrmsd are one metric at two centrings" objection
+to `metric` — which was correct in isolation — stops applying. The name was chosen to fit
+the value set the argument will hold, not the one it holds today.
+
+**Why the `else` closed at the same time.** Each verb branched
+`if (metric == "nlrmsd") {...} else {...}`, where the `else` *meant* lrmsd but *matched
+anything*. `match.arg` made that safe only for as long as the value set stayed at two:
+the day `drmsf` is added to a verb's formals, `match.arg` accepts it and an unwritten
+branch would return lrmsd numbers under the `drmsf` label — a silent wrong answer at
+exactly the moment someone is extending the code. Closing it now, while renaming every
+branch line anyway, cost four `stop()`s.
+
+That guard is unreachable through the public API (`match.arg` blocks everything that
+could reach it), so the test for it rewrites `formals()$metric` to admit an
+unimplemented metric — the only way to reach the future state it defends against. Its
+negative control: against the old `else`, `metric = "drmsf"` returned a `lrmsd_msa`
+column with no error.
+
+**User-facing messages were saying maintainer things.** Two stubs told the user
+`se_nested_lrmsd() is to be developed` — naming an internal helper they never called —
+and pointed them at "the nlrmsd family". Both now name the call the user actually made
+(`predict_decomposition(metric = "lrmsd")`) and their two real options. The maintainer
+half moved into the `@noRd` comment. `R/predict_se.R:92,126` (`spm_hmat:`,
+`se_from_variance_arms:`) still carry internal prefixes and were deliberately left:
+those fire only on an internal invariant violation, where the internal name is the
+useful content. Left for later, not overlooked.
+
 ### 2026-08-07 — the axis-suffix convention was half-understood, and a check was being silenced
 
 Two clean-ups the same day as the flattening, both of which went wrong first.
