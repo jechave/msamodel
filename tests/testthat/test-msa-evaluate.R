@@ -47,7 +47,7 @@ test_that("nlrmsd_msa agrees with predict_profiles's point profile", {
   pp <- znb_spm
   ml <- fit_lrmsd_msa_site(pp, znb_profile$pdb_site, znb_profile$lrmsd_obs)
   fwd  <- nlrmsd_msa(pp$dr2_ijm, pp$energy_data, ml$a1, ml$a2)
-  pred <- predict_profiles(ml, pp, which = "nlrmsd")$site
+  pred <- predict_profiles(ml, pp, metric = "nlrmsd")$site
   expect_equal(fwd, pred$nlrmsd_msa)
 })
 

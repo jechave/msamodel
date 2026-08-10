@@ -1,17 +1,17 @@
 # Leaf-API verbs (calculate_profiles / predict_profiles / calculate_decomposition /
 # predict_decomposition). Scope is the ASSEMBLY these verbs add: the list(site, mode)
-# shape, the axis keys, the column names per `which`, the `_se` presence on predict,
-# and the branching (which validation, the to-be-developed error, the fail-loud fit
+# shape, the axis keys, the column names per `metric`, the `_se` presence on predict,
+# and the branching (metric validation, the to-be-developed error, the fail-loud fit
 # check). The numbers were proved equal to the old exported functions once in the
 # scratchpad oracle (disposable), so they are NOT re-encoded here.
 
-test_that("calculate_profiles returns both axes with the which-selected column", {
+test_that("calculate_profiles returns both axes with the metric-selected column", {
   spm <- znb_spm
-  for (which in c("lrmsd", "nlrmsd")) {
-    out <- calculate_profiles(spm, a1 = 1, a2 = 1, which = which)
+  for (metric in c("lrmsd", "nlrmsd")) {
+    out <- calculate_profiles(spm, a1 = 1, a2 = 1, metric = metric)
     expect_named(out, c("site", "mode"))
-    expect_named(out$site, c("site", "pdb_site", paste0(which, "_msa")))
-    expect_named(out$mode, c("mode", paste0(which, "_msa")))
+    expect_named(out$site, c("site", "pdb_site", paste0(metric, "_msa")))
+    expect_named(out$mode, c("mode", paste0(metric, "_msa")))
     # point values only: no _se on calculate_*
     expect_false(any(grepl("_se$", names(out$site))))
   }
@@ -20,21 +20,21 @@ test_that("calculate_profiles returns both axes with the which-selected column",
 test_that("predict_profiles adds an _se sibling to every value column, both axes", {
   spm <- znb_spm
   ml  <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)
-  for (which in c("lrmsd", "nlrmsd")) {
-    out <- predict_profiles(ml, spm, which = which)
+  for (metric in c("lrmsd", "nlrmsd")) {
+    out <- predict_profiles(ml, spm, metric = metric)
     # Value columns first, then the matching _se columns (one of each here).
-    expect_named(out$site, c("site", "pdb_site", paste0(which, "_msa"), paste0(which, "_msa_se")))
-    expect_named(out$mode, c("mode", paste0(which, "_msa"), paste0(which, "_msa_se")))
+    expect_named(out$site, c("site", "pdb_site", paste0(metric, "_msa"), paste0(metric, "_msa_se")))
+    expect_named(out$mode, c("mode", paste0(metric, "_msa"), paste0(metric, "_msa_se")))
     # SEs are real non-negative widths, not NA / all-zero placeholder
-    se <- out$site[[paste0(which, "_msa_se")]]
+    se <- out$site[[paste0(metric, "_msa_se")]]
     expect_true(all(is.finite(se)) && all(se >= 0) && any(se > 0))
   }
 })
 
-test_that("calculate_decomposition switches nested + component family in lockstep", {
+test_that("calculate_decomposition switches nested + component columns together", {
   spm <- znb_spm
-  lr <- calculate_decomposition(spm, 1, 1, which = "lrmsd")
-  nl <- calculate_decomposition(spm, 1, 1, which = "nlrmsd")
+  lr <- calculate_decomposition(spm, 1, 1, metric = "lrmsd")
+  nl <- calculate_decomposition(spm, 1, 1, metric = "nlrmsd")
   expect_named(lr$site, c("site", "pdb_site", "lrmsd_mm", "lrmsd_ms", "lrmsd_ma",
                           "lrmsd_msa", "phi_mut", "phi_stab", "phi_act"))
   expect_named(nl$site, c("site", "pdb_site", "nlrmsd_mm", "nlrmsd_ms", "nlrmsd_ma",
@@ -51,7 +51,7 @@ test_that("predict_decomposition(nlrmsd) gives every nested + component column a
   spm <- znb_spm
   ml  <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)
   mln <- fit_lrmsd_msa_mode(spm, znb_profile_n$mode, znb_profile_n$lrmsd_obs)
-  out  <- predict_decomposition(ml, spm, which = "nlrmsd")
+  out  <- predict_decomposition(ml, spm, metric = "nlrmsd")
   # The 7 value columns come FIRST, then the 7 _se columns in the same order -- they are
   # grouped, not interleaved. `expect_named` is order-sensitive, so this pins the layout.
   # Both branches share one value vocabulary, so one `vals` drives both assertions.
@@ -65,28 +65,57 @@ test_that("predict_decomposition(nlrmsd) gives every nested + component column a
                          c("site", "pdb_site", as.vector(rbind(vals, paste0(vals, "_se"))))))
 })
 
-test_that("predict_decomposition(which='lrmsd') errors as to-be-developed", {
+test_that("predict_decomposition(metric='lrmsd') errors as to-be-developed", {
   spm <- znb_spm
   ml  <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)
   # The error now comes from the se_*_lrmsd stubs in R/predict_se.R, not from a guard at
   # the top of the verb: the uncentred branch is undeveloped, and the stub is where it
   # will be developed.
-  expect_error(predict_decomposition(ml, spm, which = "lrmsd"), "to be developed")
-  expect_error(predict_decomposition(ml, spm, which = "lr"), "to be developed")  # partial match
-  expect_error(predict_decomposition(ml, spm, which = "bogus"))                  # match.arg stops
+  expect_error(predict_decomposition(ml, spm, metric = "lrmsd"), "to be developed")
+  expect_error(predict_decomposition(ml, spm, metric = "lr"), "to be developed")  # partial match
+  expect_error(predict_decomposition(ml, spm, metric = "bogus"))                  # match.arg stops
   # The DEFAULT is nlrmsd, so a bare call reaches the working branch instead of erroring
   # on its own default (which is what it used to do).
   expect_identical(predict_decomposition(ml, spm),
-                   predict_decomposition(ml, spm, which = "nlrmsd"))
+                   predict_decomposition(ml, spm, metric = "nlrmsd"))
 })
 
-test_that("the verbs validate their inputs (which + fit contract)", {
+test_that("the verbs validate their inputs (metric + fit contract)", {
   spm <- znb_spm
-  expect_error(calculate_profiles(spm, 1, 1, which = "bogus"))            # match.arg
-  expect_error(calculate_decomposition(spm, 1, 1, which = "bogus"))       # match.arg
+  expect_error(calculate_profiles(spm, 1, 1, metric = "bogus"))            # match.arg
+  expect_error(calculate_decomposition(spm, 1, 1, metric = "bogus"))       # match.arg
   # predict_* fail loud on an object that is not an ML fit (missing a1/a2/cov)
   expect_error(predict_profiles(list(a1 = 1, a2 = 1), spm), "2x2 cov")
   expect_error(predict_decomposition(list(a1 = 1, a2 = 1), spm, "nlrmsd"), "2x2 cov")
+})
+
+test_that("a metric with no branch fails loud instead of falling through to lrmsd", {
+  # The verbs dispatch on `metric` with an explicit branch per metric and a closing
+  # stop(), NOT an `else` that silently means lrmsd. match.arg cannot catch the failure
+  # this guards: a metric ADDED to a verb's formals (drmsf, dnh, ...) whose branch was
+  # never written. match.arg would accept it and the old `else` would have returned
+  # lrmsd numbers under the new metric's name.
+  #
+  # Reaching the guard therefore requires simulating that future state -- rewriting
+  # formals() to admit an unimplemented metric -- because no public call can get there.
+  spm <- znb_spm
+  ml  <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)
+
+  for (fname in c("calculate_profiles", "calculate_decomposition",
+                  "predict_profiles", "predict_decomposition")) {
+    f <- get(fname)
+    formals(f)$metric <- c("drmsf", "lrmsd", "nlrmsd")   # accepted by match.arg, unimplemented
+    args <- if (startsWith(fname, "predict")) list(ml, spm) else list(spm, 1, 1)
+    expect_error(do.call(f, c(args, list(metric = "drmsf"))),
+                 'metric "drmsf" is not available',
+                 info = fname)
+  }
+
+  # Control: the same call shape on an IMPLEMENTED metric must not error, so the guard
+  # is specific to the unimplemented one rather than blanket-rejecting the rewrite.
+  f <- calculate_profiles
+  formals(f)$metric <- c("drmsf", "lrmsd", "nlrmsd")
+  expect_no_error(do.call(f, list(spm, 1, 1, metric = "nlrmsd")))
 })
 
 test_that("a site_map inconsistent with the profile length fails loud, not silently NA", {

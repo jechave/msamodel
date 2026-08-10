@@ -56,7 +56,7 @@ test_that("nlrmsd_msa centres the uncentred profile and agrees with its predicto
   # Forward-map primitive == predictor point profile.
   mln  <- fit_lrmsd_msa_mode(znb_spm, znb_profile_n$mode, znb_profile_n$lrmsd_obs)
   fwd  <- nlrmsd_msa(znb_spm$dr2_njm, znb_spm$energy_data, mln$a1, mln$a2)
-  pred <- predict_profiles(mln, znb_spm, which = "nlrmsd")$mode
+  pred <- predict_profiles(mln, znb_spm, metric = "nlrmsd")$mode
   expect_equal(fwd, pred$nlrmsd_msa)
 })
 
