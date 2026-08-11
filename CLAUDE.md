@@ -118,10 +118,12 @@ comments and run `document()`, never hand-edit them.
   nothing errors (2026-08-06). The wrapper `cd`s correctly and prints the figure
   timestamps it wrote, so "the figures were regenerated" is evidence you can see.
   A `PreToolUse` hook (`.claude/hooks/guard-bash.sh`) blocks the hand-rolled form.
-- **Never delete untracked paths inside the repo.** Report what they are and let the user
+- **Never `rm` untracked paths inside the repo.** Report what they are and let the user
   decide. On 2026-08-06 four stray `*_files/` dirs were `rm -rf`'d as "byproducts"; they
   were the figures the knit had just produced — the only evidence of what it did. Same
-  hook blocks this (scratchpad and `/tmp` are exempt).
+  hook blocks this (scratchpad and `/tmp` are exempt). **`git rm` on a tracked file is
+  fine** — git keeps the blob and the deletion is reviewable in the diff; don't hand an
+  approved deletion back to the user to type.
 
 ### Example data vs test fixtures — two places, two scripts
 
