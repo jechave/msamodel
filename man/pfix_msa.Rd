@@ -41,8 +41,11 @@ particular ensemble of mutants is a separate, ensemble-specific step.
 \dontrun{
 # One mutant:
 pfix_msa(ddg = 1.2, ddgact = 0.4, a1 = 1, a2 = 1)
+
 # A whole scan:
-spm <- generate_spm_data(znb_wt, seed = 1024)
+ex  <- function(f) system.file("extdata", f, package = "msamodel")
+wt  <- setup_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca", d_max = 10.5)
+spm <- generate_spm_data(wt, seed = 1024)
 pfix_msa(spm$energy_data$ddg_jm, spm$energy_data$ddgact_jm, a1 = 1, a2 = 1)
 }
 }

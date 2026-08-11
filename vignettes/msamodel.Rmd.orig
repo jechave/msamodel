@@ -74,12 +74,31 @@ the two marked lines:
 ```{r attach}
 library(msamodel)
 library(dplyr)      # data-wrangling verbs (mutate, left_join, ...) used below
+library(readr)      # read_csv, for the example data files
 library(ggplot2)    # the two figures; optional
 ```
 
+Both inputs are **files**. The example ones ship with the package; point these two
+lines at your own to run the whole vignette on your protein.
+
 ```{r inputs}
-pdb_file        <- system.file("extdata", "1znb_A.pdb", package = "msamodel")  # <- your PDB path
-pdb_site_active <- c(99, 101, 103, 162, 181, 184, 193, 223)                    # <- your active-site residues
+pdb_file    <- system.file("extdata", "1znb_A.pdb", package = "msamodel")        # <- your PDB
+active_file <- system.file("extdata", "znb_active_site.csv", package = "msamodel") # <- your active sites
+
+active_site <- read_csv(active_file, show_col_types = FALSE)
+active_site
+```
+
+The active-site table lists one residue per row, keyed by `pdb` and `chain`, so one
+file can hold the annotations for many proteins. Pick out the chain you are modelling;
+what the model needs is a plain vector of PDB residue numbers.
+
+```{r active}
+pdb_site_active <- active_site |>
+  filter(pdb == "1znb", chain == "A") |>
+  pull(pdb_site)
+
+pdb_site_active
 ```
 
 `msamodel` reads the structure, builds an elastic network model (`wt`), and runs a
@@ -95,8 +114,7 @@ spm <- generate_spm_data(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
 The arguments to `setup_enm()` and `generate_spm_data()` are the model's defaults; you
 can leave them as-is for a first run and revisit them later (the [site
 analysis](site-analysis.html) vignette explains what each controls). The scan takes a
-minute or two; for this worked example the result also ships prebuilt as `znb_spm`, so
-`data("znb_spm")` loads it if you would rather skip the wait.
+minute or two — it is the one slow step, and everything after it is fast.
 
 `spm` is what the model works from: for every mutant it records the energy change and
 the structural divergence it causes, measured two ways — per residue and per normal
@@ -111,18 +129,22 @@ each residue, how much its position varies across the family; the observed value
 log of that per-residue variation. `msamodel` does not do this step — you bring the
 result as **two vectors**: the PDB residue numbers, and the observed value at each. They
 can live in a table of any shape, with columns named whatever you already call them. The
-package ships one for the worked example, `znb_profile`:
+package ships one for the worked example:
 
 ```{r obs}
-data("znb_profile")   # the example observed data
-head(znb_profile)
+obs_file <- system.file("extdata", "znb_lrmsd_obs_site.csv", package = "msamodel")
+obs      <- read_csv(obs_file, show_col_types = FALSE)   # <- your observed data
+head(obs)
 ```
+
+Note it covers 225 residues while the model has 228: an observed profile need not cover
+every residue, and the fitter uses the overlap.
 
 We fit the two selection parameters to that observed profile by maximum likelihood,
 passing the two columns as the key and the values:
 
 ```{r fit}
-ml <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)
+ml <- fit_lrmsd_msa_site(spm, obs$pdb_site, obs$lrmsd_obs)
 c(a1 = ml$a1, a2 = ml$a2)
 ```
 
@@ -160,7 +182,7 @@ data to compare shapes, and read the mode axis from the same prediction:
 site <- pred$site |>
   mutate(lower = nlrmsd_msa - z * nlrmsd_msa_se,
          upper = nlrmsd_msa + z * nlrmsd_msa_se) |>
-  inner_join(znb_profile, by = "pdb_site") |>
+  inner_join(obs, by = "pdb_site") |>
   mutate(nlrmsd_obs = lrmsd_obs - mean(lrmsd_obs))
 
 # Per-mode profile: the same fitted (a1, a2) read on the normal-mode axis

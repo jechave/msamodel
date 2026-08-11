@@ -38,3 +38,52 @@ test_that("loglik is unchanged by the rename", {
     style = "serialize"
   )
 })
+
+# ---- Public API verbs: whole-output pins ------------------------------------
+# The four leaf verbs were pinned only by FIRST-ELEMENT literals in test-api.R
+# ([1:3] for profiles, [1] for decomposition and every _se). Those stay -- they are
+# a lock a person must retype -- but they cannot see a change at site 150, and the
+# argument at the top of this file applies to the verbs as much as to the
+# primitives: a permutation, or a sign flip symmetric about the mean, leaves a
+# spot check green while the profile drifts.
+#
+# predict_* is the reason this matters most: its delta-method standard errors are
+# real math the primitives never perform, and nothing else re-derives them.
+#
+# The whole returned object is snapshotted (keys, value columns, _se columns), so a
+# column silently added, dropped, reordered, or renamed also goes red here.
+#
+# (a1 = 1.3, a2 = 0.7) and the ML fits below match test-api.R's frozen-reference
+# block, so a failure there and here points at the same change.
+#
+# DO NOT EDIT THESE test_that DESCRIPTIONS. A snapshot is keyed by its description:
+# renaming one orphans the recorded value, and testthat then writes a NEW snapshot
+# with a warning instead of failing -- the comparison silently stops happening.
+
+test_that("calculate_profiles output is pinned (site and mode, both metrics)", {
+  spm <- znb_spm
+  expect_snapshot_value(calculate_profiles(spm, 1.3, 0.7, "lrmsd"),  style = "serialize")
+  expect_snapshot_value(calculate_profiles(spm, 1.3, 0.7, "nlrmsd"), style = "serialize")
+})
+
+test_that("calculate_decomposition output is pinned (site and mode, both metrics)", {
+  spm <- znb_spm
+  expect_snapshot_value(calculate_decomposition(spm, 1.3, 0.7, "lrmsd"),  style = "serialize")
+  expect_snapshot_value(calculate_decomposition(spm, 1.3, 0.7, "nlrmsd"), style = "serialize")
+})
+
+test_that("predict_profiles output including standard errors is pinned", {
+  spm  <- znb_spm
+  ml_i <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)
+  ml_n <- fit_lrmsd_msa_mode(spm, znb_profile_n$mode, znb_profile_n$lrmsd_obs)
+  expect_snapshot_value(predict_profiles(ml_i, spm, "nlrmsd"), style = "serialize")
+  expect_snapshot_value(predict_profiles(ml_n, spm, "nlrmsd"), style = "serialize")
+})
+
+test_that("predict_decomposition output including standard errors is pinned", {
+  spm  <- znb_spm
+  ml_i <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)
+  ml_n <- fit_lrmsd_msa_mode(spm, znb_profile_n$mode, znb_profile_n$lrmsd_obs)
+  expect_snapshot_value(predict_decomposition(ml_i, spm, "nlrmsd"), style = "serialize")
+  expect_snapshot_value(predict_decomposition(ml_n, spm, "nlrmsd"), style = "serialize")
+})

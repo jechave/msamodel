@@ -56,20 +56,31 @@ library(msamodel)
 library(dplyr)      # data-wrangling verbs (mutate, left_join, ...) used below
 library(tidyr)      # pivot_longer, to reshape profiles for plotting
 library(purrr)      # map_dfr, for the parameter sweeps
+library(readr)      # read_csv, for the example data files
 library(ggplot2)    # the figures; optional — skip it if you only want the tables
 ```
 
+Both inputs are files; point these at your own to run the vignette on your protein.
+The active-site table is one residue per row, keyed by `pdb` and `chain`, so a single
+file can serve many proteins — filter out the chain you are modelling.
+
 
 ```r
-pdb_file        <- system.file("extdata", "1znb_A.pdb", package = "msamodel")  # <- your PDB path
-pdb_site_active <- c(99, 101, 103, 162, 181, 184, 193, 223)                    # <- your active-site residues
+pdb_file    <- system.file("extdata", "1znb_A.pdb", package = "msamodel")          # <- your PDB
+active_file <- system.file("extdata", "znb_active_site.csv", package = "msamodel") # <- your active sites
+
+pdb_site_active <- read_csv(active_file, show_col_types = FALSE) |>
+  filter(pdb == "1znb", chain == "A") |>
+  pull(pdb_site)
+
+pdb_site_active
+#> [1]  99 101 103 162 181 184 193 223
 ```
 
 `msamodel` reads the structure, builds an elastic network model (`wt`), and runs a
 single-point-mutation scan (`spm`). The arguments below are the model's defaults — keep
 them for a first run (the [site analysis](site-analysis.html) vignette explains what
-each controls). The scan takes a minute or two; for this example the result also ships
-as `znb_spm`, so `data("znb_spm")` loads it if you would rather skip the wait.
+each controls). The scan takes a minute or two — it is the one slow step here.
 
 
 ```r
@@ -277,13 +288,28 @@ according to selection on activity.
 Fitting needs an **observed** per-mode divergence profile: two vectors, the mode indices
 and the observed log-RMSD at each. The real obstacle on this axis is not the format but
 the data itself — measured divergence is naturally *per residue*, and turning it into a
-per-mode profile is not something `msamodel` does. So the fixture `znb_profile_n` used
-here is **synthetic**, included only to run the fitting machinery end to end (see
-`?znb_profile_n`):
+per-mode profile is not something `msamodel` does.
+
+So the example profile used here is **synthetic**, not empirical: it was produced by
+fitting the site model to the real per-residue data, evaluating the mode forward map at
+that estimate, and adding seeded Gaussian noise. It exists only to run the fitting
+machinery end to end, and the `_syn` in its file name is there to keep that visible.
+Numbers obtained from it say nothing about zinc beta-lactamase.
 
 
 ```r
-data("znb_profile_n")   # synthetic observed mode profile, for illustration
+obs_n_file <- system.file("extdata", "znb_lrmsd_obs_mode_syn.csv", package = "msamodel")
+obs_n      <- read_csv(obs_n_file, show_col_types = FALSE)   # <- your observed mode profile
+head(obs_n)
+#> # A tibble: 6 × 2
+#>    mode lrmsd_obs
+#>   <dbl>     <dbl>
+#> 1     1     -2.00
+#> 2     2     -2.32
+#> 3     3     -2.17
+#> 4     4     -2.14
+#> 5     5     -2.50
+#> 6     6     -2.86
 ```
 
 `fit_lrmsd_msa_mode()` estimates `a1, a2` from it by maximum likelihood, returning a
@@ -291,7 +317,7 @@ point estimate plus an asymptotic covariance from the Hessian:
 
 
 ```r
-ml_n <- fit_lrmsd_msa_mode(spm, znb_profile_n$mode, znb_profile_n$lrmsd_obs)
+ml_n <- fit_lrmsd_msa_mode(spm, obs_n$mode, obs_n$lrmsd_obs)
 c(a1 = ml_n$a1, a2 = ml_n$a2)
 #>         a1         a2 
 #>  0.4492209 40.8195734
@@ -323,7 +349,7 @@ r2 <- function(obs, pred) 1 - sum((obs - pred)^2) / sum((obs - mean(obs))^2)
 fitted_n <- calculate_profiles(spm, ml_n$a1, ml_n$a2, metric = "lrmsd")$mode |>
   transmute(mode, lrmsd_fit = lrmsd_msa)
 
-cmp_n <- znb_profile_n |>
+cmp_n <- obs_n |>
   inner_join(fitted_n, by = "mode") |>
   mutate(
     nlrmsd_obs = lrmsd_obs - mean(lrmsd_obs),
@@ -424,24 +450,26 @@ ggplot(phi_fit_long, aes(mode, phi, colour = component)) +
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] purrr_1.2.0         tidyr_1.3.1         ggplot2_4.0.1      
-#> [4] dplyr_1.1.4         msamodel_0.3.0.9000
+#> [1] readr_2.1.4         purrr_1.2.0         tidyr_1.3.1        
+#> [4] ggplot2_4.0.1       dplyr_1.1.4         msamodel_0.3.0.9000
 #> 
 #> loaded via a namespace (and not attached):
-#>  [1] tidyselect_1.2.1   xfun_0.41          remotes_2.5.0      lattice_0.22-5    
-#>  [5] vctrs_0.6.5        generics_0.1.4     viridisLite_0.4.2  miniUI_0.1.1.1    
-#>  [9] usethis_2.2.3      htmltools_0.5.8.1  rlang_1.1.6        pkgbuild_1.4.4    
-#> [13] urlchecker_1.0.1   later_1.3.2        pillar_1.11.1      glue_1.8.0        
-#> [17] withr_3.0.2        RColorBrewer_1.1-3 S7_0.2.1           sessioninfo_1.2.2 
-#> [21] lifecycle_1.0.4    stringr_1.6.0      gtable_0.3.6       devtools_2.4.5    
-#> [25] htmlwidgets_1.6.4  memoise_2.0.1      evaluate_0.24.0    labeling_0.4.3    
-#> [29] knitr_1.43         callr_3.7.6        fastmap_1.1.1      httpuv_1.6.13     
-#> [33] ps_1.7.5           parallel_4.2.1     highr_0.11         Rcpp_1.1.0        
-#> [37] xtable_1.8-4       promises_1.2.1     scales_1.4.0       cachem_1.0.8      
-#> [41] desc_1.4.3         pkgload_1.5.2      mime_0.12          farver_2.1.2      
-#> [45] fs_1.6.4           penm_0.2.0.9000    jefuns_0.1.0       digest_0.6.33     
-#> [49] stringi_1.8.3      processx_3.8.3     shiny_1.8.1.1      grid_4.2.1        
-#> [53] bio3d_2.4-5        cli_3.6.5          tools_4.2.1        magrittr_2.0.4    
-#> [57] tibble_3.3.0       profvis_0.3.8      pkgconfig_2.0.3    ellipsis_0.3.2    
-#> [61] Matrix_1.5-4.1     R6_2.6.1           compiler_4.2.1
+#>  [1] bio3d_2.4-5        Rcpp_1.1.0         lattice_0.22-5     ps_1.7.5          
+#>  [5] digest_0.6.33      penm_0.2.0.9000    mime_0.12          R6_2.6.1          
+#>  [9] evaluate_0.24.0    highr_0.11         pillar_1.11.1      rlang_1.1.6       
+#> [13] miniUI_0.1.1.1     callr_3.7.6        urlchecker_1.0.1   jefuns_0.1.0      
+#> [17] Matrix_1.5-4.1     labeling_0.4.3     desc_1.4.3         devtools_2.4.5    
+#> [21] stringr_1.6.0      htmlwidgets_1.6.4  S7_0.2.1           bit_4.0.5         
+#> [25] shiny_1.8.1.1      compiler_4.2.1     httpuv_1.6.13      xfun_0.41         
+#> [29] pkgconfig_2.0.3    pkgbuild_1.4.4     htmltools_0.5.8.1  tidyselect_1.2.1  
+#> [33] tibble_3.3.0       viridisLite_0.4.2  crayon_1.5.3       tzdb_0.4.0        
+#> [37] withr_3.0.2        later_1.3.2        grid_4.2.1         xtable_1.8-4      
+#> [41] gtable_0.3.6       lifecycle_1.0.4    magrittr_2.0.4     scales_1.4.0      
+#> [45] cli_3.6.5          stringi_1.8.3      vroom_1.6.5        cachem_1.0.8      
+#> [49] farver_2.1.2       fs_1.6.4           promises_1.2.1     remotes_2.5.0     
+#> [53] ellipsis_0.3.2     generics_0.1.4     vctrs_0.6.5        RColorBrewer_1.1-3
+#> [57] tools_4.2.1        bit64_4.0.5        glue_1.8.0         hms_1.1.3         
+#> [61] processx_3.8.3     pkgload_1.5.2      parallel_4.2.1     fastmap_1.1.1     
+#> [65] sessioninfo_1.2.2  memoise_2.0.1      knitr_1.43         profvis_0.3.8     
+#> [69] usethis_2.2.3
 ```

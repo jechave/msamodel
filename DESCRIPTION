@@ -13,7 +13,6 @@ Description: Implementation of the Mutation-Stability-Activity (MSA) model for
 License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
-LazyData: true
 Depends:
     R (>= 3.5)
 Imports:
@@ -27,6 +26,7 @@ Imports:
     rlang
 Suggests:
     bio3d,
+    readr,
     testthat (>= 3.1.5),
     knitr,
     rmarkdown,

@@ -81,7 +81,7 @@ test_that("dr2_n reweighting collapses the mutant axis with the same weights as 
 
   scan <- generate_spm_core(znb_wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
                             min_sd = 2,
-                            pdb_site_active = c(99, 101, 103, 162, 181, 184, 193, 223),
+                            pdb_site_active = PDB_SITE_ACTIVE,
                             seed = 1024)
   filt <- scan[scan$m > 0, ]
   ddg_jm    <- filt$ddg_dv_jm + filt$ddg_tds_jm

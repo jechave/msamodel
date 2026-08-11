@@ -21,7 +21,8 @@
 #' @family setup
 #' @examples
 #' \dontrun{
-#' wt <- setup_enm(znb_pdb, node = "ca", model = "ming_wall", d_max = 10.5)
+#' pdb <- bio3d::read.pdb(system.file("extdata", "1znb_A.pdb", package = "msamodel"))
+#' wt  <- setup_enm(pdb, node = "ca", model = "ming_wall", d_max = 10.5)
 #' }
 #' @export
 setup_enm <- function(pdb, node = "sc", model = "ming_wall",

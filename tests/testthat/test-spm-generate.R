@@ -1,18 +1,15 @@
-# Fixture-drift guard: the SPM-generation code must keep reproducing the embedded
-# znb_* fixtures. The parameters below MUST match data-raw/prepare_znb_data.R.
-ENM_NODE  <- "ca"
-ENM_MODEL <- "ming_wall"
-ENM_DMAX  <- 10.5
-ENM_FRUST <- FALSE
-SPM_N_MUTATIONS <- 10
-SPM_MODEL       <- "lfenm"
-SPM_SIGMA       <- 0.3
-SPM_MIN_SD      <- 2
-SPM_SEED        <- 1024
+# Fixture-drift guard: the SPM-generation code must keep reproducing the znb_*
+# fixtures in tests/testthat/fixtures/.
+#
+# The generation constants are SOURCED from the fixture recipe, not copied here.
+# There is exactly one declaration, so this guard cannot silently test a different
+# recipe than the one that built the fixture -- which is what the old duplicated
+# block, carrying a "MUST match" comment and nothing enforcing it, allowed.
+# Sourcing is side-effect-free: the recipe only runs when executed as a script.
+source(testthat::test_path("fixtures", "make-znb-fixtures.R"))
 
-# 1znb_A active-site residues (PDB numbering), from data-raw/raw/dataset_1znb_A.csv.
-# Must match data-raw/prepare_znb_data.R.
-PDB_SITE_ACTIVE <- c(99, 101, 103, 162, 181, 184, 193, 223)
+# PDB_SITE_ACTIVE comes from helper-fixtures.R, which reads the same shared
+# inst/extdata/znb_active_site.csv the vignettes and data-raw/ use.
 
 test_that("bio3d::read.pdb reads the embedded PDB as a bio3d object", {
   pdb <- bio3d::read.pdb(system.file("extdata", "1znb_A.pdb", package = "msamodel"))
@@ -52,18 +49,31 @@ test_that("a single mutant row reproduces from its seeded recipe (cheap coherenc
                                 ddgact_tds(znb_wt, mut, pdb_site_active = PDB_SITE_ACTIVE))
 })
 
-test_that("setup_enm reproduces the embedded wild-type ENM", {
+test_that("setup_enm reproduces the wild-type ENM fixture", {
   skip_if_not_full()
-  wt <- setup_enm(znb_pdb, node = ENM_NODE, model = ENM_MODEL,
-                  d_max = ENM_DMAX, frustrated = ENM_FRUST)
+  # Reads the shipped PDB file, the same input make-znb-fixtures.R uses -- there is no
+  # serialized bio3d object any more, because a user starts from a .pdb file too.
+  pdb <- bio3d::read.pdb(system.file("extdata", "1znb_A.pdb", package = "msamodel"))
+  wt  <- setup_enm(pdb, node = ENM_NODE, model = ENM_MODEL,
+                   d_max = ENM_DMAX, frustrated = ENM_FRUST)
   expect_equal(wt, znb_wt)
 })
 
 test_that("generate_spm_data reproduces the embedded SPM fixture", {
   skip_if_not_full()
   # The core drift guard: SPM-generation code vs the embedded znb_spm. Heavy (~21 s
-  # full 2280-row regen); gated to milestone / CI via MSAMODEL_FULL_TESTS. The
-  # always-on single-mutant check above covers cache drift on every default run.
+  # full 2280-row regen), so it is gated behind MSAMODEL_FULL_TESTS and does NOT run
+  # in a default devtools::test().
+  #
+  # What actually runs it (there is no CI in this repo -- do not assume one):
+  #   - .githooks/pre-commit gate 3, automatically, on any commit staging
+  #     R/spm.R, R/enm_setup.R, the fixture recipe, or data-raw/prepare_znb_data.R;
+  #   - by hand at a milestone:  MSAMODEL_FULL_TESTS=true devtools::test()
+  #
+  # The always-on single-mutant check above covers cache drift on every default run,
+  # but it verifies ONE row of 2280 and locates that row by lookup -- so a change
+  # that reorders rows or alters which are included passes it. This is the check
+  # that sees that class of change.
   spm <- generate_spm_data(
     znb_wt,
     n_mutations     = SPM_N_MUTATIONS,

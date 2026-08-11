@@ -100,8 +100,14 @@ test_that("loglik_lrmsd_msa is invariant to a constant shift in lrmsd_obs", {
 })
 
 test_that("znb_profile_n is reproducible from its seeded recipe", {
-  # Determinism guard (hard project rule): re-derive the synthetic fixture from its
-  # data-raw recipe and compare to the embedded data, to machine precision.
+  # Determinism guard (hard project rule): re-derive the synthetic mode profile from
+  # its data-raw recipe and compare to the shipped file.
+  #
+  # tolerance = 1e-12, not exact equality: the shipped profile is a CSV, and a CSV
+  # round-trip is NOT bit-exact for doubles (write_csv emits ~15 significant digits,
+  # so the last bit is lost -- measured at 8.9e-16 max here). That is a property of
+  # the file format, not drift in the recipe. Real drift moves numbers far above
+  # 1e-12; a failure here is a recipe change, not round-off.
   ppm <- znb_spm
   site_fit <- fit_lrmsd_msa_site(znb_spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)
   dr2_n <- dr2_msa(ppm$dr2_njm, ppm$energy_data, site_fit$a1, site_fit$a2)

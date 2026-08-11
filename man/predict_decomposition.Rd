@@ -43,8 +43,13 @@ needs no differencing, the forward map returning the already-formed contrast.
 }
 \examples{
 \dontrun{
-spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
-ml  <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)
+ex  <- function(f) system.file("extdata", f, package = "msamodel")
+wt  <- setup_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca", d_max = 10.5)
+act <- readr::read_csv(ex("znb_active_site.csv"))
+spm <- generate_spm_data(wt, pdb_site_active = act$pdb_site, seed = 1024)
+
+obs <- readr::read_csv(ex("znb_lrmsd_obs_site.csv"))
+ml  <- fit_lrmsd_msa_site(spm, obs$pdb_site, obs$lrmsd_obs)
 predict_decomposition(ml, spm)$site
 }
 }

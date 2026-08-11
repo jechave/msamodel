@@ -147,12 +147,22 @@ if you only want the numeric tables).
 library(msamodel)
 library(dplyr)      # data-wrangling verbs (mutate, inner_join, ...) used below
 library(tidyr)      # pivot_longer, for reshaping the nested/decomposition bands
+library(readr)      # read_csv, for the example data files
 library(ggplot2)    # the figures below; optional -- skip if you only want the tables
 ```
 
+Both inputs are files. The active-site table lists one residue per row keyed by `pdb`
+and `chain`, so one file can hold many proteins; filter out the chain you are modelling.
+
 ```{r inputs}
-pdb_file        <- system.file("extdata", "1znb_A.pdb", package = "msamodel")  # <- your PDB path
-pdb_site_active <- c(99, 101, 103, 162, 181, 184, 193, 223)                    # <- your active-site residues
+pdb_file    <- system.file("extdata", "1znb_A.pdb", package = "msamodel")          # <- your PDB
+active_file <- system.file("extdata", "znb_active_site.csv", package = "msamodel") # <- your active sites
+
+pdb_site_active <- read_csv(active_file, show_col_types = FALSE) |>
+  filter(pdb == "1znb", chain == "A") |>
+  pull(pdb_site)
+
+pdb_site_active
 ```
 
 From those inputs the package reads the structure, builds an elastic network model of it
@@ -161,7 +171,7 @@ and recording how the structure responds. This scan is the raw material the mode
 into a divergence profile. The `setup_enm()` and `generate_spm_data()` arguments below
 configure the network model and the scan; leave them at these values to follow along
 (the [site analysis](site-analysis.html) vignette covers what they do and how to tune
-them). Only the two lines above are yours to change.
+them). Only the two file paths above are yours to change.
 
 ```{r build}
 pdb <- bio3d::read.pdb(pdb_file)
@@ -170,8 +180,7 @@ spm <- generate_spm_data(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
                          min_sd = 2, pdb_site_active = pdb_site_active, seed = 1024)
 ```
 
-The scan takes a minute or two; for this example the result also ships as `znb_spm`, so
-`data("znb_spm")` loads it if you would rather skip the wait. `spm` is what every later
+The scan takes a minute or two — it is the one slow step. `spm` is what every later
 function reads from: for each mutant it records the energy changes and the structural
 divergence it causes, per residue (`dr2_ijm`) and per normal mode (`dr2_njm`), plus the
 `site_map` from the site index `i` to `pdb_site`.
@@ -180,11 +189,12 @@ The last input is your **data**: the observed divergence profile you want to fit
 residues you measured, and the log-divergence measured at each. Producing it — comparing
 homologous structures over an alignment — is outside `msamodel`. You pass it as **two
 vectors**, so whatever table it already lives in needs no reshaping. The package ships
-one for the worked example, `znb_profile`:
+one for the worked example:
 
 ```{r obs}
-data("znb_profile")   # the example observed data
-head(znb_profile)
+obs_file <- system.file("extdata", "znb_lrmsd_obs_site.csv", package = "msamodel")
+obs      <- read_csv(obs_file, show_col_types = FALSE)   # <- your observed data
+head(obs)
 ```
 
 ## A2. Fit `(a1, a2)` to the data
@@ -199,7 +209,7 @@ level, which the data does not constrain, drops out. Give it the scan and your t
 vectors:
 
 ```{r ml-fit}
-ml <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)
+ml <- fit_lrmsd_msa_site(spm, obs$pdb_site, obs$lrmsd_obs)
 c(a1 = ml$a1, a2 = ml$a2)
 ```
 
@@ -261,7 +271,7 @@ To see how well the fitted model matches the measured profile, plot them togethe
 level. First centre your observed profile the same way — subtract its mean:
 
 ```{r obs-centred}
-obs_centred <- znb_profile |>
+obs_centred <- obs |>
   mutate(nlrmsd_obs = lrmsd_obs - mean(lrmsd_obs)) |>
   select(pdb_site, nlrmsd_obs)
 ```
@@ -423,11 +433,15 @@ what genuinely differs on this axis.
 
 You work from the same `spm` object built in A1; the mode reading uses its per-mode
 divergence matrix `dr2_njm`. Your data on this axis is a mode-indexed profile, columns
-`mode` and `lrmsd_obs`; the package ships `znb_profile_n`:
+`mode` and `lrmsd_obs`. The example profile shipped for this axis is **synthetic** (the
+`_syn` in the file name): no empirical per-mode profile exists, so it was generated from
+the site fit plus seeded noise purely to exercise the machinery. Treat the numbers below
+as a demonstration of the method, not a result about this protein.
 
 ```{r mode-data}
-data("znb_profile_n")             # example observed mode profile; supply your own in this shape
-head(znb_profile_n)
+obs_n_file <- system.file("extdata", "znb_lrmsd_obs_mode_syn.csv", package = "msamodel")
+obs_n      <- read_csv(obs_n_file, show_col_types = FALSE)  # <- your observed mode profile
+head(obs_n)
 ```
 
 ## B2. Fit (mode)
@@ -435,7 +449,7 @@ head(znb_profile_n)
 Same fit, mode data:
 
 ```{r mode-fit}
-mln <- fit_lrmsd_msa_mode(spm, znb_profile_n$mode, znb_profile_n$lrmsd_obs)
+mln <- fit_lrmsd_msa_mode(spm, obs_n$mode, obs_n$lrmsd_obs)
 c(a1 = mln$a1, a2 = mln$a2, se_a1 = mln$se_a1, se_a2 = mln$se_a2)
 ```
 
@@ -461,7 +475,7 @@ re-levelling wrinkle from A3 does not arise: the prediction and the data are alr
 centred over the same set, and we join directly with no shift.
 
 ```{r mode-band-obs}
-mobs_centred <- znb_profile_n |>
+mobs_centred <- obs_n |>
   mutate(nlrmsd_obs = lrmsd_obs - mean(lrmsd_obs)) |>
   select(mode, nlrmsd_obs)
 

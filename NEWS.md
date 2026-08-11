@@ -1,5 +1,42 @@
 # msamodel (development version)
 
+## Breaking changes
+
+* **The six `znb_*` datasets are removed.** `data("znb_spm")` and friends no longer
+  work; there is no `data/` directory. The example data ships as **files** in
+  `inst/extdata/` instead, read the way you would read your own:
+
+  ```r
+  ex  <- function(f) system.file("extdata", f, package = "msamodel")
+  pdb <- bio3d::read.pdb(ex("1znb_A.pdb"))
+  act <- readr::read_csv(ex("znb_active_site.csv"))          # pdb, chain, pdb_site
+  obs <- readr::read_csv(ex("znb_lrmsd_obs_site.csv"))       # pdb_site, lrmsd_obs
+  ```
+
+  The replacements, dataset by dataset:
+
+  | was | now |
+  |---|---|
+  | `znb_pdb` | `extdata/1znb_A.pdb` — read it with `bio3d::read.pdb()` |
+  | `znb_dataset` | `extdata/znb_active_site.csv` |
+  | `znb_profile` | `extdata/znb_lrmsd_obs_site.csv` |
+  | `znb_profile_n` | `extdata/znb_lrmsd_obs_mode_syn.csv` |
+  | `znb_wt`, `znb_spm` | not shipped — rebuild them (see below) |
+
+  `znb_wt` and `znb_spm` were never example data: no vignette used them, and they
+  existed so the test suite would not spend ~21 s regenerating the scan. They are now
+  test fixtures under `tests/testthat/fixtures/`, built by the recipe beside them. To
+  get the equivalent objects, run the two lines the vignettes run — `setup_enm()` then
+  `generate_spm_data()` with `seed = 1024`.
+
+  Installed size drops from ~25.8 MB to ~368 KB, which also clears the standing
+  `R CMD check` size WARNING.
+
+* Active-site residues are no longer a hard-coded vector in the vignettes. They are
+  read from `extdata/znb_active_site.csv` (one residue per row, keyed by `pdb` and
+  `chain`), which is now the single source for that value — it had been maintained in
+  three places at once.
+
 ## New features
 
 * **Structural divergence is predicted per normal mode, as well as per residue.**
@@ -9,7 +46,7 @@
   does divergence live in?".
 
   ```r
-  spm  <- generate_spm_data(znb_wt, pdb_site_active = active, seed = 1024)
+  spm  <- generate_spm_data(wt, pdb_site_active = act$pdb_site, seed = 1024)
   prof <- calculate_profiles(spm, a1 = 1, a2 = 1)
   prof$site   # site, pdb_site, lrmsd_msa
   prof$mode   # mode, lrmsd_msa
@@ -17,8 +54,8 @@
 
   `fit_lrmsd_msa_mode()` fits the model to an observed per-mode profile. No empirical
   per-mode profile exists yet (deriving one from structural alignments is out of scope
-  here), so the shipped `znb_profile_n` is a synthetic stand-in and the mode fit is
-  exercised against it. The `mode-analysis` vignette walks through both.
+  here), so the shipped `znb_lrmsd_obs_mode_syn.csv` is a synthetic stand-in and the
+  mode fit is exercised against it. The `mode-analysis` vignette walks through both.
 
 * **Prediction bands include the scan's own sampling error.** The `_se` columns from
   `predict_profiles()` / `predict_decomposition()` combine two independent sources: the
@@ -50,8 +87,8 @@
   fit_lrmsd_msa_site(spm, my_data$residue, my_data$divergence)
   ```
 
-  `znb_profile` / `znb_profile_n` are example data, not a required schema. Inputs are
-  validated at the boundary: equal length, non-empty, no `NA`.
+  The shipped `znb_lrmsd_obs_*.csv` files are example data, not a required schema.
+  Inputs are validated at the boundary: equal length, non-empty, no `NA`.
 
 * **Goodness of fit comes with the fit.** `fit$gof` is a one-row tibble (`D2`, `AIC`,
   `BIC`, `logLik`, `deviance`, `null_deviance`, `nobs`, `k`, `sigma_hat`); the fit's top

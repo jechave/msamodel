@@ -30,9 +30,12 @@ divergence to a site's structural environment.
 }
 \examples{
 \dontrun{
-spm  <- generate_spm_data(znb_wt, seed = 1024)
+ex   <- function(f) system.file("extdata", f, package = "msamodel")
+wt   <- setup_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca", d_max = 10.5)
+act  <- readr::read_csv(ex("znb_active_site.csv"))
+spm  <- generate_spm_data(wt, pdb_site_active = act$pdb_site, seed = 1024)
 prof <- calculate_profiles(spm, a1 = 1, a2 = 1)$site
-add_site_properties(prof, znb_wt, pdb_site_active = c(99, 101, 103, 162))
+add_site_properties(prof, wt, pdb_site_active = act$pdb_site)
 }
 }
 \seealso{

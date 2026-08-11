@@ -91,6 +91,45 @@ EOF
   } >&2
 fi
 
+# --- Gate 3: SPM-generation changes must prove the fixture still reproduces --
+# znb_spm / znb_wt are CACHED RESULTS of a seeded recipe. Every test that fits,
+# decomposes, or predicts consumes them as INPUT, so a change to the generation
+# code that moves a number leaves the cache stale while those tests stay green --
+# they never re-derive it. The one check that catches this regenerates all 2280
+# rows and compares (test-spm-generate.R, "reproduces the embedded SPM fixture").
+#
+# That check costs ~21 s, so it is gated behind MSAMODEL_FULL_TESTS=true. Its
+# comment used to say it ran at "milestone / CI" -- there is no CI in this repo,
+# so in practice it ran only when someone remembered. The commit log shows the
+# discipline was real (20efc55: "FAIL 0, SKIP 0, PASS 10 -- the fixture-staleness
+# assertion actually ran"), but "someone remembered" is not a guard.
+#
+# This gate makes it automatic on exactly the commits that can invalidate the
+# cache. Everything else is untouched: zero cost on a docs or test-only commit.
+if git diff --cached --name-only \
+   | grep -qE '^(R/spm\.R|R/enm_setup\.R|tests/testthat/fixtures/make-znb-fixtures\.R|data-raw/prepare_znb_data\.R)$'; then
+  echo "→ SPM-generation code staged; regenerating the scan to prove the fixture is not stale (~21 s)..." >&2
+  if ! MSAMODEL_FULL_TESTS=true Rscript -e \
+       'devtools::load_all(quiet = TRUE); testthat::test_file("tests/testthat/test-spm-generate.R", stop_on_failure = TRUE)' \
+       >&2 2>&1; then
+    blocked=1
+    cat >&2 <<'EOF'
+✖ Commit blocked: the SPM fixture no longer reproduces from its recipe.
+
+  You changed SPM/ENM generation code. The embedded fixture (znb_spm / znb_wt) is
+  a cached result of that code -- it is now STALE, and every test that consumes it
+  as input will keep passing against old numbers.
+
+  If the change was INTENDED, regenerate the fixture and stage it:
+
+      Rscript tests/testthat/fixtures/make-znb-fixtures.R
+
+  Then re-run and confirm green before committing. Do NOT bypass this to "fix it
+  later": a stale fixture is invisible in every other test.
+EOF
+  fi
+fi
+
 for orig in $(git diff --cached --name-only | grep '^vignettes/.*\.Rmd\.orig$'); do
   rendered=$(printf '%s' "$orig" | sed 's/\.orig$//')
   name=$(basename "$rendered" .Rmd)

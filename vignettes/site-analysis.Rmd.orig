@@ -92,12 +92,23 @@ library(msamodel)
 library(dplyr)      # data-wrangling verbs (mutate, left_join, ...) used below
 library(tidyr)      # pivot_longer, to reshape profiles for plotting
 library(purrr)      # map_dfr, for the parameter sweeps in section 4
+library(readr)      # read_csv, for the example data files
 library(ggplot2)    # the figures; optional — skip it if you only want the tables
 ```
 
+Both inputs are files; point these at your own to run the vignette on your protein.
+The active-site table is one residue per row, keyed by `pdb` and `chain`, so a single
+file can serve many proteins — filter out the chain you are modelling.
+
 ```{r inputs}
-pdb_file        <- system.file("extdata", "1znb_A.pdb", package = "msamodel")  # <- your PDB path
-pdb_site_active <- c(99, 101, 103, 162, 181, 184, 193, 223)                    # <- your active-site residues
+pdb_file    <- system.file("extdata", "1znb_A.pdb", package = "msamodel")          # <- your PDB
+active_file <- system.file("extdata", "znb_active_site.csv", package = "msamodel") # <- your active sites
+
+pdb_site_active <- read_csv(active_file, show_col_types = FALSE) |>
+  filter(pdb == "1znb", chain == "A") |>
+  pull(pdb_site)
+
+pdb_site_active
 ```
 
 `msamodel` reads the structure, builds an elastic network model (`wt`), and runs a
@@ -116,9 +127,8 @@ C-alpha, `d_max = 10.5` (Å) sets how close two residues must be to be connected
 `model`/`frustrated` pick the spring rules. `generate_spm_data()` runs the scan:
 `n_mutations` mutants per site, `sigma` the mutation strength, `min_sd` the minimum
 sequence separation between coupled sites, `seed` for reproducibility. The scan takes a
-minute or two; for this example the result also ships as `znb_spm`, so `data("znb_spm")`
-loads it if you prefer to skip the wait. The observed profile we fit to is loaded later,
-in section 5.
+minute or two — it is the one slow step here. The observed profile we fit to is loaded
+later, in section 5.
 
 `spm` records, for each mutant, its energy changes and the per-residue divergence
 `dr2_ijm` it causes; the verbs below read those from it.
@@ -363,11 +373,12 @@ across the family; the observed value is the log of that per-residue variation.
 `msamodel` does not do this step — you bring the result as **two vectors**: which
 residues you measured (PDB numbering), and the value at each. Nothing constrains where
 they come from, so your own table keeps whatever column names it already has. The
-package ships one for the worked example, `znb_profile`:
+package ships one for the worked example:
 
 ```{r obs}
-data("znb_profile")   # the example observed data
-head(znb_profile)
+obs_file <- system.file("extdata", "znb_lrmsd_obs_site.csv", package = "msamodel")
+obs      <- read_csv(obs_file, show_col_types = FALSE)   # <- your observed data
+head(obs)
 ```
 
 `fit_lrmsd_msa_site()` estimates `a1, a2` from it by maximum likelihood, returning a
@@ -376,7 +387,7 @@ fast and deterministic:
 
 ```{r fit-code}
 # the two vectors: the residues, and the observed value at each
-ml <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)
+ml <- fit_lrmsd_msa_site(spm, obs$pdb_site, obs$lrmsd_obs)
 c(a1 = ml$a1, a2 = ml$a2)
 ```
 
@@ -412,7 +423,7 @@ r2 <- function(obs, pred) 1 - sum((obs - pred)^2) / sum((obs - mean(obs))^2)
 fit_msa <- calculate_decomposition(spm, ml$a1, ml$a2, metric = "lrmsd")$site |>
   select(pdb_site, lrmsd_fit = lrmsd_msa)
 
-cmp <- znb_profile |>
+cmp <- obs |>
   inner_join(fit_msa, by = "pdb_site") |>
   left_join(select(site_props, pdb_site, dactive, lrmsf), by = "pdb_site") |>
   mutate(

@@ -1,7 +1,11 @@
 # Gate for the heavy FULL SPM regeneration (~21 s: re-runs the entire 2280-row
 # generate_spm_data + setup_enm to prove the embedded znb_* fixtures reproduce from
-# their data-raw recipe). The default suite runs a CHEAP single-mutant coherence
-# check instead (see test-spm-generate.R); this full guard runs at milestone / CI.
+# their recipe). The default suite runs a CHEAP single-mutant coherence check
+# instead (see test-spm-generate.R).
+#
+# There is NO CI in this repo. What runs the full guard is .githooks/pre-commit
+# gate 3, automatically, on commits that stage SPM/ENM generation code -- plus a
+# by-hand run at a milestone.
 # Full run:  MSAMODEL_FULL_TESTS=true devtools::test()
 # Default:   devtools::test()  (skips only the full-regen blocks)
 skip_if_not_full <- function() {

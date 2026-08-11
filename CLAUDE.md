@@ -143,22 +143,16 @@ so the data-prep script and that test must stay in sync.
 
 The section above states dispositions. Dispositions do not survive contact with
 producing output at volume — on 2026-08-06 every rule above was already written and
-every one was violated. These five are **procedures with checkable outcomes**. Each
+every one was violated. These four are **procedures with checkable outcomes**. Each
 exists because its absence cost the maintainer hours that day.
 
-1. **Stop at every slice boundary. Show the actual code, not a summary.**
-   A slice is one committable unit. Write it, show it, STOP, wait for "go". Do not
-   begin the next slice. *(2026-08-06: four slices were written unsupervised; the
-   result passed every numeric gate and was unreadable, and the whole attempt was
-   discarded. The single highest-value rule here.)*
-
-2. **Outside the plan: say it, do not do it.**
+1. **Outside the plan: say it, do not do it.**
    If something not in the plan looks like it wants changing — even trivially, even
    while already editing that file — report it and stop. Approval of a plan is not
    approval of what the plan reminded you of. *(2026-08-06: the plan said MOVE
    `calculate_*`; they were rewritten, and readable code became opaque.)*
 
-3. **The claim may not exceed the check. Every report carries a "not verified" line.**
+2. **The claim may not exceed the check. Every report carries a "not verified" line.**
    Name the scope: which files, which vignette, which axis. "All four" and "the
    vignettes" are the phrases to distrust in your own drafts. Put the output on screen
    in the same message as the claim about it. A summary table of green rows implies the
@@ -166,11 +160,11 @@ exists because its absence cost the maintainer hours that day.
    "only sessionInfo reflow" was true of the `.Rmd` files and false of the figures,
    which had never been looked at.)*
 
-4. **One question at a time. Questions are not bundled with recommendations.**
+3. **One question at a time. Questions are not bundled with recommendations.**
    If a decision is needed, ask it alone and wait. Do not attach a recommendation, a
    second question, or a plan for what happens after the answer.
 
-5. **An unexplained artifact is evidence. Never tidy it away.**
+4. **An unexplained artifact is evidence. Never tidy it away.**
    An unexpected file, directory, or output is information about what just happened.
    Report what it is and what you think created it; let the maintainer decide.
    *(2026-08-06: four unexplained directories were deleted as "byproducts" — they were

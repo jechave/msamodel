@@ -333,8 +333,13 @@ resolve_mode_obs <- function(valid_modes, mode, lrmsd_obs) {
 #' @export
 #' @examples
 #' \dontrun{
-#' spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
-#' ml <- fit_lrmsd_msa_site(spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)
+#' ex   <- function(f) system.file("extdata", f, package = "msamodel")
+#' wt   <- setup_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca", d_max = 10.5)
+#' act  <- readr::read_csv(ex("znb_active_site.csv"))
+#' spm  <- generate_spm_data(wt, pdb_site_active = act$pdb_site, seed = 1024)
+#'
+#' obs <- readr::read_csv(ex("znb_lrmsd_obs_site.csv"))
+#' ml  <- fit_lrmsd_msa_site(spm, obs$pdb_site, obs$lrmsd_obs)
 #' c(a1 = ml$a1, a2 = ml$a2)
 #' }
 fit_lrmsd_msa_site <- function(spm,
@@ -389,8 +394,14 @@ fit_lrmsd_msa_site <- function(spm,
 #' @export
 #' @examples
 #' \dontrun{
-#' spm <- generate_spm_data(znb_wt, pdb_site_active = c(99,101,103,162,181,184,193,223), seed = 1024)
-#' ml <- fit_lrmsd_msa_mode(spm, znb_profile_n$mode, znb_profile_n$lrmsd_obs)
+#' ex   <- function(f) system.file("extdata", f, package = "msamodel")
+#' wt   <- setup_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca", d_max = 10.5)
+#' act  <- readr::read_csv(ex("znb_active_site.csv"))
+#' spm  <- generate_spm_data(wt, pdb_site_active = act$pdb_site, seed = 1024)
+#'
+#' # Synthetic observations: no empirical per-mode profile exists (see the file name).
+#' obs <- readr::read_csv(ex("znb_lrmsd_obs_mode_syn.csv"))
+#' ml  <- fit_lrmsd_msa_mode(spm, obs$mode, obs$lrmsd_obs)
 #' c(a1 = ml$a1, a2 = ml$a2)
 #' }
 fit_lrmsd_msa_mode <- function(spm,

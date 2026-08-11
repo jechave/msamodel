@@ -56,7 +56,11 @@ not have to be regenerated to switch between them.
 }
 \examples{
 \dontrun{
-spm <- generate_spm_data(znb_wt, n_mutations = 10, seed = 1024)
+ex  <- function(f) system.file("extdata", f, package = "msamodel")
+wt  <- setup_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca", d_max = 10.5)
+act <- readr::read_csv(ex("znb_active_site.csv"))
+spm <- generate_spm_data(wt, n_mutations = 10, pdb_site_active = act$pdb_site,
+                         seed = 1024)
 dim(spm$dr2_ijm)
 dim(spm$dr2_njm)
 }
