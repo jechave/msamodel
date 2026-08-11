@@ -23,6 +23,51 @@ changes. The same episode often earns a line in each. Things to maybe do later l
 in `dev/ideas.md`.
 
 
+### 2026-08-11 — `data/` was two jobs; `znb_dataset` kept in June, deleted now
+
+**Reverses the 2026-06-11 decision at the "Step 3 (active-site vector)" entry
+below**, which kept `znb_dataset` shipped as *illustrative* of the source CSV
+format after nothing consumed it any more. That reasoning was sound at the time and
+stopped being sound once `inst/extdata/znb_active_site.csv` existed: the new file
+illustrates the format AND is the thing the vignettes actually read, so the
+illustration no longer needs a separate dataset to live in. A file that is read
+cannot drift from what it claims to document; `znb_dataset` could, and had — its own
+build script re-inlined its contents as a literal rather than parsing it.
+
+**Why `data/` emptied entirely rather than shrinking.** The audit that started this
+found `znb_spm`/`znb_wt` used by 11 and 4 test files and by zero vignettes. The
+tempting fix was to move those two and keep the rest. What made the whole directory
+go was noticing the *generation* boundary: `data-raw/prepare_znb_data.R` — the
+user-data pipeline — was producing files needed exclusively by tests. Relocating the
+outputs while leaving one script straddling both would have preserved the actual
+defect. The two pipelines are now independent, which costs `data-raw/` a ~21 s
+scan regeneration it could have borrowed from the fixture. That cost is deliberate.
+
+**Empirical, and it contradicts what was assumed when planning.** Moving 21.8 MB of
+fixtures from `data/` to `tests/testthat/fixtures/` does NOT take them out of the
+source tarball — `tests/` ships in it, and the built tarball is still ~24 MB. What
+changed is the *installed* size (25.8 MB → 368 KB), because `tests/` is not
+installed. `R CMD check`'s size WARNING measures the installed footprint, which is
+why it cleared. Anyone re-checking the size argument later should measure the right
+one: `R CMD INSTALL -l <tmp>` then `du -sh`, not `ls` on the tarball.
+
+**A check-only failure mode worth remembering.** `helper-fixtures.R` first reached
+the CSVs with `test_path("..", "..", "inst", "extdata", ...)`. That passes under
+`devtools::test()` (source tree, `inst/` present) and ERRORs under
+`devtools::check()`, which tests a BUILT package where `inst/extdata/` has been
+promoted to `extdata/` and no `inst/` exists. `system.file()` is correct in both,
+because `pkgload` shims it during `load_all()`. The general point: the inner loop
+cannot see anything about the built layout, so a path assumption is invisible until
+the milestone gate. This one was caught by `check()`, not by 241 passing tests.
+
+**The full drift guard had no trigger.** `test-spm-generate.R`'s 2280-row
+regeneration was gated behind `MSAMODEL_FULL_TESTS` with a comment claiming it ran
+at "milestone / CI" — there is no CI in this repo, so it ran only when someone
+remembered. The commit log shows it genuinely was remembered (20efc55 records
+"FAIL 0, SKIP 0, PASS 10"), but that is a habit, not a guard. It is now wired into
+`.githooks/pre-commit` gate 3, firing only on commits that stage SPM/ENM generation
+code. It fired on this very commit.
+
 ### 2026-08-10 — `which` became `metric`, and the catch-all `else` was closed
 
 The rename itself is in the diff. What is not: why `metric`, and why four `else`

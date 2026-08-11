@@ -53,15 +53,6 @@ The `predict_*` verbs were flattened and made explicit (both axes written out, n
 moved byte-for-byte in that same work and still have the old shape — `lapply` over
 `axis_branches()`. Same treatment, when there is appetite for it.
 
-## Are the six shipped `znb_*` datasets right?
-
-Six exported datasets, six man pages. Is that more surface than the package needs, or
-about right? `znb_spm` (15.5 MB) and `znb_wt` (6.3 MB) are 22 of the 25.8 MB installed
-size and the reason for the standing `check()` WARNING + size NOTE.
-
-Not a rename job: dropping an exported dataset is a user-visible break, and `znb_spm`
-in particular saves users a minutes-long scan.
-
 ## Joint site + mode fit
 
 One `(a1, a2)` estimated from both observed profiles at once, rather than two independent
