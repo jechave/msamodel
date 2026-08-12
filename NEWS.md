@@ -37,6 +37,21 @@
   `chain`), which is now the single source for that value — it had been maintained in
   three places at once.
 
+* **`add_site_properties()` is removed.** It computed nothing of its own: it assembled
+  four `penm` getters into a tibble and joined the result onto a table you supplied.
+  Call `penm` directly for the descriptor you want —
+
+  ```r
+  dactive <- penm::get_dactive(wt, pdb_site_active)   # Å to nearest active-site residue
+  lrmsf   <- log(sqrt(penm::get_msf_site(wt)))        # log RMSF (flexibility)
+  cn      <- penm::get_cn(wt)                         # contact number
+  ```
+
+  Each returns a vector of length `n_sites`, ordered by the internal site index, so
+  pair it with `penm::get_pdb_site(wt)` to key by PDB residue number and join on that.
+  The `shell` column (a fixed banding of `dactive`) has no replacement; band it yourself
+  with `cut()` if you want it. The exported surface is now nine functions.
+
 ## New features
 
 * **Structural divergence is predicted per normal mode, as well as per residue.**

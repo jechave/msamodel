@@ -63,8 +63,8 @@ pdb_site_active <- active_site$pdb_site[
 # --- 2. znb_lrmsd_obs_site.csv: EMPIRICAL observed divergence ---------------
 # Keyed by pdb_site (the structure-anchored identity a user can actually supply),
 # NOT the internal site index. dactive/lrmsf are NOT stored: they are derivable
-# from the ENM (add_site_properties; lrmsf = log(sqrt(get_msf_site))), so keeping
-# them would duplicate data the package regenerates. Covers 225 of the 228 sites --
+# from the ENM (penm::get_dactive(); lrmsf = log(sqrt(penm::get_msf_site()))), so
+# keeping them would duplicate data the package regenerates. Covers 225 of 228 sites --
 # the partial-coverage case the fitter must handle, which is why it is worth
 # shipping as-is rather than filling the gaps.
 lrmsd_obs_site <- read_csv(

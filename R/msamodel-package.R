@@ -8,7 +8,7 @@
 #' @importFrom purrr discard map_dfr possibly
 #' @importFrom rlang sym !!
 #' @importFrom stats cor dnorm dunif fitted loess median optim optimHess predict qnorm quantile residuals rnorm runif sd var
-#' @importFrom penm set_enm get_site get_pdb_site get_mutant_site get_dactive get_cn get_msf_site ddg_dv ddg_tds ddgact_dv ddgact_tds
+#' @importFrom penm set_enm get_site get_pdb_site get_mutant_site ddg_dv ddg_tds ddgact_dv ddgact_tds
 #' @importFrom magrittr %>%
 ## usethis namespace: end
 NULL
@@ -20,9 +20,8 @@ NULL
 # real complaint, so it was asserting things about the package that were not true.
 # The note is left visible rather than silenced.
 #
-# The 11 names R actually cannot resolve, in 4 functions:
+# The 10 names R actually cannot resolve, in 3 functions:
 #   preprocess_spm / preprocess_spm_mode : m, j, ddg_dv_jm, ddg_tds_jm,
 #                                          ddgact_dv_jm, ddgact_tds_jm,
 #                                          ddg_jm, ddgact_jm
 #   resolve_site_obs                     : site, obs
-#   add_site_properties                  : dactive

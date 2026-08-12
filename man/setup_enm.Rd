@@ -44,10 +44,6 @@ wt  <- setup_enm(pdb, node = "ca", model = "ming_wall", d_max = 10.5)
 }
 }
 \seealso{
-\code{\link[=generate_spm_data]{generate_spm_data()}} and \code{\link[=add_site_properties]{add_site_properties()}}, which consume the
-object returned here.
-
-Other setup:
-\code{\link[=add_site_properties]{add_site_properties()}}
+\code{\link[=generate_spm_data]{generate_spm_data()}}, which consumes the object returned here.
 }
 \concept{setup}

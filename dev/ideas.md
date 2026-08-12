@@ -64,12 +64,6 @@ loses its meaning over two incommensurable supports.
 Undecided and worth settling first: is the goal a better single estimate, or a
 consistency check between the two profiles? Those pull in opposite directions.
 
-## `add_site_properties()`
-
-Does this belong in `msamodel` at all? If it stays: it joins on the internal `site`
-index where `pdb_site` would be unambiguous, and its `left_join` silently yields `NA`
-properties for an unmatched row instead of failing loud.
-
 ## v0.4 — motion arm
 
 The motion/fluctuation quantities (`dh_ijm`, `dh_njm`, `nh_njm`) are unimplemented;
