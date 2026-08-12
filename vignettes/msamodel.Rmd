@@ -100,10 +100,10 @@ single-point-mutation scan (`spm`):
 
 
 ```r
-pdb <- bio3d::read.pdb(pdb_file)
-wt  <- setup_enm(pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
-spm <- generate_spm_data(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
-                         min_sd = 2, pdb_site_active = pdb_site_active, seed = 1024)
+wt_pdb <- bio3d::read.pdb(pdb_file)
+wt     <- setup_enm(wt_pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+spm    <- generate_spm_data(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
+                            min_sd = 2, pdb_site_active = pdb_site_active, seed = 1024)
 ```
 
 The arguments to `setup_enm()` and `generate_spm_data()` are the model's defaults; you
@@ -128,9 +128,9 @@ package ships one for the worked example:
 
 
 ```r
-obs_file <- system.file("extdata", "znb_lrmsd_obs_site.csv", package = "msamodel")
-obs      <- read_csv(obs_file, show_col_types = FALSE)   # <- your observed data
-head(obs)
+observed_file <- system.file("extdata", "znb_lrmsd_obs_site.csv", package = "msamodel")
+observed      <- read_csv(observed_file, show_col_types = FALSE)   # <- your observed data
+head(observed)
 #> # A tibble: 6 × 2
 #>   pdb_site lrmsd_obs
 #>      <dbl>     <dbl>
@@ -150,8 +150,8 @@ passing the two columns as the key and the values:
 
 
 ```r
-ml <- fit_lrmsd_msa_site(spm, obs$pdb_site, obs$lrmsd_obs)
-c(a1 = ml$a1, a2 = ml$a2)
+fit <- fit_lrmsd_msa_site(spm, observed$pdb_site, observed$lrmsd_obs)
+c(a1 = fit$a1, a2 = fit$a2)
 #>         a1         a2 
 #>  0.4580022 42.3021911
 ```
@@ -163,8 +163,8 @@ and a `$mode` tibble (the profile per normal mode):
 
 
 ```r
-pred <- predict_profiles(ml, spm, metric = "nlrmsd")
-head(pred$site)
+predicted <- predict_profiles(fit, spm, metric = "nlrmsd")
+head(predicted$site)
 #> # A tibble: 6 × 4
 #>    site pdb_site nlrmsd_msa nlrmsd_msa_se
 #>   <int>    <int>      <dbl>         <dbl>
@@ -186,11 +186,11 @@ Both tibbles use the same column names — `nlrmsd_msa` for the profile value an
 to every point. Only the key column differs: `$site` is keyed by residue (`site` and
 `pdb_site`), `$mode` by mode number (`mode`). To draw
 a confidence band, turn the standard error into lower/upper bounds — a 95% band is the
-value plus or minus `z` standard errors, with `z = qnorm(0.975) ≈ 1.96`:
+value plus or minus `z_975` standard errors, with `z_975 = qnorm(0.975) ≈ 1.96`:
 
 
 ```r
-z <- qnorm(0.975)   # 1.96; the multiplier for a 95% band
+z_975 <- qnorm(0.975)   # 1.96; the multiplier for a 95% band
 ```
 
 We build the band from the standard error, join the per-residue profile to the observed
@@ -199,16 +199,16 @@ data to compare shapes, and read the mode axis from the same prediction:
 
 ```r
 # Per-residue profile from the fit, with a 95% band, joined to the observed data
-site <- pred$site |>
-  mutate(lower = nlrmsd_msa - z * nlrmsd_msa_se,
-         upper = nlrmsd_msa + z * nlrmsd_msa_se) |>
-  inner_join(obs, by = "pdb_site") |>
+profile_site <- predicted$site |>
+  mutate(lower = nlrmsd_msa - z_975 * nlrmsd_msa_se,
+         upper = nlrmsd_msa + z_975 * nlrmsd_msa_se) |>
+  inner_join(observed, by = "pdb_site") |>
   mutate(nlrmsd_obs = lrmsd_obs - mean(lrmsd_obs))
 
 # Per-mode profile: the same fitted (a1, a2) read on the normal-mode axis
-mode_profile <- pred$mode |>
-  mutate(lower = nlrmsd_msa - z * nlrmsd_msa_se,
-         upper = nlrmsd_msa + z * nlrmsd_msa_se)
+profile_mode <- predicted$mode |>
+  mutate(lower = nlrmsd_msa - z_975 * nlrmsd_msa_se,
+         upper = nlrmsd_msa + z_975 * nlrmsd_msa_se)
 ```
 
 **Per residue** — the fitted profile (red, with its band) tracked against the observed
@@ -216,7 +216,7 @@ shape (grey). This is the model compared to real data along the chain.
 
 
 ```r
-ggplot(site, aes(pdb_site)) +
+ggplot(profile_site, aes(pdb_site)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), fill = "firebrick", alpha = 0.2) +
   geom_line(aes(y = nlrmsd_msa, colour = "fitted (MSA)")) +
   geom_line(aes(y = nlrmsd_obs, colour = "observed"), alpha = 0.8) +
@@ -236,7 +236,7 @@ be fit to its own data; see the [mode analysis](mode-analysis.html) vignette.)
 
 
 ```r
-ggplot(mode_profile, aes(mode)) +
+ggplot(profile_mode, aes(mode)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), fill = "grey70", alpha = 0.4) +
   geom_line(aes(y = nlrmsd_msa), colour = "grey30") +
   labs(title = "Per mode: predicted divergence (from the site fit)",
