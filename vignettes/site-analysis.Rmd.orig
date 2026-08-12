@@ -117,21 +117,21 @@ single-point-mutation scan (`spm`):
 ```{r build}
 wt_pdb <- bio3d::read.pdb(pdb_file)
 wt     <- setup_enm(wt_pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
-spm    <- generate_spm_data(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
+spm    <- generate_spm(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
                             min_sd = 2, pdb_site_active = pdb_site_active, seed = 1024)
 ```
 
 The arguments above are the model's defaults — you can keep them for a first run.
 `setup_enm()` builds the elastic network: `node = "ca"` puts one node per residue at its
 C-alpha, `d_max = 10.5` (Å) sets how close two residues must be to be connected, and
-`model`/`frustrated` pick the spring rules. `generate_spm_data()` runs the scan:
+`model`/`frustrated` pick the spring rules. `generate_spm()` runs the scan:
 `n_mutations` mutants per site, `sigma` the mutation strength, `min_sd` the minimum
 sequence separation between coupled sites, `seed` for reproducibility. The scan takes a
 minute or two — it is the one slow step here. The observed profile we fit to is loaded
 later, in section 5.
 
-`spm` records, for each mutant, its energy changes and the per-residue divergence
-`dr2_ijm` it causes; the verbs below read those from it.
+`spm` records, for each mutant, its energy changes and the per-residue response
+`dr2mat_site` it causes; the verbs below read those from it.
 
 Two residue identities appear side by side throughout. `site` is msamodel's internal
 1..N index; `pdb_site` is the PDB residue number, used on the chain-plot x-axis. Every

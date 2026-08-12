@@ -39,7 +39,7 @@ knitr::opts_chunk$set(
 has_ggplot <- requireNamespace("ggplot2", quietly = TRUE)
 
 # The fits are deterministic; the seed is harmless but kept for a stable committed
-# render (and for generate_spm_data below).
+# render (and for generate_spm below).
 set.seed(1024)
 
 # House plot theme for the committed render. The visible `library(ggplot2)` in the
@@ -167,7 +167,7 @@ pdb_site_active
 From those inputs the package reads the structure, builds an elastic network model of it
 (`wt`), and runs a **single-point-mutation scan** (`spm`) — mutating every site in turn
 and recording how the structure responds. This scan is the raw material the model turns
-into a divergence profile. The `setup_enm()` and `generate_spm_data()` arguments below
+into a divergence profile. The `setup_enm()` and `generate_spm()` arguments below
 configure the network model and the scan; leave them at these values to follow along
 (the [site analysis](site-analysis.html) vignette covers what they do and how to tune
 them). Only the two file paths above are yours to change.
@@ -175,14 +175,14 @@ them). Only the two file paths above are yours to change.
 ```{r build}
 wt_pdb <- bio3d::read.pdb(pdb_file)
 wt     <- setup_enm(wt_pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
-spm    <- generate_spm_data(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
+spm    <- generate_spm(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
                             min_sd = 2, pdb_site_active = pdb_site_active, seed = 1024)
 ```
 
 The scan takes a minute or two — it is the one slow step. `spm` is what every later
 function reads from: for each mutant it records the energy changes and the structural
-divergence it causes, per residue (`dr2_ijm`) and per normal mode (`dr2_njm`), plus the
-`site_map` from the site index `i` to `pdb_site`.
+response it causes, per residue (`dr2mat_site`) and per normal mode (`dr2mat_mode`),
+plus the `site_map` from the site index `i` to `pdb_site`.
 
 The last input is your **data**: the observed divergence profile you want to fit — which
 residues you measured, and the log-divergence measured at each. Producing it — comparing
@@ -430,7 +430,7 @@ what genuinely differs on this axis.
 ## B1. Setup (mode)
 
 You work from the same `spm` object built in A1; the mode reading uses its per-mode
-divergence matrix `dr2_njm`. Your data on this axis is a mode-indexed profile, columns
+response matrix `dr2mat_mode`. Your data on this axis is a mode-indexed profile, columns
 `mode` and `lrmsd_obs`. The example profile shipped for this axis is **synthetic** (the
 `_syn` in the file name): no empirical per-mode profile exists, so it was generated from
 the site fit plus seeded noise purely to exercise the machinery. Treat the numbers below

@@ -110,15 +110,15 @@ each controls). The scan takes a minute or two — it is the one slow step here.
 ```{r build}
 wt_pdb <- bio3d::read.pdb(pdb_file)
 wt     <- setup_enm(wt_pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
-spm    <- generate_spm_data(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
+spm    <- generate_spm(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
                             min_sd = 2, pdb_site_active = pdb_site_active, seed = 1024)
 ```
 
-The per-mode divergence the verbs below read lives in `spm$dr2_njm`, a matrix with
+The per-mode response the verbs below read lives in `spm$dr2mat_mode`, a matrix with
 one row per mutant and one column per normal mode:
 
 ```{r show-mode-matrix}
-dim(spm$dr2_njm)   # rows = mutants (228 sites x 10 mutations), columns = normal modes
+dim(spm$dr2mat_mode)   # rows = mutants (228 sites x 10 mutations), columns = normal modes
 ```
 
 > **For your own protein you can run the mode prediction (sections 1–4). The mode

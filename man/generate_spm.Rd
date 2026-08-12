@@ -2,7 +2,7 @@
 % Please edit documentation in R/spm.R
 \name{generate_spm}
 \alias{generate_spm}
-\title{Generate single-point-mutation (SPM) scan data}
+\title{Run a single-point-mutation scan over a protein}
 \usage{
 generate_spm(
   wt,
@@ -15,58 +15,90 @@ generate_spm(
 )
 }
 \arguments{
-\item{wt}{Wild-type protein structure with an elastic network model, as
-returned by \code{\link[=setup_enm]{setup_enm()}}.}
+\item{wt}{The protein to mutate, carrying its elastic network model.}
 
-\item{n_mutations}{Number of mutant replicates to generate per site.}
+\item{n_mutations}{Mutants generated per site. The scan produces
+\code{n_sites * n_mutations} mutants in all, which is the row count of both matrices.}
 
-\item{model}{Name of the mutation model to apply (passed to the ENM machinery).}
+\item{model}{Mutation model, passed to penm as \code{mut_model}: \code{"lfenm"} (the default)
+or \code{"sclfenm"}. Any other value is an error.}
 
-\item{sigma}{Mutation strength (the perturbation magnitude).}
+\item{sigma}{Standard deviation (Å) of the \code{Normal(0, sigma)} perturbation applied
+to each affected edge length. It sets the size of a mutation.}
 
-\item{min_sd}{Minimum sequence separation between coupled sites.}
+\item{min_sd}{Minimum sequence separation for an edge to be perturbed: at the
+default \code{2}, edges to immediate sequence neighbours are left alone.}
 
-\item{pdb_site_active}{Optional integer vector of active-site residue numbers
-(PDB numbering).}
+\item{pdb_site_active}{Active-site residue numbers, in \strong{PDB numbering}. If \code{NULL},
+no activity energy is computed and \code{energy_data$ddgact} is \code{NA} throughout, which
+leaves the model's activity term unusable.}
 
-\item{seed}{Optional random seed, for a reproducible scan.}
+\item{seed}{Random seed, for a reproducible scan. penm seeds each mutant as
+\code{seed + site * mutation}, so scans meant to be independent need widely separated
+seeds, not consecutive ones.}
 }
 \value{
-An \code{spm} object: a list with five elements -- \code{energy_data} (a tibble of
-per-mutant stability and activity energy changes, \code{j}, \code{m}, \code{ddg}, \code{ddgact},
-wild-type rows dropped), \code{dr2mat_site} (the mutant-by-site squared-divergence
-matrix), \code{dr2mat_mode} (the mutant-by-mode squared-divergence matrix), \code{site_map}
-(a tibble mapping the internal site index \code{site} to its PDB residue number
-\code{pdb_site}), and \code{mode_map} (a tibble carrying the mode index \code{mode}).
+An \code{spm} object (a classed list) with five elements:
+\describe{
+\item{\code{energy_data}}{One row per mutant, aligned with the matrix rows: \code{j} (the
+mutated site), \code{m} (which replicate), \code{ddg} (change in folding free energy)
+and \code{ddgact} (change in activity free energy, or \code{NA} — see
+\code{pdb_site_active}).}
+\item{\code{dr2mat_site}}{\verb{[mutant x residue]} squared displacements (Å²).}
+\item{\code{dr2mat_mode}}{\verb{[mutant x mode]} squared displacements.}
+\item{\code{site_map}}{The PDB residue number (\code{pdb_site}) for each \code{dr2mat_site}
+column position (\code{site}).}
+\item{\code{mode_map}}{The mode index for each \code{dr2mat_mode} column.}
+}
 }
 \description{
-Runs a single-point-mutation scan over a protein structure and returns the
-\strong{model-ready} \code{spm} object: for every site it generates \code{n_mutations} mutants,
-records each mutant's energy changes and squared structural divergence, and packs the
-result into the compact arrays every \verb{calculate_*}, \verb{fit_*}, and \verb{predict_*} function
-consumes. This is the single object the rest of the package works from -- there is no
-separate preprocessing step.
+Runs a single-point-mutation (SPM) scan: every site of the protein is mutated
+\code{n_mutations} times, and for each mutant the scan records two free-energy changes
+and how far every residue moved.
 }
 \details{
-The returned object carries, computed once, both response axes at the same time: the
-per-site divergence matrix \code{dr2mat_site} (each site value is the squared displacement
-of a residue) and the per-mode divergence matrix \code{dr2mat_mode} (each value is the
-squared contribution of a normal mode). A calculation picks the axis it needs; the
-object does not have to be regenerated to switch between them.
+Mutating site \code{j} perturbs the equilibrium length of every network edge touching
+\code{j}, each by an independent draw from \code{Normal(0, sigma)} (only edges whose sequence
+separation is at least \code{min_sd} are perturbed). Those altered lengths put the
+structure under strain, and relaxing it displaces the residues. The scan stores the
+squared displacements.
 }
+\section{The mutation-response matrices}{
+
+
+\code{dr2mat_site} and \code{dr2mat_mode} both have \strong{one row per mutant}, in scan order;
+row \code{k} of either is the mutant described by row \code{k} of \code{energy_data}. They differ
+in what a column is:
+\itemize{
+\item \code{dr2mat_site} — one column per \strong{residue}. Cell \verb{[k, i]} is the squared
+displacement of residue \code{i} (Å²) under mutant \code{k}.
+\item \code{dr2mat_mode} — one column per \strong{normal mode}. Cell \verb{[k, n]} is the squared
+projection of the same displacement onto mode \code{n}.
+}
+
+The modes are orthonormal, so each row sums to the same total in both matrices: they
+hold one displacement written in two bases. Neither carries column names — the
+response index is the column position — so that \code{colSums()} and the like return bare
+vectors.
+}
+
 \examples{
 \dontrun{
 ex  <- function(f) system.file("extdata", f, package = "msamodel")
 wt  <- setup_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca", d_max = 10.5)
 act <- readr::read_csv(ex("znb_active_site.csv"))
 spm <- generate_spm(wt, n_mutations = 10, pdb_site_active = act$pdb_site,
-                         seed = 1024)
-dim(spm$dr2mat_site)
-dim(spm$dr2mat_mode)
+                    seed = 1024)
+
+dim(spm$dr2mat_site)   # mutants x residues
+dim(spm$dr2mat_mode)   # mutants x modes
+
+# The same displacement in two bases: each row sums to the same total.
+all.equal(rowSums(spm$dr2mat_site), rowSums(spm$dr2mat_mode))
 }
 }
 \seealso{
-\code{\link[=setup_enm]{setup_enm()}} (builds the \code{wt} input); \code{\link[=calculate_profiles]{calculate_profiles()}} and
-\code{\link[=fit_lrmsd_msa_site]{fit_lrmsd_msa_site()}} (consume the returned object).
+\code{\link[=setup_enm]{setup_enm()}} (builds the elastic network model this needs);
+\code{\link[=calculate_profiles]{calculate_profiles()}} and \code{\link[=fit_lrmsd_msa_site]{fit_lrmsd_msa_site()}} (consume the returned object).
 }
 \concept{spm}

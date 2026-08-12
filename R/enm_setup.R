@@ -1,22 +1,29 @@
-#' Set up Elastic Network Model (ENM) for a protein structure
+#' Build a protein's elastic network model
 #'
-#' Builds the elastic network model on a bio3d pdb object via [penm::set_enm()],
-#' returning the structure object augmented with the ENM (network, Hessian, normal
-#' modes) that the SPM and divergence routines need. The package entry point for
-#' turning a structure into a modellable object; does no file I/O.
+#' Represents the protein as beads joined by springs: one node per residue, a spring
+#' between every pair of nodes closer than `d_max`. Diagonalising the resulting
+#' spring-constant matrix gives the protein's normal modes.
+#'
+#' The model itself is penm's; this function validates the input and forwards to
+#' [penm::set_enm()], which is the authority on what each parameter means.
 #'
 #' @param pdb A bio3d pdb object, e.g. from \code{bio3d::read.pdb()} (legacy
-#'   \code{.pdb}) or \code{bio3d::read.cif()} (mmCIF). The package takes the
-#'   structure object directly and does no file I/O, so any source that yields a
-#'   bio3d pdb object works (PDB, AlphaFold-DB, etc.).
-#' @param node Node representation for the network: `"ca"` (C-alpha atoms) or
-#'   `"sc"` (side-chain centroids).
-#' @param model Name of the elastic network model to build.
-#' @param d_max Distance cutoff: pairs of nodes closer than this are connected.
-#' @param frustrated Whether to use the frustrated form of the model.
-#' @return The input structure augmented with the elastic network model (network,
-#'   Hessian, and normal modes), ready for mutation scans and site properties.
-#' @seealso [generate_spm()], which consumes the object returned here.
+#'   \code{.pdb}) or \code{bio3d::read.cif()} (mmCIF).
+#' @param node What plays the part of a residue: `"ca"` (alpha carbons), `"sc"`
+#'   (side-chain centroids, the default) or `"cb"` (beta carbons). The aliases
+#'   `"calpha"`, `"side_chain"` and `"beta"` also work; anything else is an error.
+#' @param model Which spring rules to use: `"anm"`, `"ming_wall"` (the default),
+#'   `"hnm"`, `"hnm0"`, `"pfanm"` or `"reach"`. They differ in how a contact's spring
+#'   constant is set — see [penm::set_enm()].
+#' @param d_max Contact cutoff in Ångström: node pairs closer than this get a spring.
+#'   A workable value depends on `node` — penm's own examples pair `"ca"` with 10.5,
+#'   `"cb"` with 12.0 and `"sc"` with 12.5.
+#' @param frustrated Whether frustration is included when the spring-constant matrix
+#'   is calculated. Defaults to `FALSE`; see [penm::set_enm()].
+#' @return The protein, carrying its elastic network model: the nodes, the contact
+#'   network and its spring-constant matrix, and the normal modes.
+#' @seealso [penm::set_enm()] (does the work, and defines these parameters);
+#'   [generate_spm()], which consumes the object returned here.
 #' @family setup
 #' @examples
 #' \dontrun{

@@ -2,7 +2,7 @@
 % Please edit documentation in R/enm_setup.R
 \name{setup_enm}
 \alias{setup_enm}
-\title{Set up Elastic Network Model (ENM) for a protein structure}
+\title{Build a protein's elastic network model}
 \usage{
 setup_enm(
   pdb,
@@ -14,28 +14,35 @@ setup_enm(
 }
 \arguments{
 \item{pdb}{A bio3d pdb object, e.g. from \code{bio3d::read.pdb()} (legacy
-\code{.pdb}) or \code{bio3d::read.cif()} (mmCIF). The package takes the
-structure object directly and does no file I/O, so any source that yields a
-bio3d pdb object works (PDB, AlphaFold-DB, etc.).}
+\code{.pdb}) or \code{bio3d::read.cif()} (mmCIF).}
 
-\item{node}{Node representation for the network: \code{"ca"} (C-alpha atoms) or
-\code{"sc"} (side-chain centroids).}
+\item{node}{What plays the part of a residue: \code{"ca"} (alpha carbons), \code{"sc"}
+(side-chain centroids, the default) or \code{"cb"} (beta carbons). The aliases
+\code{"calpha"}, \code{"side_chain"} and \code{"beta"} also work; anything else is an error.}
 
-\item{model}{Name of the elastic network model to build.}
+\item{model}{Which spring rules to use: \code{"anm"}, \code{"ming_wall"} (the default),
+\code{"hnm"}, \code{"hnm0"}, \code{"pfanm"} or \code{"reach"}. They differ in how a contact's spring
+constant is set — see \code{\link[penm:set_enm]{penm::set_enm()}}.}
 
-\item{d_max}{Distance cutoff: pairs of nodes closer than this are connected.}
+\item{d_max}{Contact cutoff in Ångström: node pairs closer than this get a spring.
+A workable value depends on \code{node} — penm's own examples pair \code{"ca"} with 10.5,
+\code{"cb"} with 12.0 and \code{"sc"} with 12.5.}
 
-\item{frustrated}{Whether to use the frustrated form of the model.}
+\item{frustrated}{Whether frustration is included when the spring-constant matrix
+is calculated. Defaults to \code{FALSE}; see \code{\link[penm:set_enm]{penm::set_enm()}}.}
 }
 \value{
-The input structure augmented with the elastic network model (network,
-Hessian, and normal modes), ready for mutation scans and site properties.
+The protein, carrying its elastic network model: the nodes, the contact
+network and its spring-constant matrix, and the normal modes.
 }
 \description{
-Builds the elastic network model on a bio3d pdb object via \code{\link[penm:set_enm]{penm::set_enm()}},
-returning the structure object augmented with the ENM (network, Hessian, normal
-modes) that the SPM and divergence routines need. The package entry point for
-turning a structure into a modellable object; does no file I/O.
+Represents the protein as beads joined by springs: one node per residue, a spring
+between every pair of nodes closer than \code{d_max}. Diagonalising the resulting
+spring-constant matrix gives the protein's normal modes.
+}
+\details{
+The model itself is penm's; this function validates the input and forwards to
+\code{\link[penm:set_enm]{penm::set_enm()}}, which is the authority on what each parameter means.
 }
 \examples{
 \dontrun{
@@ -44,6 +51,7 @@ wt  <- setup_enm(pdb, node = "ca", model = "ming_wall", d_max = 10.5)
 }
 }
 \seealso{
+\code{\link[penm:set_enm]{penm::set_enm()}} (does the work, and defines these parameters);
 \code{\link[=generate_spm]{generate_spm()}}, which consumes the object returned here.
 }
 \concept{setup}

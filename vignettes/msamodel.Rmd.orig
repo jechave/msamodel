@@ -63,7 +63,7 @@ shows both, end to end.
 |                              | what it is                                              |
 |------------------------------|--------------------------------------------------------|
 | **You provide**              | a PDB file; a vector of active-site residue numbers; (to fit) observed divergence as two vectors — the residue numbers, and the value at each |
-| **`msamodel` computes**      | the elastic network model (`setup_enm`), the mutation scan (`generate_spm_data`), the fit of `(a1, a2)` to your data (`fit_*`), and the predicted divergence profiles (`predict_profiles`) |
+| **`msamodel` computes**      | the elastic network model (`setup_enm`), the mutation scan (`generate_spm`), the fit of `(a1, a2)` to your data (`fit_*`), and the predicted divergence profiles (`predict_profiles`) |
 
 ## From your structure to a mutation scan
 
@@ -107,11 +107,11 @@ single-point-mutation scan (`spm`):
 ```{r build}
 wt_pdb <- bio3d::read.pdb(pdb_file)
 wt     <- setup_enm(wt_pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
-spm    <- generate_spm_data(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
+spm    <- generate_spm(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
                             min_sd = 2, pdb_site_active = pdb_site_active, seed = 1024)
 ```
 
-The arguments to `setup_enm()` and `generate_spm_data()` are the model's defaults; you
+The arguments to `setup_enm()` and `generate_spm()` are the model's defaults; you
 can leave them as-is for a first run and revisit them later (the [site
 analysis](site-analysis.html) vignette explains what each controls). The scan takes a
 minute or two — it is the one slow step, and everything after it is fast.

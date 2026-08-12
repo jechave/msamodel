@@ -92,7 +92,7 @@ generate_spm_core <- function(wt, n_mutations = 10,
       # Per-mutant site vector (dr2_i): call penm's primitive directly.
       dr2_i <- penm::delta_structure_dr2i(wt, mut)
 
-      # Mode-form structural divergence: per-normal-mode contribution to dr.
+      # Mode-form response: per-normal-mode contribution to dr.
       # Same per-mutant call shape as dr2_i; another reduction of the same mutant.
       dr2_n <- penm::delta_structure_dr2n(wt, mut)
 
@@ -124,38 +124,63 @@ generate_spm_core <- function(wt, n_mutations = 10,
   return(results)
 }
 
-#' Generate single-point-mutation (SPM) scan data
+#' Run a single-point-mutation scan over a protein
 #'
-#' Runs a single-point-mutation scan over a protein structure and returns the
-#' **model-ready** `spm` object: for every site it generates `n_mutations` mutants,
-#' records each mutant's energy changes and squared structural divergence, and packs the
-#' result into the compact arrays every `calculate_*`, `fit_*`, and `predict_*` function
-#' consumes. This is the single object the rest of the package works from -- there is no
-#' separate preprocessing step.
+#' Runs a single-point-mutation (SPM) scan: every site of the protein is mutated
+#' `n_mutations` times, and for each mutant the scan records two free-energy changes
+#' and how far every residue moved.
 #'
-#' The returned object carries, computed once, both response axes at the same time: the
-#' per-site divergence matrix `dr2mat_site` (each site value is the squared displacement
-#' of a residue) and the per-mode divergence matrix `dr2mat_mode` (each value is the
-#' squared contribution of a normal mode). A calculation picks the axis it needs; the
-#' object does not have to be regenerated to switch between them.
+#' Mutating site `j` perturbs the equilibrium length of every network edge touching
+#' `j`, each by an independent draw from `Normal(0, sigma)` (only edges whose sequence
+#' separation is at least `min_sd` are perturbed). Those altered lengths put the
+#' structure under strain, and relaxing it displaces the residues. The scan stores the
+#' squared displacements.
 #'
-#' @param wt Wild-type protein structure with an elastic network model, as
-#'   returned by [setup_enm()].
-#' @param n_mutations Number of mutant replicates to generate per site.
-#' @param model Name of the mutation model to apply (passed to the ENM machinery).
-#' @param sigma Mutation strength (the perturbation magnitude).
-#' @param min_sd Minimum sequence separation between coupled sites.
-#' @param pdb_site_active Optional integer vector of active-site residue numbers
-#'   (PDB numbering).
-#' @param seed Optional random seed, for a reproducible scan.
-#' @return An `spm` object: a list with five elements -- `energy_data` (a tibble of
-#'   per-mutant stability and activity energy changes, `j`, `m`, `ddg`, `ddgact`,
-#'   wild-type rows dropped), `dr2mat_site` (the mutant-by-site squared-divergence
-#'   matrix), `dr2mat_mode` (the mutant-by-mode squared-divergence matrix), `site_map`
-#'   (a tibble mapping the internal site index `site` to its PDB residue number
-#'   `pdb_site`), and `mode_map` (a tibble carrying the mode index `mode`).
-#' @seealso [setup_enm()] (builds the `wt` input); [calculate_profiles()] and
-#'   [fit_lrmsd_msa_site()] (consume the returned object).
+#' @section The mutation-response matrices:
+#'
+#' `dr2mat_site` and `dr2mat_mode` both have **one row per mutant**, in scan order;
+#' row `k` of either is the mutant described by row `k` of `energy_data`. They differ
+#' in what a column is:
+#'
+#' - `dr2mat_site` — one column per **residue**. Cell `[k, i]` is the squared
+#'   displacement of residue `i` (Å²) under mutant `k`.
+#' - `dr2mat_mode` — one column per **normal mode**. Cell `[k, n]` is the squared
+#'   projection of the same displacement onto mode `n`.
+#'
+#' The modes are orthonormal, so each row sums to the same total in both matrices: they
+#' hold one displacement written in two bases. Neither carries column names — the
+#' response index is the column position — so that `colSums()` and the like return bare
+#' vectors.
+#'
+#' @param wt The protein to mutate, carrying its elastic network model.
+#' @param n_mutations Mutants generated per site. The scan produces
+#'   `n_sites * n_mutations` mutants in all, which is the row count of both matrices.
+#' @param model Mutation model, passed to penm as `mut_model`: `"lfenm"` (the default)
+#'   or `"sclfenm"`. Any other value is an error.
+#' @param sigma Standard deviation (Å) of the `Normal(0, sigma)` perturbation applied
+#'   to each affected edge length. It sets the size of a mutation.
+#' @param min_sd Minimum sequence separation for an edge to be perturbed: at the
+#'   default `2`, edges to immediate sequence neighbours are left alone.
+#' @param pdb_site_active Active-site residue numbers, in **PDB numbering**. If `NULL`,
+#'   no activity energy is computed and `energy_data$ddgact` is `NA` throughout, which
+#'   leaves the model's activity term unusable.
+#' @param seed Random seed, for a reproducible scan. penm seeds each mutant as
+#'   `seed + site * mutation`, so scans meant to be independent need widely separated
+#'   seeds, not consecutive ones.
+#' @return An `spm` object (a classed list) with five elements:
+#'   \describe{
+#'     \item{`energy_data`}{One row per mutant, aligned with the matrix rows: `j` (the
+#'       mutated site), `m` (which replicate), `ddg` (change in folding free energy)
+#'       and `ddgact` (change in activity free energy, or `NA` — see
+#'       `pdb_site_active`).}
+#'     \item{`dr2mat_site`}{`[mutant x residue]` squared displacements (Å²).}
+#'     \item{`dr2mat_mode`}{`[mutant x mode]` squared displacements.}
+#'     \item{`site_map`}{The PDB residue number (`pdb_site`) for each `dr2mat_site`
+#'       column position (`site`).}
+#'     \item{`mode_map`}{The mode index for each `dr2mat_mode` column.}
+#'   }
+#' @seealso [setup_enm()] (builds the elastic network model this needs);
+#'   [calculate_profiles()] and [fit_lrmsd_msa_site()] (consume the returned object).
 #' @family spm
 #' @examples
 #' \dontrun{
@@ -163,9 +188,13 @@ generate_spm_core <- function(wt, n_mutations = 10,
 #' wt  <- setup_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca", d_max = 10.5)
 #' act <- readr::read_csv(ex("znb_active_site.csv"))
 #' spm <- generate_spm(wt, n_mutations = 10, pdb_site_active = act$pdb_site,
-#'                          seed = 1024)
-#' dim(spm$dr2mat_site)
-#' dim(spm$dr2mat_mode)
+#'                     seed = 1024)
+#'
+#' dim(spm$dr2mat_site)   # mutants x residues
+#' dim(spm$dr2mat_mode)   # mutants x modes
+#'
+#' # The same displacement in two bases: each row sums to the same total.
+#' all.equal(rowSums(spm$dr2mat_site), rowSums(spm$dr2mat_mode))
 #' }
 #' @export
 generate_spm <- function(wt, n_mutations = 10,
