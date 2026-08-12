@@ -75,7 +75,7 @@ nm <- rownames(m)
 exported <- getNamespaceExports("msamodel")
 
 role_of <- function(x) {
-  if (x == "setup_enm") return("setup")
+  if (x == "set_enm") return("setup")
   if (x %in% c("generate_spm", "generate_spm_core")) return("spm")
   if (grepl("^predict_", x) || grepl("^se_", x) ||
       grepl("^var_param_", x) || grepl("^var_spm_", x) ||
@@ -155,7 +155,7 @@ stage_dot <- function(roots, title) {
 }
 
 # --- the three pipeline stages (entry points; callees follow transitively) ----------
-build_fit_roots <- c("setup_enm", "generate_spm",
+build_fit_roots <- c("set_enm", "generate_spm",
                      "fit_lrmsd_msa_site", "fit_lrmsd_msa_mode")
 calculate_roots <- c("calculate_profiles", "calculate_decomposition")
 predict_roots   <- c("predict_profiles", "predict_decomposition")

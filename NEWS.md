@@ -2,6 +2,27 @@
 
 ## Breaking changes
 
+* **`setup_enm()` is removed; use `set_enm()`.** It had become a pure forward to
+  `penm::set_enm()` — a copy of penm's signature (so penm's defaults could drift out
+  of sync here unnoticed) plus one class check. `set_enm()` is now re-exported, so
+  `library(msamodel)` is still all you need to attach; it carries penm's own
+  documentation and defaults.
+
+  ```r
+  wt <- setup_enm(pdb, node = "ca", d_max = 10.5)   # was
+  wt <- set_enm(pdb, node = "ca", d_max = 10.5)     # now
+  ```
+
+  **`set_enm()` has no default arguments** — `node`, `model`, `d_max` and
+  `frustrated` are all required. `setup_enm()` had been supplying `"sc"`,
+  `"ming_wall"`, `10.5` and `FALSE`, so a call that omitted any of them now errors
+  with `argument "frustrated" is missing, with no default`. Pass all five explicitly:
+
+  ```r
+  wt <- set_enm(pdb, node = "ca", model = "ming_wall", d_max = 10.5,
+                frustrated = FALSE)
+  ```
+
 * **`generate_spm_data()` is renamed `generate_spm()`, and the object it returns
   no longer exposes the model's index notation.** A user has no reason to know that
   `i` is a response site, `n` a response mode, `j` the mutated site and `m` the

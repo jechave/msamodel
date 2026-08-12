@@ -55,7 +55,7 @@ Everything starts from your two inputs: a structure file and a vector of
 active-site residue numbers. We use the worked example `1znb_A` (zinc
 beta-lactamase) that ships with the package; swap in your own at the two marked
 lines. You read the structure file with bio3d — `bio3d::read.pdb()` for a `.pdb` file,
-`bio3d::read.cif()` for mmCIF — and pass the result to `setup_enm()`.
+`bio3d::read.cif()` for mmCIF — and pass the result to `set_enm()`.
 
 
 ```r
@@ -90,13 +90,14 @@ single-point-mutation scan (`spm`):
 
 ```r
 wt_pdb <- bio3d::read.pdb(pdb_file)
-wt     <- setup_enm(wt_pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+wt     <- set_enm(wt_pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
 spm    <- generate_spm(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
                             min_sd = 2, pdb_site_active = pdb_site_active, seed = 1024)
 ```
 
-The arguments above are the model's defaults — you can keep them for a first run.
-`setup_enm()` builds the elastic network: `node = "ca"` puts one node per residue at its
+The settings above are the ones we use throughout — you can keep them for a first run.
+`set_enm()` builds the elastic network (it requires all five arguments, having no
+defaults of its own): `node = "ca"` puts one node per residue at its
 C-alpha, `d_max = 10.5` (Å) sets how close two residues must be to be connected, and
 `model`/`frustrated` pick the spring rules. `generate_spm()` runs the scan:
 `n_mutations` mutants per site, `sigma` the mutation strength, `min_sd` the minimum

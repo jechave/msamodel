@@ -167,14 +167,14 @@ pdb_site_active
 From those inputs the package reads the structure, builds an elastic network model of it
 (`wt`), and runs a **single-point-mutation scan** (`spm`) — mutating every site in turn
 and recording how the structure responds. This scan is the raw material the model turns
-into a divergence profile. The `setup_enm()` and `generate_spm()` arguments below
+into a divergence profile. The `set_enm()` and `generate_spm()` arguments below
 configure the network model and the scan; leave them at these values to follow along
 (the [site analysis](site-analysis.html) vignette covers what they do and how to tune
 them). Only the two file paths above are yours to change.
 
 ```{r build}
 wt_pdb <- bio3d::read.pdb(pdb_file)
-wt     <- setup_enm(wt_pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+wt     <- set_enm(wt_pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
 spm    <- generate_spm(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
                             min_sd = 2, pdb_site_active = pdb_site_active, seed = 1024)
 ```

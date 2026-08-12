@@ -44,7 +44,8 @@ pfix_msa(ddg = 1.2, ddgact = 0.4, a1 = 1, a2 = 1)
 
 # A whole scan:
 ex  <- function(f) system.file("extdata", f, package = "msamodel")
-wt  <- setup_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca", d_max = 10.5)
+wt  <- set_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca",
+                      model = "ming_wall", d_max = 10.5, frustrated = FALSE)
 spm <- generate_spm(wt, seed = 1024)
 pfix_msa(spm$energy_data$ddg, spm$energy_data$ddgact, a1 = 1, a2 = 1)
 }

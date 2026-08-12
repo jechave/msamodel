@@ -34,7 +34,7 @@ delta_structure_dr <- function(wt, mut) {
 #' is the boundary between the two vocabularies.
 #'
 #' @param wt Wild-type protein structure with an elastic network model, as
-#'   returned by [setup_enm()].
+#'   returned by [set_enm()].
 #' @param n_mutations Number of mutant replicates to generate per site.
 #' @param model Name of the mutation model to apply (passed to the ENM machinery).
 #' @param sigma Mutation strength (the perturbation magnitude).
@@ -179,13 +179,14 @@ generate_spm_core <- function(wt, n_mutations = 10,
 #'       column position (`site`).}
 #'     \item{`mode_map`}{The mode index for each `dr2mat_mode` column.}
 #'   }
-#' @seealso [setup_enm()] (builds the elastic network model this needs);
+#' @seealso [set_enm()] (builds the elastic network model this needs);
 #'   [calculate_profiles()] and [fit_lrmsd_msa_site()] (consume the returned object).
 #' @family spm
 #' @examples
 #' \dontrun{
 #' ex  <- function(f) system.file("extdata", f, package = "msamodel")
-#' wt  <- setup_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca", d_max = 10.5)
+#' wt  <- set_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca",
+#'                       model = "ming_wall", d_max = 10.5, frustrated = FALSE)
 #' act <- readr::read_csv(ex("znb_active_site.csv"))
 #' spm <- generate_spm(wt, n_mutations = 10, pdb_site_active = act$pdb_site,
 #'                     seed = 1024)

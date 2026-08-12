@@ -49,12 +49,12 @@ test_that("a single mutant row reproduces from its seeded recipe (cheap coherenc
                                 ddgact_tds(znb_wt, mut, pdb_site_active = PDB_SITE_ACTIVE))
 })
 
-test_that("setup_enm reproduces the wild-type ENM fixture", {
+test_that("set_enm reproduces the wild-type ENM fixture", {
   skip_if_not_full()
   # Reads the shipped PDB file, the same input make-znb-fixtures.R uses -- there is no
   # serialized bio3d object any more, because a user starts from a .pdb file too.
   pdb <- bio3d::read.pdb(system.file("extdata", "1znb_A.pdb", package = "msamodel"))
-  wt  <- setup_enm(pdb, node = ENM_NODE, model = ENM_MODEL,
+  wt  <- set_enm(pdb, node = ENM_NODE, model = ENM_MODEL,
                    d_max = ENM_DMAX, frustrated = ENM_FRUST)
   expect_equal(wt, znb_wt)
 })

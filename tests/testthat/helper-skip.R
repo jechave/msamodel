@@ -1,5 +1,5 @@
 # Gate for the heavy FULL SPM regeneration (~21 s: re-runs the entire 2280-row
-# generate_spm + setup_enm to prove the embedded znb_* fixtures reproduce from
+# generate_spm + set_enm to prove the embedded znb_* fixtures reproduce from
 # their recipe). The default suite runs a CHEAP single-mutant coherence check
 # instead (see test-spm-generate.R).
 #
