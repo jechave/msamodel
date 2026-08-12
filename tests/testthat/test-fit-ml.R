@@ -48,7 +48,7 @@ test_that("ML sits at a local max of its own objective (consistency)", {
   bg  <- log2(ml$a2 + 1) + c(-0.3, -0.15, 0, 0.15, 0.3)
   G   <- expand.grid(a1 = a1g, b = bg)
   ll  <- apply(G, 1L, function(r)
-    msamodel:::loglik_lrmsd_msa(pp$dr2_ijm, pp$energy_data, msamodel:::resolve_site_obs(pp, znb_profile$pdb_site, znb_profile$lrmsd_obs), a1 = r[["a1"]], a2 = 2^r[["b"]] - 1))
+    msamodel:::loglik_lrmsd_msa(pp$dr2mat_site, pp$energy_data, msamodel:::resolve_site_obs(pp, znb_profile$pdb_site, znb_profile$lrmsd_obs), a1 = r[["a1"]], a2 = 2^r[["b"]] - 1))
 
   expect_gte(ml$logLik, max(ll) - 1e-8)
 })

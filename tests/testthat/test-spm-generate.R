@@ -29,7 +29,7 @@ test_that("a single mutant row reproduces from its seeded recipe (cheap coherenc
   # path. If single-row reproduction ever fails, that is a fail-loud drift bug.
   #
   # znb_spm is now the assembled `spm` object: the per-mutant divergences live as ROWS
-  # of the dr2_ijm / dr2_njm matrices, aligned to energy_data row order. We locate the
+  # of the dr2mat_site / dr2mat_mode matrices, aligned to energy_data row order. We locate the
   # (j=1, m=3) mutant's row k in energy_data and compare against the matrix rows.
   ed <- znb_spm$energy_data
   k  <- which(ed$j == 1L & ed$m == 3L)              # a fixed, real (j, m>0) mutant
@@ -41,11 +41,11 @@ test_that("a single mutant row reproduces from its seeded recipe (cheap coherenc
 
   # Same measured divergences the generation loop records for this row: the matrix row
   # compares directly against penm's per-mutant vectors (both nameless).
-  expect_equal(znb_spm$dr2_ijm[k, ], penm::delta_structure_dr2i(znb_wt, mut))
-  expect_equal(znb_spm$dr2_njm[k, ], penm::delta_structure_dr2n(znb_wt, mut))
+  expect_equal(znb_spm$dr2mat_site[k, ], penm::delta_structure_dr2i(znb_wt, mut))
+  expect_equal(znb_spm$dr2mat_mode[k, ], penm::delta_structure_dr2n(znb_wt, mut))
   # Summed stability / activity energy changes (energy_data carries the summed terms).
-  expect_equal(ed$ddg_jm[k],    ddg_dv(znb_wt, mut)  + ddg_tds(znb_wt, mut))
-  expect_equal(ed$ddgact_jm[k], ddgact_dv(znb_wt, mut, pdb_site_active = PDB_SITE_ACTIVE) +
+  expect_equal(ed$ddg[k],    ddg_dv(znb_wt, mut)  + ddg_tds(znb_wt, mut))
+  expect_equal(ed$ddgact[k], ddgact_dv(znb_wt, mut, pdb_site_active = PDB_SITE_ACTIVE) +
                                 ddgact_tds(znb_wt, mut, pdb_site_active = PDB_SITE_ACTIVE))
 })
 
@@ -90,7 +90,7 @@ test_that("SPM mode column equals penm's mode index (guards the seq_along choice
   # The raw scan stores `mode` as seq_along(dr2n) for speed; this confirms that vector
   # is exactly penm:::get_mode(wt), i.e. the mode-axis labels are the real normal-mode
   # indices, not an off-by-one stand-in. This is a property of the raw scan (the
-  # assembled object keeps the mode index implicitly as the dr2_njm column position).
+  # assembled object keeps the mode index implicitly as the dr2mat_mode column position).
   scan <- generate_spm_core(znb_wt, n_mutations = 1, pdb_site_active = PDB_SITE_ACTIVE,
                             seed = SPM_SEED)
   expect_equal(scan$mode[[1]], penm:::get_mode(znb_wt))

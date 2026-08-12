@@ -95,5 +95,5 @@ if (sys.nframe() == 0L) {
 
   message("wrote znb_wt.rds  (", fx$znb_wt$nodes$nsites, " sites)")
   message("wrote znb_spm.rds (", nrow(fx$znb_spm$energy_data), " mutants, ",
-          ncol(fx$znb_spm$dr2_ijm), " sites, ", ncol(fx$znb_spm$dr2_njm), " modes)")
+          ncol(fx$znb_spm$dr2mat_site), " sites, ", ncol(fx$znb_spm$dr2mat_mode), " modes)")
 }

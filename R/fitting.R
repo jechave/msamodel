@@ -31,15 +31,15 @@
 #' from the full-support centring of `nlrmsd_msa()`: the fit compares only the responses
 #' actually observed, whereas prediction centres over every response in the model.
 #'
-#' @param dr2_mat A `[mutant x response]` divergence matrix (`dr2_ijm` or `dr2_njm`).
+#' @param dr2mat A `[mutant x response]` divergence matrix (`dr2mat_site` or `dr2mat_mode`).
 #' @param energy_data The per-mutant energy tibble (for the fixation weights).
 #' @param obs Tibble `(idx, obs)`: observations already keyed by the internal index.
 #' @param a1,a2 Selection strengths.
 #' @return A list: `resid` (numeric vector, `obs - pred` after centring) and `obs_matched`
 #'   (the raw observed values on the matched rows, for the null deviance).
 #' @noRd
-residuals_lrmsd_msa <- function(dr2_mat, energy_data, obs, a1, a2) {
-  v    <- lrmsd_msa(dr2_mat, energy_data, a1, a2)
+residuals_lrmsd_msa <- function(dr2mat, energy_data, obs, a1, a2) {
+  v    <- lrmsd_msa(dr2mat, energy_data, a1, a2)
   cmp  <- inner_join(obs, tibble::tibble(idx = seq_along(v), pred = v), by = "idx")
   list(resid       = (cmp$obs - mean(cmp$obs)) - (cmp$pred - mean(cmp$pred)),
        obs_matched = cmp$obs)
@@ -54,8 +54,8 @@ residuals_lrmsd_msa <- function(dr2_mat, energy_data, obs, a1, a2) {
 #' @inheritParams residuals_lrmsd_msa
 #' @return A single numeric log-likelihood.
 #' @noRd
-loglik_lrmsd_msa <- function(dr2_mat, energy_data, obs, a1, a2) {
-  r     <- residuals_lrmsd_msa(dr2_mat, energy_data, obs, a1, a2)$resid
+loglik_lrmsd_msa <- function(dr2mat, energy_data, obs, a1, a2) {
+  r     <- residuals_lrmsd_msa(dr2mat, energy_data, obs, a1, a2)$resid
   sigma <- sqrt(mean(r^2))
   sum(dnorm(r, 0, sigma, log = TRUE))
 }
@@ -110,10 +110,10 @@ gof_lrmsd_msa <- function(r, logLik, k) {
 #' @param call The exported wrapper's `match.call()`, stored as `$call`.
 #' @return The fit list (see [fit_lrmsd_msa_site()] for the documented shape).
 #' @noRd
-fit_lrmsd_msa <- function(dr2_mat, energy_data, obs,
+fit_lrmsd_msa <- function(dr2mat, energy_data, obs,
                           a1_range, log2_a2_plus1_range, init, grid_n, call) {
   # --- 1. the objective, and the box it is optimised over ---------------------------
-  nll <- function(theta) -loglik_lrmsd_msa(dr2_mat, energy_data, obs,
+  nll <- function(theta) -loglik_lrmsd_msa(dr2mat, energy_data, obs,
                                            a1 = theta[1], a2 = 2^theta[2] - 1)
 
   if (length(a1_range) != 2 || a1_range[1] >= a1_range[2]) {
@@ -161,7 +161,7 @@ fit_lrmsd_msa <- function(dr2_mat, energy_data, obs,
 
   # --- 4. goodness of fit, from the residuals at the optimum ------------------------
   logLik <- -opt$value
-  gof    <- gof_lrmsd_msa(residuals_lrmsd_msa(dr2_mat, energy_data, obs, a1_hat, a2_hat),
+  gof    <- gof_lrmsd_msa(residuals_lrmsd_msa(dr2mat, energy_data, obs, a1_hat, a2_hat),
                           logLik = logLik,
                           k      = 3L)   # a1, a2, and the profiled sigma
 
@@ -282,7 +282,7 @@ resolve_mode_obs <- function(valid_modes, mode, lrmsd_obs) {
 #' Maximum-likelihood point fit of the MSA model to a site-axis profile
 #'
 #' Maximises the profiled Gaussian log-likelihood (`loglik_lrmsd_msa()`, evaluated on
-#' `spm$dr2_ijm`)
+#' `spm$dr2mat_site`)
 #' over `(a1, a2)` by numerical optimisation, returning a point estimate plus an
 #' asymptotic covariance from the Hessian at the optimum. Intended for large proteins
 #' and path simulations.
@@ -351,7 +351,7 @@ fit_lrmsd_msa_site <- function(spm,
                        grid_n = 25) {
   # The only axis-aware step: map pdb_site -> the internal site index (and raise the
   # site-axis unknown-key error), ONCE, before optimising. Everything after is axis-blind.
-  fit_lrmsd_msa(spm$dr2_ijm, spm$energy_data,
+  fit_lrmsd_msa(spm$dr2mat_site, spm$energy_data,
                 obs = resolve_site_obs(spm, pdb_site, lrmsd_obs),
                 a1_range, log2_a2_plus1_range, init, grid_n,
                 call = match.call())
@@ -363,7 +363,7 @@ fit_lrmsd_msa_site <- function(spm,
 #' log-likelihood over `(a1, a2)` by numerical optimisation, returning a point estimate
 #' plus an asymptotic covariance from the Hessian at the optimum. Identical machinery to
 #' the site fit -- the same axis-blind objective `loglik_lrmsd_msa()`, evaluated on
-#' `spm$dr2_njm` instead of `spm$dr2_ijm`; the response index is the mode (no `site_map`
+#' `spm$dr2mat_mode` instead of `spm$dr2mat_site`; the response index is the mode (no `site_map`
 #' / `pdb_site`).
 #'
 #' The optimiser works in the same coordinates as the site fit: `a1` and
@@ -373,7 +373,7 @@ fit_lrmsd_msa_site <- function(spm,
 #' of `a2` is obtained by the delta method (`da2/d(log2(a2+1)) = 2^(log2(a2+1)) * ln 2`).
 #'
 #' @param spm A single-point-mutation `spm` object from [generate_spm_data()] (energy_data +
-#'   the `dr2_njm` matrix; no `site_map`).
+#'   the `dr2mat_mode` matrix; no `site_map`).
 #' @param mode Integer vector of mode indices identifying the observations. Observations
 #'   are a `(mode, lrmsd_obs)` vector pair rather than a data frame, so the columns of
 #'   your own table can be named anything. Every value must exist in the model.
@@ -413,8 +413,8 @@ fit_lrmsd_msa_mode <- function(spm,
                        grid_n = 25) {
   # The only axis-aware step: the mode number IS the internal index (no site_map), so this
   # just range-checks it, ONCE, before optimising. Everything after is axis-blind.
-  fit_lrmsd_msa(spm$dr2_njm, spm$energy_data,
-                obs = resolve_mode_obs(seq_len(ncol(spm$dr2_njm)), mode, lrmsd_obs),
+  fit_lrmsd_msa(spm$dr2mat_mode, spm$energy_data,
+                obs = resolve_mode_obs(seq_len(ncol(spm$dr2mat_mode)), mode, lrmsd_obs),
                 a1_range, log2_a2_plus1_range, init, grid_n,
                 call = match.call())
 }

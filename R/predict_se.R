@@ -65,7 +65,7 @@ grad_theta <- function(f, theta, h = 1e-5) {
 #' Each response value is `lrmsd_v = 1/2 log(msd_v)` with `msd_v = sum_k w_k dr2[k, v]` a
 #' weighted mean over the finite mutant ensemble. The contribution matrix is built as:
 #' \preformatted{
-#'   G   = dr2_mat / (2 msd)                          # log-sensitivity d[1/2 log dr2]
+#'   G   = dr2mat / (2 msd)                          # log-sensitivity d[1/2 log dr2]
 #'   G   = G - rowMeans(G)          (centred only)    # d(nlrmsd)/d(cells): subtract the
 #'                                                    #   support mean this mutant drives
 #'   Gc  = G - colSums(G * w)                         # deviate from the w-weighted mean
@@ -79,7 +79,7 @@ grad_theta <- function(f, theta, h = 1e-5) {
 #' shared construction rather than selecting between two formulae, and the validation
 #' report depends on the signature.
 #'
-#' @param dr2_mat Numeric `[mutant k x response]` matrix of per-mutant divergences.
+#' @param dr2mat Numeric `[mutant k x response]` matrix of per-mutant divergences.
 #' @param weights Length-`nmutant` numeric averaging weights that MUST sum to 1 (as
 #'   produced by `weights_jm()`); `msd` is a weighted mean, so an unnormalised input is
 #'   an upstream error and is rejected rather than silently renormalised.
@@ -87,15 +87,15 @@ grad_theta <- function(f, theta, h = 1e-5) {
 #'   over the response support).
 #' @return A numeric `[mutant k x response]` contribution matrix `h`.
 #' @noRd
-spm_hmat <- function(dr2_mat, weights, centred) {
-  if (nrow(dr2_mat) != length(weights)) {
-    stop("spm_hmat: nrow(dr2_mat) (", nrow(dr2_mat), ") must equal length(weights) (",
+spm_hmat <- function(dr2mat, weights, centred) {
+  if (nrow(dr2mat) != length(weights)) {
+    stop("spm_hmat: nrow(dr2mat) (", nrow(dr2mat), ") must equal length(weights) (",
          length(weights), "); the mutant axes are misaligned.")
   }
   stopifnot("spm_hmat: weights must sum to 1 (normalise upstream via weights_jm())" =
               abs(sum(weights) - 1) < 1e-6)
-  msd <- colSums(dr2_mat * weights)
-  G   <- sweep(dr2_mat, 2, 2 * msd, "/")        # dr2 / (2 msd)
+  msd <- colSums(dr2mat * weights)
+  G   <- sweep(dr2mat, 2, 2 * msd, "/")        # dr2 / (2 msd)
   if (centred) G <- G - rowMeans(G)             # support-centre per mutant (nlrmsd)
   Gc  <- sweep(G, 2, colSums(G * weights))      # deviate from w-weighted per-response mean
   Gc * weights
@@ -138,13 +138,13 @@ se_from_variance_arms <- function(var_parameter, var_spm, what) {
 
 #' Parameter-arm variance of the uncentred lrmsd profile
 #'
-#' @param dr2_mat Numeric `[mutant x response]` divergence matrix (`dr2_ijm` or `dr2_njm`).
+#' @param dr2mat Numeric `[mutant x response]` divergence matrix (`dr2mat_site` or `dr2mat_mode`).
 #' @param energy_data The per-mutant energy tibble.
 #' @param fit An ML fit carrying `a1`, `a2`, `cov`.
 #' @return A per-element numeric variance vector.
 #' @noRd
-var_param_profile_lrmsd <- function(dr2_mat, energy_data, fit) {
-  J <- grad_theta(function(theta) lrmsd_msa(dr2_mat, energy_data, theta[1], 2^theta[2] - 1),
+var_param_profile_lrmsd <- function(dr2mat, energy_data, fit) {
+  J <- grad_theta(function(theta) lrmsd_msa(dr2mat, energy_data, theta[1], 2^theta[2] - 1),
                   c(fit$a1, log2(fit$a2 + 1)))
   rowSums((J %*% fit$cov) * J)                            # diag(J cov J^T)
 }
@@ -160,8 +160,8 @@ var_param_profile_lrmsd <- function(dr2_mat, energy_data, fit) {
 #' @inheritParams var_param_profile_lrmsd
 #' @return A per-element numeric variance vector.
 #' @noRd
-var_param_profile_nlrmsd <- function(dr2_mat, energy_data, fit) {
-  J <- grad_theta(function(theta) lrmsd_msa(dr2_mat, energy_data, theta[1], 2^theta[2] - 1),
+var_param_profile_nlrmsd <- function(dr2mat, energy_data, fit) {
+  J <- grad_theta(function(theta) lrmsd_msa(dr2mat, energy_data, theta[1], 2^theta[2] - 1),
                   c(fit$a1, log2(fit$a2 + 1)))
   J <- sweep(J, 2, colMeans(J))                           # column-centred Jacobian
   rowSums((J %*% fit$cov) * J)                            # diag(J cov J^T)
@@ -172,8 +172,8 @@ var_param_profile_nlrmsd <- function(dr2_mat, energy_data, fit) {
 #' @inheritParams var_param_profile_lrmsd
 #' @return A per-element numeric variance vector.
 #' @noRd
-var_spm_profile_lrmsd <- function(dr2_mat, energy_data, fit) {
-  colSums(spm_hmat(dr2_mat, weights_jm(energy_data, fit$a1, fit$a2), centred = FALSE)^2)
+var_spm_profile_lrmsd <- function(dr2mat, energy_data, fit) {
+  colSums(spm_hmat(dr2mat, weights_jm(energy_data, fit$a1, fit$a2), centred = FALSE)^2)
 }
 
 #' SPM-arm variance of the mean-centred nlrmsd profile
@@ -181,8 +181,8 @@ var_spm_profile_lrmsd <- function(dr2_mat, energy_data, fit) {
 #' @inheritParams var_param_profile_lrmsd
 #' @return A per-element numeric variance vector.
 #' @noRd
-var_spm_profile_nlrmsd <- function(dr2_mat, energy_data, fit) {
-  colSums(spm_hmat(dr2_mat, weights_jm(energy_data, fit$a1, fit$a2), centred = TRUE)^2)
+var_spm_profile_nlrmsd <- function(dr2mat, energy_data, fit) {
+  colSums(spm_hmat(dr2mat, weights_jm(energy_data, fit$a1, fit$a2), centred = TRUE)^2)
 }
 
 #' Standard error of the predicted uncentred lrmsd profile
@@ -190,9 +190,9 @@ var_spm_profile_nlrmsd <- function(dr2_mat, energy_data, fit) {
 #' @inheritParams var_param_profile_lrmsd
 #' @return A bare per-element numeric vector of standard errors.
 #' @noRd
-se_profile_lrmsd <- function(dr2_mat, energy_data, fit) {
-  se_from_variance_arms(var_param_profile_lrmsd(dr2_mat, energy_data, fit),
-                        var_spm_profile_lrmsd(dr2_mat, energy_data, fit),
+se_profile_lrmsd <- function(dr2mat, energy_data, fit) {
+  se_from_variance_arms(var_param_profile_lrmsd(dr2mat, energy_data, fit),
+                        var_spm_profile_lrmsd(dr2mat, energy_data, fit),
                         "lrmsd_msa")
 }
 
@@ -201,9 +201,9 @@ se_profile_lrmsd <- function(dr2_mat, energy_data, fit) {
 #' @inheritParams var_param_profile_lrmsd
 #' @return A bare per-element numeric vector of standard errors.
 #' @noRd
-se_profile_nlrmsd <- function(dr2_mat, energy_data, fit) {
-  se_from_variance_arms(var_param_profile_nlrmsd(dr2_mat, energy_data, fit),
-                        var_spm_profile_nlrmsd(dr2_mat, energy_data, fit),
+se_profile_nlrmsd <- function(dr2mat, energy_data, fit) {
+  se_from_variance_arms(var_param_profile_nlrmsd(dr2mat, energy_data, fit),
+                        var_spm_profile_nlrmsd(dr2mat, energy_data, fit),
                         "nlrmsd_msa")
 }
 
@@ -231,13 +231,13 @@ se_profile_nlrmsd <- function(dr2_mat, energy_data, fit) {
 #' @inheritParams var_param_profile_lrmsd
 #' @return A named list `mm`/`ms`/`ma`/`msa` of per-element variance vectors.
 #' @noRd
-var_param_nested_nlrmsd <- function(dr2_mat, energy_data, fit) {
+var_param_nested_nlrmsd <- function(dr2mat, energy_data, fit) {
   theta_hat <- c(fit$a1, log2(fit$a2 + 1))
 
-  J_mm <- grad_theta(function(theta) lrmsd_nested_models(dr2_mat, energy_data, theta[1], 2^theta[2] - 1)$mm,  theta_hat)
-  J_ms <- grad_theta(function(theta) lrmsd_nested_models(dr2_mat, energy_data, theta[1], 2^theta[2] - 1)$ms,  theta_hat)
-  J_ma <- grad_theta(function(theta) lrmsd_nested_models(dr2_mat, energy_data, theta[1], 2^theta[2] - 1)$ma,  theta_hat)
-  J_msa<- grad_theta(function(theta) lrmsd_nested_models(dr2_mat, energy_data, theta[1], 2^theta[2] - 1)$msa, theta_hat)
+  J_mm <- grad_theta(function(theta) lrmsd_nested_models(dr2mat, energy_data, theta[1], 2^theta[2] - 1)$mm,  theta_hat)
+  J_ms <- grad_theta(function(theta) lrmsd_nested_models(dr2mat, energy_data, theta[1], 2^theta[2] - 1)$ms,  theta_hat)
+  J_ma <- grad_theta(function(theta) lrmsd_nested_models(dr2mat, energy_data, theta[1], 2^theta[2] - 1)$ma,  theta_hat)
+  J_msa<- grad_theta(function(theta) lrmsd_nested_models(dr2mat, energy_data, theta[1], 2^theta[2] - 1)$msa, theta_hat)
 
   J_mm  <- sweep(J_mm,  2, colMeans(J_mm))                # column-centred Jacobians
   J_ms  <- sweep(J_ms,  2, colMeans(J_ms))
@@ -258,12 +258,12 @@ var_param_nested_nlrmsd <- function(dr2_mat, energy_data, fit) {
 #' @inheritParams var_param_profile_lrmsd
 #' @return A named list `mm`/`ms`/`ma`/`msa` of per-element variance vectors.
 #' @noRd
-var_spm_nested_nlrmsd <- function(dr2_mat, energy_data, fit) {
+var_spm_nested_nlrmsd <- function(dr2mat, energy_data, fit) {
   list(
-    mm  = colSums(spm_hmat(dr2_mat, weights_jm(energy_data, 0,      0),      centred = TRUE)^2),
-    ms  = colSums(spm_hmat(dr2_mat, weights_jm(energy_data, fit$a1, 0),      centred = TRUE)^2),
-    ma  = colSums(spm_hmat(dr2_mat, weights_jm(energy_data, 0,      fit$a2), centred = TRUE)^2),
-    msa = colSums(spm_hmat(dr2_mat, weights_jm(energy_data, fit$a1, fit$a2), centred = TRUE)^2)
+    mm  = colSums(spm_hmat(dr2mat, weights_jm(energy_data, 0,      0),      centred = TRUE)^2),
+    ms  = colSums(spm_hmat(dr2mat, weights_jm(energy_data, fit$a1, 0),      centred = TRUE)^2),
+    ma  = colSums(spm_hmat(dr2mat, weights_jm(energy_data, 0,      fit$a2), centred = TRUE)^2),
+    msa = colSums(spm_hmat(dr2mat, weights_jm(energy_data, fit$a1, fit$a2), centred = TRUE)^2)
   )
 }
 
@@ -272,9 +272,9 @@ var_spm_nested_nlrmsd <- function(dr2_mat, energy_data, fit) {
 #' @inheritParams var_param_profile_lrmsd
 #' @return A named list `mm`/`ms`/`ma`/`msa` of per-element standard-error vectors.
 #' @noRd
-se_nested_nlrmsd <- function(dr2_mat, energy_data, fit) {
-  var_parameter <- var_param_nested_nlrmsd(dr2_mat, energy_data, fit)
-  var_spm       <- var_spm_nested_nlrmsd(dr2_mat, energy_data, fit)
+se_nested_nlrmsd <- function(dr2mat, energy_data, fit) {
+  var_parameter <- var_param_nested_nlrmsd(dr2mat, energy_data, fit)
+  var_spm       <- var_spm_nested_nlrmsd(dr2mat, energy_data, fit)
 
   list(
     mm  = se_from_variance_arms(var_parameter$mm,  var_spm$mm,  "nlrmsd_mm"),
@@ -296,7 +296,7 @@ se_nested_nlrmsd <- function(dr2_mat, energy_data, fit) {
 #' @inheritParams var_param_profile_lrmsd
 #' @return Never returns; stops.
 #' @noRd
-se_nested_lrmsd <- function(dr2_mat, energy_data, fit) {
+se_nested_lrmsd <- function(dr2mat, energy_data, fit) {
   stop("standard errors for metric = \"lrmsd\" are still to be developed; ",
        "use metric = \"nlrmsd\" for a decomposition with error bands, or ",
        "calculate_decomposition() for lrmsd point values without them.")
@@ -326,12 +326,12 @@ se_nested_lrmsd <- function(dr2_mat, energy_data, fit) {
 #' @inheritParams var_param_profile_lrmsd
 #' @return A named list `mut`/`stab`/`act` of per-element variance vectors.
 #' @noRd
-var_param_components_nlrmsd <- function(dr2_mat, energy_data, fit) {
+var_param_components_nlrmsd <- function(dr2mat, energy_data, fit) {
   theta_hat <- c(fit$a1, log2(fit$a2 + 1))
 
-  J_mut  <- grad_theta(function(theta) lrmsd_msa_decomposition(dr2_mat, energy_data, theta[1], 2^theta[2] - 1)$phi_mut,  theta_hat)
-  J_stab <- grad_theta(function(theta) lrmsd_msa_decomposition(dr2_mat, energy_data, theta[1], 2^theta[2] - 1)$phi_stab, theta_hat)
-  J_act  <- grad_theta(function(theta) lrmsd_msa_decomposition(dr2_mat, energy_data, theta[1], 2^theta[2] - 1)$phi_act,  theta_hat)
+  J_mut  <- grad_theta(function(theta) lrmsd_msa_decomposition(dr2mat, energy_data, theta[1], 2^theta[2] - 1)$phi_mut,  theta_hat)
+  J_stab <- grad_theta(function(theta) lrmsd_msa_decomposition(dr2mat, energy_data, theta[1], 2^theta[2] - 1)$phi_stab, theta_hat)
+  J_act  <- grad_theta(function(theta) lrmsd_msa_decomposition(dr2mat, energy_data, theta[1], 2^theta[2] - 1)$phi_act,  theta_hat)
 
   J_mut  <- sweep(J_mut,  2, colMeans(J_mut))             # column-centred Jacobians
   J_stab <- sweep(J_stab, 2, colMeans(J_stab))
@@ -352,10 +352,10 @@ var_param_components_nlrmsd <- function(dr2_mat, energy_data, fit) {
 #' @inheritParams var_param_profile_lrmsd
 #' @return A named list `mut`/`stab`/`act` of per-element variance vectors.
 #' @noRd
-var_spm_components_nlrmsd <- function(dr2_mat, energy_data, fit) {
-  h_mm  <- spm_hmat(dr2_mat, weights_jm(energy_data, 0,      0),      centred = TRUE)
-  h_ms  <- spm_hmat(dr2_mat, weights_jm(energy_data, fit$a1, 0),      centred = TRUE)
-  h_msa <- spm_hmat(dr2_mat, weights_jm(energy_data, fit$a1, fit$a2), centred = TRUE)
+var_spm_components_nlrmsd <- function(dr2mat, energy_data, fit) {
+  h_mm  <- spm_hmat(dr2mat, weights_jm(energy_data, 0,      0),      centred = TRUE)
+  h_ms  <- spm_hmat(dr2mat, weights_jm(energy_data, fit$a1, 0),      centred = TRUE)
+  h_msa <- spm_hmat(dr2mat, weights_jm(energy_data, fit$a1, fit$a2), centred = TRUE)
 
   list(mut  = colSums(h_mm^2),               # nphi_mut  = nlrmsd_mm
        stab = colSums((h_ms  - h_mm)^2),     # nphi_stab = nlrmsd_ms  - nlrmsd_mm
@@ -367,9 +367,9 @@ var_spm_components_nlrmsd <- function(dr2_mat, energy_data, fit) {
 #' @inheritParams var_param_profile_lrmsd
 #' @return A named list `mut`/`stab`/`act` of per-element standard-error vectors.
 #' @noRd
-se_components_nlrmsd <- function(dr2_mat, energy_data, fit) {
-  var_parameter <- var_param_components_nlrmsd(dr2_mat, energy_data, fit)
-  var_spm       <- var_spm_components_nlrmsd(dr2_mat, energy_data, fit)
+se_components_nlrmsd <- function(dr2mat, energy_data, fit) {
+  var_parameter <- var_param_components_nlrmsd(dr2mat, energy_data, fit)
+  var_spm       <- var_spm_components_nlrmsd(dr2mat, energy_data, fit)
 
   list(
     mut  = se_from_variance_arms(var_parameter$mut,  var_spm$mut,  "nphi_mut"),
@@ -390,7 +390,7 @@ se_components_nlrmsd <- function(dr2_mat, energy_data, fit) {
 #' @inheritParams var_param_profile_lrmsd
 #' @return Never returns; stops.
 #' @noRd
-se_components_lrmsd <- function(dr2_mat, energy_data, fit) {
+se_components_lrmsd <- function(dr2mat, energy_data, fit) {
   stop("standard errors for metric = \"lrmsd\" are still to be developed; ",
        "use metric = \"nlrmsd\" for a decomposition with error bands, or ",
        "calculate_decomposition() for lrmsd point values without them.")

@@ -118,7 +118,7 @@ spm <- generate_spm_data(wt,
 site_fit <- fit_lrmsd_msa_site(spm, lrmsd_obs_site$pdb_site,
                                lrmsd_obs_site$lrmsd_obs)   # deterministic (a1,a2)
 
-dr2_n_true <- dr2_msa(spm$dr2_njm, spm$energy_data, site_fit$a1, site_fit$a2)
+dr2_n_true <- dr2_msa(spm$dr2mat_mode, spm$energy_data, site_fit$a1, site_fit$a2)
 
 set.seed(SYN_SEED)
 lrmsd_obs_mode_syn <- tibble::tibble(

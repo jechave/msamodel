@@ -7,8 +7,8 @@
 # no fit and hence nothing to be uncertain about.
 #
 # Each verb returns list(site = <tibble>, mode = <tibble>) -- both response axes every
-# call. The two axes are the same math on a different divergence matrix (`dr2_ijm` for
-# sites, `dr2_njm` for modes), and are written out rather than looped: there are exactly
+# call. The two axes are the same math on a different divergence matrix (`dr2mat_site` for
+# sites, `dr2mat_mode` for modes), and are written out rather than looped: there are exactly
 # two of them.
 #
 # Goodness of fit is NOT here: the fitter computes it at the optimum and attaches it as
@@ -80,29 +80,29 @@ predict_profiles <- function(fit, spm, metric = c("lrmsd", "nlrmsd")) {
   metric <- match.arg(metric)
   validate_ml_fit(fit, "fit_lrmsd_msa_site() / fit_lrmsd_msa_mode()")
 
-  # --- site axis (responses are residues; dr2_ijm)
+  # --- site axis (responses are residues; dr2mat_site)
   if (metric == "nlrmsd") {
     site_profile <- tibble(
-      nlrmsd_msa    = nlrmsd_msa(spm$dr2_ijm, spm$energy_data, fit$a1, fit$a2),
-      nlrmsd_msa_se = se_profile_nlrmsd(spm$dr2_ijm, spm$energy_data, fit))
+      nlrmsd_msa    = nlrmsd_msa(spm$dr2mat_site, spm$energy_data, fit$a1, fit$a2),
+      nlrmsd_msa_se = se_profile_nlrmsd(spm$dr2mat_site, spm$energy_data, fit))
   } else if (metric == "lrmsd") {
     site_profile <- tibble(
-      lrmsd_msa    = lrmsd_msa(spm$dr2_ijm, spm$energy_data, fit$a1, fit$a2),
-      lrmsd_msa_se = se_profile_lrmsd(spm$dr2_ijm, spm$energy_data, fit))
+      lrmsd_msa    = lrmsd_msa(spm$dr2mat_site, spm$energy_data, fit$a1, fit$a2),
+      lrmsd_msa_se = se_profile_lrmsd(spm$dr2mat_site, spm$energy_data, fit))
   } else {
     stop(unimplemented_metric_message(metric))
   }
   site_profile <- prepend_site_key(spm$site_map, site_profile)
 
-  # --- mode axis (responses are normal modes; dr2_njm)
+  # --- mode axis (responses are normal modes; dr2mat_mode)
   if (metric == "nlrmsd") {
     mode_profile <- tibble(
-      nlrmsd_msa    = nlrmsd_msa(spm$dr2_njm, spm$energy_data, fit$a1, fit$a2),
-      nlrmsd_msa_se = se_profile_nlrmsd(spm$dr2_njm, spm$energy_data, fit))
+      nlrmsd_msa    = nlrmsd_msa(spm$dr2mat_mode, spm$energy_data, fit$a1, fit$a2),
+      nlrmsd_msa_se = se_profile_nlrmsd(spm$dr2mat_mode, spm$energy_data, fit))
   } else if (metric == "lrmsd") {
     mode_profile <- tibble(
-      lrmsd_msa    = lrmsd_msa(spm$dr2_njm, spm$energy_data, fit$a1, fit$a2),
-      lrmsd_msa_se = se_profile_lrmsd(spm$dr2_njm, spm$energy_data, fit))
+      lrmsd_msa    = lrmsd_msa(spm$dr2mat_mode, spm$energy_data, fit$a1, fit$a2),
+      lrmsd_msa_se = se_profile_lrmsd(spm$dr2mat_mode, spm$energy_data, fit))
   } else {
     stop(unimplemented_metric_message(metric))
   }
@@ -165,12 +165,12 @@ predict_decomposition <- function(fit, spm, metric = c("nlrmsd", "lrmsd")) {
   # nphi_mut/..., and `decomposition_se` is a bare mut/stab/act -- so every column is
   # named where it is built.
 
-  # --- site axis (responses are residues; dr2_ijm)
+  # --- site axis (responses are residues; dr2mat_site)
   if (metric == "nlrmsd") {
-    nested           <- nlrmsd_nested_models(spm$dr2_ijm, spm$energy_data, fit$a1, fit$a2)
-    nested_se        <- se_nested_nlrmsd(spm$dr2_ijm, spm$energy_data, fit)
-    decomposition    <- nlrmsd_msa_decomposition(spm$dr2_ijm, spm$energy_data, fit$a1, fit$a2)
-    decomposition_se <- se_components_nlrmsd(spm$dr2_ijm, spm$energy_data, fit)
+    nested           <- nlrmsd_nested_models(spm$dr2mat_site, spm$energy_data, fit$a1, fit$a2)
+    nested_se        <- se_nested_nlrmsd(spm$dr2mat_site, spm$energy_data, fit)
+    decomposition    <- nlrmsd_msa_decomposition(spm$dr2mat_site, spm$energy_data, fit$a1, fit$a2)
+    decomposition_se <- se_components_nlrmsd(spm$dr2mat_site, spm$energy_data, fit)
     site_decomposition <- tibble(
       nlrmsd_mm     = nested$mm,
       nlrmsd_ms     = nested$ms,
@@ -187,10 +187,10 @@ predict_decomposition <- function(fit, spm, metric = c("nlrmsd", "lrmsd")) {
       nphi_stab_se  = decomposition_se$stab,
       nphi_act_se   = decomposition_se$act)
   } else if (metric == "lrmsd") {
-    nested           <- lrmsd_nested_models(spm$dr2_ijm, spm$energy_data, fit$a1, fit$a2)
-    nested_se        <- se_nested_lrmsd(spm$dr2_ijm, spm$energy_data, fit)       # stops
-    decomposition    <- lrmsd_msa_decomposition(spm$dr2_ijm, spm$energy_data, fit$a1, fit$a2)
-    decomposition_se <- se_components_lrmsd(spm$dr2_ijm, spm$energy_data, fit)   # stops
+    nested           <- lrmsd_nested_models(spm$dr2mat_site, spm$energy_data, fit$a1, fit$a2)
+    nested_se        <- se_nested_lrmsd(spm$dr2mat_site, spm$energy_data, fit)       # stops
+    decomposition    <- lrmsd_msa_decomposition(spm$dr2mat_site, spm$energy_data, fit$a1, fit$a2)
+    decomposition_se <- se_components_lrmsd(spm$dr2mat_site, spm$energy_data, fit)   # stops
     site_decomposition <- tibble(
       lrmsd_mm     = nested$mm,
       lrmsd_ms     = nested$ms,
@@ -211,12 +211,12 @@ predict_decomposition <- function(fit, spm, metric = c("nlrmsd", "lrmsd")) {
   }
   site_decomposition <- prepend_site_key(spm$site_map, site_decomposition)
 
-  # --- mode axis (responses are normal modes; dr2_njm)
+  # --- mode axis (responses are normal modes; dr2mat_mode)
   if (metric == "nlrmsd") {
-    nested           <- nlrmsd_nested_models(spm$dr2_njm, spm$energy_data, fit$a1, fit$a2)
-    nested_se        <- se_nested_nlrmsd(spm$dr2_njm, spm$energy_data, fit)
-    decomposition    <- nlrmsd_msa_decomposition(spm$dr2_njm, spm$energy_data, fit$a1, fit$a2)
-    decomposition_se <- se_components_nlrmsd(spm$dr2_njm, spm$energy_data, fit)
+    nested           <- nlrmsd_nested_models(spm$dr2mat_mode, spm$energy_data, fit$a1, fit$a2)
+    nested_se        <- se_nested_nlrmsd(spm$dr2mat_mode, spm$energy_data, fit)
+    decomposition    <- nlrmsd_msa_decomposition(spm$dr2mat_mode, spm$energy_data, fit$a1, fit$a2)
+    decomposition_se <- se_components_nlrmsd(spm$dr2mat_mode, spm$energy_data, fit)
     mode_decomposition <- tibble(
       nlrmsd_mm     = nested$mm,
       nlrmsd_ms     = nested$ms,
@@ -233,10 +233,10 @@ predict_decomposition <- function(fit, spm, metric = c("nlrmsd", "lrmsd")) {
       nphi_stab_se  = decomposition_se$stab,
       nphi_act_se   = decomposition_se$act)
   } else if (metric == "lrmsd") {
-    nested           <- lrmsd_nested_models(spm$dr2_njm, spm$energy_data, fit$a1, fit$a2)
-    nested_se        <- se_nested_lrmsd(spm$dr2_njm, spm$energy_data, fit)       # stops
-    decomposition    <- lrmsd_msa_decomposition(spm$dr2_njm, spm$energy_data, fit$a1, fit$a2)
-    decomposition_se <- se_components_lrmsd(spm$dr2_njm, spm$energy_data, fit)   # stops
+    nested           <- lrmsd_nested_models(spm$dr2mat_mode, spm$energy_data, fit$a1, fit$a2)
+    nested_se        <- se_nested_lrmsd(spm$dr2mat_mode, spm$energy_data, fit)       # stops
+    decomposition    <- lrmsd_msa_decomposition(spm$dr2mat_mode, spm$energy_data, fit$a1, fit$a2)
+    decomposition_se <- se_components_lrmsd(spm$dr2mat_mode, spm$energy_data, fit)   # stops
     mode_decomposition <- tibble(
       lrmsd_mm     = nested$mm,
       lrmsd_ms     = nested$ms,

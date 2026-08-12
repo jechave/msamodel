@@ -120,7 +120,7 @@ test_that("a metric with no branch fails loud instead of falling through to lrms
 
 test_that("a site_map inconsistent with the profile length fails loud, not silently NA", {
   # prepend_site_key binds site_map on POSITIONALLY (it is already the (site, pdb_site)
-  # key table in dr2_ijm column order). The previous left_join against a manufactured
+  # key table in dr2mat_site column order). The previous left_join against a manufactured
   # index would have silently filled pdb_site with NA on a mismatch; this must error.
   bad <- znb_spm
   bad$site_map <- bad$site_map[1:100, ]

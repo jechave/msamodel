@@ -16,10 +16,10 @@
 #' *not* normalised -- turning fixation probabilities into averaging weights over a
 #' particular ensemble of mutants is a separate, ensemble-specific step.
 #'
-#' @param ddg Stability free-energy change(s) of the mutant(s) (`ddg_jm`). Scalar or
-#'   vector.
-#' @param ddgact Activity free-energy change(s) of the mutant(s) (`ddgact_jm`), the
-#'   same length as `ddg`.
+#' @param ddg Stability free-energy change(s) of the mutant(s), as carried in an
+#'   `spm` object's `energy_data$ddg`. Scalar or vector.
+#' @param ddgact Activity free-energy change(s) of the mutant(s)
+#'   (`energy_data$ddgact`), the same length as `ddg`.
 #' @param a1 Stability selection strength (non-negative). `0` disables stability
 #'   selection.
 #' @param a2 Activity selection strength (non-negative). `0` disables activity
@@ -37,7 +37,7 @@
 #' ex  <- function(f) system.file("extdata", f, package = "msamodel")
 #' wt  <- setup_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca", d_max = 10.5)
 #' spm <- generate_spm_data(wt, seed = 1024)
-#' pfix_msa(spm$energy_data$ddg_jm, spm$energy_data$ddgact_jm, a1 = 1, a2 = 1)
+#' pfix_msa(spm$energy_data$ddg, spm$energy_data$ddgact, a1 = 1, a2 = 1)
 #' }
 #' @export
 pfix_msa <- function(ddg, ddgact, a1, a2) {
@@ -47,9 +47,9 @@ pfix_msa <- function(ddg, ddgact, a1, a2) {
 }
 
 # ---- axis-blind forward-map primitives (internal) ---------------------------------
-# The site (_i_/dr2_ijm) and mode (_n_/dr2_njm) forward maps are the same math on a
+# The site (_i_/dr2mat_site) and mode (_n_/dr2mat_mode) forward maps are the same math on a
 # different response-mutation matrix. These primitives hold that shared math: they take
-# a bare [mutant x response] matrix `dr2_mat` (either dr2_ijm or dr2_njm) plus the
+# a bare [mutant x response] matrix `dr2mat` (either dr2mat_site or dr2mat_mode) plus the
 # `energy_data` tibble, and return bare vectors (or a named list of bare vectors) in
 # matrix-column order -- no index, no tibble, no site_map. Alignment is by column
 # POSITION (the dr2 matrices carry no column names by construction); the exported verbs
@@ -62,14 +62,14 @@ pfix_msa <- function(ddg, ddgact, a1, a2) {
 #' the per-mutant energies directly from an `energy_data` tibble, so the forward-map
 #' primitives obtain their weights without the `spm` object.
 #'
-#' @param energy_data A tibble carrying per-mutant `ddg_jm` and `ddgact_jm` columns.
+#' @param energy_data A tibble carrying per-mutant `ddg` and `ddgact` columns.
 #' @param a1 Stability selection strength (non-negative).
 #' @param a2 Activity selection strength (non-negative).
 #' @return A numeric vector of averaging weights, one per mutant, summing to one.
 #' @family model
 #' @noRd
 weights_jm <- function(energy_data, a1, a2) {
-  pfix_jm <- pfix_msa(energy_data$ddg_jm, energy_data$ddgact_jm, a1, a2)
+  pfix_jm <- pfix_msa(energy_data$ddg, energy_data$ddgact, a1, a2)
   pfix_jm / sum(pfix_jm)
 }
 
@@ -78,15 +78,15 @@ weights_jm <- function(energy_data, a1, a2) {
 #' Weights each mutant by its MSA fixation probability and averages the per-response
 #' squared displacements over mutants. The forward-map core the leaf verbs are built on.
 #'
-#' @param dr2_mat A `[mutant x response]` divergence matrix (`dr2_ijm` or `dr2_njm`).
+#' @param dr2mat A `[mutant x response]` divergence matrix (`dr2mat_site` or `dr2mat_mode`).
 #' @param energy_data The per-mutant energy tibble (for the weights).
 #' @param a1,a2 Selection strengths.
 #' @return A numeric vector of per-response `dr2`, in column order.
 #' @family model
 #' @noRd
-dr2_msa <- function(dr2_mat, energy_data, a1, a2) {
+dr2_msa <- function(dr2mat, energy_data, a1, a2) {
   w <- weights_jm(energy_data, a1, a2)
-  colSums(dr2_mat * w)
+  colSums(dr2mat * w)
 }
 
 #' Axis-blind per-response log structural divergence at one (a1, a2)
@@ -97,8 +97,8 @@ dr2_msa <- function(dr2_mat, energy_data, a1, a2) {
 #' @return A numeric vector of per-response `lrmsd`, in column order.
 #' @family model
 #' @noRd
-lrmsd_msa <- function(dr2_mat, energy_data, a1, a2) {
-  log(sqrt(dr2_msa(dr2_mat, energy_data, a1, a2)))
+lrmsd_msa <- function(dr2mat, energy_data, a1, a2) {
+  log(sqrt(dr2_msa(dr2mat, energy_data, a1, a2)))
 }
 
 #' Axis-blind mean-centred per-response log divergence at one (a1, a2)
@@ -109,8 +109,8 @@ lrmsd_msa <- function(dr2_mat, energy_data, a1, a2) {
 #' @return A numeric vector of per-response `nlrmsd`, in column order.
 #' @family model
 #' @noRd
-nlrmsd_msa <- function(dr2_mat, energy_data, a1, a2) {
-  lrmsd <- lrmsd_msa(dr2_mat, energy_data, a1, a2)
+nlrmsd_msa <- function(dr2mat, energy_data, a1, a2) {
+  lrmsd <- lrmsd_msa(dr2mat, energy_data, a1, a2)
   lrmsd - mean(lrmsd)
 }
 
@@ -123,8 +123,8 @@ nlrmsd_msa <- function(dr2_mat, energy_data, a1, a2) {
 #' @return A named list `mm`, `ms`, `ma`, `msa`, each an `lrmsd` vector in column order.
 #' @family model
 #' @noRd
-lrmsd_nested_models <- function(dr2_mat, energy_data, a1, a2) {
-  lrmsd <- function(p1, p2) lrmsd_msa(dr2_mat, energy_data, p1, p2)
+lrmsd_nested_models <- function(dr2mat, energy_data, a1, a2) {
+  lrmsd <- function(p1, p2) lrmsd_msa(dr2mat, energy_data, p1, p2)
   list(mm  = lrmsd(0,  0),
        ms  = lrmsd(a1, 0),
        ma  = lrmsd(0,  a2),
@@ -139,8 +139,8 @@ lrmsd_nested_models <- function(dr2_mat, energy_data, a1, a2) {
 #' @return A named list `mm`, `ms`, `ma`, `msa`, each a centred vector in column order.
 #' @family model
 #' @noRd
-nlrmsd_nested_models <- function(dr2_mat, energy_data, a1, a2) {
-  v <- lrmsd_nested_models(dr2_mat, energy_data, a1, a2)
+nlrmsd_nested_models <- function(dr2mat, energy_data, a1, a2) {
+  v <- lrmsd_nested_models(dr2mat, energy_data, a1, a2)
   lapply(v, function(x) x - mean(x))
 }
 
@@ -154,8 +154,8 @@ nlrmsd_nested_models <- function(dr2_mat, energy_data, a1, a2) {
 #' @return A list `phi_mut`, `phi_stab`, `phi_act`, each a vector in column order.
 #' @family model
 #' @noRd
-lrmsd_msa_decomposition <- function(dr2_mat, energy_data, a1, a2) {
-  v <- lrmsd_nested_models(dr2_mat, energy_data, a1, a2)
+lrmsd_msa_decomposition <- function(dr2mat, energy_data, a1, a2) {
+  v <- lrmsd_nested_models(dr2mat, energy_data, a1, a2)
   decompose_nested(v$mm, v$ms, v$ma, v$msa)
 }
 
@@ -167,8 +167,8 @@ lrmsd_msa_decomposition <- function(dr2_mat, energy_data, a1, a2) {
 #' @return A named list `nphi_mut`, `nphi_stab`, `nphi_act`, each a centred vector in column order.
 #' @family model
 #' @noRd
-nlrmsd_msa_decomposition <- function(dr2_mat, energy_data, a1, a2) {
-  phi <- lrmsd_msa_decomposition(dr2_mat, energy_data, a1, a2)
+nlrmsd_msa_decomposition <- function(dr2mat, energy_data, a1, a2) {
+  phi <- lrmsd_msa_decomposition(dr2mat, energy_data, a1, a2)
   list(nphi_mut  = phi$phi_mut  - mean(phi$phi_mut),
        nphi_stab = phi$phi_stab - mean(phi$phi_stab),
        nphi_act  = phi$phi_act  - mean(phi$phi_act))
@@ -179,13 +179,13 @@ nlrmsd_msa_decomposition <- function(dr2_mat, energy_data, a1, a2) {
 #' Prepend the site key to a site-axis value tibble
 #'
 #' `site_map` IS the key table -- `(site, pdb_site)`, one row per site, already in
-#' `dr2_ijm` column order -- so it is bound on positionally rather than joined against a
+#' `dr2mat_site` column order -- so it is bound on positionally rather than joined against a
 #' manufactured index. The row-count equality that makes that valid is asserted, not
 #' assumed: a positional bind fails loud on a mismatch where a join would have silently
 #' filled `pdb_site` with `NA`.
 #'
 #' @param site_map The `(site, pdb_site)` key tibble, i.e. `spm$site_map`.
-#' @param body A tibble of value columns, one row per site, in `dr2_ijm` column order.
+#' @param body A tibble of value columns, one row per site, in `dr2mat_site` column order.
 #' @return `body` with `site` and `pdb_site` prepended.
 #' @noRd
 prepend_site_key <- function(site_map, body) {
@@ -203,7 +203,7 @@ prepend_site_key <- function(site_map, body) {
 #' STORED key bound on positionally, and its row count is asserted for the same reason.
 #'
 #' @param mode_map The `(mode)` key tibble, i.e. `spm$mode_map`.
-#' @param body A tibble of value columns, one row per mode, in `dr2_njm` column order.
+#' @param body A tibble of value columns, one row per mode, in `dr2mat_mode` column order.
 #' @return `body` with `mode` prepended.
 #' @noRd
 prepend_mode_key <- function(mode_map, body) {
@@ -270,21 +270,21 @@ unimplemented_metric_message <- function(metric) {
 calculate_profiles <- function(spm, a1, a2, metric = c("lrmsd", "nlrmsd")) {
   metric <- match.arg(metric)
 
-  # --- site axis (responses are residues; dr2_ijm)
+  # --- site axis (responses are residues; dr2mat_site)
   if (metric == "nlrmsd") {
-    site_profile <- tibble(nlrmsd_msa = nlrmsd_msa(spm$dr2_ijm, spm$energy_data, a1, a2))
+    site_profile <- tibble(nlrmsd_msa = nlrmsd_msa(spm$dr2mat_site, spm$energy_data, a1, a2))
   } else if (metric == "lrmsd") {
-    site_profile <- tibble(lrmsd_msa = lrmsd_msa(spm$dr2_ijm, spm$energy_data, a1, a2))
+    site_profile <- tibble(lrmsd_msa = lrmsd_msa(spm$dr2mat_site, spm$energy_data, a1, a2))
   } else {
     stop(unimplemented_metric_message(metric))
   }
   site_profile <- prepend_site_key(spm$site_map, site_profile)
 
-  # --- mode axis (responses are normal modes; dr2_njm)
+  # --- mode axis (responses are normal modes; dr2mat_mode)
   if (metric == "nlrmsd") {
-    mode_profile <- tibble(nlrmsd_msa = nlrmsd_msa(spm$dr2_njm, spm$energy_data, a1, a2))
+    mode_profile <- tibble(nlrmsd_msa = nlrmsd_msa(spm$dr2mat_mode, spm$energy_data, a1, a2))
   } else if (metric == "lrmsd") {
-    mode_profile <- tibble(lrmsd_msa = lrmsd_msa(spm$dr2_njm, spm$energy_data, a1, a2))
+    mode_profile <- tibble(lrmsd_msa = lrmsd_msa(spm$dr2mat_mode, spm$energy_data, a1, a2))
   } else {
     stop(unimplemented_metric_message(metric))
   }
@@ -331,10 +331,10 @@ calculate_profiles <- function(spm, a1, a2, metric = c("lrmsd", "nlrmsd")) {
 calculate_decomposition <- function(spm, a1, a2, metric = c("lrmsd", "nlrmsd")) {
   metric <- match.arg(metric)
 
-  # --- site axis (responses are residues; dr2_ijm)
+  # --- site axis (responses are residues; dr2mat_site)
   if (metric == "nlrmsd") {
-    nested        <- nlrmsd_nested_models(spm$dr2_ijm, spm$energy_data, a1, a2)
-    decomposition <- nlrmsd_msa_decomposition(spm$dr2_ijm, spm$energy_data, a1, a2)
+    nested        <- nlrmsd_nested_models(spm$dr2mat_site, spm$energy_data, a1, a2)
+    decomposition <- nlrmsd_msa_decomposition(spm$dr2mat_site, spm$energy_data, a1, a2)
     site_decomposition <- tibble(
       nlrmsd_mm  = nested$mm,
       nlrmsd_ms  = nested$ms,
@@ -344,8 +344,8 @@ calculate_decomposition <- function(spm, a1, a2, metric = c("lrmsd", "nlrmsd")) 
       nphi_stab  = decomposition$nphi_stab,
       nphi_act   = decomposition$nphi_act)
   } else if (metric == "lrmsd") {
-    nested        <- lrmsd_nested_models(spm$dr2_ijm, spm$energy_data, a1, a2)
-    decomposition <- lrmsd_msa_decomposition(spm$dr2_ijm, spm$energy_data, a1, a2)
+    nested        <- lrmsd_nested_models(spm$dr2mat_site, spm$energy_data, a1, a2)
+    decomposition <- lrmsd_msa_decomposition(spm$dr2mat_site, spm$energy_data, a1, a2)
     site_decomposition <- tibble(
       lrmsd_mm  = nested$mm,
       lrmsd_ms  = nested$ms,
@@ -359,10 +359,10 @@ calculate_decomposition <- function(spm, a1, a2, metric = c("lrmsd", "nlrmsd")) 
   }
   site_decomposition <- prepend_site_key(spm$site_map, site_decomposition)
 
-  # --- mode axis (responses are normal modes; dr2_njm)
+  # --- mode axis (responses are normal modes; dr2mat_mode)
   if (metric == "nlrmsd") {
-    nested        <- nlrmsd_nested_models(spm$dr2_njm, spm$energy_data, a1, a2)
-    decomposition <- nlrmsd_msa_decomposition(spm$dr2_njm, spm$energy_data, a1, a2)
+    nested        <- nlrmsd_nested_models(spm$dr2mat_mode, spm$energy_data, a1, a2)
+    decomposition <- nlrmsd_msa_decomposition(spm$dr2mat_mode, spm$energy_data, a1, a2)
     mode_decomposition <- tibble(
       nlrmsd_mm  = nested$mm,
       nlrmsd_ms  = nested$ms,
@@ -372,8 +372,8 @@ calculate_decomposition <- function(spm, a1, a2, metric = c("lrmsd", "nlrmsd")) 
       nphi_stab  = decomposition$nphi_stab,
       nphi_act   = decomposition$nphi_act)
   } else if (metric == "lrmsd") {
-    nested        <- lrmsd_nested_models(spm$dr2_njm, spm$energy_data, a1, a2)
-    decomposition <- lrmsd_msa_decomposition(spm$dr2_njm, spm$energy_data, a1, a2)
+    nested        <- lrmsd_nested_models(spm$dr2mat_mode, spm$energy_data, a1, a2)
+    decomposition <- lrmsd_msa_decomposition(spm$dr2mat_mode, spm$energy_data, a1, a2)
     mode_decomposition <- tibble(
       lrmsd_mm  = nested$mm,
       lrmsd_ms  = nested$ms,

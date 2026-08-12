@@ -25,12 +25,12 @@ test_that("decompose_nested is a pure vector function (4 in, 3 out)", {
 
 test_that("lrmsd_msa_decomposition packages nested-models + the kernel (site)", {
   pp <- znb_spm
-  got <- lrmsd_msa_decomposition(pp$dr2_ijm, pp$energy_data, a1 = 1, a2 = 1)
+  got <- lrmsd_msa_decomposition(pp$dr2mat_site, pp$energy_data, a1 = 1, a2 = 1)
 
   expect_named(got, c("phi_mut", "phi_stab", "phi_act"))
 
   # It equals the manual two-step it packages (its contract): nested models, then kernel.
-  nm  <- lrmsd_nested_models(pp$dr2_ijm, pp$energy_data, a1 = 1, a2 = 1)
+  nm  <- lrmsd_nested_models(pp$dr2mat_site, pp$energy_data, a1 = 1, a2 = 1)
   ref <- decompose_nested(nm$mm, nm$ms, nm$ma, nm$msa)
   expect_equal(got$phi_mut,  ref$phi_mut)
   expect_equal(got$phi_stab, ref$phi_stab)
@@ -44,12 +44,12 @@ test_that("lrmsd_msa_decomposition packages nested-models + the kernel (site)", 
 
 test_that("lrmsd_msa_decomposition packages nested-models + the kernel (mode)", {
   pp <- znb_spm
-  got <- lrmsd_msa_decomposition(pp$dr2_njm, pp$energy_data, a1 = 1, a2 = 1)
+  got <- lrmsd_msa_decomposition(pp$dr2mat_mode, pp$energy_data, a1 = 1, a2 = 1)
 
   expect_named(got, c("phi_mut", "phi_stab", "phi_act"))
 
   # It equals the manual two-step it packages (its contract).
-  nm  <- lrmsd_nested_models(pp$dr2_njm, pp$energy_data, a1 = 1, a2 = 1)
+  nm  <- lrmsd_nested_models(pp$dr2mat_mode, pp$energy_data, a1 = 1, a2 = 1)
   ref <- decompose_nested(nm$mm, nm$ms, nm$ma, nm$msa)
   expect_equal(got$phi_mut,  ref$phi_mut)
   expect_equal(got$phi_stab, ref$phi_stab)

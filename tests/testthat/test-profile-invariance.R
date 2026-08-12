@@ -21,20 +21,20 @@
 
 test_that("dr2 site profile is unchanged by the rename", {
   pp <- znb_spm
-  prof <- dr2_msa(pp$dr2_ijm, pp$energy_data, a1 = 2, a2 = 5)
+  prof <- dr2_msa(pp$dr2mat_site, pp$energy_data, a1 = 2, a2 = 5)
   expect_snapshot_value(prof, style = "serialize")
 })
 
 test_that("dr2 mode profile is unchanged by the rename", {
   pp_mode <- znb_spm
-  prof_n <- dr2_msa(pp_mode$dr2_njm, pp_mode$energy_data, a1 = 2, a2 = 5)
+  prof_n <- dr2_msa(pp_mode$dr2mat_mode, pp_mode$energy_data, a1 = 2, a2 = 5)
   expect_snapshot_value(prof_n, style = "serialize")
 })
 
 test_that("loglik is unchanged by the rename", {
   pp <- znb_spm
   expect_snapshot_value(
-    msamodel:::loglik_lrmsd_msa(pp$dr2_ijm, pp$energy_data, msamodel:::resolve_site_obs(pp, znb_profile$pdb_site, znb_profile$lrmsd_obs), a1 = 2, a2 = 5),
+    msamodel:::loglik_lrmsd_msa(pp$dr2mat_site, pp$energy_data, msamodel:::resolve_site_obs(pp, znb_profile$pdb_site, znb_profile$lrmsd_obs), a1 = 2, a2 = 5),
     style = "serialize"
   )
 })

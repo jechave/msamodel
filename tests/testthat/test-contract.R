@@ -16,7 +16,7 @@ test_that("partial site coverage gives a single finite loglik", {
   # intersection and must still produce one finite value (no NA).
   pp <- znb_spm
   expect_lt(nrow(znb_profile), nrow(pp$site_map))   # genuinely a subset
-  ll <- msamodel:::loglik_lrmsd_msa(pp$dr2_ijm, pp$energy_data, msamodel:::resolve_site_obs(pp, znb_profile$pdb_site, znb_profile$lrmsd_obs), a1 = 2, a2 = 5)
+  ll <- msamodel:::loglik_lrmsd_msa(pp$dr2mat_site, pp$energy_data, msamodel:::resolve_site_obs(pp, znb_profile$pdb_site, znb_profile$lrmsd_obs), a1 = 2, a2 = 5)
   expect_length(ll, 1L)
   expect_true(is.finite(ll))
 })
@@ -27,10 +27,10 @@ test_that("pdb_site contract gives the same loglik as a manual index-keyed join"
   pp <- znb_spm
   a1 <- 2; a2 <- 5
 
-  ll_contract <- msamodel:::loglik_lrmsd_msa(pp$dr2_ijm, pp$energy_data, msamodel:::resolve_site_obs(pp, znb_profile$pdb_site, znb_profile$lrmsd_obs), a1, a2)
+  ll_contract <- msamodel:::loglik_lrmsd_msa(pp$dr2mat_site, pp$energy_data, msamodel:::resolve_site_obs(pp, znb_profile$pdb_site, znb_profile$lrmsd_obs), a1, a2)
 
   obs_i <- dplyr::inner_join(znb_profile, pp$site_map, by = "pdb_site")
-  dr2_i <- dr2_msa(pp$dr2_ijm, pp$energy_data, a1, a2)
+  dr2_i <- dr2_msa(pp$dr2mat_site, pp$energy_data, a1, a2)
   pred <- tibble::tibble(site = seq_along(dr2_i), lrmsd_msa = log(sqrt(dr2_i)))
   cmp <- dplyr::inner_join(obs_i[, c("site", "lrmsd_obs")],
                            pred[, c("site", "lrmsd_msa")], by = "site")

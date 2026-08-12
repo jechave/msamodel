@@ -20,8 +20,10 @@ NULL
 # real complaint, so it was asserting things about the package that were not true.
 # The note is left visible rather than silenced.
 #
-# The 10 names R actually cannot resolve, in 3 functions:
-#   preprocess_spm / preprocess_spm_mode : m, j, ddg_dv_jm, ddg_tds_jm,
-#                                          ddgact_dv_jm, ddgact_tds_jm,
-#                                          ddg_jm, ddgact_jm
-#   resolve_site_obs                     : site, obs
+# The names R actually cannot resolve, in 2 functions:
+#   generate_spm_data : m, j, ddg_dv_jm, ddg_tds_jm, ddgact_dv_jm, ddgact_tds_jm,
+#                       ddg, ddgact
+#   resolve_site_obs  : site, obs
+#
+# (ddg / ddgact are assigned by mutate() and then named bare in select(); the
+# _dv_ / _tds_ names are the raw scan columns the reshape reads.)

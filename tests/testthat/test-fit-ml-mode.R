@@ -36,7 +36,7 @@ test_that("mode ML sits at a local max of its own objective (consistency)", {
   bg  <- log2(ml$a2 + 1) + c(-0.3, -0.15, 0, 0.15, 0.3)
   G   <- expand.grid(a1 = a1g, b = bg)
   ll  <- apply(G, 1L, function(r)
-    msamodel:::loglik_lrmsd_msa(pp$dr2_njm, pp$energy_data, msamodel:::resolve_mode_obs(seq_len(ncol(pp$dr2_njm)), znb_profile_n$mode, znb_profile_n$lrmsd_obs), a1 = r[["a1"]], a2 = 2^r[["b"]] - 1))
+    msamodel:::loglik_lrmsd_msa(pp$dr2mat_mode, pp$energy_data, msamodel:::resolve_mode_obs(seq_len(ncol(pp$dr2mat_mode)), znb_profile_n$mode, znb_profile_n$lrmsd_obs), a1 = r[["a1"]], a2 = 2^r[["b"]] - 1))
 
   expect_gte(ml$logLik, max(ll) - 1e-8)
 })
@@ -78,7 +78,7 @@ test_that("unknown mode index in observed_data is an error, not a silent drop", 
   bad_mode <- znb_profile_n$mode
   bad_mode[1] <- 999999L
   expect_error(
-    msamodel:::resolve_mode_obs(seq_len(ncol(pp$dr2_njm)), bad_mode,
+    msamodel:::resolve_mode_obs(seq_len(ncol(pp$dr2mat_mode)), bad_mode,
                                 znb_profile_n$lrmsd_obs),
     "mode index\\(es\\) not present in the model"
   )
@@ -90,11 +90,11 @@ test_that("loglik_lrmsd_msa is invariant to a constant shift in lrmsd_obs", {
   # Both profiles are mean-centered, so adding a constant to the observed column
   # leaves the log-likelihood unchanged. Independent property, not a re-derivation.
   pp <- znb_spm
-  ll1 <- msamodel:::loglik_lrmsd_msa(pp$dr2_njm, pp$energy_data, msamodel:::resolve_mode_obs(seq_len(ncol(pp$dr2_njm)), znb_profile_n$mode, znb_profile_n$lrmsd_obs), a1 = 2, a2 = 5)
+  ll1 <- msamodel:::loglik_lrmsd_msa(pp$dr2mat_mode, pp$energy_data, msamodel:::resolve_mode_obs(seq_len(ncol(pp$dr2mat_mode)), znb_profile_n$mode, znb_profile_n$lrmsd_obs), a1 = 2, a2 = 5)
   shifted <- znb_profile_n$lrmsd_obs + 3.7
   ll2 <- msamodel:::loglik_lrmsd_msa(
-    pp$dr2_njm, pp$energy_data,
-    msamodel:::resolve_mode_obs(seq_len(ncol(pp$dr2_njm)), znb_profile_n$mode, shifted),
+    pp$dr2mat_mode, pp$energy_data,
+    msamodel:::resolve_mode_obs(seq_len(ncol(pp$dr2mat_mode)), znb_profile_n$mode, shifted),
     a1 = 2, a2 = 5)
   expect_equal(ll1, ll2)
 })
@@ -110,7 +110,7 @@ test_that("znb_profile_n is reproducible from its seeded recipe", {
   # 1e-12; a failure here is a recipe change, not round-off.
   ppm <- znb_spm
   site_fit <- fit_lrmsd_msa_site(znb_spm, znb_profile$pdb_site, znb_profile$lrmsd_obs)
-  dr2_n <- dr2_msa(ppm$dr2_njm, ppm$energy_data, site_fit$a1, site_fit$a2)
+  dr2_n <- dr2_msa(ppm$dr2mat_mode, ppm$energy_data, site_fit$a1, site_fit$a2)
   set.seed(2025)
   expected_obs <- log(sqrt(dr2_n)) + rnorm(length(dr2_n), 0, 0.30)
   expect_equal(znb_profile_n$lrmsd_obs, expected_obs, tolerance = 1e-12)
