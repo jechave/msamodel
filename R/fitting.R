@@ -293,7 +293,7 @@ resolve_mode_obs <- function(valid_modes, mode, lrmsd_obs) {
 #' returned covariance `cov` is on the `(a1, log2(a2+1))` scale; the standard error
 #' of `a2` is obtained by the delta method (`da2/d(log2(a2+1)) = 2^(log2(a2+1)) * ln 2`).
 #'
-#' @param spm A single-point-mutation `spm` object from [generate_spm_data()] (its `site_map` keys the fit to PDB residues).
+#' @param spm A single-point-mutation `spm` object from [generate_spm()] (its `site_map` keys the fit to PDB residues).
 #' @param pdb_site Integer vector of PDB residue numbers identifying the observations.
 #'   Observations are a `(pdb_site, lrmsd_obs)` vector pair rather than a data frame, so
 #'   the columns of your own table can be named anything. May cover a subset of the
@@ -336,7 +336,7 @@ resolve_mode_obs <- function(valid_modes, mode, lrmsd_obs) {
 #' ex   <- function(f) system.file("extdata", f, package = "msamodel")
 #' wt   <- setup_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca", d_max = 10.5)
 #' act  <- readr::read_csv(ex("znb_active_site.csv"))
-#' spm  <- generate_spm_data(wt, pdb_site_active = act$pdb_site, seed = 1024)
+#' spm  <- generate_spm(wt, pdb_site_active = act$pdb_site, seed = 1024)
 #'
 #' obs <- readr::read_csv(ex("znb_lrmsd_obs_site.csv"))
 #' ml  <- fit_lrmsd_msa_site(spm, obs$pdb_site, obs$lrmsd_obs)
@@ -372,7 +372,7 @@ fit_lrmsd_msa_site <- function(spm,
 #' returned covariance `cov` is on the `(a1, log2(a2+1))` scale; the standard error
 #' of `a2` is obtained by the delta method (`da2/d(log2(a2+1)) = 2^(log2(a2+1)) * ln 2`).
 #'
-#' @param spm A single-point-mutation `spm` object from [generate_spm_data()] (energy_data +
+#' @param spm A single-point-mutation `spm` object from [generate_spm()] (energy_data +
 #'   the `dr2mat_mode` matrix; no `site_map`).
 #' @param mode Integer vector of mode indices identifying the observations. Observations
 #'   are a `(mode, lrmsd_obs)` vector pair rather than a data frame, so the columns of
@@ -397,7 +397,7 @@ fit_lrmsd_msa_site <- function(spm,
 #' ex   <- function(f) system.file("extdata", f, package = "msamodel")
 #' wt   <- setup_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca", d_max = 10.5)
 #' act  <- readr::read_csv(ex("znb_active_site.csv"))
-#' spm  <- generate_spm_data(wt, pdb_site_active = act$pdb_site, seed = 1024)
+#' spm  <- generate_spm(wt, pdb_site_active = act$pdb_site, seed = 1024)
 #'
 #' # Synthetic observations: no empirical per-mode profile exists (see the file name).
 #' obs <- readr::read_csv(ex("znb_lrmsd_obs_mode_syn.csv"))

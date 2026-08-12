@@ -7,11 +7,11 @@
 pfix_msa(ddg, ddgact, a1, a2)
 }
 \arguments{
-\item{ddg}{Stability free-energy change(s) of the mutant(s) (\code{ddg_jm}). Scalar or
-vector.}
+\item{ddg}{Stability free-energy change(s) of the mutant(s), as carried in an
+\code{spm} object's \code{energy_data$ddg}. Scalar or vector.}
 
-\item{ddgact}{Activity free-energy change(s) of the mutant(s) (\code{ddgact_jm}), the
-same length as \code{ddg}.}
+\item{ddgact}{Activity free-energy change(s) of the mutant(s)
+(\code{energy_data$ddgact}), the same length as \code{ddg}.}
 
 \item{a1}{Stability selection strength (non-negative). \code{0} disables stability
 selection.}
@@ -45,8 +45,8 @@ pfix_msa(ddg = 1.2, ddgact = 0.4, a1 = 1, a2 = 1)
 # A whole scan:
 ex  <- function(f) system.file("extdata", f, package = "msamodel")
 wt  <- setup_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca", d_max = 10.5)
-spm <- generate_spm_data(wt, seed = 1024)
-pfix_msa(spm$energy_data$ddg_jm, spm$energy_data$ddgact_jm, a1 = 1, a2 = 1)
+spm <- generate_spm(wt, seed = 1024)
+pfix_msa(spm$energy_data$ddg, spm$energy_data$ddgact, a1 = 1, a2 = 1)
 }
 }
 \seealso{

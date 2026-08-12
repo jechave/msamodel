@@ -22,15 +22,15 @@ delta_structure_dr <- function(wt, mut) {
 #' records each mutant's measured effects, returning one **row per mutant**. Mutants are
 #' processed one at a time and only the metrics are kept (never a tibble of full mutant
 #' structures), so the scan stays memory-efficient on large proteins. This is the
-#' internal core that [generate_spm_data()] wraps: it keeps the full record -- including
+#' internal core that [generate_spm()] wraps: it keeps the full record -- including
 #' the raw Cartesian displacement `dr` -- so a future Cartesian/motion calculation can
-#' obtain it without re-running the scan. The public [generate_spm_data()] reshapes this
+#' obtain it without re-running the scan. The public [generate_spm()] reshapes this
 #' record into the lean, model-ready `spm` object and does not surface `dr`.
 #'
 #' The list-column names here keep the index-signature convention (`dr2_ijm`,
 #' `dr2_njm`): this is internal, and the letters state the shape exactly -- one row per
 #' mutant `(j, m)`, each cell a vector over response sites `i` (or modes `n`). The
-#' public object renames them to `dr2mat_site` / `dr2mat_mode`; [generate_spm_data()]
+#' public object renames them to `dr2mat_site` / `dr2mat_mode`; [generate_spm()]
 #' is the boundary between the two vocabularies.
 #'
 #' @param wt Wild-type protein structure with an elastic network model, as
@@ -134,10 +134,10 @@ generate_spm_core <- function(wt, n_mutations = 10,
 #' separate preprocessing step.
 #'
 #' The returned object carries, computed once, both response axes at the same time: the
-#' per-site divergence matrix `dr2_ijm` (each site value is the squared displacement of a
-#' residue) and the per-mode divergence matrix `dr2_njm` (each value is the squared
-#' contribution of a normal mode). A calculation picks the axis it needs; the object does
-#' not have to be regenerated to switch between them.
+#' per-site divergence matrix `dr2mat_site` (each site value is the squared displacement
+#' of a residue) and the per-mode divergence matrix `dr2mat_mode` (each value is the
+#' squared contribution of a normal mode). A calculation picks the axis it needs; the
+#' object does not have to be regenerated to switch between them.
 #'
 #' @param wt Wild-type protein structure with an elastic network model, as
 #'   returned by [setup_enm()].
@@ -162,13 +162,13 @@ generate_spm_core <- function(wt, n_mutations = 10,
 #' ex  <- function(f) system.file("extdata", f, package = "msamodel")
 #' wt  <- setup_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca", d_max = 10.5)
 #' act <- readr::read_csv(ex("znb_active_site.csv"))
-#' spm <- generate_spm_data(wt, n_mutations = 10, pdb_site_active = act$pdb_site,
+#' spm <- generate_spm(wt, n_mutations = 10, pdb_site_active = act$pdb_site,
 #'                          seed = 1024)
 #' dim(spm$dr2mat_site)
 #' dim(spm$dr2mat_mode)
 #' }
 #' @export
-generate_spm_data <- function(wt, n_mutations = 10,
+generate_spm <- function(wt, n_mutations = 10,
                              model = "lfenm", sigma = 0.3,
                              min_sd = 2, pdb_site_active = NULL,
                              seed = NULL) {

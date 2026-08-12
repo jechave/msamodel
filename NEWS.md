@@ -2,6 +2,29 @@
 
 ## Breaking changes
 
+* **`generate_spm_data()` is renamed `generate_spm()`, and the object it returns
+  no longer exposes the model's index notation.** A user has no reason to know that
+  `i` is a response site, `n` a response mode, `j` the mutated site and `m` the
+  replicate — those letters belong to the math layer.
+
+  | was | now |
+  |---|---|
+  | `generate_spm_data()` | `generate_spm()` |
+  | `spm$dr2_ijm` | `spm$dr2mat_site` |
+  | `spm$dr2_njm` | `spm$dr2mat_mode` |
+  | `spm$energy_data$ddg_jm` | `spm$energy_data$ddg` |
+  | `spm$energy_data$ddgact_jm` | `spm$energy_data$ddgact` |
+
+  There is **no deprecation shim**: the old function name and the old element names
+  are gone, so existing scripts need both lines updated. `energy_data`'s `j` and `m`
+  columns are unchanged — they identify the mutant.
+
+  A saved `.rds` of an `spm` object made by an earlier version will not work with the
+  new verbs; regenerate it with `generate_spm()`.
+
+  The values are unchanged. Only names moved: the regenerated example scan is
+  bit-identical to the old one, element by element.
+
 * **The six `znb_*` datasets are removed.** `data("znb_spm")` and friends no longer
   work; there is no `data/` directory. The example data ships as **files** in
   `inst/extdata/` instead, read the way you would read your own:
@@ -27,7 +50,7 @@
   existed so the test suite would not spend ~21 s regenerating the scan. They are now
   test fixtures under `tests/testthat/fixtures/`, built by the recipe beside them. To
   get the equivalent objects, run the two lines the vignettes run — `setup_enm()` then
-  `generate_spm_data()` with `seed = 1024`.
+  `generate_spm()` with `seed = 1024`.
 
   Installed size drops from ~25.8 MB to ~368 KB, which also clears the standing
   `R CMD check` size WARNING.
@@ -61,7 +84,7 @@
   does divergence live in?".
 
   ```r
-  spm  <- generate_spm_data(wt, pdb_site_active = act$pdb_site, seed = 1024)
+  spm  <- generate_spm(wt, pdb_site_active = act$pdb_site, seed = 1024)
   prof <- calculate_profiles(spm, a1 = 1, a2 = 1)
   prof$site   # site, pdb_site, lrmsd_msa
   prof$mode   # mode, lrmsd_msa
@@ -90,7 +113,7 @@
 
 ## API changes
 
-* **One scan object feeds everything.** `generate_spm_data()` returns a ready-to-use
+* **One scan object feeds everything.** `generate_spm()` returns a ready-to-use
   `spm` object carrying both response axes; pass it straight to any `calculate_*`,
   `fit_*`, or `predict_*` function. There is no separate preprocessing step.
 
@@ -140,7 +163,7 @@
   `fit_lrmsd_msa_mode()`; bands come from `predict_profiles()` /
   `predict_decomposition()` — deterministic, with no seed, burn-in, or draw-averaging.
 
-* **The exported surface is ten functions:** `setup_enm()`, `generate_spm_data()`,
+* **The exported surface is ten functions:** `setup_enm()`, `generate_spm()`,
   `add_site_properties()`, `pfix_msa()`, `calculate_profiles()`,
   `calculate_decomposition()`, `fit_lrmsd_msa_site()`, `fit_lrmsd_msa_mode()`,
   `predict_profiles()`, `predict_decomposition()`. The earlier per-axis grid of
@@ -195,7 +218,7 @@ GitHub-only package.
   note bio3d flags `read.cif()` itself as beta.
 
 * **Active-site input is now a plain integer vector** of PDB residue numbers,
-  passed as `pdb_site_active` to `generate_spm_data()` / `add_site_properties()`
+  passed as `pdb_site_active` to `generate_spm()` / `add_site_properties()`
   (already supported). `get_active_site()` (which looked up a bundled
   `dataset_ec2024.csv`) is **removed**. The `znb_dataset` dataset is retained as
   an *illustrative* example of the source active-site table, but no package

@@ -1,4 +1,4 @@
-# Contract of the assembled `spm` object (the output of generate_spm_data, cached as
+# Contract of the assembled `spm` object (the output of generate_spm, cached as
 # znb_spm). The reshaping happens inside that function; what users hold and every
 # calculator consumes is this object, so the contract is pinned here on znb_spm directly.
 
@@ -34,7 +34,7 @@ test_that("mode_map carries the mode index as in the scan", {
   expect_named(znb_spm$mode_map, "mode")
   expect_equal(nrow(znb_spm$mode_map), 678L)
   # Same shape of check as site_map above: the stored map must match the raw scan's own
-  # mode vector, which is where generate_spm_data takes it from. Modes are not
+  # mode vector, which is where generate_spm takes it from. Modes are not
   # residue-anchored, so there is no pdb_ counterpart -- the index is the whole map.
   scan <- generate_spm_core(znb_wt, n_mutations = 1,
                             pdb_site_active = PDB_SITE_ACTIVE,

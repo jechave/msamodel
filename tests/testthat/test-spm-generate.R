@@ -59,7 +59,7 @@ test_that("setup_enm reproduces the wild-type ENM fixture", {
   expect_equal(wt, znb_wt)
 })
 
-test_that("generate_spm_data reproduces the embedded SPM fixture", {
+test_that("generate_spm reproduces the embedded SPM fixture", {
   skip_if_not_full()
   # The core drift guard: SPM-generation code vs the embedded znb_spm. Heavy (~21 s
   # full 2280-row regen), so it is gated behind MSAMODEL_FULL_TESTS and does NOT run
@@ -74,7 +74,7 @@ test_that("generate_spm_data reproduces the embedded SPM fixture", {
   # but it verifies ONE row of 2280 and locates that row by lookup -- so a change
   # that reorders rows or alters which are included passes it. This is the check
   # that sees that class of change.
-  spm <- generate_spm_data(
+  spm <- generate_spm(
     znb_wt,
     n_mutations     = SPM_N_MUTATIONS,
     model           = SPM_MODEL,

@@ -21,9 +21,9 @@ NULL
 # The note is left visible rather than silenced.
 #
 # The names R actually cannot resolve, in 2 functions:
-#   generate_spm_data : m, j, ddg_dv_jm, ddg_tds_jm, ddgact_dv_jm, ddgact_tds_jm,
-#                       ddg, ddgact
-#   resolve_site_obs  : site, obs
+#   generate_spm     : m, j, ddg_dv_jm, ddg_tds_jm, ddgact_dv_jm, ddgact_tds_jm,
+#                      ddg, ddgact
+#   resolve_site_obs : site, obs
 #
 # (ddg / ddgact are assigned by mutate() and then named bare in select(); the
 # _dv_ / _tds_ names are the raw scan columns the reshape reads.)

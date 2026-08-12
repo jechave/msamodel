@@ -62,7 +62,7 @@ read_pdb_site_active <- function(pkg_root) {
 # A function, so sourcing this file for the constants alone is free of side
 # effects (test-spm-generate.R does exactly that).
 make_znb_fixtures <- function(pkg_root = here::here()) {
-  pkgload::load_all(pkg_root, quiet = TRUE)   # setup_enm, generate_spm_data
+  pkgload::load_all(pkg_root, quiet = TRUE)   # setup_enm, generate_spm
 
   pdb_site_active <- read_pdb_site_active(pkg_root)
 
@@ -71,7 +71,7 @@ make_znb_fixtures <- function(pkg_root = here::here()) {
   znb_wt <- setup_enm(pdb, node = ENM_NODE, model = ENM_MODEL,
                       d_max = ENM_DMAX, frustrated = ENM_FRUST)
 
-  znb_spm <- generate_spm_data(
+  znb_spm <- generate_spm(
     znb_wt,
     n_mutations     = SPM_N_MUTATIONS,
     model           = SPM_MODEL,

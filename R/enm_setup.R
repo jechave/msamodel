@@ -16,7 +16,7 @@
 #' @param frustrated Whether to use the frustrated form of the model.
 #' @return The input structure augmented with the elastic network model (network,
 #'   Hessian, and normal modes), ready for mutation scans and site properties.
-#' @seealso [generate_spm_data()], which consumes the object returned here.
+#' @seealso [generate_spm()], which consumes the object returned here.
 #' @family setup
 #' @examples
 #' \dontrun{

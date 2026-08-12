@@ -10,7 +10,7 @@ predict_decomposition(fit, spm, metric = c("nlrmsd", "lrmsd"))
 \item{fit}{A list from \code{\link[=fit_lrmsd_msa_site]{fit_lrmsd_msa_site()}} (site) or \code{\link[=fit_lrmsd_msa_mode]{fit_lrmsd_msa_mode()}} (mode),
 carrying \code{a1}, \code{a2}, \code{cov}.}
 
-\item{spm}{The \code{spm} object from \code{\link[=generate_spm_data]{generate_spm_data()}} (the same one used for the fit).}
+\item{spm}{The \code{spm} object from \code{\link[=generate_spm]{generate_spm()}} (the same one used for the fit).}
 
 \item{metric}{\code{"nlrmsd"} (default, the mean-centred profile the fit is on) or \code{"lrmsd"}
 (accepted by the signature but not yet derived -- it stops).}
@@ -46,7 +46,7 @@ needs no differencing, the forward map returning the already-formed contrast.
 ex  <- function(f) system.file("extdata", f, package = "msamodel")
 wt  <- setup_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca", d_max = 10.5)
 act <- readr::read_csv(ex("znb_active_site.csv"))
-spm <- generate_spm_data(wt, pdb_site_active = act$pdb_site, seed = 1024)
+spm <- generate_spm(wt, pdb_site_active = act$pdb_site, seed = 1024)
 
 obs <- readr::read_csv(ex("znb_lrmsd_obs_site.csv"))
 ml  <- fit_lrmsd_msa_site(spm, obs$pdb_site, obs$lrmsd_obs)

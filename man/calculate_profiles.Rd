@@ -7,7 +7,7 @@
 calculate_profiles(spm, a1, a2, metric = c("lrmsd", "nlrmsd"))
 }
 \arguments{
-\item{spm}{A single-point-mutation \code{spm} object from \code{\link[=generate_spm_data]{generate_spm_data()}}.}
+\item{spm}{A single-point-mutation \code{spm} object from \code{\link[=generate_spm]{generate_spm()}}.}
 
 \item{a1}{Stability selection strength (non-negative). \code{0} disables it.}
 
@@ -33,7 +33,7 @@ mean-centred profile the fit is on). Returns point values only -- no error bands
 ex  <- function(f) system.file("extdata", f, package = "msamodel")
 wt  <- setup_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca", d_max = 10.5)
 act <- readr::read_csv(ex("znb_active_site.csv"))
-spm <- generate_spm_data(wt, pdb_site_active = act$pdb_site, seed = 1024)
+spm <- generate_spm(wt, pdb_site_active = act$pdb_site, seed = 1024)
 calculate_profiles(spm, a1 = 1, a2 = 1, metric = "nlrmsd")$site
 }
 }

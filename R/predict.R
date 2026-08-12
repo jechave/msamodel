@@ -56,7 +56,7 @@ validate_ml_fit <- function(fit, producer) {
 #' @param fit A list from [fit_lrmsd_msa_site()] (site) or [fit_lrmsd_msa_mode()] (mode),
 #'   carrying `a1`, `a2`, and the 2x2 `cov` on the `(a1, log2(a2+1))` scale. One fit
 #'   drives both axes.
-#' @param spm The `spm` object from [generate_spm_data()] (the same one used for the fit).
+#' @param spm The `spm` object from [generate_spm()] (the same one used for the fit).
 #' @param metric `"lrmsd"` (absolute) or `"nlrmsd"` (mean-centred). Default `"lrmsd"`.
 #' @return A list with two tibbles. `$site`: `site`, `pdb_site`, the profile column
 #'   (`lrmsd_msa` or `nlrmsd_msa`), and its `_se`. `$mode`: `mode`, the same profile
@@ -69,7 +69,7 @@ validate_ml_fit <- function(fit, producer) {
 #' ex  <- function(f) system.file("extdata", f, package = "msamodel")
 #' wt  <- setup_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca", d_max = 10.5)
 #' act <- readr::read_csv(ex("znb_active_site.csv"))
-#' spm <- generate_spm_data(wt, pdb_site_active = act$pdb_site, seed = 1024)
+#' spm <- generate_spm(wt, pdb_site_active = act$pdb_site, seed = 1024)
 #'
 #' obs <- readr::read_csv(ex("znb_lrmsd_obs_site.csv"))
 #' ml  <- fit_lrmsd_msa_site(spm, obs$pdb_site, obs$lrmsd_obs)
@@ -133,7 +133,7 @@ predict_profiles <- function(fit, spm, metric = c("lrmsd", "nlrmsd")) {
 #'
 #' @param fit A list from [fit_lrmsd_msa_site()] (site) or [fit_lrmsd_msa_mode()] (mode),
 #'   carrying `a1`, `a2`, `cov`.
-#' @param spm The `spm` object from [generate_spm_data()] (the same one used for the fit).
+#' @param spm The `spm` object from [generate_spm()] (the same one used for the fit).
 #' @param metric `"nlrmsd"` (default, the mean-centred profile the fit is on) or `"lrmsd"`
 #'   (accepted by the signature but not yet derived -- it stops).
 #' @return A list with two tibbles (`$site`, `$mode`). Each holds the axis key (`site`,
@@ -148,7 +148,7 @@ predict_profiles <- function(fit, spm, metric = c("lrmsd", "nlrmsd")) {
 #' ex  <- function(f) system.file("extdata", f, package = "msamodel")
 #' wt  <- setup_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca", d_max = 10.5)
 #' act <- readr::read_csv(ex("znb_active_site.csv"))
-#' spm <- generate_spm_data(wt, pdb_site_active = act$pdb_site, seed = 1024)
+#' spm <- generate_spm(wt, pdb_site_active = act$pdb_site, seed = 1024)
 #'
 #' obs <- readr::read_csv(ex("znb_lrmsd_obs_site.csv"))
 #' ml  <- fit_lrmsd_msa_site(spm, obs$pdb_site, obs$lrmsd_obs)

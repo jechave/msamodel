@@ -107,7 +107,7 @@ SYN_NOISE_SD <- 0.30
 pdb <- bio3d::read.pdb(file.path(EXTDATA, "1znb_A.pdb"))
 wt  <- setup_enm(pdb, node = ENM_NODE, model = ENM_MODEL,
                  d_max = ENM_DMAX, frustrated = ENM_FRUST)
-spm <- generate_spm_data(wt,
+spm <- generate_spm(wt,
                          n_mutations     = SPM_N_MUTATIONS,
                          model           = SPM_MODEL,
                          sigma           = SPM_SIGMA,

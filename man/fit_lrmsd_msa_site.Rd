@@ -15,7 +15,7 @@ fit_lrmsd_msa_site(
 )
 }
 \arguments{
-\item{spm}{A single-point-mutation \code{spm} object from \code{\link[=generate_spm_data]{generate_spm_data()}} (its \code{site_map} keys the fit to PDB residues).}
+\item{spm}{A single-point-mutation \code{spm} object from \code{\link[=generate_spm]{generate_spm()}} (its \code{site_map} keys the fit to PDB residues).}
 
 \item{pdb_site}{Integer vector of PDB residue numbers identifying the observations.
 Observations are a \verb{(pdb_site, lrmsd_obs)} vector pair rather than a data frame, so
@@ -59,7 +59,7 @@ axis-free, so this is what records which fitter made it.}
 }
 \description{
 Maximises the profiled Gaussian log-likelihood (\code{loglik_lrmsd_msa()}, evaluated on
-\code{spm$dr2_ijm})
+\code{spm$dr2mat_site})
 over \verb{(a1, a2)} by numerical optimisation, returning a point estimate plus an
 asymptotic covariance from the Hessian at the optimum. Intended for large proteins
 and path simulations.
@@ -76,7 +76,7 @@ of \code{a2} is obtained by the delta method (\verb{da2/d(log2(a2+1)) = 2^(log2(
 ex   <- function(f) system.file("extdata", f, package = "msamodel")
 wt   <- setup_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca", d_max = 10.5)
 act  <- readr::read_csv(ex("znb_active_site.csv"))
-spm  <- generate_spm_data(wt, pdb_site_active = act$pdb_site, seed = 1024)
+spm  <- generate_spm(wt, pdb_site_active = act$pdb_site, seed = 1024)
 
 obs <- readr::read_csv(ex("znb_lrmsd_obs_site.csv"))
 ml  <- fit_lrmsd_msa_site(spm, obs$pdb_site, obs$lrmsd_obs)

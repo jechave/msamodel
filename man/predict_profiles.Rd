@@ -11,7 +11,7 @@ predict_profiles(fit, spm, metric = c("lrmsd", "nlrmsd"))
 carrying \code{a1}, \code{a2}, and the 2x2 \code{cov} on the \verb{(a1, log2(a2+1))} scale. One fit
 drives both axes.}
 
-\item{spm}{The \code{spm} object from \code{\link[=generate_spm_data]{generate_spm_data()}} (the same one used for the fit).}
+\item{spm}{The \code{spm} object from \code{\link[=generate_spm]{generate_spm()}} (the same one used for the fit).}
 
 \item{metric}{\code{"lrmsd"} (absolute) or \code{"nlrmsd"} (mean-centred). Default \code{"lrmsd"}.}
 }
@@ -41,7 +41,7 @@ support.
 ex  <- function(f) system.file("extdata", f, package = "msamodel")
 wt  <- setup_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca", d_max = 10.5)
 act <- readr::read_csv(ex("znb_active_site.csv"))
-spm <- generate_spm_data(wt, pdb_site_active = act$pdb_site, seed = 1024)
+spm <- generate_spm(wt, pdb_site_active = act$pdb_site, seed = 1024)
 
 obs <- readr::read_csv(ex("znb_lrmsd_obs_site.csv"))
 ml  <- fit_lrmsd_msa_site(spm, obs$pdb_site, obs$lrmsd_obs)

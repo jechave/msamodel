@@ -15,8 +15,8 @@ fit_lrmsd_msa_mode(
 )
 }
 \arguments{
-\item{spm}{A single-point-mutation \code{spm} object from \code{\link[=generate_spm_data]{generate_spm_data()}} (energy_data +
-the \code{dr2_njm} matrix; no \code{site_map}).}
+\item{spm}{A single-point-mutation \code{spm} object from \code{\link[=generate_spm]{generate_spm()}} (energy_data +
+the \code{dr2mat_mode} matrix; no \code{site_map}).}
 
 \item{mode}{Integer vector of mode indices identifying the observations. Observations
 are a \verb{(mode, lrmsd_obs)} vector pair rather than a data frame, so the columns of
@@ -62,7 +62,7 @@ Mode counterpart of \code{\link[=fit_lrmsd_msa_site]{fit_lrmsd_msa_site()}}: max
 log-likelihood over \verb{(a1, a2)} by numerical optimisation, returning a point estimate
 plus an asymptotic covariance from the Hessian at the optimum. Identical machinery to
 the site fit -- the same axis-blind objective \code{loglik_lrmsd_msa()}, evaluated on
-\code{spm$dr2_njm} instead of \code{spm$dr2_ijm}; the response index is the mode (no \code{site_map}
+\code{spm$dr2mat_mode} instead of \code{spm$dr2mat_site}; the response index is the mode (no \code{site_map}
 / \code{pdb_site}).
 }
 \details{
@@ -77,7 +77,7 @@ of \code{a2} is obtained by the delta method (\verb{da2/d(log2(a2+1)) = 2^(log2(
 ex   <- function(f) system.file("extdata", f, package = "msamodel")
 wt   <- setup_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca", d_max = 10.5)
 act  <- readr::read_csv(ex("znb_active_site.csv"))
-spm  <- generate_spm_data(wt, pdb_site_active = act$pdb_site, seed = 1024)
+spm  <- generate_spm(wt, pdb_site_active = act$pdb_site, seed = 1024)
 
 # Synthetic observations: no empirical per-mode profile exists (see the file name).
 obs <- readr::read_csv(ex("znb_lrmsd_obs_mode_syn.csv"))
