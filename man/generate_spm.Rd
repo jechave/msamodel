@@ -33,11 +33,11 @@ default \code{2}, edges to immediate sequence neighbours are left alone.}
 no activity energy is computed and \code{energy_data$ddgact} is \code{NA} throughout, which
 leaves the model's activity term unusable.}
 
-\item{ensemble}{Which realization of the mutational process to draw from. Any
-integer; one scan uses a single value throughout, and recording it is what makes
-the scan reproducible. Changing it does not add randomness -- it moves to a
-different realization, in which a given mutation is a different mutation. See
-\link[penm:penm_ensemble]{penm::penm_ensemble}.}
+\item{ensemble}{Which sample of mutants to draw. The mutations are random, so a scan
+is one of many possible ones; a given \code{ensemble} always yields the same mutants, on
+any machine, and a different one yields an equally valid different set. Use a single
+value across anything you intend to compare, and record it -- it is what makes the
+scan reproducible. Any integer. See \link[penm:penm_ensemble]{penm::penm_ensemble}.}
 }
 \value{
 An \code{spm} object (a classed list) with five elements:

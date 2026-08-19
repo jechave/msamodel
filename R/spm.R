@@ -41,7 +41,7 @@ delta_structure_dr <- function(wt, mut) {
 #' @param min_sd Minimum sequence separation between coupled sites.
 #' @param pdb_site_active Optional integer vector of active-site residue numbers
 #'   (PDB numbering).
-#' @param ensemble Which realization of the mutational process to draw from.
+#' @param ensemble Which sample of mutants to draw; see [generate_spm()].
 #' @return A tibble with one row per mutant `(j, m)` (`m = 0` is the wild type),
 #'   carrying all measured effects of that mutation: scalar energy changes
 #'   (`ddg_dv_jm`, `ddg_tds_jm`, `ddgact_dv_jm`, `ddgact_tds_jm`) and list-columns
@@ -162,11 +162,11 @@ generate_spm_core <- function(wt, n_mutations = 10,
 #' @param pdb_site_active Active-site residue numbers, in **PDB numbering**. If `NULL`,
 #'   no activity energy is computed and `energy_data$ddgact` is `NA` throughout, which
 #'   leaves the model's activity term unusable.
-#' @param ensemble Which realization of the mutational process to draw from. Any
-#'   integer; one scan uses a single value throughout, and recording it is what makes
-#'   the scan reproducible. Changing it does not add randomness -- it moves to a
-#'   different realization, in which a given mutation is a different mutation. See
-#'   [penm::penm_ensemble].
+#' @param ensemble Which sample of mutants to draw. The mutations are random, so a scan
+#'   is one of many possible ones; a given `ensemble` always yields the same mutants, on
+#'   any machine, and a different one yields an equally valid different set. Use a single
+#'   value across anything you intend to compare, and record it -- it is what makes the
+#'   scan reproducible. Any integer. See [penm::penm_ensemble].
 #' @return An `spm` object (a classed list) with five elements:
 #'   \describe{
 #'     \item{`energy_data`}{One row per mutant, aligned with the matrix rows: `j` (the

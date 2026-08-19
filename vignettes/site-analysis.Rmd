@@ -92,7 +92,7 @@ single-point-mutation scan (`spm`):
 wt_pdb <- bio3d::read.pdb(pdb_file)
 wt     <- set_enm(wt_pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
 spm    <- generate_spm(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
-                            min_sd = 2, pdb_site_active = pdb_site_active, seed = 1024)
+                            min_sd = 2, pdb_site_active = pdb_site_active, ensemble = 1L)
 ```
 
 The settings above are the ones we use throughout — you can keep them for a first run.
@@ -101,9 +101,14 @@ defaults of its own): `node = "ca"` puts one node per residue at its
 C-alpha, `d_max = 10.5` (Å) sets how close two residues must be to be connected, and
 `model`/`frustrated` pick the spring rules. `generate_spm()` runs the scan:
 `n_mutations` mutants per site, `sigma` the mutation strength, `min_sd` the minimum
-sequence separation between coupled sites, `seed` for reproducibility. The scan takes a
-minute or two — it is the one slow step here. The observed profile we fit to is loaded
-later, in section 5.
+sequence separation between coupled sites. The scan takes a minute or two — it is the
+one slow step here. The observed profile we fit to is loaded later, in section 5.
+
+The mutations are drawn at random, so a scan is one sample of many possible ones.
+`ensemble` picks which sample you get: run it again with `ensemble = 1L` and you get
+these mutants back exactly, on any machine; run it with `2L` and you get a different,
+equally valid set. Keep one value for everything you intend to compare, and record it
+with your results — it is what lets you reproduce them.
 
 `spm` records, for each mutant, its energy changes and the per-residue response
 `dr2mat_site` it causes; the verbs below read those from it.
@@ -154,12 +159,12 @@ calculate_profiles(spm, a1, a2, metric = "lrmsd")$site |> head()
 #> # A tibble: 6 × 3
 #>    site pdb_site lrmsd_msa
 #>   <int>    <int>     <dbl>
-#> 1     1       20     -2.40
-#> 2     2       21     -3.31
-#> 3     3       22     -3.44
-#> 4     4       23     -3.45
-#> 5     5       24     -3.64
-#> 6     6       25     -3.65
+#> 1     1       20     -2.55
+#> 2     2       21     -3.56
+#> 3     3       22     -3.24
+#> 4     4       23     -3.54
+#> 5     5       24     -4.08
+#> 6     6       25     -3.81
 ```
 
 Here we pick illustrative values to see the model in action — `a1 = 2` (moderate
@@ -243,12 +248,12 @@ head(decomposition)
 #> # A tibble: 6 × 9
 #>    site pdb_site lrmsd_mm lrmsd_ms lrmsd_ma lrmsd_msa phi_mut phi_stab phi_act
 #>   <int>    <int>    <dbl>    <dbl>    <dbl>     <dbl>   <dbl>    <dbl>   <dbl>
-#> 1     1       20    -2.42    -2.43    -2.40     -2.40   -2.42 -0.00387  0.0228
-#> 2     2       21    -3.35    -3.48    -3.29     -3.31   -3.35 -0.132    0.172 
-#> 3     3       22    -3.27    -3.54    -3.20     -3.44   -3.27 -0.272    0.106 
-#> 4     4       23    -3.62    -3.66    -3.44     -3.45   -3.62 -0.0364   0.213 
-#> 5     5       24    -3.67    -3.83    -3.55     -3.64   -3.67 -0.164    0.197 
-#> 6     6       25    -3.60    -3.82    -3.41     -3.65   -3.60 -0.221    0.176
+#> 1     1       20    -2.60    -2.62    -2.46     -2.55   -2.60  -0.0112 0.0627 
+#> 2     2       21    -3.40    -3.61    -3.31     -3.56   -3.40  -0.212  0.0495 
+#> 3     3       22    -3.26    -3.34    -3.05     -3.24   -3.26  -0.0780 0.100  
+#> 4     4       23    -3.60    -3.75    -3.44     -3.54   -3.60  -0.147  0.208  
+#> 5     5       24    -3.69    -4.08    -3.58     -4.08   -3.69  -0.392  0.00719
+#> 6     6       25    -3.67    -3.85    -3.56     -3.81   -3.67  -0.180  0.0413
 ```
 
 The four profiles along the chain — each model adds one more selection pressure,
@@ -423,17 +428,17 @@ fast and deterministic:
 fit <- fit_lrmsd_msa_site(spm, observed$pdb_site, observed$lrmsd_obs)
 c(a1 = fit$a1, a2 = fit$a2)
 #>         a1         a2 
-#>  0.4580022 42.3021911
+#>  0.4236682 38.4171558
 ```
 
 
 
 Table: ML estimate of the selection parameters (se from the Hessian)
 
-|parameter | estimate|     se|
-|:---------|--------:|------:|
-|a1        |    0.458|  0.122|
-|a2        |   42.302| 10.187|
+|parameter | estimate|    se|
+|:---------|--------:|-----:|
+|a1        |    0.424| 0.116|
+|a2        |   38.417| 9.824|
 
 
 
@@ -597,21 +602,21 @@ ggplot(decomposition_fit_long, aes(pdb_site, phi, colour = component)) +
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] bio3d_2.4-5        Rcpp_1.1.0         lattice_0.22-5     ps_1.7.5          
-#>  [5] digest_0.6.33      penm_0.2.0.9000    mime_0.12          R6_2.6.1          
+#>  [5] digest_0.6.33      penm_0.1.0         mime_0.12          R6_2.6.1          
 #>  [9] evaluate_0.24.0    highr_0.11         pillar_1.11.1      rlang_1.1.6       
-#> [13] miniUI_0.1.1.1     callr_3.7.6        urlchecker_1.0.1   jefuns_0.1.0      
-#> [17] Matrix_1.5-4.1     splines_4.2.1      labeling_0.4.3     desc_1.4.3        
-#> [21] devtools_2.4.5     stringr_1.6.0      htmlwidgets_1.6.4  S7_0.2.1          
-#> [25] bit_4.0.5          shiny_1.8.1.1      compiler_4.2.1     httpuv_1.6.13     
-#> [29] xfun_0.41          pkgconfig_2.0.3    pkgbuild_1.4.4     mgcv_1.9-1        
-#> [33] htmltools_0.5.8.1  tidyselect_1.2.1   tibble_3.3.0       viridisLite_0.4.2 
-#> [37] crayon_1.5.3       tzdb_0.4.0         withr_3.0.2        later_1.3.2       
-#> [41] grid_4.2.1         nlme_3.1-164       xtable_1.8-4       gtable_0.3.6      
-#> [45] lifecycle_1.0.4    magrittr_2.0.4     scales_1.4.0       cli_3.6.5         
-#> [49] stringi_1.8.3      vroom_1.6.5        cachem_1.0.8       farver_2.1.2      
-#> [53] fs_1.6.4           promises_1.2.1     remotes_2.5.0      ellipsis_0.3.2    
-#> [57] generics_0.1.4     vctrs_0.6.5        RColorBrewer_1.1-3 tools_4.2.1       
-#> [61] bit64_4.0.5        glue_1.8.0         hms_1.1.3          processx_3.8.3    
-#> [65] pkgload_1.5.2      parallel_4.2.1     fastmap_1.1.1      sessioninfo_1.2.2 
-#> [69] memoise_2.0.1      knitr_1.43         profvis_0.3.8      usethis_2.2.3
+#> [13] miniUI_0.1.1.1     callr_3.7.6        urlchecker_1.0.1   Matrix_1.5-4.1    
+#> [17] splines_4.2.1      labeling_0.4.3     desc_1.4.3         devtools_2.4.5    
+#> [21] stringr_1.6.0      htmlwidgets_1.6.4  S7_0.2.1           bit_4.0.5         
+#> [25] shiny_1.8.1.1      compiler_4.2.1     httpuv_1.6.13      xfun_0.41         
+#> [29] pkgconfig_2.0.3    pkgbuild_1.4.4     mgcv_1.9-1         htmltools_0.5.8.1 
+#> [33] tidyselect_1.2.1   tibble_3.3.0       viridisLite_0.4.2  crayon_1.5.3      
+#> [37] tzdb_0.4.0         withr_3.0.2        later_1.3.2        grid_4.2.1        
+#> [41] nlme_3.1-164       xtable_1.8-4       gtable_0.3.6       lifecycle_1.0.4   
+#> [45] magrittr_2.0.4     scales_1.4.0       cli_3.6.5          stringi_1.8.3     
+#> [49] vroom_1.6.5        cachem_1.0.8       farver_2.1.2       fs_1.6.4          
+#> [53] promises_1.2.1     remotes_2.5.0      ellipsis_0.3.2     generics_0.1.4    
+#> [57] vctrs_0.6.5        RColorBrewer_1.1-3 tools_4.2.1        bit64_4.0.5       
+#> [61] glue_1.8.0         hms_1.1.3          processx_3.8.3     pkgload_1.5.2     
+#> [65] parallel_4.2.1     fastmap_1.1.1      sessioninfo_1.2.2  memoise_2.0.1     
+#> [69] knitr_1.43         profvis_0.3.8      usethis_2.2.3
 ```

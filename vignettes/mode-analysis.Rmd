@@ -87,7 +87,7 @@ each controls). The scan takes a minute or two — it is the one slow step here.
 wt_pdb <- bio3d::read.pdb(pdb_file)
 wt     <- set_enm(wt_pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
 spm    <- generate_spm(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
-                            min_sd = 2, pdb_site_active = pdb_site_active, seed = 1024)
+                            min_sd = 2, pdb_site_active = pdb_site_active, ensemble = 1L)
 ```
 
 The per-mode response the verbs below read lives in `spm$dr2mat_mode`, a matrix with
@@ -126,12 +126,12 @@ head(profile)
 #> # A tibble: 6 × 2
 #>    mode lrmsd_msa
 #>   <int>     <dbl>
-#> 1     1     -2.91
-#> 2     2     -2.92
-#> 3     3     -2.49
-#> 4     4     -2.72
-#> 5     5     -2.82
-#> 6     6     -3.00
+#> 1     1     -2.75
+#> 2     2     -2.65
+#> 3     3     -2.54
+#> 4     4     -2.85
+#> 5     5     -2.86
+#> 6     6     -3.04
 ```
 
 
@@ -176,12 +176,12 @@ head(decomposition)
 #> # A tibble: 6 × 8
 #>    mode lrmsd_mm lrmsd_ms lrmsd_ma lrmsd_msa phi_mut phi_stab phi_act
 #>   <int>    <dbl>    <dbl>    <dbl>     <dbl>   <dbl>    <dbl>   <dbl>
-#> 1     1    -1.80    -1.51    -3.48     -2.91   -1.80  0.289    -1.40 
-#> 2     2    -2.14    -1.76    -3.55     -2.92   -2.14  0.380    -1.16 
-#> 3     3    -2.41    -2.16    -2.96     -2.49   -2.41  0.249    -0.329
-#> 4     4    -2.55    -2.56    -2.72     -2.72   -2.55 -0.00555  -0.161
-#> 5     5    -2.63    -2.60    -2.85     -2.82   -2.63  0.0276   -0.226
-#> 6     6    -2.68    -2.58    -3.25     -3.00   -2.68  0.0992   -0.420
+#> 1     1    -1.83    -1.51    -3.42     -2.75   -1.83   0.324   -1.24 
+#> 2     2    -2.02    -1.84    -3.37     -2.65   -2.02   0.186   -0.813
+#> 3     3    -2.51    -2.19    -2.95     -2.54   -2.51   0.318   -0.342
+#> 4     4    -2.62    -2.65    -2.76     -2.85   -2.62  -0.0346  -0.203
+#> 5     5    -2.68    -2.61    -2.87     -2.86   -2.68   0.0682  -0.256
+#> 6     6    -2.74    -2.59    -3.16     -3.04   -2.74   0.152   -0.451
 ```
 
 
@@ -301,12 +301,12 @@ head(observed)
 #> # A tibble: 6 × 2
 #>    mode lrmsd_obs
 #>   <dbl>     <dbl>
-#> 1     1     -2.00
-#> 2     2     -2.32
+#> 1     1     -1.99
+#> 2     2     -2.39
 #> 3     3     -2.17
-#> 4     4     -2.14
-#> 5     5     -2.50
-#> 6     6     -2.86
+#> 4     4     -2.21
+#> 5     5     -2.55
+#> 6     6     -2.85
 ```
 
 `fit_lrmsd_msa_mode()` estimates `a1, a2` from it by maximum likelihood, returning a
@@ -317,7 +317,7 @@ point estimate plus an asymptotic covariance from the Hessian:
 fit <- fit_lrmsd_msa_mode(spm, observed$mode, observed$lrmsd_obs)
 c(a1 = fit$a1, a2 = fit$a2)
 #>         a1         a2 
-#>  0.4492209 40.8195734
+#>  0.3686453 35.6639941
 ```
 
 
@@ -326,8 +326,8 @@ Table: ML estimate of the selection parameters (se from the Hessian)
 
 |parameter | estimate|    se|
 |:---------|--------:|-----:|
-|a1        |    0.449| 0.058|
-|a2        |   40.820| 6.314|
+|a1        |    0.369| 0.060|
+|a2        |   35.664| 6.443|
 
 
 
@@ -447,21 +447,20 @@ ggplot(decomposition_fit_long, aes(mode, phi, colour = component)) +
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] bio3d_2.4-5        Rcpp_1.1.0         lattice_0.22-5     ps_1.7.5          
-#>  [5] digest_0.6.33      penm_0.2.0.9000    mime_0.12          R6_2.6.1          
+#>  [5] digest_0.6.33      penm_0.1.0         mime_0.12          R6_2.6.1          
 #>  [9] evaluate_0.24.0    highr_0.11         pillar_1.11.1      rlang_1.1.6       
-#> [13] miniUI_0.1.1.1     callr_3.7.6        urlchecker_1.0.1   jefuns_0.1.0      
-#> [17] Matrix_1.5-4.1     labeling_0.4.3     desc_1.4.3         devtools_2.4.5    
-#> [21] stringr_1.6.0      htmlwidgets_1.6.4  S7_0.2.1           bit_4.0.5         
-#> [25] shiny_1.8.1.1      compiler_4.2.1     httpuv_1.6.13      xfun_0.41         
-#> [29] pkgconfig_2.0.3    pkgbuild_1.4.4     htmltools_0.5.8.1  tidyselect_1.2.1  
-#> [33] tibble_3.3.0       viridisLite_0.4.2  crayon_1.5.3       tzdb_0.4.0        
-#> [37] withr_3.0.2        later_1.3.2        grid_4.2.1         xtable_1.8-4      
-#> [41] gtable_0.3.6       lifecycle_1.0.4    magrittr_2.0.4     scales_1.4.0      
-#> [45] cli_3.6.5          stringi_1.8.3      vroom_1.6.5        cachem_1.0.8      
-#> [49] farver_2.1.2       fs_1.6.4           promises_1.2.1     remotes_2.5.0     
-#> [53] ellipsis_0.3.2     generics_0.1.4     vctrs_0.6.5        RColorBrewer_1.1-3
-#> [57] tools_4.2.1        bit64_4.0.5        glue_1.8.0         hms_1.1.3         
-#> [61] processx_3.8.3     pkgload_1.5.2      parallel_4.2.1     fastmap_1.1.1     
-#> [65] sessioninfo_1.2.2  memoise_2.0.1      knitr_1.43         profvis_0.3.8     
-#> [69] usethis_2.2.3
+#> [13] miniUI_0.1.1.1     callr_3.7.6        urlchecker_1.0.1   Matrix_1.5-4.1    
+#> [17] labeling_0.4.3     desc_1.4.3         devtools_2.4.5     stringr_1.6.0     
+#> [21] htmlwidgets_1.6.4  S7_0.2.1           bit_4.0.5          shiny_1.8.1.1     
+#> [25] compiler_4.2.1     httpuv_1.6.13      xfun_0.41          pkgconfig_2.0.3   
+#> [29] pkgbuild_1.4.4     htmltools_0.5.8.1  tidyselect_1.2.1   tibble_3.3.0      
+#> [33] viridisLite_0.4.2  crayon_1.5.3       tzdb_0.4.0         withr_3.0.2       
+#> [37] later_1.3.2        grid_4.2.1         xtable_1.8-4       gtable_0.3.6      
+#> [41] lifecycle_1.0.4    magrittr_2.0.4     scales_1.4.0       cli_3.6.5         
+#> [45] stringi_1.8.3      vroom_1.6.5        cachem_1.0.8       farver_2.1.2      
+#> [49] fs_1.6.4           promises_1.2.1     remotes_2.5.0      ellipsis_0.3.2    
+#> [53] generics_0.1.4     vctrs_0.6.5        RColorBrewer_1.1-3 tools_4.2.1       
+#> [57] bit64_4.0.5        glue_1.8.0         hms_1.1.3          processx_3.8.3    
+#> [61] pkgload_1.5.2      parallel_4.2.1     fastmap_1.1.1      sessioninfo_1.2.2 
+#> [65] memoise_2.0.1      knitr_1.43         profvis_0.3.8      usethis_2.2.3
 ```

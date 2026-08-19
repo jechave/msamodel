@@ -111,7 +111,7 @@ each controls). The scan takes a minute or two — it is the one slow step here.
 wt_pdb <- bio3d::read.pdb(pdb_file)
 wt     <- set_enm(wt_pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
 spm    <- generate_spm(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
-                            min_sd = 2, pdb_site_active = pdb_site_active, seed = 1024)
+                            min_sd = 2, pdb_site_active = pdb_site_active, ensemble = 1L)
 ```
 
 The per-mode response the verbs below read lives in `spm$dr2mat_mode`, a matrix with

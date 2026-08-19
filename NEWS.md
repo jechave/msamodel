@@ -100,8 +100,8 @@
   `znb_wt` and `znb_spm` were never example data: no vignette used them, and they
   existed so the test suite would not spend ~21 s regenerating the scan. They are now
   test fixtures under `tests/testthat/fixtures/`, built by the recipe beside them. To
-  get the equivalent objects, run the two lines the vignettes run — `setup_enm()` then
-  `generate_spm()` with `seed = 1024`.
+  get the equivalent objects, run the two lines the vignettes run — `set_enm()` then
+  `generate_spm()` with `ensemble = 1L`.
 
   Installed size drops from ~25.8 MB to ~368 KB, which also clears the standing
   `R CMD check` size WARNING.
@@ -135,7 +135,7 @@
   does divergence live in?".
 
   ```r
-  spm  <- generate_spm(wt, pdb_site_active = act$pdb_site, seed = 1024)
+  spm  <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
   prof <- calculate_profiles(spm, a1 = 1, a2 = 1)
   prof$site   # site, pdb_site, lrmsd_msa
   prof$mode   # mode, lrmsd_msa
