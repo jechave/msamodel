@@ -1,7 +1,7 @@
 Package: msamodel
 Type: Package
 Title: Mutation-Stability-Activity Model of Neutral Structural Evolution
-Version: 0.3.0.9000
+Version: 0.4.0
 Author: Julian Echave
 Maintainer: Julian Echave <jechave@unsam.edu.ar>
 Description: Implementation of the Mutation-Stability-Activity (MSA) model for
@@ -16,7 +16,7 @@ Roxygen: list(markdown = TRUE)
 Depends:
     R (>= 3.5)
 Imports:
-    penm,
+    penm (>= 0.2.0),
     dplyr,
     tidyr,
     tibble,
