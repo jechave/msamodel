@@ -42,18 +42,19 @@ test_that("mode ML sits at a local max of its own objective (consistency)", {
 })
 
 test_that("fit_lrmsd_msa_mode matches frozen reference values", {
-  # Frozen literals captured once from the current implementation (devtools state,
-  # 2026-06-24) on the synthetic znb_profile_n. Catches drift in the mode fit math /
-  # optimiser path, not a re-derivation.
+  # Frozen literals captured once from the current implementation, on the synthetic
+  # znb_profile_n. Catches drift in the mode fit math / optimiser path, not a
+  # re-derivation. (Re-frozen 2026-08-19 with the penm ensemble resample; note the
+  # observed profile itself is derived from the scan, so both sides moved.)
   pp <- znb_spm
   ml <- fit_lrmsd_msa_mode(pp, znb_profile_n$mode, znb_profile_n$lrmsd_obs)
 
-  expect_equal(ml$a1,        0.449221, tolerance = 1e-4)
-  expect_equal(ml$a2,       40.819573, tolerance = 1e-3)
-  expect_equal(ml$logLik, -155.553290, tolerance = 1e-4)
-  expect_equal(ml$gof$sigma_hat,  0.304371, tolerance = 1e-4)
-  expect_equal(ml$se_a1,      0.057756, tolerance = 1e-3)
-  expect_equal(ml$se_a2,      6.313771, tolerance = 1e-2)
+  expect_equal(ml$a1,        0.368645, tolerance = 1e-4)
+  expect_equal(ml$a2,       35.663994, tolerance = 1e-3)
+  expect_equal(ml$logLik, -155.023585, tolerance = 1e-4)
+  expect_equal(ml$gof$sigma_hat,  0.304133, tolerance = 1e-4)
+  expect_equal(ml$se_a1,      0.059994, tolerance = 1e-3)
+  expect_equal(ml$se_a2,      6.442842, tolerance = 1e-2)
 })
 
 test_that("fit_lrmsd_msa_mode validates box bounds and init (fail loud)", {

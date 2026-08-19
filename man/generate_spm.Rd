@@ -11,7 +11,7 @@ generate_spm(
   sigma = 0.3,
   min_sd = 2,
   pdb_site_active = NULL,
-  seed = NULL
+  ensemble
 )
 }
 \arguments{
@@ -33,9 +33,11 @@ default \code{2}, edges to immediate sequence neighbours are left alone.}
 no activity energy is computed and \code{energy_data$ddgact} is \code{NA} throughout, which
 leaves the model's activity term unusable.}
 
-\item{seed}{Random seed, for a reproducible scan. penm seeds each mutant as
-\code{seed + site * mutation}, so scans meant to be independent need widely separated
-seeds, not consecutive ones.}
+\item{ensemble}{Which realization of the mutational process to draw from. Any
+integer; one scan uses a single value throughout, and recording it is what makes
+the scan reproducible. Changing it does not add randomness -- it moves to a
+different realization, in which a given mutation is a different mutation. See
+\link[penm:penm_ensemble]{penm::penm_ensemble}.}
 }
 \value{
 An \code{spm} object (a classed list) with five elements:
@@ -89,7 +91,7 @@ wt  <- set_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca",
                       model = "ming_wall", d_max = 10.5, frustrated = FALSE)
 act <- readr::read_csv(ex("znb_active_site.csv"))
 spm <- generate_spm(wt, n_mutations = 10, pdb_site_active = act$pdb_site,
-                    seed = 1024)
+                    ensemble = 1L)
 
 dim(spm$dr2mat_site)   # mutants x residues
 dim(spm$dr2mat_mode)   # mutants x modes

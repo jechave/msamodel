@@ -85,5 +85,5 @@ test_that("loglik_lrmsd_msa matches a frozen reference value", {
   # a constant ~+0.0011 and the (a1,a2) argmax is unchanged.)
   pp <- znb_spm
   ll <- msamodel:::loglik_lrmsd_msa(pp$dr2mat_site, pp$energy_data, msamodel:::resolve_site_obs(pp, znb_profile$pdb_site, znb_profile$lrmsd_obs), a1 = 2, a2 = 5)
-  expect_equal(ll, -184.3230779142, tolerance = 1e-6)
+  expect_equal(ll, -186.8954914839, tolerance = 1e-6)
 })

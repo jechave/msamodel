@@ -41,7 +41,7 @@ delta_structure_dr <- function(wt, mut) {
 #' @param min_sd Minimum sequence separation between coupled sites.
 #' @param pdb_site_active Optional integer vector of active-site residue numbers
 #'   (PDB numbering).
-#' @param seed Optional random seed, for a reproducible scan.
+#' @param ensemble Which realization of the mutational process to draw from.
 #' @return A tibble with one row per mutant `(j, m)` (`m = 0` is the wild type),
 #'   carrying all measured effects of that mutation: scalar energy changes
 #'   (`ddg_dv_jm`, `ddg_tds_jm`, `ddgact_dv_jm`, `ddgact_tds_jm`) and list-columns
@@ -54,9 +54,7 @@ delta_structure_dr <- function(wt, mut) {
 generate_spm_core <- function(wt, n_mutations = 10,
                              model = "lfenm", sigma = 0.3,
                              min_sd = 2, pdb_site_active = NULL,
-                             seed = NULL) {
-  if (!is.null(seed)) set.seed(seed)
-
+                             ensemble) {
   # Get site information once
   site_vector <- get_site(wt)
   pdb_site_vector <- get_pdb_site(wt)
@@ -72,7 +70,7 @@ generate_spm_core <- function(wt, n_mutations = 10,
                              mut_model = model,
                              mut_dl_sigma = sigma,
                              mut_sd_min = min_sd,
-                             seed = seed)
+                             ensemble = ensemble)
 
       # Calculate energies
       ddg_dv_jm <- ddg_dv(wt, mut)
@@ -164,9 +162,11 @@ generate_spm_core <- function(wt, n_mutations = 10,
 #' @param pdb_site_active Active-site residue numbers, in **PDB numbering**. If `NULL`,
 #'   no activity energy is computed and `energy_data$ddgact` is `NA` throughout, which
 #'   leaves the model's activity term unusable.
-#' @param seed Random seed, for a reproducible scan. penm seeds each mutant as
-#'   `seed + site * mutation`, so scans meant to be independent need widely separated
-#'   seeds, not consecutive ones.
+#' @param ensemble Which realization of the mutational process to draw from. Any
+#'   integer; one scan uses a single value throughout, and recording it is what makes
+#'   the scan reproducible. Changing it does not add randomness -- it moves to a
+#'   different realization, in which a given mutation is a different mutation. See
+#'   [penm::penm_ensemble].
 #' @return An `spm` object (a classed list) with five elements:
 #'   \describe{
 #'     \item{`energy_data`}{One row per mutant, aligned with the matrix rows: `j` (the
@@ -189,7 +189,7 @@ generate_spm_core <- function(wt, n_mutations = 10,
 #'                       model = "ming_wall", d_max = 10.5, frustrated = FALSE)
 #' act <- readr::read_csv(ex("znb_active_site.csv"))
 #' spm <- generate_spm(wt, n_mutations = 10, pdb_site_active = act$pdb_site,
-#'                     seed = 1024)
+#'                     ensemble = 1L)
 #'
 #' dim(spm$dr2mat_site)   # mutants x residues
 #' dim(spm$dr2mat_mode)   # mutants x modes
@@ -201,10 +201,10 @@ generate_spm_core <- function(wt, n_mutations = 10,
 generate_spm <- function(wt, n_mutations = 10,
                              model = "lfenm", sigma = 0.3,
                              min_sd = 2, pdb_site_active = NULL,
-                             seed = NULL) {
+                             ensemble) {
   scan <- generate_spm_core(wt, n_mutations = n_mutations, model = model,
                             sigma = sigma, min_sd = min_sd,
-                            pdb_site_active = pdb_site_active, seed = seed)
+                            pdb_site_active = pdb_site_active, ensemble = ensemble)
 
   # Drop the wild-type rows (m = 0): every model-ready array is per MUTANT.
   scan <- scan %>% filter(m > 0)

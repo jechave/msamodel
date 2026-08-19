@@ -79,10 +79,14 @@ test_that("dr2_n reweighting collapses the mutant axis with the same weights as 
   # circular with the forward map.
   a1 <- 2; a2 <- 5
 
+  # The regenerated scan supplies the ENERGIES, which are then applied to the
+  # FIXTURE's dr2mat_mode -- so the two must be the same realization. SPM_ENSEMBLE is
+  # sourced from the recipe rather than copied, so it cannot drift out of step.
+  source(testthat::test_path("fixtures", "make-znb-fixtures.R"))
   scan <- generate_spm_core(znb_wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
                             min_sd = 2,
                             pdb_site_active = PDB_SITE_ACTIVE,
-                            seed = 1024)
+                            ensemble = SPM_ENSEMBLE)
   filt <- scan[scan$m > 0, ]
   ddg    <- filt$ddg_dv_jm + filt$ddg_tds_jm
   ddgact <- filt$ddgact_dv_jm + filt$ddgact_tds_jm

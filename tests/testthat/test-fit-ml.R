@@ -54,17 +54,20 @@ test_that("ML sits at a local max of its own objective (consistency)", {
 })
 
 test_that("fit_lrmsd_msa_site matches frozen reference values", {
-  # Frozen literals captured once from the current implementation (devtools state,
-  # 2026-06-24). Catches drift in the fit math / optimiser path, not a re-derivation.
+  # Frozen literals captured once from the current implementation. Catches drift in the
+  # fit math / optimiser path, not a re-derivation. (Re-frozen 2026-08-19: penm replaced
+  # its colliding RNG key with a hashed one, so the scan is a new realization of the same
+  # process and every scan-derived number moved. Accepted on a similarity gate -- site
+  # profile r = 0.986 old-vs-new -- not because the suite went red.)
   pp <- znb_spm
   ml <- fit_lrmsd_msa_site(pp, znb_profile$pdb_site, znb_profile$lrmsd_obs)
 
-  expect_equal(ml$a1,     0.458002, tolerance = 1e-4)
-  expect_equal(ml$a2,    42.302191, tolerance = 1e-3)
-  expect_equal(ml$logLik, -138.545817, tolerance = 1e-4)
-  expect_equal(ml$gof$sigma_hat, 0.447903, tolerance = 1e-4)
-  expect_equal(ml$se_a1,  0.122275, tolerance = 1e-3)
-  expect_equal(ml$se_a2, 10.186796, tolerance = 1e-2)
+  expect_equal(ml$a1,     0.423668, tolerance = 1e-4)
+  expect_equal(ml$a2,    38.417156, tolerance = 1e-3)
+  expect_equal(ml$logLik, -138.718706, tolerance = 1e-4)
+  expect_equal(ml$gof$sigma_hat, 0.448247, tolerance = 1e-4)
+  expect_equal(ml$se_a1,  0.116440, tolerance = 1e-3)
+  expect_equal(ml$se_a2,  9.823833, tolerance = 1e-2)
 })
 
 test_that("fit_lrmsd_msa_site validates box bounds (fail loud)", {

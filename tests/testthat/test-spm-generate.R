@@ -21,8 +21,9 @@ test_that("a single mutant row reproduces from its seeded recipe (cheap coherenc
   # for speed; this confirms the committed cache still matches what the generator
   # produces -- WITHOUT the ~21 s full 2280-row regeneration (gated below).
   #
-  # The scan seeds per mutant via get_mutant_site(wt, site_mut, mutation, ...,
-  # seed=SPM_SEED): the per-mutant RNG is keyed on (seed, site_mut, mutation), so one
+  # The scan draws each mutant via get_mutant_site(wt, site_mut, mutation, ...,
+  # ensemble=SPM_ENSEMBLE): penm keys the per-mutant RNG on the hashed tuple
+  # (ensemble, site_mut, mutation), so one
   # (j, m>0) cell reproduces exactly without running the whole loop. Verified to be
   # bit-exact (diff = 0), not merely within tolerance. m = 0 is the WILD TYPE and is
   # dropped in the assembled object -- this MUST use m > 0 to exercise the mutation
@@ -37,7 +38,7 @@ test_that("a single mutant row reproduces from its seeded recipe (cheap coherenc
 
   mut <- get_mutant_site(znb_wt, ed$j[k], ed$m[k],
                          mut_model = SPM_MODEL, mut_dl_sigma = SPM_SIGMA,
-                         mut_sd_min = SPM_MIN_SD, seed = SPM_SEED)
+                         mut_sd_min = SPM_MIN_SD, ensemble = SPM_ENSEMBLE)
 
   # Same measured divergences the generation loop records for this row: the matrix row
   # compares directly against penm's per-mutant vectors (both nameless).
@@ -81,7 +82,7 @@ test_that("generate_spm reproduces the embedded SPM fixture", {
     sigma           = SPM_SIGMA,
     min_sd          = SPM_MIN_SD,
     pdb_site_active = PDB_SITE_ACTIVE,
-    seed            = SPM_SEED
+    ensemble        = SPM_ENSEMBLE
   )
   expect_equal(spm, znb_spm, tolerance = 1e-8)
 })
@@ -92,6 +93,6 @@ test_that("SPM mode column equals penm's mode index (guards the seq_along choice
   # indices, not an off-by-one stand-in. This is a property of the raw scan (the
   # assembled object keeps the mode index implicitly as the dr2mat_mode column position).
   scan <- generate_spm_core(znb_wt, n_mutations = 1, pdb_site_active = PDB_SITE_ACTIVE,
-                            seed = SPM_SEED)
+                            ensemble = SPM_ENSEMBLE)
   expect_equal(scan$mode[[1]], penm:::get_mode(znb_wt))
 })

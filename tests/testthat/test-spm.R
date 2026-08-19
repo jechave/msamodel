@@ -25,7 +25,7 @@ test_that("site_map maps the internal site index to pdb_site as in the scan", {
   # pdb_site contract depends on this being correct.
   scan <- generate_spm_core(znb_wt, n_mutations = 1,
                             pdb_site_active = PDB_SITE_ACTIVE,
-                            seed = 1024)
+                            ensemble = 1L)
   expect_equal(znb_spm$site_map$site, as.integer(scan$site[[1]]))
   expect_equal(znb_spm$site_map$pdb_site, as.integer(scan$pdb_site[[1]]))
 })
@@ -38,7 +38,7 @@ test_that("mode_map carries the mode index as in the scan", {
   # residue-anchored, so there is no pdb_ counterpart -- the index is the whole map.
   scan <- generate_spm_core(znb_wt, n_mutations = 1,
                             pdb_site_active = PDB_SITE_ACTIVE,
-                            seed = 1024)
+                            ensemble = 1L)
   expect_equal(znb_spm$mode_map$mode, as.integer(scan$mode[[1]]))
   # The map must span the matrix it keys -- the invariant prepend_mode_key relies on.
   expect_equal(nrow(znb_spm$mode_map), ncol(znb_spm$dr2mat_mode))

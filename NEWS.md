@@ -2,6 +2,36 @@
 
 ## Breaking changes
 
+* **`generate_spm()` takes `ensemble`, not `seed`, and it is required.** The argument
+  was never a seed: penm hashes it together with `(site, mutation)` and *that* hash
+  seeds the RNG. It names **which realization of the mutational process** the scan
+  draws from. Changing it does not add randomness -- it moves to a different
+  realization, in which a given mutation is a different mutation.
+
+  ```r
+  spm <- generate_spm(wt, ..., seed = 1024)      # was
+  spm <- generate_spm(wt, ..., ensemble = 1L)    # now
+  ```
+
+  There is no default: a scan whose realization is not recorded cannot be regenerated.
+  (The former `seed = NULL` default did not work either -- it errored on the first
+  mutant.) See `?penm::penm_ensemble`.
+
+* **All scan-derived numbers changed.** This is a correctness fix in penm, not drift in
+  msamodel: the old RNG key `seed + site * mutation` collided -- every divisor pair of
+  the same product shared a random stream, so 1710 of 2280 mutants in a standard scan
+  were not independent draws. penm now hashes the key. Re-running an analysis therefore
+  gives different numbers; they are a new, and genuinely independent, realization of the
+  same process.
+
+  The change was accepted on a similarity check rather than by re-freezing whatever came
+  out: old vs new per-site profile r = 0.986, per-mode r = 0.9985, and fitted `(a1, a2)`
+  moved by under 10% -- the scatter expected between two draws.
+
+* **`inst/extdata/znb_lrmsd_obs_mode_syn.csv` changed.** The shipped synthetic mode
+  profile is derived from the scan, so it moved with it. Cached results computed against
+  the old file will not reproduce.
+
 * **`setup_enm()` is removed; use `set_enm()`.** It had become a pure forward to
   `penm::set_enm()` — a copy of penm's signature (so penm's defaults could drift out
   of sync here unnoticed) plus one class check. `set_enm()` is now re-exported, so

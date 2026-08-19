@@ -151,6 +151,13 @@ test_that("a mode_map inconsistent with the profile length fails loud, not silen
 # fixed (a1, a2) and a fixed deterministic ML fit, so a future refactor that silently
 # corrupts a value goes red here. Expected values are hand-frozen literals, NOT recomputed
 # by the code under test. Regenerate ONLY on an intended, reviewed output change.
+#
+# Re-frozen 2026-08-19: penm replaced its colliding RNG key (seed + site*mutation, which
+# gave 1710 of 2280 mutants a shared stream) with a hashed one, so the scan is a NEW
+# REALIZATION of the same process and every scan-derived number moved. Accepted on a
+# similarity gate -- site profile r = 0.986, mode r = 0.9985, (a1,a2) within 10% -- not
+# merely because the suite was red. The structural assertions below (pdb_site, nrow,
+# a1>0 && a2>0) are realization-independent and did NOT change.
 
 test_that("calculate_* reproduce frozen reference values (znb_spm at a1=1.3, a2=0.7)", {
   spm <- znb_spm
@@ -159,26 +166,26 @@ test_that("calculate_* reproduce frozen reference values (znb_spm at a1=1.3, a2=
   cp_l <- calculate_profiles(spm, 1.3, 0.7, "lrmsd")
   cp_n <- calculate_profiles(spm, 1.3, 0.7, "nlrmsd")
   expect_equal(cp_l$site$lrmsd_msa[1:3],
-               c(-2.38860098918393, -3.41729557242227, -3.40211980354922), tolerance = tol)
+               c(-2.54052990087894, -3.45097720786521, -3.20933525212177), tolerance = tol)
   expect_equal(cp_l$mode$lrmsd_msa[1:3],
-               c(-1.5687305271568, -1.82327102574257, -2.21838411202063), tolerance = tol)
+               c(-1.56047316654222, -1.89649798666260, -2.24165697607520), tolerance = tol)
   expect_equal(cp_n$site$nlrmsd_msa[1:3],
-               c(1.81659196313855, 0.787897379900211, 0.803073148773266), tolerance = tol)
+               c(1.67750403135739, 0.767056724371121, 1.00869868011456), tolerance = tol)
   expect_equal(cp_n$mode$nlrmsd_msa[1:3],
-               c(4.02007678194882, 3.76553628336305, 3.37042319708499), tolerance = tol)
+               c(4.06214194696690, 3.72611712684653, 3.38095813743392), tolerance = tol)
   expect_equal(cp_l$site$pdb_site[1:3], c(20L, 21L, 22L))
   expect_equal(nrow(cp_l$site), 228L)
   expect_equal(nrow(cp_l$mode), 678L)
 
   cd_l <- calculate_decomposition(spm, 1.3, 0.7, "lrmsd")
   cd_n <- calculate_decomposition(spm, 1.3, 0.7, "nlrmsd")
-  expect_equal(cd_l$site$lrmsd_mm[1], -2.42154799236766, tolerance = tol)
-  expect_equal(cd_l$site$phi_stab[1],    0.0287338535954338, tolerance = tol)
-  expect_equal(cd_l$site$phi_act[1],     0.00421314958829955, tolerance = tol)
-  expect_equal(cd_n$site$nphi_stab[1],   0.379280436055831, tolerance = tol)
-  expect_equal(cd_n$site$nphi_act[1],    0.00933343562163675, tolerance = tol)
-  expect_equal(cd_n$mode$nphi_stab[1],   0.534774823663534, tolerance = tol)
-  expect_equal(cd_n$mode$nphi_act[1],   -0.00628475618290865, tolerance = tol)
+  expect_equal(cd_l$site$lrmsd_mm[1], -2.60382852826265, tolerance = tol)
+  expect_equal(cd_l$site$phi_stab[1],    0.0583322466182667, tolerance = tol)
+  expect_equal(cd_l$site$phi_act[1],     0.00496638076544098, tolerance = tol)
+  expect_equal(cd_n$site$nphi_stab[1],   0.430925431378782, tolerance = tol)
+  expect_equal(cd_n$site$nphi_act[1],    0.00979474459649821, tolerance = tol)
+  expect_equal(cd_n$mode$nphi_stab[1],   0.598520427352300, tolerance = tol)
+  expect_equal(cd_n$mode$nphi_act[1],   -0.00559179592306779, tolerance = tol)
 })
 
 test_that("predict_* reproduce frozen reference values (fixed ML fit; _se pinned)", {
@@ -190,22 +197,22 @@ test_that("predict_* reproduce frozen reference values (fixed ML fit; _se pinned
 
   pp_i <- predict_profiles(ml_i, spm, "nlrmsd")
   pp_n <- predict_profiles(ml_n, spm, "nlrmsd")
-  expect_equal(pp_i$site$nlrmsd_msa[1],    1.81683984987468, tolerance = tol)
-  expect_equal(pp_i$site$nlrmsd_msa_se[1], 0.110443916713325, tolerance = tol)
-  expect_equal(pp_n$mode$nlrmsd_msa[1],    3.2741642946694,  tolerance = tol)
-  expect_equal(pp_n$mode$nlrmsd_msa_se[1], 0.0826541993570476, tolerance = tol)
+  expect_equal(pp_i$site$nlrmsd_msa[1],    1.66565200979890, tolerance = tol)
+  expect_equal(pp_i$site$nlrmsd_msa_se[1], 0.109426768059044, tolerance = tol)
+  expect_equal(pp_n$mode$nlrmsd_msa[1],    3.28112236258608,  tolerance = tol)
+  expect_equal(pp_n$mode$nlrmsd_msa_se[1], 0.0893703849084266, tolerance = tol)
 
   pd_i <- predict_decomposition(ml_i, spm, "nlrmsd")
   pd_n <- predict_decomposition(ml_n, spm, "nlrmsd")
   # nested-model _se (the load-bearing columns: a mis-wired arm/point would hide here)
-  expect_equal(pd_i$site$nlrmsd_mm_se[1],  0.102662779822919, tolerance = tol)
-  expect_equal(pd_i$site$nlrmsd_ms_se[1],  0.108697825909678, tolerance = tol)
-  expect_equal(pd_i$site$nlrmsd_msa_se[1], 0.110443916713325, tolerance = tol)
+  expect_equal(pd_i$site$nlrmsd_mm_se[1],  0.105337000991338, tolerance = tol)
+  expect_equal(pd_i$site$nlrmsd_ms_se[1],  0.106365729067374, tolerance = tol)
+  expect_equal(pd_i$site$nlrmsd_msa_se[1], 0.109426768059044, tolerance = tol)
   # component _se
-  expect_equal(pd_i$site$nphi_stab_se[1],    0.0851289549563722, tolerance = tol)
-  expect_equal(pd_i$site$nphi_act_se[1],     0.035098062683972,  tolerance = tol)
-  expect_equal(pd_n$mode$nlrmsd_mm_se[1],  0.0738708293607008, tolerance = tol)
-  expect_equal(pd_n$mode$nphi_stab_se[1],    0.041478920753972,  tolerance = tol)
+  expect_equal(pd_i$site$nphi_stab_se[1],    0.0750828744279671, tolerance = tol)
+  expect_equal(pd_i$site$nphi_act_se[1],     0.0371462236246697,  tolerance = tol)
+  expect_equal(pd_n$mode$nlrmsd_mm_se[1],  0.0636708115459037, tolerance = tol)
+  expect_equal(pd_n$mode$nphi_stab_se[1],    0.0406557478811725,  tolerance = tol)
 
   # Exact structural invariants (hold regardless of the frozen numbers): the mutation
   # contribution IS the MM nested model, value and se.

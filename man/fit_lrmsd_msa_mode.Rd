@@ -78,7 +78,7 @@ ex   <- function(f) system.file("extdata", f, package = "msamodel")
 wt   <- set_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca",
                       model = "ming_wall", d_max = 10.5, frustrated = FALSE)
 act  <- readr::read_csv(ex("znb_active_site.csv"))
-spm  <- generate_spm(wt, pdb_site_active = act$pdb_site, seed = 1024)
+spm  <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
 
 # Synthetic observations: no empirical per-mode profile exists (see the file name).
 obs <- readr::read_csv(ex("znb_lrmsd_obs_mode_syn.csv"))

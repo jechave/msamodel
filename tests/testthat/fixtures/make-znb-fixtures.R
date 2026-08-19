@@ -3,7 +3,7 @@
 # Build the TEST FIXTURES for the example protein 1znb_A: znb_wt.rds (the penm ENM
 # wild type) and znb_spm.rds (the 2280-mutant scan).
 #
-# These are NOT user-facing data. They are cached results of a seeded recipe,
+# These are NOT user-facing data. They are cached results of a fixed recipe,
 # consumed as INPUT by the test suite -- 11 test files for znb_spm, 4 for znb_wt,
 # and no vignette. The scan costs ~21 s to regenerate, which is why it is cached
 # rather than built per run.
@@ -33,7 +33,7 @@ SPM_N_MUTATIONS <- 10
 SPM_MODEL       <- "lfenm"
 SPM_SIGMA       <- 0.3
 SPM_MIN_SD      <- 2
-SPM_SEED        <- 1024
+SPM_ENSEMBLE    <- 1L
 
 # The active site is READ, not inlined: inst/extdata/znb_active_site.csv is the
 # single source, shared with the vignettes and data-raw/. Sourcing this file for
@@ -78,7 +78,7 @@ make_znb_fixtures <- function(pkg_root = here::here()) {
     sigma           = SPM_SIGMA,
     min_sd          = SPM_MIN_SD,
     pdb_site_active = pdb_site_active,
-    seed            = SPM_SEED
+    ensemble        = SPM_ENSEMBLE
   )
 
   list(znb_wt = znb_wt, znb_spm = znb_spm)

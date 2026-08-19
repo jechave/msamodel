@@ -17,7 +17,7 @@
 # owns the ENM/SPM constants. This script must not read from tests/, and that one
 # must not write here -- the two pipelines are independent by design. The cost is
 # that section 3 below regenerates the scan (~21 s) instead of borrowing the
-# fixture; the recipe is seeded, so it is the same scan either way.
+# fixture; the recipe is fixed, so it is the same scan either way.
 #
 # Re-run with:  Rscript data-raw/prepare_znb_data.R   (from the package root)
 
@@ -99,7 +99,7 @@ SPM_N_MUTATIONS <- 10
 SPM_MODEL       <- "lfenm"
 SPM_SIGMA       <- 0.3
 SPM_MIN_SD      <- 2
-SPM_SEED        <- 1024
+SPM_ENSEMBLE    <- 1L
 
 SYN_SEED     <- 2025
 SYN_NOISE_SD <- 0.30
@@ -113,7 +113,7 @@ spm <- generate_spm(wt,
                          sigma           = SPM_SIGMA,
                          min_sd          = SPM_MIN_SD,
                          pdb_site_active = pdb_site_active,
-                         seed            = SPM_SEED)
+                         ensemble        = SPM_ENSEMBLE)
 
 site_fit <- fit_lrmsd_msa_site(spm, lrmsd_obs_site$pdb_site,
                                lrmsd_obs_site$lrmsd_obs)   # deterministic (a1,a2)
