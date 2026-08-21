@@ -23,6 +23,54 @@ changes. The same episode often earns a line in each. Things to maybe do later l
 in `dev/ideas.md`.
 
 
+### 2026-08-21 — the `set_enm` re-export is gone; msamodel imports nothing from penm
+
+0.4.0 re-exported `penm::set_enm` so `library(msamodel)` was enough to attach, and its
+NEWS said so in public (it is on origin/main). 0.5.0 reverses that. The reason is not
+taste: the re-export covered **one** penm function while every other one a workflow needs
+(`get_dactive`, `get_msf_site`, `get_pdb_site`) still had to be written `penm::`, so
+site-analysis told the reader "you do not need penm" for one step and "yes you do" for the
+next. Four passages had drifted into crediting msamodel with building the elastic network
+model, which penm builds — the re-export is what made that read as true.
+
+Worth keeping:
+
+- **`library()` and `load_all()` disagree about imports, and it matters here.** Under
+  `library(msamodel)`, `set_enm` was visible (exported) but `get_mutant_site`, `ddg_dv`,
+  `get_site` were NOT — yet the tests called them bare and passed, because
+  `pkgload::load_all()` attaches a package's *imports* alongside its exports. So the suite
+  could not have caught the removal: 239 tests stayed green either way. Verified both
+  tables directly before relying on it. The bare calls are now all `penm::`-qualified, so
+  the test file no longer depends on that difference.
+
+- **The roxygen link was the real check risk, and `test()` cannot see it.**
+  `@seealso [set_enm()]` generated `\link[=set_enm]` — a *local* link that resolved only
+  through the alias in the generated `man/reexports.Rd`. Removing the re-export would have
+  left a missing-link WARNING that only `R CMD check` reports. Fixed by writing
+  `[penm::set_enm()]`, which generates `\link[penm:set_enm]`; the precedent was already in
+  the file at `[penm::penm_ensemble]`. roxygen deleted `reexports.Rd` on its own.
+
+- **Dropping `@importFrom` trades a check-time guarantee for a runtime one.** With no
+  `importFrom(penm,...)` in NAMESPACE, `R CMD check` no longer verifies those seven names
+  exist in penm. Accepted deliberately: the tests exercise all seven, and the gain is that
+  every call site says which package owns the function.
+
+- **The re-knit fixed two stale versions with no source edit.** The rendered vignettes had
+  recorded `penm_0.1.0` (below the `>= 0.2.0` floor in DESCRIPTION) and
+  `msamodel_0.3.0.9000`. Installed penm was already 0.2.0 — the render was simply old, and
+  `dev/knit-vignette.R` installs the working tree, so both corrected themselves.
+
+- **Figures came back byte-identical.** The knit wipes every `_files/` dir and rebuilds it,
+  so a large figure diff was expected and did not happen: the scan is seeded, so identical
+  inputs reproduced identical PNGs. Commit B's diff is only the four `.Rmd` text files. A
+  useful negative result — figure churn is not an inevitable cost of re-knitting here.
+
+Left dangling on purpose, reported not fixed: `.githooks/pre-commit` (gate 3 trigger list)
+and `test-spm-generate.R:71` still name `R/enm_setup.R`, which no longer exists — harmless,
+a path that cannot match. `dev/callgraph.R:78,158` still treat `set_enm` as a graph root and
+will now silently drop it.
+
+
 ### 2026-08-21 — penm 0.2.0 exported `get_mode`; the `dr` column was reserved for a consumer that would not use it
 
 penm 0.2.0 (`23aa683`) exported six getters that had been internal: `get_mode`,
