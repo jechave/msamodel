@@ -145,6 +145,7 @@ if you only want the numeric tables).
 
 ```{r attach}
 library(msamodel)
+library(penm)       # penm::set_enm(), the elastic network model msamodel builds on
 library(dplyr)      # data-wrangling verbs (mutate, inner_join, ...) used below
 library(tidyr)      # pivot_longer, for reshaping the nested/decomposition bands
 library(readr)      # read_csv, for the example data files
@@ -165,17 +166,17 @@ pdb_site_active <- read_csv(active_file, show_col_types = FALSE) |>
 pdb_site_active
 ```
 
-From those inputs the package reads the structure, builds an elastic network model of it
-(`wt`), and runs a **single-point-mutation scan** (`spm`) — mutating every site in turn
-and recording how the structure responds. This scan is the raw material the model turns
-into a divergence profile. The `set_enm()` and `generate_spm()` arguments below
-configure the network model and the scan; leave them at these values to follow along
-(the [site analysis](site-analysis.html) vignette covers what they do and how to tune
-them). Only the two file paths above are yours to change.
+From those inputs `penm` reads the structure and builds an elastic network model of it
+(`wt`), and `msamodel` runs a **single-point-mutation scan** over it (`spm`) — mutating
+every site in turn and recording how the structure responds. This scan is the raw material
+the model turns into a divergence profile. The `penm::set_enm()` and `generate_spm()`
+arguments below configure the network model and the scan; leave them at these values to
+follow along (the [site analysis](site-analysis.html) vignette covers what they do and how
+to tune them). Only the two file paths above are yours to change.
 
 ```{r build}
 wt_pdb <- bio3d::read.pdb(pdb_file)
-wt     <- set_enm(wt_pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+wt     <- penm::set_enm(wt_pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
 spm    <- generate_spm(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
                             min_sd = 2, pdb_site_active = pdb_site_active, ensemble = 1L)
 ```

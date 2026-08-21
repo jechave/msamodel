@@ -55,11 +55,12 @@ Everything starts from your two inputs: a structure file and a vector of
 active-site residue numbers. We use the worked example `1znb_A` (zinc
 beta-lactamase) that ships with the package; swap in your own at the two marked
 lines. You read the structure file with bio3d — `bio3d::read.pdb()` for a `.pdb` file,
-`bio3d::read.cif()` for mmCIF — and pass the result to `set_enm()`.
+`bio3d::read.cif()` for mmCIF — and pass the result to `penm::set_enm()`.
 
 
 ```r
 library(msamodel)
+library(penm)       # penm::set_enm(), the elastic network model msamodel builds on
 library(dplyr)      # data-wrangling verbs (mutate, left_join, ...) used below
 library(tidyr)      # pivot_longer, to reshape profiles for plotting
 library(purrr)      # map_dfr, for the parameter sweeps in section 4
@@ -84,19 +85,19 @@ pdb_site_active
 #> [1]  99 101 103 162 181 184 193 223
 ```
 
-`msamodel` reads the structure, builds an elastic network model (`wt`), and runs a
-single-point-mutation scan (`spm`):
+`penm` reads the structure and builds an elastic network model of it (`wt`); `msamodel`
+then runs a single-point-mutation scan over that model (`spm`):
 
 
 ```r
 wt_pdb <- bio3d::read.pdb(pdb_file)
-wt     <- set_enm(wt_pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+wt     <- penm::set_enm(wt_pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
 spm    <- generate_spm(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
                             min_sd = 2, pdb_site_active = pdb_site_active, ensemble = 1L)
 ```
 
 The settings above are the ones we use throughout — you can keep them for a first run.
-`set_enm()` builds the elastic network (it requires all five arguments, having no
+`penm::set_enm()` builds the elastic network (it requires all five arguments, having no
 defaults of its own): `node = "ca"` puts one node per residue at its
 C-alpha, `d_max = 10.5` (Å) sets how close two residues must be to be connected, and
 `model`/`frustrated` pick the spring rules. `generate_spm()` runs the scan:
@@ -597,12 +598,12 @@ ggplot(decomposition_fit_long, aes(pdb_site, phi, colour = component)) +
 #> [1] stats     graphics  grDevices utils     datasets  methods   base     
 #> 
 #> other attached packages:
-#> [1] readr_2.1.4         purrr_1.2.0         ggplot2_4.0.1      
-#> [4] tidyr_1.3.1         dplyr_1.1.4         msamodel_0.3.0.9000
+#> [1] purrr_1.2.0    ggplot2_4.0.1  readr_2.1.4    tidyr_1.3.1    dplyr_1.1.4   
+#> [6] penm_0.2.0     msamodel_0.5.0
 #> 
 #> loaded via a namespace (and not attached):
 #>  [1] bio3d_2.4-5        Rcpp_1.1.0         lattice_0.22-5     ps_1.7.5          
-#>  [5] digest_0.6.33      penm_0.1.0         mime_0.12          R6_2.6.1          
+#>  [5] utf8_1.2.6         digest_0.6.33      mime_0.12          R6_2.6.1          
 #>  [9] evaluate_0.24.0    highr_0.11         pillar_1.11.1      rlang_1.1.6       
 #> [13] miniUI_0.1.1.1     callr_3.7.6        urlchecker_1.0.1   Matrix_1.5-4.1    
 #> [17] splines_4.2.1      labeling_0.4.3     desc_1.4.3         devtools_2.4.5    
