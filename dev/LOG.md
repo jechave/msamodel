@@ -23,6 +23,54 @@ changes. The same episode often earns a line in each. Things to maybe do later l
 in `dev/ideas.md`.
 
 
+### 2026-08-21 — penm 0.2.0 exported `get_mode`; the `dr` column was reserved for a consumer that would not use it
+
+penm 0.2.0 (`23aa683`) exported six getters that had been internal: `get_mode`,
+`get_nmodes`, `get_evalue`, `get_umat`, `get_cmat`, `get_kmat`. This retires the
+`penm:::get_mode` decision recorded in the 2026-06-18 entries below — **that entry's
+"`get_mode` is NOT exported" is now false**, and it was the package's only `:::`.
+
+Three things worth keeping:
+
+- **The `dr` list-column's justification did not survive checking.** Its roxygen kept
+  the raw Cartesian displacement "so a future Cartesian/motion calculation can obtain
+  it without re-running the scan". But all eight `penm::delta_motion_*` primitives take
+  `(wt, mut)` and read `cmat`/`umat`; **none takes a displacement vector**. So the motion
+  arm (`dev/ideas.md`) will call those inside the scan loop while the mutant is live,
+  exactly as `dr2_i`/`dr2_n` are — it would never have read `dr`. The column was ~12.6 MB
+  of unread payload on the 228-site fixture, inside a function whose own docblock claims
+  it "stays memory-efficient on large proteins". Deleted with its `@noRd` helper.
+
+- **`delta_structure_dr` was reading a field that does not exist.** It used
+  `wt$node$xyz`; penm's prot has `nodes` (plural). `"node" %in% names(wt)` is FALSE and
+  `identical(wt$node, wt$nodes)` is TRUE — it resolved *only* via R's `$` partial
+  matching. Benign while `nodes` is the unique prefix completion, silently wrong the day
+  penm adds any other `node*` field: an ambiguous prefix returns NULL, and the guard
+  `stopifnot(all(logical(0)))` **passes**. Deleted along with the helper, so the
+  exposure is gone rather than repaired.
+
+- **The guard test was rewritten, not deleted.** Once the scan takes `mode` from
+  `penm::get_mode()`, the old assertion compares that against itself. The invariant that
+  survives is label-vs-width: `scan$mode[[1]]` must equal `seq_len(length(scan$dr2_njm[[1]]))`
+  — two different penm code paths (`nma$mode` vs `delta_structure_dr2n`'s return length),
+  so not a recomputation. The old `seq_along` expression survives as the independent
+  *reference* instead of as the implementation. Negative control run before trusting it:
+  a 7-based mode index makes it fail (`7 8 9` vs `1 2 3`); a truncated mode vector errors
+  earlier, inside penm's own `stopifnot`.
+
+Deliberately not adopted: `get_nmodes`/`get_nsites` at the two `matrix()` allocations in
+`generate_spm()`. Those size a matrix from the vectors being stacked into it; sourcing the
+width from `wt` instead would make width and data come from two places that merely ought
+to agree. The other four new exports have no call site here — newly-exported is not a
+reason to call something.
+
+Found and handed to a separate penm session, NOT acted on here: penm's
+`get_nmodes()` is `max(prot$nma$mode)` while documented as "the number of normal modes"
+(`max()` of labels is not a count; correct only while the mode set is dense and 1-based),
+and `calculate_enm_nma` builds `mode` via a `mode <- mode[mode]` reversal round-trip whose
+deliberateness was not determined.
+
+
 ### 2026-08-11 — `data/` was two jobs; `znb_dataset` kept in June, deleted now
 
 **Reverses the 2026-06-11 decision at the "Step 3 (active-site vector)" entry

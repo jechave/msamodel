@@ -87,12 +87,21 @@ test_that("generate_spm reproduces the embedded SPM fixture", {
   expect_equal(spm, znb_spm, tolerance = 1e-8)
 })
 
-test_that("SPM mode column equals penm's mode index (guards the seq_along choice)", {
-  # The raw scan stores `mode` as seq_along(dr2n) for speed; this confirms that vector
-  # is exactly penm:::get_mode(wt), i.e. the mode-axis labels are the real normal-mode
-  # indices, not an off-by-one stand-in. This is a property of the raw scan (the
-  # assembled object keeps the mode index implicitly as the dr2mat_mode column position).
+test_that("the scan's mode labels are the dense column positions of the mode axis", {
+  # The scan takes `mode` from penm (penm::get_mode()), so comparing it back against
+  # get_mode() would be a tautology. The invariant that survives, and that the rest of
+  # the mode axis depends on, is the LABEL-vs-WIDTH agreement: the mode vector must be
+  # the dense 1-based run that spans the mode axis it labels.
+  #
+  # The two sides come from different penm code paths -- `nma$mode` via get_mode(), and
+  # the return length of delta_structure_dr2n() -- so this is not a recomputation.
+  #
+  # It goes red if a future penm ships a mode set that is truncated or not 1-based: the
+  # whole mode axis (mode_map, and the dr2mat_mode column-position convention it keys)
+  # assumes column n is mode n, so such a change would silently mislabel every
+  # mode-axis result rather than erroring. Verified to fail on a 7-based mode index.
   scan <- generate_spm_core(znb_wt, n_mutations = 1, pdb_site_active = PDB_SITE_ACTIVE,
                             ensemble = SPM_ENSEMBLE)
-  expect_equal(scan$mode[[1]], penm:::get_mode(znb_wt))
+  expect_length(scan$mode[[1]], length(scan$dr2_njm[[1]]))
+  expect_equal(scan$mode[[1]], seq_len(length(scan$dr2_njm[[1]])))
 })

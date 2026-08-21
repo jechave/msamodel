@@ -1,31 +1,17 @@
 # Single-point-mutation scans: generation and preprocessing
 # Functions to generate SPM data and reshape it into model-ready arrays
 
-#' Get displacement vector dr between two structures
-#'
-#' @param wt Wild type protein structure
-#' @param mut Mutant protein structure
-#' @return Displacement vector dr
-#' @noRd
-delta_structure_dr <- function(wt, mut) {
-  # Check that sites match
-  stopifnot(all(wt$node$pdb_site == mut$node$pdb_site)) # no indels
-  stopifnot(all(wt$node$site == mut$node$site)) # no indels
-
-  # Return the raw displacement vector
-  mut$node$xyz - wt$node$xyz
-}
-
 #' Run the raw single-point-mutation scan (per-mutant record)
 #'
 #' The lossless SPM primitive: for every site it generates `n_mutations` mutants and
 #' records each mutant's measured effects, returning one **row per mutant**. Mutants are
 #' processed one at a time and only the metrics are kept (never a tibble of full mutant
 #' structures), so the scan stays memory-efficient on large proteins. This is the
-#' internal core that [generate_spm()] wraps: it keeps the full record -- including
-#' the raw Cartesian displacement `dr` -- so a future Cartesian/motion calculation can
-#' obtain it without re-running the scan. The public [generate_spm()] reshapes this
-#' record into the lean, model-ready `spm` object and does not surface `dr`.
+#' internal core that [generate_spm()] wraps: it keeps the per-mutant record of
+#' reductions, which [generate_spm()] then reshapes into the lean, model-ready `spm`
+#' object. A future motion arm adds its quantities here the same way `dr2_i` / `dr2_n`
+#' are added -- by calling penm's own per-mutant primitives (`penm::delta_motion_*`,
+#' which take `(wt, mut)`) inside this loop, while the mutant is live.
 #'
 #' The list-column names here keep the index-signature convention (`dr2_ijm`,
 #' `dr2_njm`): this is internal, and the letters state the shape exactly -- one row per
@@ -45,11 +31,10 @@ delta_structure_dr <- function(wt, mut) {
 #' @return A tibble with one row per mutant `(j, m)` (`m = 0` is the wild type),
 #'   carrying all measured effects of that mutation: scalar energy changes
 #'   (`ddg_dv_jm`, `ddg_tds_jm`, `ddgact_dv_jm`, `ddgact_tds_jm`) and list-columns
-#'   `site` / `pdb_site` (the site index to PDB-residue map), `dr` (displacement
-#'   vector), `dr2_ijm` (per-site squared displacement; each cell a `dr2_i` vector
-#'   over response sites `i` for that mutant), `mode` (the normal-mode index
-#'   `1:nmodes`), and `dr2_njm` (per-mode squared contribution; each cell a `dr2_n`
-#'   vector over response modes `n`).
+#'   `site` / `pdb_site` (the site index to PDB-residue map), `dr2_ijm` (per-site
+#'   squared displacement; each cell a `dr2_i` vector over response sites `i` for that
+#'   mutant), `mode` (penm's normal-mode index, [penm::get_mode()]), and `dr2_njm`
+#'   (per-mode squared contribution; each cell a `dr2_n` vector over response modes `n`).
 #' @noRd
 generate_spm_core <- function(wt, n_mutations = 10,
                              model = "lfenm", sigma = 0.3,
@@ -58,6 +43,9 @@ generate_spm_core <- function(wt, n_mutations = 10,
   # Get site information once
   site_vector <- get_site(wt)
   pdb_site_vector <- get_pdb_site(wt)
+  # The mode index is penm's own (`nma$mode`), not a locally counted one: asking penm
+  # means the label cannot drift from the modes it names if penm's mode set ever changes.
+  mode_vector <- penm::get_mode(wt)
 
   # Initialize empty results tibble
   results <- tibble()
@@ -85,13 +73,9 @@ generate_spm_core <- function(wt, n_mutations = 10,
         ddgact_tds_jm <- NA_real_
       }
 
-      # Calculate displacement vectors
-      dr <- delta_structure_dr(wt, mut)
-      # Per-mutant site vector (dr2_i): call penm's primitive directly.
+      # Two reductions of the same mutant displacement, both from penm's primitives:
+      # per-site (dr2_i) and per-normal-mode (dr2_n).
       dr2_i <- penm::delta_structure_dr2i(wt, mut)
-
-      # Mode-form response: per-normal-mode contribution to dr.
-      # Same per-mutant call shape as dr2_i; another reduction of the same mutant.
       dr2_n <- penm::delta_structure_dr2n(wt, mut)
 
       # Create row and add to results. The list-columns dr2_ijm / dr2_njm carry,
@@ -105,9 +89,8 @@ generate_spm_core <- function(wt, n_mutations = 10,
         ddgact_tds_jm = ddgact_tds_jm,
         site = list(site_vector),
         pdb_site = list(pdb_site_vector),
-        dr = list(dr),
         dr2_ijm = list(dr2_i),
-        mode = list(seq_along(dr2_n)),
+        mode = list(mode_vector),
         dr2_njm = list(dr2_n)
       )
 
