@@ -159,8 +159,8 @@ difference between them matters:
   compares the whole object. This is the one that sees structural change.
 
 There is **no CI in this repo**. The gated check runs from `.githooks/pre-commit`
-gate 3, automatically, on commits that stage `R/spm.R`, `R/enm_setup.R`, the fixture
-recipe, or `data-raw/prepare_znb_data.R` — plus by hand at a milestone.
+gate 3, automatically, on commits that stage `R/spm.R`, the fixture recipe, or
+`data-raw/prepare_znb_data.R` — plus by hand at a milestone.
 
 ## A CSV round-trip is not bit-exact for doubles
 

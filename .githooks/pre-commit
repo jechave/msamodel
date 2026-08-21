@@ -107,7 +107,7 @@ fi
 # This gate makes it automatic on exactly the commits that can invalidate the
 # cache. Everything else is untouched: zero cost on a docs or test-only commit.
 if git diff --cached --name-only \
-   | grep -qE '^(R/spm\.R|R/enm_setup\.R|tests/testthat/fixtures/make-znb-fixtures\.R|data-raw/prepare_znb_data\.R)$'; then
+   | grep -qE '^(R/spm\.R|tests/testthat/fixtures/make-znb-fixtures\.R|data-raw/prepare_znb_data\.R)$'; then
   echo "→ SPM-generation code staged; regenerating the scan to prove the fixture is not stale (~21 s)..." >&2
   if ! MSAMODEL_FULL_TESTS=true Rscript -e \
        'devtools::load_all(quiet = TRUE); testthat::test_file("tests/testthat/test-spm-generate.R", stop_on_failure = TRUE)' \

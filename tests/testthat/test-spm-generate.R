@@ -68,7 +68,7 @@ test_that("generate_spm reproduces the embedded SPM fixture", {
   #
   # What actually runs it (there is no CI in this repo -- do not assume one):
   #   - .githooks/pre-commit gate 3, automatically, on any commit staging
-  #     R/spm.R, R/enm_setup.R, the fixture recipe, or data-raw/prepare_znb_data.R;
+  #     R/spm.R, the fixture recipe, or data-raw/prepare_znb_data.R;
   #   - by hand at a milestone:  MSAMODEL_FULL_TESTS=true devtools::test()
   #
   # The always-on single-mutant check above covers cache drift on every default run,

@@ -65,10 +65,15 @@ Worth keeping:
   inputs reproduced identical PNGs. Commit B's diff is only the four `.Rmd` text files. A
   useful negative result — figure churn is not an inevitable cost of re-knitting here.
 
-Left dangling on purpose, reported not fixed: `.githooks/pre-commit` (gate 3 trigger list)
-and `test-spm-generate.R:71` still name `R/enm_setup.R`, which no longer exists — harmless,
-a path that cannot match. `dev/callgraph.R:78,158` still treat `set_enm` as a graph root and
-will now silently drop it.
+Deleting a file means correcting what names it. Three places listed `R/enm_setup.R` as a
+gate-3 trigger path — `.githooks/pre-commit`, the comment at `test-spm-generate.R:71`, and
+`dev/findings.md` — all now dead paths that could never match. I first left these as
+"outside the plan"; that was wrong. The rule is about not making unrequested changes, not
+about leaving documentation my own deletion had falsified. An unscoped `grep enm_setup`
+found the `findings.md` one, which a list of files-I-edited would have missed.
+
+Still outstanding: `dev/callgraph.R:78,158` treat `set_enm` as a graph root and will now
+silently drop it.
 
 
 ### 2026-08-21 — penm 0.2.0 exported `get_mode`; the `dr` column was reserved for a consumer that would not use it
