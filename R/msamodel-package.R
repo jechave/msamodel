@@ -8,7 +8,6 @@
 #' @importFrom purrr discard map_dfr possibly
 #' @importFrom rlang sym !!
 #' @importFrom stats cor dnorm dunif fitted loess median optim optimHess predict qnorm quantile residuals rnorm runif sd var
-#' @importFrom penm set_enm get_site get_pdb_site get_mutant_site ddg_dv ddg_tds ddgact_dv ddgact_tds
 #' @importFrom magrittr %>%
 ## usethis namespace: end
 NULL

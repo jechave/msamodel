@@ -87,8 +87,8 @@ vectors.
 \examples{
 \dontrun{
 ex  <- function(f) system.file("extdata", f, package = "msamodel")
-wt  <- set_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca",
-                      model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+wt  <- penm::set_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca",
+                            model = "ming_wall", d_max = 10.5, frustrated = FALSE)
 act <- readr::read_csv(ex("znb_active_site.csv"))
 spm <- generate_spm(wt, n_mutations = 10, pdb_site_active = act$pdb_site,
                     ensemble = 1L)
@@ -101,7 +101,7 @@ all.equal(rowSums(spm$dr2mat_site), rowSums(spm$dr2mat_mode))
 }
 }
 \seealso{
-\code{\link[=set_enm]{set_enm()}} (builds the elastic network model this needs);
+\code{\link[penm:set_enm]{penm::set_enm()}} (builds the elastic network model this needs);
 \code{\link[=calculate_profiles]{calculate_profiles()}} and \code{\link[=fit_lrmsd_msa_site]{fit_lrmsd_msa_site()}} (consume the returned object).
 }
 \concept{spm}

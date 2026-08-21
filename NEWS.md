@@ -1,3 +1,33 @@
+# msamodel 0.5.0
+
+## Breaking changes
+
+* **`set_enm()` is no longer re-exported; attach penm yourself.** 0.4.0 re-exported it so
+  that `library(msamodel)` was all you needed to attach. That was the wrong call: it put
+  one penm function into msamodel's namespace while every other penm function a workflow
+  needs -- `get_dactive()`, `get_msf_site()`, `get_pdb_site()` -- still had to be written
+  `penm::`. The vignettes ended up saying "you do not need penm" for one step and "yes you
+  do" for the next. The elastic network model is penm's, and msamodel now says so
+  consistently.
+
+  ```r
+  library(msamodel)                       # was
+  wt <- set_enm(pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+
+  library(msamodel)                       # now
+  library(penm)
+  wt <- penm::set_enm(pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+  ```
+
+  Nothing about `set_enm()` itself changed -- same function, same arguments, same result.
+  Only where you get it from.
+
+## Internal
+
+* Every call msamodel makes into penm is now written `penm::fn()`, and msamodel imports
+  nothing from penm's namespace. This is invisible to users; it makes each call site say
+  which package owns the function.
+
 # msamodel 0.4.0
 
 ## Breaking changes

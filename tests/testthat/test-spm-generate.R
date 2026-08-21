@@ -36,18 +36,18 @@ test_that("a single mutant row reproduces from its seeded recipe (cheap coherenc
   k  <- which(ed$j == 1L & ed$m == 3L)              # a fixed, real (j, m>0) mutant
   expect_length(k, 1L)
 
-  mut <- get_mutant_site(znb_wt, ed$j[k], ed$m[k],
-                         mut_model = SPM_MODEL, mut_dl_sigma = SPM_SIGMA,
-                         mut_sd_min = SPM_MIN_SD, ensemble = SPM_ENSEMBLE)
+  mut <- penm::get_mutant_site(znb_wt, ed$j[k], ed$m[k],
+                               mut_model = SPM_MODEL, mut_dl_sigma = SPM_SIGMA,
+                               mut_sd_min = SPM_MIN_SD, ensemble = SPM_ENSEMBLE)
 
   # Same measured divergences the generation loop records for this row: the matrix row
   # compares directly against penm's per-mutant vectors (both nameless).
   expect_equal(znb_spm$dr2mat_site[k, ], penm::delta_structure_dr2i(znb_wt, mut))
   expect_equal(znb_spm$dr2mat_mode[k, ], penm::delta_structure_dr2n(znb_wt, mut))
   # Summed stability / activity energy changes (energy_data carries the summed terms).
-  expect_equal(ed$ddg[k],    ddg_dv(znb_wt, mut)  + ddg_tds(znb_wt, mut))
-  expect_equal(ed$ddgact[k], ddgact_dv(znb_wt, mut, pdb_site_active = PDB_SITE_ACTIVE) +
-                                ddgact_tds(znb_wt, mut, pdb_site_active = PDB_SITE_ACTIVE))
+  expect_equal(ed$ddg[k],    penm::ddg_dv(znb_wt, mut)  + penm::ddg_tds(znb_wt, mut))
+  expect_equal(ed$ddgact[k], penm::ddgact_dv(znb_wt, mut, pdb_site_active = PDB_SITE_ACTIVE) +
+                                penm::ddgact_tds(znb_wt, mut, pdb_site_active = PDB_SITE_ACTIVE))
 })
 
 test_that("set_enm reproduces the wild-type ENM fixture", {
@@ -55,8 +55,8 @@ test_that("set_enm reproduces the wild-type ENM fixture", {
   # Reads the shipped PDB file, the same input make-znb-fixtures.R uses -- there is no
   # serialized bio3d object any more, because a user starts from a .pdb file too.
   pdb <- bio3d::read.pdb(system.file("extdata", "1znb_A.pdb", package = "msamodel"))
-  wt  <- set_enm(pdb, node = ENM_NODE, model = ENM_MODEL,
-                   d_max = ENM_DMAX, frustrated = ENM_FRUST)
+  wt  <- penm::set_enm(pdb, node = ENM_NODE, model = ENM_MODEL,
+                         d_max = ENM_DMAX, frustrated = ENM_FRUST)
   expect_equal(wt, znb_wt)
 })
 

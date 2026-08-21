@@ -20,7 +20,7 @@
 #' is the boundary between the two vocabularies.
 #'
 #' @param wt Wild-type protein structure with an elastic network model, as
-#'   returned by [set_enm()].
+#'   returned by [penm::set_enm()].
 #' @param n_mutations Number of mutant replicates to generate per site.
 #' @param model Name of the mutation model to apply (passed to the ENM machinery).
 #' @param sigma Mutation strength (the perturbation magnitude).
@@ -41,8 +41,8 @@ generate_spm_core <- function(wt, n_mutations = 10,
                              min_sd = 2, pdb_site_active = NULL,
                              ensemble) {
   # Get site information once
-  site_vector <- get_site(wt)
-  pdb_site_vector <- get_pdb_site(wt)
+  site_vector <- penm::get_site(wt)
+  pdb_site_vector <- penm::get_pdb_site(wt)
   # The mode index is penm's own (`nma$mode`), not a locally counted one: asking penm
   # means the label cannot drift from the modes it names if penm's mode set ever changes.
   mode_vector <- penm::get_mode(wt)
@@ -54,20 +54,20 @@ generate_spm_core <- function(wt, n_mutations = 10,
   for (j in site_vector) {
     for (m in 0:n_mutations) {
       # Generate single mutant (m=0 is wild type)
-      mut <- get_mutant_site(wt, j, m,
-                             mut_model = model,
-                             mut_dl_sigma = sigma,
-                             mut_sd_min = min_sd,
-                             ensemble = ensemble)
+      mut <- penm::get_mutant_site(wt, j, m,
+                                   mut_model = model,
+                                   mut_dl_sigma = sigma,
+                                   mut_sd_min = min_sd,
+                                   ensemble = ensemble)
 
       # Calculate energies
-      ddg_dv_jm <- ddg_dv(wt, mut)
-      ddg_tds_jm <- ddg_tds(wt, mut)
+      ddg_dv_jm <- penm::ddg_dv(wt, mut)
+      ddg_tds_jm <- penm::ddg_tds(wt, mut)
 
       # Calculate activity energies if requested
       if (!is.null(pdb_site_active)) {
-        ddgact_dv_jm <- ddgact_dv(wt, mut, pdb_site_active = pdb_site_active)
-        ddgact_tds_jm <- ddgact_tds(wt, mut, pdb_site_active = pdb_site_active)
+        ddgact_dv_jm <- penm::ddgact_dv(wt, mut, pdb_site_active = pdb_site_active)
+        ddgact_tds_jm <- penm::ddgact_tds(wt, mut, pdb_site_active = pdb_site_active)
       } else {
         ddgact_dv_jm <- NA_real_
         ddgact_tds_jm <- NA_real_
@@ -162,14 +162,14 @@ generate_spm_core <- function(wt, n_mutations = 10,
 #'       column position (`site`).}
 #'     \item{`mode_map`}{The mode index for each `dr2mat_mode` column.}
 #'   }
-#' @seealso [set_enm()] (builds the elastic network model this needs);
+#' @seealso [penm::set_enm()] (builds the elastic network model this needs);
 #'   [calculate_profiles()] and [fit_lrmsd_msa_site()] (consume the returned object).
 #' @family spm
 #' @examples
 #' \dontrun{
 #' ex  <- function(f) system.file("extdata", f, package = "msamodel")
-#' wt  <- set_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca",
-#'                       model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+#' wt  <- penm::set_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca",
+#'                             model = "ming_wall", d_max = 10.5, frustrated = FALSE)
 #' act <- readr::read_csv(ex("znb_active_site.csv"))
 #' spm <- generate_spm(wt, n_mutations = 10, pdb_site_active = act$pdb_site,
 #'                     ensemble = 1L)
