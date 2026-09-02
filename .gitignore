@@ -60,3 +60,7 @@ vignettes/*.pdf
 # vignette index. Regenerated on demand, never committed.
 /doc/
 /Meta/
+
+# Preview HTML that rmarkdown emits beside README.md when rendering the
+# github_document. README.Rmd (source) and README.md (rendered) are tracked.
+/README.html
