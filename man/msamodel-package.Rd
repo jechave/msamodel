@@ -6,6 +6,69 @@
 \alias{msamodel-package}
 \title{msamodel: Mutation-Stability-Activity Model of Neutral Structural Evolution}
 \description{
-Implementation of the Mutation-Stability-Activity (MSA) model for predicting site-specific structural divergence in protein evolution from single-point-mutation scans (SPMs). Provides maximum-likelihood and Bayesian (adaptive-quadrature) parameter estimation, prediction of divergence profiles under mutation-only and selection-only model variants, and a site-level (phi) decomposition of evolutionary constraint contributions.
+Implementation of the Mutation-Stability-Activity (MSA) model for predicting site-specific structural divergence in protein evolution from single-point-mutation scans (SPMs). Provides maximum-likelihood estimation of the two selection-strength parameters with delta-method standard errors, prediction of divergence profiles under mutation-only and selection-only model variants, and a decomposition of the profile into mutation, stability, and activity contributions. Profiles are reported on two axes: per residue and per normal mode.
+}
+\details{
+The MSA model predicts how far each part of a protein structure drifts under
+neutral evolution, given the structure itself and a list of its active-site
+residues. Divergence is read on two axes -- per residue and per normal mode --
+and every profile function returns both at once, as a list with a \verb{$site} and a
+\verb{$mode} tibble.
+
+Two selection strengths govern the model: \code{a1} (selection on stability) and \code{a2}
+(selection on activity, i.e. proximity to the active site). Both are
+non-negative, and \code{0} switches that pressure off. You either choose them, or
+estimate them from an observed divergence profile.
+}
+\section{The workflow}{
+
+
+The scan is the one slow step; everything downstream of it is fast.
+
+\describe{
+\item{1. Build the elastic network}{\code{\link[penm:set_enm]{penm::set_enm()}} -- msamodel does not do
+this; it belongs to the penm package, which you attach yourself.}
+\item{2. Run the mutation scan}{\code{\link[=generate_spm]{generate_spm()}} -- mutates every site many
+times and records how the structure responds. Returns the \code{spm} object every
+later function reads.}
+\item{3a. Evaluate at chosen \verb{(a1, a2)}}{\code{\link[=calculate_profiles]{calculate_profiles()}} for the
+divergence profile, \code{\link[=calculate_decomposition]{calculate_decomposition()}} for the four nested model
+variants and the mutation/stability/activity split.}
+\item{3b. Or fit \verb{(a1, a2)} to your data}{\code{\link[=fit_lrmsd_msa_site]{fit_lrmsd_msa_site()}} on the residue
+axis, \code{\link[=fit_lrmsd_msa_mode]{fit_lrmsd_msa_mode()}} on the mode axis. Both return the estimate, its
+standard errors, and a goodness-of-fit summary in \verb{$gof}.}
+\item{4. Propagate the fit}{\code{\link[=predict_profiles]{predict_profiles()}} and \code{\link[=predict_decomposition]{predict_decomposition()}}
+give the same quantities as step 3a, with delta-method standard errors
+carried through from the fit.}
+}
+
+\code{\link[=pfix_msa]{pfix_msa()}} exposes the model's elementary quantity, a single mutant's fixation
+probability.
+}
+
+\section{Two metrics}{
+
+
+Every profile function takes a \code{metric} argument. \code{"lrmsd"} is the profile as the
+model predicts it, keeping its overall level; \code{"nlrmsd"} is the same profile with
+its mean subtracted off -- its \emph{shape}. An observed divergence profile pins down
+shape but not level, so \code{"nlrmsd"} is the one to compare against data.
+}
+
+\section{Getting started}{
+
+
+\code{vignette("msamodel")} is a short end-to-end tour of both axes. See also
+\code{vignette("site-analysis")}, \code{vignette("mode-analysis")}, and
+\code{vignette("inference-methods")}.
+}
+
+\seealso{
+Useful links:
+\itemize{
+  \item \url{https://github.com/jechave/msamodel}
+  \item Report bugs at \url{https://github.com/jechave/msamodel/issues}
+}
+
 }
 \keyword{internal}
