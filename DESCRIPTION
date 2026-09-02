@@ -6,11 +6,15 @@ Author: Julian Echave
 Maintainer: Julian Echave <jechave@unsam.edu.ar>
 Description: Implementation of the Mutation-Stability-Activity (MSA) model for
     predicting site-specific structural divergence in protein evolution from
-    single-point-mutation scans (SPMs). Provides maximum-likelihood and Bayesian
-    (adaptive-quadrature) parameter estimation, prediction of divergence profiles
-    under mutation-only and selection-only model variants, and a site-level (phi)
-    decomposition of evolutionary constraint contributions.
+    single-point-mutation scans (SPMs). Provides maximum-likelihood estimation of
+    the two selection-strength parameters with delta-method standard errors,
+    prediction of divergence profiles under mutation-only and selection-only model
+    variants, and a decomposition of the profile into mutation, stability, and
+    activity contributions. Profiles are reported on two axes: per residue and per
+    normal mode.
 License: MIT + file LICENSE
+URL: https://github.com/jechave/msamodel
+BugReports: https://github.com/jechave/msamodel/issues
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 Depends:
@@ -31,6 +35,8 @@ Suggests:
     knitr,
     rmarkdown,
     ggplot2
+Remotes:
+    jechave/penm
 Config/testthat/edition: 3
 Config/testthat/parallel: true
 VignetteBuilder: knitr
