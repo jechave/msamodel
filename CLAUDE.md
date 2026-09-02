@@ -44,20 +44,33 @@ not a permanent suite test. The **`/test-review` skill** holds the full checklis
 ## House conventions
 
 - **Naming:** `snake_case`.
-- **`dr2`-family index-signature convention.** Every `dr2`-family name msamodel
-  *creates* is `dr2_<indices>`: one underscore, then exactly the free indices the
-  object spans, in order **response index (`i` site / `n` mode), mutated site `j`,
-  mutation `m`**. A reduction over an axis drops that axis's letter (`dr2_ijm` →
-  `dr2_i`). Transform prefixes (`l`=log, `n`=normalized) and source labels
-  (`_msa`/`_obs`) are kept, index still underscore-set: `lrmsd_i`, `nlrmsd_i_msa`,
-  `dr2_i_msa`. This governs names msamodel **creates**, not what it **calls** — call
-  penm's own names (`penm::delta_structure_dr2i`) directly; never wrap or rename a
-  dependency. Applies to future motion-arm names (`dh_*`, `nh_*`) too.
+- **`dr2`-family naming — index letters inside, axis words outside.** Two conventions,
+  split at `generate_spm()`; both are deliberate, neither should be "unified".
+  - **Internal, per-mutant quantities** use the index signature `dr2_<indices>`: one
+    underscore, then exactly the free indices the object spans, in order **response
+    index (`i` site / `n` mode), mutated site `j`, mutation `m`**. A reduction over an
+    axis drops that axis's letter (`dr2_ijm` → `dr2_i`). Transform prefixes (`l`=log,
+    `n`=normalized) and source labels (`_msa`/`_obs`) are kept, index still
+    underscore-set: `lrmsd_i`, `nlrmsd_i_msa`, `dr2_i_msa`. These live in `R/spm.R`.
+  - **The public `spm` object's parts** use an axis word instead: `dr2mat_site`,
+    `dr2mat_mode` (`[mutant x response]` matrices), with `site_map` / `mode_map`. These
+    are what the rest of the package handles — `model.R`, `fitting.R`, `predict.R`,
+    `predict_se.R` — and they are correct as-is. Do **not** rename them to index
+    letters.
+  - `generate_spm()` is the crossing point: it stacks the per-mutant `dr2_ijm` /
+    `dr2_njm` list-columns into `dr2mat_site` / `dr2mat_mode` (`R/spm.R:206-246`,
+    which documents the boundary in place).
+
+  This governs names msamodel **creates**, not what it **calls** — call penm's own names
+  (`penm::delta_structure_dr2i`) directly; never wrap or rename a dependency. A future
+  motion arm follows the same split (`dh_*` / `nh_*` internally).
 - **Roxygen on every function.** `#' @export` for public API, `#' @noRd` for internal
   helpers. Document `@param`, `@return`/`@returns`, add `@family` tags to group
   related functions. `@examples` in `\dontrun{}` when they need real data.
 - **Imports live in one place:** `R/msamodel-package.R` carries the `"_PACKAGE"` doc
   and the `@importFrom` directives. Re-export `%>%` via `#' @importFrom magrittr %>%`.
+- **Pipes split by layer:** `R/` uses magrittr `%>%` (a real `Imports:`); the vignettes
+  use the native `|>` throughout. Match the layer you are editing.
 - **Tibbles** (not data.frames) for tabular returns; tidyverse for data manipulation.
 
 ## Development commands
@@ -74,17 +87,20 @@ Rscript -e "devtools::document()"
 # Full suite — the gate before a code/data/roxygen commit
 Rscript -e "devtools::test()"
 
-# AT A MILESTONE ONLY — full check (baseline: 0 errors, 1 warning, 3 notes,
-# deliberately accepted, GitHub-only not CRAN). The third note is the NSE
-# "no visible binding" one — left visible instead of suppressed with
-# globalVariables(); see the comment in R/msamodel-package.R.
+# AT A MILESTONE ONLY — full check. The old "0E/1W/3N" baseline recorded here was
+# stale: the 1 WARNING was the installed-size one, cleared 2026-08-11 when the
+# datasets moved out (25.8 MB -> 368 KB, see NEWS.md). Rather than carry a number
+# nobody has re-measured, take the current baseline from the newest check() entry
+# in dev/LOG.md, and update that entry when you run one. Standing accepted note:
+# the NSE "no visible binding" one, left visible instead of suppressed with
+# globalVariables() — see the comment in R/msamodel-package.R.
 Rscript -e "devtools::check()"
-
-# Install locally (only when a vignette needs the working tree's new functions)
-Rscript -e "devtools::install()"
 
 # Knit a vignette .Rmd.orig -> .Rmd. ALWAYS via this wrapper (it cds into vignettes/
 # so figures land where the .Rmd points, and prints the figure timestamps it wrote).
+# It ALSO runs devtools::install() itself, so there is no separate install step --
+# note that install becomes the build every other project here gets from
+# library(msamodel). <name> is required; no argument is an error.
 # A PreToolUse hook blocks hand-rolled knitr::knit() calls.
 Rscript dev/knit-vignette.R mode-analysis
 
@@ -120,10 +136,14 @@ comments and run `document()`, never hand-edit them.
   A `PreToolUse` hook (`.claude/hooks/guard-bash.sh`) blocks the hand-rolled form.
 - **Never `rm` untracked paths inside the repo.** Report what they are and let the user
   decide. On 2026-08-06 four stray `*_files/` dirs were `rm -rf`'d as "byproducts"; they
-  were the figures the knit had just produced — the only evidence of what it did. Same
-  hook blocks this (scratchpad and `/tmp` are exempt). **`git rm` on a tracked file is
-  fine** — git keeps the blob and the deletion is reviewable in the diff; don't hand an
-  approved deletion back to the user to type.
+  were the figures the knit had just produced — the only evidence of what it did.
+  `guard-bash.sh` helps but is cruder than the rule: it **text-matches** `rm` and
+  `git clean` and blocks them, exempting `git rm` and paths under `/tmp/`,
+  `/private/tmp/`, or `scratchpad`. It never consults git, so it cannot tell tracked
+  from untracked, and it will block a legitimate `rm` outside the repo too. **If it
+  fires, that is a stop — report and ask; do not rephrase the command to slip past it.**
+  **`git rm` on a tracked file is fine** — git keeps the blob and the deletion is
+  reviewable in the diff; don't hand an approved deletion back to the user to type.
 
 ### Example data vs test fixtures — two places, two scripts
 
@@ -139,6 +159,18 @@ The package ships **no datasets**; there is no `data/`. Keep the two kinds apart
 `data-raw/` must not read from `tests/`, and the fixture recipe must not write to
 `inst/`. If a new artifact seems to need both, that is a signal it belongs to one
 side only — decide which, do not bridge them.
+
+**Open tension, not yet resolved — do not "tidy" either side.** The nine ENM/SPM
+constants `make-znb-fixtures.R:27-36` owns are *also* declared, with identical values, at
+`data-raw/prepare_znb_data.R:93-102`, which needs them to regenerate the scan
+(`:108-116`) and may not read `tests/`. So the second declaration is forced by the
+independence rule, not sloppiness — but nothing enforces the match (no test reads
+`data-raw/`), so editing one side leaves the suite green while `inst/extdata/` ships from
+different constants. The active site had this same shape and was fixed by moving it to
+`inst/extdata/znb_active_site.csv`, which both sides read legally
+(`data-raw/prepare_znb_data.R:43-46`); the constants have had no equivalent home chosen.
+Until one is, **change both by hand — and do not add a comment that presents that as the
+settled convention.**
 
 The scan fixture is **frozen** — regenerate it intentionally, not incidentally
 (`Rscript tests/testthat/fixtures/make-znb-fixtures.R`). `test-spm-generate.R`

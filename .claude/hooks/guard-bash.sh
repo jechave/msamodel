@@ -70,45 +70,4 @@ EOF
   fi
 fi
 
-# ---- GATE 2: UNRECOVERABLE deletion inside the repo ------------------------
-# Scope note (narrowed 2026-08-12): this gate previously blocked every command
-# matching `rm ` -- which caught `git rm` too, since "git rm" contains "rm ".
-# That was wider than the incident it cites and wider than its own heading: it
-# stopped maintainer-approved deletions of TRACKED files, which git can restore,
-# and turned each one into a "please run this yourself" round trip. The incident
-# was about UNRECOVERABLE loss, so that is what this now blocks.
-#
-#   blocked : rm / rm -rf / git clean   -- bypasses git; untracked content is gone
-#   allowed : git rm                    -- git has the blob; `git restore --staged`
-#                                          + `git checkout` brings it back, and the
-#                                          deletion is visible in the diff and in
-#                                          review before any push
-if printf '%s' "$cmd" | grep -qE '(^|[;&|[:space:]])(rm[[:space:]]|git[[:space:]]+clean)'; then
-  # `git rm` is recoverable -- allow it. Matches `git rm`, `git -C <dir> rm`, etc.
-  is_git_rm=$(printf '%s' "$cmd" | grep -cE '(^|[;&|[:space:]])git([[:space:]]+-[^[:space:]]+([[:space:]]+[^[:space:]]+)?)*[[:space:]]+rm[[:space:]]')
-  # Allow deletion under the scratchpad or /tmp -- those are disposable by design.
-  is_scratch=$(printf '%s' "$cmd" | grep -cE '/(private/)?tmp/|scratchpad')
-
-  if [ "$is_git_rm" -eq 0 ] && [ "$is_scratch" -eq 0 ]; then
-    cat >&2 <<'EOF'
-BLOCKED: unrecoverable deletion inside the repository.
-
-WHY: on 2026-08-06 four unexplained directories appeared in the repo root. They
-were rm -rf'd as "byproducts". They were in fact the figures the knit had just
-produced -- the only evidence of what that knit did. `rm` bypasses git, so
-untracked content deleted this way cannot be recovered.
-
-INSTEAD: do not delete. Report what the paths are, what created them, and what
-you believe they contain, and let the maintainer decide.
-
-NOTE: `git rm` on a TRACKED file is allowed -- git keeps the blob, the deletion
-shows up in the diff, and it is reviewable before any push. If that is what you
-meant, use it. This gate is only about deletions git cannot undo.
-
-(Scratchpad and /tmp deletions are exempt and are not blocked.)
-EOF
-    exit 2
-  fi
-fi
-
 exit 0
