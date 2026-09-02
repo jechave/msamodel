@@ -174,9 +174,6 @@ become `extdata/` — a relative path passes `test()` and ERRORs in `check()`.
 - Own contradictions across turns instead of smoothing them over.
 - Push back on bad ideas rather than silently implementing them.
 - Terse is good; real uncertainty should be stated explicitly.
-- **Tool choice:** read files with `Read` (use `offset`/`limit` for big files). Avoid
-  `sed`/`head`/`cat`/`tail`/`awk`/`echo` in Bash for reading — they trigger permission
-  prompts here.
 
 ## Working agreement
 
