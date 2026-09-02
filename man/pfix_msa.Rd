@@ -29,7 +29,7 @@ stability selection (strength \code{a1}) and activity selection (strength \code{
 of a mutant on its own -- it depends only on the mutant's two energy changes and
 the selection strengths, not on any ensemble -- so it is the elementary quantity
 an evolutionary-trajectory simulation would evaluate step by step, as well as the
-primitive the ensemble averaging weights (\code{weights_jm()}) are built from.
+primitive the model's ensemble-averaging weights are built from.
 }
 \details{
 Pure and vectorised: \code{ddg} and \code{ddgact} may be scalars (one mutant) or
@@ -38,20 +38,24 @@ equal-length vectors (many mutants), and the result matches their shape. This is
 particular ensemble of mutants is a separate, ensemble-specific step.
 }
 \examples{
-\dontrun{
-# One mutant:
+# One mutant, from its two energy changes:
 pfix_msa(ddg = 1.2, ddgact = 0.4, a1 = 1, a2 = 1)
 
-# A whole scan:
+# Vectorised over many mutants, and 0 switches a pressure off:
+pfix_msa(ddg = c(0.5, 1.2, 3.0), ddgact = c(0.1, 0.4, 2.0), a1 = 1, a2 = 0)
+
+\dontrun{
+# A whole scan. `pdb_site_active` is required for the activity term: without it
+# every `ddgact` is NA, and so is every fixation probability.
 ex  <- function(f) system.file("extdata", f, package = "msamodel")
 wt  <- penm::set_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca",
                             model = "ming_wall", d_max = 10.5, frustrated = FALSE)
-spm <- generate_spm(wt, ensemble = 1L)
+act <- readr::read_csv(ex("znb_active_site.csv"))
+spm <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
 pfix_msa(spm$energy_data$ddg, spm$energy_data$ddgact, a1 = 1, a2 = 1)
 }
 }
 \seealso{
-\code{\link[=calculate_profiles]{calculate_profiles()}} (the forward map built on these; it averages the
-per-mutant divergences with the normalised \code{weights_jm()}).
+\code{\link[=calculate_profiles]{calculate_profiles()}} (the forward map built on these: it averages the
+per-mutant divergences, weighted by these fixation probabilities).
 }
-\concept{model}
