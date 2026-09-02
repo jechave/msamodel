@@ -7,5 +7,6 @@
 ^\.DS_Store$
 ^LICENSE\.md$
 ^tmp_src$
-^vignettes/.*\.Rmd\.orig$
 ^CLAUDE\.md$
+^doc$
+^Meta$

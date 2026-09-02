@@ -7,21 +7,37 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-<!--
-SOURCE OF TRUTH. This `.Rmd.orig` is the editable vignette; every code chunk runs
-for real. The shipped `mode-analysis.Rmd` is PRE-RENDERED from this file.
-Regenerate it after editing this file or after any change to the package code the
-vignette exercises:
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 4.2,
+  dpi = 96
+)
 
-  Rscript -e 'knitr::knit("vignettes/mode-analysis.Rmd.orig", output = "vignettes/mode-analysis.Rmd")'
+# Every computation chunk runs for real when this file is knit. The bulk of this
+# vignette is predict-only and renders fast; the final section fits the mode model
+# to a SYNTHETIC profile by ML (a fast point estimate, no MCMC). ggplot2 is a
+# Suggested dependency; if absent, computation still runs and only the plotting
+# chunks are skipped.
+has_ggplot <- requireNamespace("ggplot2", quietly = TRUE)
 
-then commit both this file, the rendered `mode-analysis.Rmd`, and its figures.
-Pattern: https://ropensci.org/technotes/2019/12/08/precompute-vignettes/
--->
+# Seed kept for a stable committed render (no stochastic step here, but harmless).
+set.seed(1024)
+```
 
-
-
-
+```{r libs, include = FALSE}
+suppressMessages({
+  library(msamodel)
+  library(penm)
+  library(dplyr)
+})
+if (has_ggplot) {
+  suppressMessages(library(ggplot2))
+  theme_set(theme_minimal(base_size = 12))
+}
+```
 
 This vignette predicts structural divergence **per normal mode** and fits it to
 data. Its sibling, the [site analysis vignette](site-analysis.html), runs the same
@@ -50,8 +66,7 @@ active-site residue numbers. We use the worked example `1znb_A` (zinc
 beta-lactamase) that ships with the package; swap in your own at the two marked
 lines.
 
-
-```r
+```{r attach}
 library(msamodel)
 library(penm)       # penm::set_enm(), the elastic network model msamodel builds on
 library(dplyr)      # data-wrangling verbs (mutate, left_join, ...) used below
@@ -65,8 +80,7 @@ Both inputs are files; point these at your own to run the vignette on your prote
 The active-site table is one residue per row, keyed by `pdb` and `chain`, so a single
 file can serve many proteins — filter out the chain you are modelling.
 
-
-```r
+```{r inputs}
 pdb_file    <- system.file("extdata", "1znb_A.pdb", package = "msamodel")          # <- your PDB
 active_file <- system.file("extdata", "znb_active_site.csv", package = "msamodel") # <- your active sites
 
@@ -75,7 +89,6 @@ pdb_site_active <- read_csv(active_file, show_col_types = FALSE) |>
   pull(pdb_site)
 
 pdb_site_active
-#> [1]  99 101 103 162 181 184 193 223
 ```
 
 `penm` reads the structure and builds an elastic network model of it (`wt`); `msamodel`
@@ -84,8 +97,7 @@ the ones we use throughout — keep them for a first run (the
 [site analysis](site-analysis.html) vignette explains what each controls). The scan
 takes a minute or two — it is the one slow step here.
 
-
-```r
+```{r build}
 wt_pdb <- bio3d::read.pdb(pdb_file)
 wt     <- penm::set_enm(wt_pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
 spm    <- generate_spm(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
@@ -95,10 +107,8 @@ spm    <- generate_spm(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
 The per-mode response the verbs below read lives in `spm$dr2mat_mode`, a matrix with
 one row per mutant and one column per normal mode:
 
-
-```r
+```{r show-mode-matrix}
 dim(spm$dr2mat_mode)   # rows = mutants (228 sites x 10 mutations), columns = normal modes
-#> [1] 2280  678
 ```
 
 > **For your own protein you can run the mode prediction (sections 1–4). The mode
@@ -120,24 +130,13 @@ the absolute profile, and `"nlrmsd"` is the same profile with its mean subtracte
 shape), which section 5 uses to compare against data. Here we pick illustrative values
 (`a1 = 2`, `a2 = 500`); section 5 estimates them from data instead.
 
-
-```r
+```{r profile-code}
 a1 <- 2; a2 <- 500
 profile <- calculate_profiles(spm, a1, a2, metric = "lrmsd")$mode
 head(profile)
-#> # A tibble: 6 × 2
-#>    mode lrmsd_msa
-#>   <int>     <dbl>
-#> 1     1     -2.75
-#> 2     2     -2.65
-#> 3     3     -2.54
-#> 4     4     -2.85
-#> 5     5     -2.86
-#> 6     6     -3.04
 ```
 
-
-```r
+```{r profile-plot, eval = has_ggplot}
 ggplot(profile, aes(mode, lrmsd_msa)) +
   geom_line(colour = "grey40") +
   geom_point(size = 0.7, colour = "grey20") +
@@ -147,8 +146,6 @@ ggplot(profile, aes(mode, lrmsd_msa)) +
     x = "Normal-mode index", y = "lrmsd"
   )
 ```
-
-![plot of chunk profile-plot](mode-analysis_files/figure-html/profile-plot-1.png)
 
 The lowest-index (softest) modes carry the most divergence: a handful of
 collective motions account for most of the predicted structural change.
@@ -171,23 +168,12 @@ throughout the function names.) `calculate_decomposition()` returns, in one `$mo
 tibble, both the four nested profiles (`lrmsd_mm`, `lrmsd_ms`,
 `lrmsd_ma`, `lrmsd_msa`) and their split (`phi_mut`, `phi_stab`, `phi_act`):
 
-
-```r
+```{r decomposition-code}
 decomposition <- calculate_decomposition(spm, a1, a2, metric = "lrmsd")$mode   # a1 = 2, a2 = 500
 head(decomposition)
-#> # A tibble: 6 × 8
-#>    mode lrmsd_mm lrmsd_ms lrmsd_ma lrmsd_msa phi_mut phi_stab phi_act
-#>   <int>    <dbl>    <dbl>    <dbl>     <dbl>   <dbl>    <dbl>   <dbl>
-#> 1     1    -1.83    -1.51    -3.42     -2.75   -1.83   0.324   -1.24 
-#> 2     2    -2.02    -1.84    -3.37     -2.65   -2.02   0.186   -0.813
-#> 3     3    -2.51    -2.19    -2.95     -2.54   -2.51   0.318   -0.342
-#> 4     4    -2.62    -2.65    -2.76     -2.85   -2.62  -0.0346  -0.203
-#> 5     5    -2.68    -2.61    -2.87     -2.86   -2.68   0.0682  -0.256
-#> 6     6    -2.74    -2.59    -3.16     -3.04   -2.74   0.152   -0.451
 ```
 
-
-```r
+```{r nested-profiles, eval = has_ggplot}
 model_colours <- c(MM = "#FF8C00", MS = "#0000CD", MA = "#1B9E77", MSA = "#C41E3A")
 nested_profiles_long <- decomposition |>
   tidyr::pivot_longer(c(lrmsd_mm, lrmsd_ms, lrmsd_ma, lrmsd_msa),
@@ -200,8 +186,6 @@ ggplot(nested_profiles_long, aes(mode, lrmsd_msa, colour = model)) +
   labs(title = sprintf("Nested-model mode profiles (a1 = %g, a2 = %g)", a1, a2),
        x = "Normal-mode index", y = "lrmsd", colour = "model")
 ```
-
-![plot of chunk nested-profiles](mode-analysis_files/figure-html/nested-profiles-1.png)
 
 The **sequential** decomposition adds one selection pressure at a time along
 MM → MS → MSA; each $\phi$ term is the incremental divergence contributed by the
@@ -218,8 +202,7 @@ By construction these sum to the full prediction. The four nested profiles are i
 `decomposition` tibble above when you want to *see* them, and the three `phi_*` columns are
 there when you want the split directly:
 
-
-```r
+```{r decomposition-given, eval = has_ggplot}
 # Paper component colours: mutation = orange, stability = blue, activity = red.
 component_colours <- c(phi_mut = "#FF8C00", phi_stab = "#0000CD", phi_act = "#C41E3A")
 decomposition_long <- decomposition |>
@@ -235,16 +218,13 @@ ggplot(decomposition_long, aes(mode, phi, colour = component)) +
        x = "Normal-mode index", y = "contribution to lrmsd")
 ```
 
-![plot of chunk decomposition-given](mode-analysis_files/figure-html/decomposition-given-1.png)
-
 ## 4. How the profile depends on a1 and a2
 
 Stability selection (`a1`, with `a2 = 0`) and activity selection (`a2`, with `a1 = 0`)
 shape the mode profile differently. We vary one parameter at a time and overlay the
 resulting profiles.
 
-
-```r
+```{r sweep-code}
 # Stability sweep: vary a1, hold a2 = 0
 a1_values <- c(0, 1, 2, 4, 8)
 sweep_a1 <- purrr::map_dfr(a1_values, function(a1)
@@ -256,8 +236,7 @@ sweep_a2 <- purrr::map_dfr(a2_values, function(a2)
   calculate_profiles(spm, 0, a2, metric = "lrmsd")$mode |> mutate(a2 = a2))
 ```
 
-
-```r
+```{r sweep-a1, eval = has_ggplot}
 ggplot(sweep_a1, aes(mode, lrmsd_msa, colour = factor(a1), group = a1)) +
   geom_line(alpha = 0.85) +
   scale_colour_viridis_d(end = 0.9) +
@@ -265,18 +244,13 @@ ggplot(sweep_a1, aes(mode, lrmsd_msa, colour = factor(a1), group = a1)) +
        y = "lrmsd", colour = "a1")
 ```
 
-![plot of chunk sweep-a1](mode-analysis_files/figure-html/sweep-a1-1.png)
-
-
-```r
+```{r sweep-a2, eval = has_ggplot}
 ggplot(sweep_a2, aes(mode, lrmsd_msa, colour = factor(a2), group = a2)) +
   geom_line(alpha = 0.85) +
   scale_colour_viridis_d(option = "C", end = 0.9) +
   labs(title = "Activity sweep (a1 = 0)", x = "Normal-mode index",
        y = "lrmsd", colour = "a2")
 ```
-
-![plot of chunk sweep-a2](mode-analysis_files/figure-html/sweep-a2-1.png)
 
 Increasing `a1` suppresses divergence across the soft modes (stability selection
 damps the collective motions); increasing `a2` reshapes the soft-mode divergence
@@ -295,43 +269,31 @@ that estimate, and adding seeded Gaussian noise. It exists only to run the fitti
 machinery end to end, and the `_syn` in its file name is there to keep that visible.
 Numbers obtained from it say nothing about zinc beta-lactamase.
 
-
-```r
+```{r obs}
 observed_file <- system.file("extdata", "znb_lrmsd_obs_mode_syn.csv", package = "msamodel")
 observed      <- read_csv(observed_file, show_col_types = FALSE)   # <- your observed mode profile
 head(observed)
-#> # A tibble: 6 × 2
-#>    mode lrmsd_obs
-#>   <dbl>     <dbl>
-#> 1     1     -1.99
-#> 2     2     -2.39
-#> 3     3     -2.17
-#> 4     4     -2.21
-#> 5     5     -2.55
-#> 6     6     -2.85
 ```
 
 `fit_lrmsd_msa_mode()` estimates `a1, a2` from it by maximum likelihood, returning a
 point estimate plus an asymptotic covariance from the Hessian:
 
-
-```r
+```{r mode-fit}
 fit <- fit_lrmsd_msa_mode(spm, observed$mode, observed$lrmsd_obs)
 c(a1 = fit$a1, a2 = fit$a2)
-#>         a1         a2 
-#>  0.3686453 35.6639941
 ```
 
-
-
-Table: ML estimate of the selection parameters (se from the Hessian)
-
-|parameter | estimate|    se|
-|:---------|--------:|-----:|
-|a1        |    0.369| 0.060|
-|a2        |   35.664| 6.443|
-
-
+```{r mode-fit-params, echo = FALSE}
+knitr::kable(
+  tibble::tibble(
+    parameter = c("a1", "a2"),
+    estimate  = c(fit$a1, fit$a2),
+    se        = c(fit$se_a1, fit$se_a2)
+  ),
+  digits = 3,
+  caption = "ML estimate of the selection parameters (se from the Hessian)"
+)
+```
 
 ### Fitted vs. observed
 
@@ -347,8 +309,7 @@ Note it is `D²`, not `R²`: the model predicts divergence on a fixed scale, and
 measures agreement with the prediction *as it stands*, where `R²` would credit a
 prediction that is right only up to an arbitrary rescaling.
 
-
-```r
+```{r mode-fit-prep}
 predicted <- calculate_profiles(spm, fit$a1, fit$a2, metric = "lrmsd")$mode |>
   transmute(mode, lrmsd_fit = lrmsd_msa)
 
@@ -362,10 +323,16 @@ observed_vs_predicted <- observed |>
 fit_d2 <- fit$gof$D2
 ```
 
+```{r mode-fit-long, include = FALSE}
+observed_vs_predicted_long <- observed_vs_predicted |>
+  tidyr::pivot_longer(c(nlrmsd_obs, nlrmsd_fit),
+                      names_to = "source", values_to = "nlrmsd") |>
+  mutate(source = dplyr::recode(source,
+                                nlrmsd_obs = "observed",
+                                nlrmsd_fit = "fitted"))
+```
 
-
-
-```r
+```{r mode-fit-profile, eval = has_ggplot}
 ggplot(observed_vs_predicted_long, aes(mode, nlrmsd, colour = source)) +
   geom_line(alpha = 0.8) +
   scale_colour_manual(values = c("observed" = "grey25", "fitted" = "firebrick")) +
@@ -376,10 +343,7 @@ ggplot(observed_vs_predicted_long, aes(mode, nlrmsd, colour = source)) +
   theme(legend.position = "top")
 ```
 
-![plot of chunk mode-fit-profile](mode-analysis_files/figure-html/mode-fit-profile-1.png)
-
-
-```r
+```{r mode-fit-scatter, eval = has_ggplot}
 ggplot(observed_vs_predicted, aes(nlrmsd_obs, nlrmsd_fit)) +
   geom_abline(slope = 1, intercept = 0, colour = "grey70", linetype = 2) +
   geom_point(alpha = 0.4, colour = "steelblue") +
@@ -389,8 +353,6 @@ ggplot(observed_vs_predicted, aes(nlrmsd_obs, nlrmsd_fit)) +
        x = "observed nlrmsd", y = "fitted nlrmsd")
 ```
 
-![plot of chunk mode-fit-scatter](mode-analysis_files/figure-html/mode-fit-scatter-1.png)
-
 ## 6. Decomposing the fitted profile
 
 Section 3 decomposed the profile at a *chosen* `(a1, a2)`. The same
@@ -399,8 +361,7 @@ the **fitted** profile — call `calculate_decomposition()` at the ML estimate
 `(fit$a1, fit$a2)` instead of the chosen strengths, and read the `phi_*` columns.
 (The fit is to synthetic data, so this decomposes a synthetic-fitted profile.)
 
-
-```r
+```{r decomposition-fit-code}
 decomposition_fit <- calculate_decomposition(spm, fit$a1, fit$a2, metric = "lrmsd")$mode
 ```
 
@@ -408,8 +369,7 @@ The mutation term is the divergence under no selection; a negative selection ter
 means that pressure *reduces* divergence at that mode relative to the
 mutation-only model.
 
-
-```r
+```{r decomposition-fit, eval = has_ggplot}
 decomposition_fit_long <- decomposition_fit |>
   tidyr::pivot_longer(c(phi_mut, phi_stab, phi_act),
                       names_to = "component", values_to = "phi") |>
@@ -423,46 +383,8 @@ ggplot(decomposition_fit_long, aes(mode, phi, colour = component)) +
        x = "Normal-mode index", y = "contribution to lrmsd")
 ```
 
-![plot of chunk decomposition-fit](mode-analysis_files/figure-html/decomposition-fit-1.png)
-
 ## Session info
 
-
-```
-#> R version 4.2.1 (2022-06-23)
-#> Platform: x86_64-apple-darwin17.0 (64-bit)
-#> Running under: macOS Big Sur ... 10.16
-#> 
-#> Matrix products: default
-#> BLAS:   /Library/Frameworks/R.framework/Versions/4.2/Resources/lib/libRblas.0.dylib
-#> LAPACK: /Library/Frameworks/R.framework/Versions/4.2/Resources/lib/libRlapack.dylib
-#> 
-#> locale:
-#> [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
-#> 
-#> attached base packages:
-#> [1] stats     graphics  grDevices utils     datasets  methods   base     
-#> 
-#> other attached packages:
-#> [1] purrr_1.2.0    ggplot2_4.0.1  readr_2.1.4    tidyr_1.3.1    dplyr_1.1.4   
-#> [6] penm_0.2.0     msamodel_0.5.0
-#> 
-#> loaded via a namespace (and not attached):
-#>  [1] bio3d_2.4-5        Rcpp_1.1.0         lattice_0.22-5     ps_1.7.5          
-#>  [5] digest_0.6.33      mime_0.12          R6_2.6.1           evaluate_0.24.0   
-#>  [9] highr_0.11         pillar_1.11.1      rlang_1.1.6        miniUI_0.1.1.1    
-#> [13] callr_3.7.6        urlchecker_1.0.1   Matrix_1.5-4.1     labeling_0.4.3    
-#> [17] desc_1.4.3         devtools_2.4.5     stringr_1.6.0      htmlwidgets_1.6.4 
-#> [21] S7_0.2.1           bit_4.0.5          shiny_1.8.1.1      compiler_4.2.1    
-#> [25] httpuv_1.6.13      xfun_0.41          pkgconfig_2.0.3    pkgbuild_1.4.4    
-#> [29] htmltools_0.5.8.1  tidyselect_1.2.1   tibble_3.3.0       viridisLite_0.4.2 
-#> [33] crayon_1.5.3       tzdb_0.4.0         withr_3.0.2        later_1.3.2       
-#> [37] grid_4.2.1         xtable_1.8-4       gtable_0.3.6       lifecycle_1.0.4   
-#> [41] magrittr_2.0.4     scales_1.4.0       cli_3.6.5          stringi_1.8.3     
-#> [45] vroom_1.6.5        cachem_1.0.8       farver_2.1.2       fs_1.6.4          
-#> [49] promises_1.2.1     remotes_2.5.0      ellipsis_0.3.2     generics_0.1.4    
-#> [53] vctrs_0.6.5        RColorBrewer_1.1-3 tools_4.2.1        bit64_4.0.5       
-#> [57] glue_1.8.0         hms_1.1.3          processx_3.8.3     pkgload_1.5.2     
-#> [61] parallel_4.2.1     fastmap_1.1.1      sessioninfo_1.2.2  memoise_2.0.1     
-#> [65] knitr_1.43         profvis_0.3.8      usethis_2.2.3
+```{r session, echo = FALSE}
+sessionInfo()
 ```

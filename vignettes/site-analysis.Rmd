@@ -7,21 +7,37 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-<!--
-SOURCE OF TRUTH. This `.Rmd.orig` is the editable vignette; every code chunk runs
-for real. The shipped `site-analysis.Rmd` is PRE-RENDERED from this file.
-Regenerate it after editing this file or after any change to the package code the
-vignette exercises:
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 4.2,
+  dpi = 96
+)
 
-  Rscript -e 'knitr::knit("vignettes/site-analysis.Rmd.orig", output = "vignettes/site-analysis.Rmd")'
+# Every computation chunk below runs for real when this file is knit. ggplot2 is
+# a Suggested dependency; if it is absent the computation still runs and only the
+# plotting chunks are skipped.
+has_ggplot <- requireNamespace("ggplot2", quietly = TRUE)
 
-then commit both this file, the rendered `site-analysis.Rmd`, and its figures.
-Pattern: https://ropensci.org/technotes/2019/12/08/precompute-vignettes/
--->
+# The fit here is ML (deterministic); the seed is harmless but kept for a stable
+# committed render.
+set.seed(1024)
+```
 
-
-
-
+```{r libs, include = FALSE}
+suppressMessages({
+  library(msamodel)
+  library(penm)
+  library(dplyr)
+  library(tidyr)
+})
+if (has_ggplot) {
+  suppressMessages(library(ggplot2))
+  theme_set(theme_minimal(base_size = 12))
+}
+```
 
 This vignette predicts structural divergence **per residue** and fits it to data.
 Its sibling, the [mode analysis vignette](mode-analysis.html), runs the same arc
@@ -57,8 +73,7 @@ beta-lactamase) that ships with the package; swap in your own at the two marked
 lines. You read the structure file with bio3d — `bio3d::read.pdb()` for a `.pdb` file,
 `bio3d::read.cif()` for mmCIF — and pass the result to `penm::set_enm()`.
 
-
-```r
+```{r attach}
 library(msamodel)
 library(penm)       # penm::set_enm(), the elastic network model msamodel builds on
 library(dplyr)      # data-wrangling verbs (mutate, left_join, ...) used below
@@ -72,8 +87,7 @@ Both inputs are files; point these at your own to run the vignette on your prote
 The active-site table is one residue per row, keyed by `pdb` and `chain`, so a single
 file can serve many proteins — filter out the chain you are modelling.
 
-
-```r
+```{r inputs}
 pdb_file    <- system.file("extdata", "1znb_A.pdb", package = "msamodel")          # <- your PDB
 active_file <- system.file("extdata", "znb_active_site.csv", package = "msamodel") # <- your active sites
 
@@ -82,14 +96,12 @@ pdb_site_active <- read_csv(active_file, show_col_types = FALSE) |>
   pull(pdb_site)
 
 pdb_site_active
-#> [1]  99 101 103 162 181 184 193 223
 ```
 
 `penm` reads the structure and builds an elastic network model of it (`wt`); `msamodel`
 then runs a single-point-mutation scan over that model (`spm`):
 
-
-```r
+```{r build}
 wt_pdb <- bio3d::read.pdb(pdb_file)
 wt     <- penm::set_enm(wt_pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
 spm    <- generate_spm(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
@@ -134,8 +146,7 @@ come not from msamodel but from `penm`, the elastic-network package it builds on
 Each getter returns a vector of length `n_sites` in internal-site order, so the columns
 below line up row for row. We label them with `pdb_site` to make the table joinable:
 
-
-```r
+```{r site-props}
 site_descriptors <- tibble::tibble(
   pdb_site = penm::get_pdb_site(wt),                   # PDB residue number
   dactive  = penm::get_dactive(wt, pdb_site_active),   # Å to nearest active-site residue
@@ -153,19 +164,9 @@ switched off). The `metric` argument picks the quantity: `"lrmsd"` (used through
 2–4) is the absolute profile, keeping the overall level; `"nlrmsd"` is the same profile
 with its mean subtracted off — its *shape* — which section 5 uses to compare against data.
 
-
-```r
+```{r profile-raw}
 a1 <- 2; a2 <- 500
 calculate_profiles(spm, a1, a2, metric = "lrmsd")$site |> head()
-#> # A tibble: 6 × 3
-#>    site pdb_site lrmsd_msa
-#>   <int>    <int>     <dbl>
-#> 1     1       20     -2.55
-#> 2     2       21     -3.56
-#> 3     3       22     -3.24
-#> 4     4       23     -3.54
-#> 5     5       24     -4.08
-#> 6     6       25     -3.81
 ```
 
 Here we pick illustrative values to see the model in action — `a1 = 2` (moderate
@@ -174,16 +175,14 @@ different scales, so their numbers are not comparable to each other. Section 5 r
 these guesses with values estimated from data. The profile carries both `site` and
 `pdb_site`, so we attach the two structural descriptors from `site_descriptors` on `pdb_site`:
 
-
-```r
+```{r profile-code}
 profile_demo <- calculate_profiles(spm, a1, a2, metric = "lrmsd")$site |>
   left_join(site_descriptors, by = "pdb_site")
 ```
 
 The divergence profile along the chain (active sites marked in red):
 
-
-```r
+```{r profile-residue, eval = has_ggplot}
 ggplot(profile_demo, aes(pdb_site, lrmsd_msa)) +
   geom_vline(xintercept = pdb_site_active, colour = "firebrick", alpha = 0.4, linewidth = 0.3) +
   geom_line(colour = "grey40") +
@@ -195,14 +194,11 @@ ggplot(profile_demo, aes(pdb_site, lrmsd_msa)) +
   )
 ```
 
-![plot of chunk profile-residue](site-analysis_files/figure-html/profile-residue-1.png)
-
 Divergence is lower (more conserved) at rigid sites and near the active site.
 Plotting `lrmsd` against flexibility and against distance to the active site,
 with a smooth, makes those trends explicit:
 
-
-```r
+```{r profile-lrmsf, eval = has_ggplot}
 ggplot(profile_demo, aes(lrmsf, lrmsd_msa)) +
   geom_point(alpha = 0.5, colour = "grey30") +
   geom_smooth(method = "loess", formula = y ~ x, se = TRUE, colour = "steelblue") +
@@ -210,18 +206,13 @@ ggplot(profile_demo, aes(lrmsf, lrmsd_msa)) +
        x = "lrmsf  (log RMSF)", y = "lrmsd")
 ```
 
-![plot of chunk profile-lrmsf](site-analysis_files/figure-html/profile-lrmsf-1.png)
-
-
-```r
+```{r profile-dactive, eval = has_ggplot}
 ggplot(profile_demo, aes(dactive, lrmsd_msa)) +
   geom_point(alpha = 0.5, colour = "grey30") +
   geom_smooth(method = "loess", formula = y ~ x, se = TRUE, colour = "darkorange") +
   labs(title = "Divergence vs. distance to active site",
        x = "Distance to active site (Å)", y = "lrmsd")
 ```
-
-![plot of chunk profile-dactive](site-analysis_files/figure-html/profile-dactive-1.png)
 
 ## 3. Decomposing the profile at given (a1, a2)
 
@@ -242,26 +233,15 @@ profiles (`lrmsd_mm`, `lrmsd_ms`, `lrmsd_ma`, `lrmsd_msa`) and their split
 (`phi_mut`, `phi_stab`, `phi_act`). `metric = "lrmsd"` keeps everything on the absolute
 scale:
 
-
-```r
+```{r decomposition-code}
 decomposition <- calculate_decomposition(spm, a1, a2, metric = "lrmsd")$site   # a1 = 2, a2 = 500 from section 2
 head(decomposition)
-#> # A tibble: 6 × 9
-#>    site pdb_site lrmsd_mm lrmsd_ms lrmsd_ma lrmsd_msa phi_mut phi_stab phi_act
-#>   <int>    <int>    <dbl>    <dbl>    <dbl>     <dbl>   <dbl>    <dbl>   <dbl>
-#> 1     1       20    -2.60    -2.62    -2.46     -2.55   -2.60  -0.0112 0.0627 
-#> 2     2       21    -3.40    -3.61    -3.31     -3.56   -3.40  -0.212  0.0495 
-#> 3     3       22    -3.26    -3.34    -3.05     -3.24   -3.26  -0.0780 0.100  
-#> 4     4       23    -3.60    -3.75    -3.44     -3.54   -3.60  -0.147  0.208  
-#> 5     5       24    -3.69    -4.08    -3.58     -4.08   -3.69  -0.392  0.00719
-#> 6     6       25    -3.67    -3.85    -3.56     -3.81   -3.67  -0.180  0.0413
 ```
 
 The four profiles along the chain — each model adds one more selection pressure,
 suppressing divergence further (active sites marked in red):
 
-
-```r
+```{r nested-profiles, eval = has_ggplot}
 model_colours <- c(MM = "#FF8C00", MS = "#0000CD", MA = "#1B9E77", MSA = "#C41E3A")
 nested_profiles_long <- decomposition |>
   tidyr::pivot_longer(c(lrmsd_mm, lrmsd_ms, lrmsd_ma, lrmsd_msa),
@@ -277,8 +257,6 @@ ggplot(nested_profiles_long, aes(pdb_site, lrmsd, colour = model)) +
        subtitle = "Red lines mark active-site residues",
        x = "Residue (PDB numbering)", y = "lrmsd", colour = "model")
 ```
-
-![plot of chunk nested-profiles](site-analysis_files/figure-html/nested-profiles-1.png)
 
 The **sequential** decomposition starts from the mutation-only model and adds one
 selection pressure at a time along MM → MS → MSA. Each term is the incremental
@@ -303,8 +281,7 @@ Those three `phi_*` columns are already in the `decomposition` tibble above — 
 profiles are there when you want to *see* them, and the `phi` split is there when you
 want the contributions directly:
 
-
-```r
+```{r decomposition-given, eval = has_ggplot}
 # Paper component colours: mutation = orange, stability = blue, activity = red.
 component_colours <- c(phi_mut = "#FF8C00", phi_stab = "#0000CD", phi_act = "#C41E3A")
 decomposition_long <- decomposition |>
@@ -323,8 +300,6 @@ ggplot(decomposition_long, aes(pdb_site, phi, colour = component)) +
        x = "Residue (PDB numbering)", y = "contribution to lrmsd")
 ```
 
-![plot of chunk decomposition-given](site-analysis_files/figure-html/decomposition-given-1.png)
-
 Reading the panels: each curve is one pressure's contribution to `lrmsd` at each
 residue. Where a curve dips **below** zero, that pressure *reduces* divergence at that
 residue (it conserves the site); above zero, it adds divergence. Activity selection, for
@@ -340,8 +315,7 @@ Stability selection (`a1`, with `a2 = 0`) and activity selection (`a2`, with
 `a1 = 0`) shape the profile in different ways. Here we vary one parameter at a
 time and overlay the resulting profiles:
 
-
-```r
+```{r sweep-code}
 # Stability sweep: vary a1, hold a2 = 0
 a1_values <- c(0, 1, 2, 4, 8)
 sweep_a1 <- purrr::map_dfr(a1_values, function(a1)
@@ -359,8 +333,7 @@ sweep_a2 <- purrr::map_dfr(a2_values, function(a2)
     left_join(site_descriptors, by = "pdb_site"))
 ```
 
-
-```r
+```{r sweep-a1, eval = has_ggplot}
 ggplot(sweep_a1, aes(pdb_site, lrmsd, colour = factor(a1), group = a1)) +
   geom_vline(xintercept = pdb_site_active, colour = "firebrick",
              alpha = 0.3, linewidth = 0.3) +
@@ -370,10 +343,7 @@ ggplot(sweep_a1, aes(pdb_site, lrmsd, colour = factor(a1), group = a1)) +
        x = "Residue (PDB numbering)", y = "lrmsd", colour = "a1")
 ```
 
-![plot of chunk sweep-a1](site-analysis_files/figure-html/sweep-a1-1.png)
-
-
-```r
+```{r sweep-a2, eval = has_ggplot}
 ggplot(sweep_a2, aes(pdb_site, lrmsd, colour = factor(a2), group = a2)) +
   geom_vline(xintercept = pdb_site_active, colour = "firebrick",
              alpha = 0.3, linewidth = 0.3) +
@@ -382,8 +352,6 @@ ggplot(sweep_a2, aes(pdb_site, lrmsd, colour = factor(a2), group = a2)) +
   labs(title = "Activity sweep (a1 = 0)", subtitle = "Red lines mark active-site residues",
        x = "Residue (PDB numbering)", y = "lrmsd", colour = "a2")
 ```
-
-![plot of chunk sweep-a2](site-analysis_files/figure-html/sweep-a2-1.png)
 
 Increasing `a1` suppresses divergence broadly (stronger stability selection
 conserves the whole structure); increasing `a2` suppresses divergence
@@ -403,45 +371,33 @@ residues you measured (PDB numbering), and the value at each. Nothing constrains
 they come from, so your own table keeps whatever column names it already has. The
 package ships one for the worked example:
 
-
-```r
+```{r observed}
 observed_file <- system.file("extdata", "znb_lrmsd_obs_site.csv", package = "msamodel")
 observed      <- read_csv(observed_file, show_col_types = FALSE)   # <- your observed data
 head(observed)
-#> # A tibble: 6 × 2
-#>   pdb_site lrmsd_obs
-#>      <dbl>     <dbl>
-#> 1       20      1.65
-#> 2       21      1.68
-#> 3       22      1.23
-#> 4       23      1.30
-#> 5       24      1.95
-#> 6       25      1.69
 ```
 
 `fit_lrmsd_msa_site()` estimates `a1, a2` from it by maximum likelihood, returning a
 point estimate plus an asymptotic covariance from the Hessian at the optimum. It is
 fast and deterministic:
 
-
-```r
+```{r fit-code}
 # the two vectors: the residues, and the observed value at each
 fit <- fit_lrmsd_msa_site(spm, observed$pdb_site, observed$lrmsd_obs)
 c(a1 = fit$a1, a2 = fit$a2)
-#>         a1         a2 
-#>  0.4236682 38.4171558
 ```
 
-
-
-Table: ML estimate of the selection parameters (se from the Hessian)
-
-|parameter | estimate|    se|
-|:---------|--------:|-----:|
-|a1        |    0.424| 0.116|
-|a2        |   38.417| 9.824|
-
-
+```{r fit-params, echo = FALSE}
+knitr::kable(
+  tibble::tibble(
+    parameter = c("a1", "a2"),
+    estimate  = c(fit$a1, fit$a2),
+    se        = c(fit$se_a1, fit$se_a2)
+  ),
+  digits = 3,
+  caption = "ML estimate of the selection parameters (se from the Hessian)"
+)
+```
 
 The [inference methods vignette](inference-methods.html) walks through this fit end
 to end and puts delta-method confidence bands on the predicted profile and its
@@ -465,8 +421,7 @@ with the prediction *as it stands*. `R²` would credit a prediction that is righ
 to an arbitrary rescaling. `D²` is at most 1 but has no lower bound — a negative value
 means the fit is worse than a constant profile.
 
-
-```r
+```{r fit-prep}
 predicted <- calculate_decomposition(spm, fit$a1, fit$a2, metric = "lrmsd")$site |>
   select(pdb_site, lrmsd_fit = lrmsd_msa)
 
@@ -481,12 +436,18 @@ observed_vs_predicted <- observed |>
 fit_d2 <- fit$gof$D2
 ```
 
-
+```{r fit-long, include = FALSE}
+observed_vs_predicted_long <- observed_vs_predicted |>
+  tidyr::pivot_longer(c(nlrmsd_obs, nlrmsd_fit),
+                      names_to = "source", values_to = "nlrmsd") |>
+  mutate(source = dplyr::recode(source,
+                                nlrmsd_obs = "observed",
+                                nlrmsd_fit = "fitted (MSA)"))
+```
 
 Profile along the chain — observed vs fitted:
 
-
-```r
+```{r fit-profile, eval = has_ggplot}
 ggplot(observed_vs_predicted_long, aes(pdb_site, nlrmsd, colour = source)) +
   geom_line(alpha = 0.8) +
   scale_colour_manual(values = c("observed" = "grey25", "fitted (MSA)" = "firebrick")) +
@@ -497,12 +458,9 @@ ggplot(observed_vs_predicted_long, aes(pdb_site, nlrmsd, colour = source)) +
   theme(legend.position = "top")
 ```
 
-![plot of chunk fit-profile](site-analysis_files/figure-html/fit-profile-1.png)
-
 Fitted vs observed as a scatter (points on the dashed line are a perfect match):
 
-
-```r
+```{r fit-scatter, eval = has_ggplot}
 ggplot(observed_vs_predicted, aes(nlrmsd_obs, nlrmsd_fit)) +
   geom_abline(slope = 1, intercept = 0, colour = "grey70", linetype = 2) +
   geom_point(alpha = 0.5, colour = "steelblue") +
@@ -512,13 +470,10 @@ ggplot(observed_vs_predicted, aes(nlrmsd_obs, nlrmsd_fit)) +
        x = "observed nlrmsd", y = "fitted nlrmsd")
 ```
 
-![plot of chunk fit-scatter](site-analysis_files/figure-html/fit-scatter-1.png)
-
 And the fitted/observed divergence against flexibility and distance to the
 active site:
 
-
-```r
+```{r fit-vs-lrmsf, eval = has_ggplot}
 ggplot(observed_vs_predicted_long, aes(lrmsf, nlrmsd, colour = source)) +
   geom_point(alpha = 0.4) +
   geom_smooth(method = "loess", formula = y ~ x, se = FALSE) +
@@ -528,10 +483,7 @@ ggplot(observed_vs_predicted_long, aes(lrmsf, nlrmsd, colour = source)) +
   theme(legend.position = "top")
 ```
 
-![plot of chunk fit-vs-lrmsf](site-analysis_files/figure-html/fit-vs-lrmsf-1.png)
-
-
-```r
+```{r fit-vs-dactive, eval = has_ggplot}
 ggplot(observed_vs_predicted_long, aes(dactive, nlrmsd, colour = source)) +
   geom_point(alpha = 0.4) +
   geom_smooth(method = "loess", formula = y ~ x, se = FALSE) +
@@ -541,8 +493,6 @@ ggplot(observed_vs_predicted_long, aes(dactive, nlrmsd, colour = source)) +
   theme(legend.position = "top")
 ```
 
-![plot of chunk fit-vs-dactive](site-analysis_files/figure-html/fit-vs-dactive-1.png)
-
 ## 6. Decomposing the fitted profile
 
 Section 3 decomposed the profile at a *chosen* `(a1, a2)`. The same
@@ -550,8 +500,7 @@ $\phi_{\text{mut}}/\phi_{\text{stab}}/\phi_{\text{act}}$ decomposition applies t
 the **fitted** profile — call `calculate_decomposition()` at the ML estimate
 `(fit$a1, fit$a2)` instead of the chosen strengths, and read the `phi_*` columns:
 
-
-```r
+```{r decomposition-fit-code}
 decomposition_fit <- calculate_decomposition(spm, fit$a1, fit$a2, metric = "lrmsd")$site
 ```
 
@@ -559,8 +508,7 @@ The mutation term is the divergence under no selection (it still varies among
 sites — mutations perturb sites unequally); a negative selection term means that
 pressure *reduces* divergence at that site relative to the mutation-only model.
 
-
-```r
+```{r decomposition-fit, eval = has_ggplot}
 decomposition_fit_long <- decomposition_fit |>
   tidyr::pivot_longer(c(phi_mut, phi_stab, phi_act),
                       names_to = "component", values_to = "phi") |>
@@ -577,47 +525,8 @@ ggplot(decomposition_fit_long, aes(pdb_site, phi, colour = component)) +
        x = "Residue (PDB numbering)", y = "contribution to lrmsd")
 ```
 
-![plot of chunk decomposition-fit](site-analysis_files/figure-html/decomposition-fit-1.png)
-
 ## Session info
 
-
-```
-#> R version 4.2.1 (2022-06-23)
-#> Platform: x86_64-apple-darwin17.0 (64-bit)
-#> Running under: macOS Big Sur ... 10.16
-#> 
-#> Matrix products: default
-#> BLAS:   /Library/Frameworks/R.framework/Versions/4.2/Resources/lib/libRblas.0.dylib
-#> LAPACK: /Library/Frameworks/R.framework/Versions/4.2/Resources/lib/libRlapack.dylib
-#> 
-#> locale:
-#> [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
-#> 
-#> attached base packages:
-#> [1] stats     graphics  grDevices utils     datasets  methods   base     
-#> 
-#> other attached packages:
-#> [1] purrr_1.2.0    ggplot2_4.0.1  readr_2.1.4    tidyr_1.3.1    dplyr_1.1.4   
-#> [6] penm_0.2.0     msamodel_0.5.0
-#> 
-#> loaded via a namespace (and not attached):
-#>  [1] bio3d_2.4-5        Rcpp_1.1.0         lattice_0.22-5     ps_1.7.5          
-#>  [5] utf8_1.2.6         digest_0.6.33      mime_0.12          R6_2.6.1          
-#>  [9] evaluate_0.24.0    highr_0.11         pillar_1.11.1      rlang_1.1.6       
-#> [13] miniUI_0.1.1.1     callr_3.7.6        urlchecker_1.0.1   Matrix_1.5-4.1    
-#> [17] splines_4.2.1      labeling_0.4.3     desc_1.4.3         devtools_2.4.5    
-#> [21] stringr_1.6.0      htmlwidgets_1.6.4  S7_0.2.1           bit_4.0.5         
-#> [25] shiny_1.8.1.1      compiler_4.2.1     httpuv_1.6.13      xfun_0.41         
-#> [29] pkgconfig_2.0.3    pkgbuild_1.4.4     mgcv_1.9-1         htmltools_0.5.8.1 
-#> [33] tidyselect_1.2.1   tibble_3.3.0       viridisLite_0.4.2  crayon_1.5.3      
-#> [37] tzdb_0.4.0         withr_3.0.2        later_1.3.2        grid_4.2.1        
-#> [41] nlme_3.1-164       xtable_1.8-4       gtable_0.3.6       lifecycle_1.0.4   
-#> [45] magrittr_2.0.4     scales_1.4.0       cli_3.6.5          stringi_1.8.3     
-#> [49] vroom_1.6.5        cachem_1.0.8       farver_2.1.2       fs_1.6.4          
-#> [53] promises_1.2.1     remotes_2.5.0      ellipsis_0.3.2     generics_0.1.4    
-#> [57] vctrs_0.6.5        RColorBrewer_1.1-3 tools_4.2.1        bit64_4.0.5       
-#> [61] glue_1.8.0         hms_1.1.3          processx_3.8.3     pkgload_1.5.2     
-#> [65] parallel_4.2.1     fastmap_1.1.1      sessioninfo_1.2.2  memoise_2.0.1     
-#> [69] knitr_1.43         profvis_0.3.8      usethis_2.2.3
+```{r session, echo = FALSE}
+sessionInfo()
 ```

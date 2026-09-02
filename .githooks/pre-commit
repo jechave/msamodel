@@ -1,28 +1,16 @@
 #!/bin/sh
-# Guard: vignettes use the .Rmd.orig precompute pattern. Each shipped
-# vignettes/<name>.Rmd is PRE-RENDERED from vignettes/<name>.Rmd.orig and must be
-# re-knit whenever the source changes, or it silently goes stale.
-#
-# This hook blocks a commit that stages any <name>.Rmd.orig source WITHOUT also
-# staging its re-rendered <name>.Rmd. It does NOT recompute or diff content (that
-# would fight intentional edits); it only checks that a re-knit was staged
-# alongside the edit. Covers every vignettes/*.Rmd.orig (intro, dr2n-analysis,
-# and any future ones).
+# Pre-commit gates for msamodel. Three independent checks; each blocks the commit
+# and explains why. See the comment above each gate for the incident it guards.
 #
 # Enabled via:  git config core.hooksPath .githooks
-# Bypass once (e.g. an unrelated comment-only edit to an .orig):
-#   git commit --no-verify
-
-staged() {
-  git diff --cached --name-only | grep -qx "$1"
-}
+# Bypass once:  git commit --no-verify
 
 blocked=0
 
 # --- Gate 1: vignettes/ require explicit user HTML approval ------------------
-# The user previews dev/preview/<name>.html themselves and must approve before
-# any vignettes/ change is committed. Re-knitting / passing tests / the model
-# eyeballing a preview do NOT count. This hook makes that mechanical: a commit
+# The user previews doc/<name>.html themselves and must approve before any
+# vignettes/ change is committed. A passing test run, or the model eyeballing a
+# render, do NOT count. This hook makes that mechanical: a commit
 # touching vignettes/ is blocked unless VIGNETTE_APPROVED=1 is set, which the
 # user sets (or tells the model to set) ONLY after approving the rendered HTML.
 #   Approved commit:   VIGNETTE_APPROVED=1 git commit ...
@@ -33,11 +21,12 @@ if git diff --cached --name-only | grep -q '^vignettes/'; then
     cat >&2 <<'EOF'
 ✖ Commit blocked: it touches vignettes/ but no user HTML approval is recorded.
 
-  The user previews the rendered HTML (dev/preview/<name>.html) and approves it
-  BEFORE vignettes/ is committed. Re-knitting, "tests pass", or the model looking
-  at a preview do NOT satisfy this.
+  The user previews the rendered HTML and approves it BEFORE vignettes/ is
+  committed. "Tests pass", or the model looking at a render, do NOT satisfy this.
 
-  Regenerate every affected preview, have the USER open and approve it, then:
+  Rebuild the HTML, have the USER open and approve it, then:
+
+      Rscript -e "devtools::build_vignettes()"   # writes doc/<name>.html
 
       VIGNETTE_APPROVED=1 git commit ...
 
@@ -129,29 +118,5 @@ if git diff --cached --name-only \
 EOF
   fi
 fi
-
-for orig in $(git diff --cached --name-only | grep '^vignettes/.*\.Rmd\.orig$'); do
-  rendered=$(printf '%s' "$orig" | sed 's/\.orig$//')
-  name=$(basename "$rendered" .Rmd)
-  if ! staged "$rendered"; then
-    blocked=1
-    cat >&2 <<EOF
-✖ Commit blocked: $orig is staged but $rendered is not.
-
-  $orig is the source of truth; $rendered is pre-rendered from it and ships in
-  the package. Re-knit and stage the result before committing:
-
-      Rscript dev/knit-vignette.R $name
-      git add $rendered vignettes/${name}_files/
-
-  Use the wrapper, NOT a hand-rolled knitr::knit() call: knitr writes figures
-  relative to the working directory, so knitting from the package root leaves
-  vignettes/${name}_files/ stale while nothing errors (2026-08-06).
-
-  If this .orig change genuinely needs no re-render (e.g. a comment-only edit),
-  bypass with:  git commit --no-verify
-EOF
-  fi
-done
 
 exit $blocked

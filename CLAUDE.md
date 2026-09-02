@@ -96,16 +96,13 @@ Rscript -e "devtools::test()"
 # globalVariables() — see the comment in R/msamodel-package.R.
 Rscript -e "devtools::check()"
 
-# Knit a vignette .Rmd.orig -> .Rmd. ALWAYS via this wrapper (it cds into vignettes/
-# so figures land where the .Rmd points, and prints the figure timestamps it wrote).
-# It ALSO runs devtools::install() itself, so there is no separate install step --
-# note that install becomes the build every other project here gets from
-# library(msamodel). <name> is required; no argument is an error.
-# A PreToolUse hook blocks hand-rolled knitr::knit() calls.
-Rscript dev/knit-vignette.R mode-analysis
+# Build the vignettes and render them to HTML for review -> doc/<name>.html
+# (doc/ and Meta/ are git- and build-ignored). This RUNS the vignette code, so it
+# is also the check that the vignettes still work against the current package.
+Rscript -e "devtools::build_vignettes()"
 
-# Preview a pre-rendered vignette as standalone HTML, WITHOUT touching the repo
-Rscript dev/preview-vignette.R mode-analysis   # -> dev/preview/<name>.html (git-ignored)
+# One vignette on its own, when iterating (from inside vignettes/)
+Rscript -e "rmarkdown::render('mode-analysis.Rmd')"
 ```
 
 NAMESPACE and everything under `man/` are roxygen-generated — edit the roxygen
@@ -113,37 +110,25 @@ comments and run `document()`, never hand-edit them.
 
 ### Vignettes — HARD RULES
 
-- **Never commit/push `vignettes/` without the user's explicit HTML approval.** Do
-  NOT commit any change touching `vignettes/` (`.Rmd`, `.Rmd.orig`, `_files/`) until
-  the **user** has said they previewed the rendered HTML and approved it. Re-knitting,
-  "tests pass", or *you* glancing at a preview do not satisfy this — only the user's
-  explicit OK does. When vignettes change: regenerate **every** affected preview, tell
-  the user exactly which `dev/preview/<name>.html` to open, then STOP and wait. The
-  `.githooks/pre-commit` hook enforces this mechanically.
-- **`.Rmd.orig` precompute pattern.** Edit `<name>.Rmd.orig` → **`Rscript dev/knit-vignette.R
-  <name>`** → preview with `dev/preview-vignette.R` → user approves → commit. Install the
-  working tree first if the vignette calls new functions (`library(msamodel)` loads the
-  *installed* package). **Never render the committed `vignettes/<name>.Rmd` in place** —
-  `html_vignette` renders `--self-contained`, which base64-embeds figures and then
-  DELETES the `<name>_files/` dir the shipped `.Rmd` references. Use
-  `dev/preview-vignette.R` (renders a temp-dir copy; leaves repo figures intact).
-- **Always knit via `dev/knit-vignette.R`, never a hand-rolled `knitr::knit()` call.**
-  knitr writes figures RELATIVE TO THE WORKING DIRECTORY, so knitting from the package
-  root silently writes them to `<root>/<name>_files/` and leaves the real
-  `vignettes/<name>_files/` STALE — the knitted `.Rmd` then points at old images and
-  nothing errors (2026-08-06). The wrapper `cd`s correctly and prints the figure
-  timestamps it wrote, so "the figures were regenerated" is evidence you can see.
-  A `PreToolUse` hook (`.claude/hooks/guard-bash.sh`) blocks the hand-rolled form.
+- **Vignettes are ordinary `.Rmd` files that run at build time**, like any R package.
+  There is no precompute step, no `.Rmd.orig`, and no committed figures: `vignettes/`
+  holds exactly the four `.Rmd` sources. `R CMD check` executes them, so a vignette that
+  breaks against the current code **fails the check** — which is the point.
+- **Never commit/push `vignettes/` without the user's explicit HTML approval.** Do NOT
+  commit any change touching `vignettes/` until the **user** has said they read the
+  rendered HTML and approved it. "Tests pass", or *you* glancing at a render, do not
+  satisfy this — only the user's explicit OK. Build with
+  `Rscript -e "devtools::build_vignettes()"`, tell the user exactly which
+  `doc/<name>.html` to open, then STOP and wait. `.githooks/pre-commit` gate 1 enforces
+  this mechanically (`VIGNETTE_APPROVED=1`).
+- **`doc/` and `Meta/` are build output** — git-ignored and `.Rbuildignore`d. Never
+  commit them; regenerate on demand.
 - **Never `rm` untracked paths inside the repo.** Report what they are and let the user
   decide. On 2026-08-06 four stray `*_files/` dirs were `rm -rf`'d as "byproducts"; they
-  were the figures the knit had just produced — the only evidence of what it did.
-  `guard-bash.sh` helps but is cruder than the rule: it **text-matches** `rm` and
-  `git clean` and blocks them, exempting `git rm` and paths under `/tmp/`,
-  `/private/tmp/`, or `scratchpad`. It never consults git, so it cannot tell tracked
-  from untracked, and it will block a legitimate `rm` outside the repo too. **If it
-  fires, that is a stop — report and ask; do not rephrase the command to slip past it.**
-  **`git rm` on a tracked file is fine** — git keeps the blob and the deletion is
-  reviewable in the diff; don't hand an approved deletion back to the user to type.
+  were the figures a knit had just produced — the only evidence of what it did. Nothing
+  enforces this now (the guard hook was removed 2026-09-02, along with the precompute
+  that made those figures exist): **it is discipline, not a mechanism.** `git rm` on a
+  tracked file is fine — git keeps the blob and the deletion is reviewable in the diff.
 
 ### Example data vs test fixtures — two places, two scripts
 
@@ -222,5 +207,6 @@ exists because its absence cost the maintainer hours that day.
    An unexpected file, directory, or output is information about what just happened.
    Report what it is and what you think created it; let the maintainer decide.
    *(2026-08-06: four unexplained directories were deleted as "byproducts" — they were
-   the only record of what a knit had produced. Now also blocked by
-   `.claude/hooks/guard-bash.sh`.)*
+   the only record of what a knit had produced. A hook enforced this for a while; it
+   was removed 2026-09-02 with the precompute that created those directories, so this
+   is discipline again, not a mechanism.)*

@@ -1,10 +1,4 @@
 *.html
 *.R
 *.knit.md
-# Generic _files/ dirs from ad-hoc renders are ignored, but the figures of
-# pre-rendered vignettes (knit from a *.Rmd.orig) must ship.
 *_files/
-!msamodel_files/
-!site-analysis_files/
-!mode-analysis_files/
-!inference-methods_files/

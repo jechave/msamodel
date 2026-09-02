@@ -7,21 +7,30 @@ vignette: >
   %\VignetteEncoding{UTF-8}
 ---
 
-<!--
-SOURCE OF TRUTH. This `.Rmd.orig` is the editable vignette; every code chunk runs
-for real. The shipped `inference-methods.Rmd` is PRE-RENDERED from this file.
-Regenerate it after editing this file or after any change to the package code the
-vignette exercises (run from INSIDE vignettes/ so fig.path resolves correctly):
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7,
+  fig.height = 4.2,
+  dpi = 96
+)
 
-  cd vignettes && Rscript -e 'knitr::knit("inference-methods.Rmd.orig", output = "inference-methods.Rmd")'
+# Every computation chunk below runs for real when this file is knit. ggplot2 is
+# a Suggested dependency; if it is absent the computation still runs and only the
+# plotting chunks are skipped.
+has_ggplot <- requireNamespace("ggplot2", quietly = TRUE)
 
-then commit this file, the rendered `inference-methods.Rmd`, and its figures.
-The working tree must be installed first if a chunk calls package functions not
-yet in the installed package (`library(msamodel)` loads the *installed* package).
-Pattern: https://ropensci.org/technotes/2019/12/08/precompute-vignettes/
--->
+# The fits are deterministic; the seed is harmless but kept for a stable committed
+# render. It does NOT feed generate_spm(): penm draws each mutant from a hash of
+# (ensemble, site, mutation), never from the global RNG stream.
+set.seed(1024)
 
-
+# House plot theme for the committed render. The visible `library(ggplot2)` in the
+# Setup section is what a user types; this just sets a consistent look and is skipped
+# if ggplot2 is absent.
+if (has_ggplot) ggplot2::theme_set(ggplot2::theme_minimal(base_size = 12))
+```
 
 ## What this vignette does
 
@@ -100,8 +109,7 @@ lower/upper bounds: a 95% band is the value plus or minus `z_975` standard error
 `z_975 = qnorm(0.975) ≈ 1.96`. We define that multiplier once and reuse it in every plot
 below (for a 99% band use `qnorm(0.995) ≈ 2.58` instead):
 
-
-```r
+```{r zconst}
 z_975 <- qnorm(0.975)   # 1.96; the multiplier for a 95% band
 ```
 
@@ -118,19 +126,10 @@ First, attach the packages. `msamodel` is the package itself; the other three ar
 by the data-wrangling and plotting code shown throughout (ggplot2 is optional — skip it
 if you only want the numeric tables).
 
-
-```r
+```{r attach}
 library(msamodel)
 library(penm)       # penm::set_enm(), the elastic network model msamodel builds on
 library(dplyr)      # data-wrangling verbs (mutate, inner_join, ...) used below
-#> 
-#> Attaching package: 'dplyr'
-#> The following objects are masked from 'package:stats':
-#> 
-#>     filter, lag
-#> The following objects are masked from 'package:base':
-#> 
-#>     intersect, setdiff, setequal, union
 library(tidyr)      # pivot_longer, for reshaping the nested/decomposition bands
 library(readr)      # read_csv, for the example data files
 library(ggplot2)    # the figures below; optional -- skip if you only want the tables
@@ -139,8 +138,7 @@ library(ggplot2)    # the figures below; optional -- skip if you only want the t
 Both inputs are files. The active-site table lists one residue per row keyed by `pdb`
 and `chain`, so one file can hold many proteins; filter out the chain you are modelling.
 
-
-```r
+```{r inputs}
 pdb_file    <- system.file("extdata", "1znb_A.pdb", package = "msamodel")          # <- your PDB
 active_file <- system.file("extdata", "znb_active_site.csv", package = "msamodel") # <- your active sites
 
@@ -149,7 +147,6 @@ pdb_site_active <- read_csv(active_file, show_col_types = FALSE) |>
   pull(pdb_site)
 
 pdb_site_active
-#> [1]  99 101 103 162 181 184 193 223
 ```
 
 From those inputs `penm` reads the structure and builds an elastic network model of it
@@ -160,8 +157,7 @@ arguments below configure the network model and the scan; leave them at these va
 follow along (the [site analysis](site-analysis.html) vignette covers what they do and how
 to tune them). Only the two file paths above are yours to change.
 
-
-```r
+```{r build}
 wt_pdb <- bio3d::read.pdb(pdb_file)
 wt     <- penm::set_enm(wt_pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
 spm    <- generate_spm(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
@@ -179,20 +175,10 @@ homologous structures over an alignment — is outside `msamodel`. You pass it a
 vectors**, so whatever table it already lives in needs no reshaping. The package ships
 one for the worked example:
 
-
-```r
+```{r obs}
 observed_site_file <- system.file("extdata", "znb_lrmsd_obs_site.csv", package = "msamodel")
 observed_site      <- read_csv(observed_site_file, show_col_types = FALSE)   # <- your observed data
 head(observed_site)
-#> # A tibble: 6 × 2
-#>   pdb_site lrmsd_obs
-#>      <dbl>     <dbl>
-#> 1       20      1.65
-#> 2       21      1.68
-#> 3       22      1.23
-#> 4       23      1.30
-#> 5       24      1.95
-#> 6       25      1.69
 ```
 
 ## A2. Fit `(a1, a2)` to the data
@@ -206,22 +192,16 @@ divergence along the chain — which is all an observed profile pins down — an
 level, which the data does not constrain, drops out. Give it the scan and your two
 vectors:
 
-
-```r
+```{r site-fit}
 fit_site <- fit_lrmsd_msa_site(spm, observed_site$pdb_site, observed_site$lrmsd_obs)
 c(a1 = fit_site$a1, a2 = fit_site$a2)
-#>         a1         a2 
-#>  0.4236682 38.4171558
 ```
 
 Those two numbers are the fitted stability and activity selection strengths. The fit
 object also carries their standard errors, so you know how well-pinned-down each is:
 
-
-```r
+```{r site-se}
 c(se_a1 = fit_site$se_a1, se_a2 = fit_site$se_a2)
-#>     se_a1     se_a2 
-#> 0.1164401 9.8238325
 ```
 
 ### How well does it fit?
@@ -230,13 +210,8 @@ Before trusting a fit, ask how much of the data it actually explains. You do not
 another call: the fit carries a one-row summary in the style of `broom::glance()`,
 computed at the optimum.
 
-
-```r
+```{r gof}
 fit_site$gof
-#> # A tibble: 1 × 9
-#>      D2   AIC   BIC logLik deviance null_deviance  nobs     k sigma_hat
-#>   <dbl> <dbl> <dbl>  <dbl>    <dbl>         <dbl> <int> <int>     <dbl>
-#> 1 0.605  283.  294.  -139.     45.2          114.   225     3     0.448
 ```
 
 The headline number is `D2`, the fraction of the profile's variance the model captures
@@ -258,19 +233,9 @@ centred shape. We read the `$site` tibble here.
 
 ### The raw curve (`lrmsd`)
 
-
-```r
+```{r site-predict}
 predicted_raw_site <- predict_profiles(fit_site, spm, metric = "lrmsd")$site   # lrmsd_msa + lrmsd_msa_se
 head(predicted_raw_site)
-#> # A tibble: 6 × 4
-#>    site pdb_site lrmsd_msa lrmsd_msa_se
-#>   <int>    <int>     <dbl>        <dbl>
-#> 1     1       20     -2.44       0.0991
-#> 2     2       21     -3.29       0.0942
-#> 3     3       22     -3.09       0.0850
-#> 4     4       23     -3.53       0.0750
-#> 5     5       24     -3.65       0.0741
-#> 6     6       25     -3.57       0.0838
 ```
 
 ### The centred shape (`nlrmsd`)
@@ -278,19 +243,9 @@ head(predicted_raw_site)
 The centred prediction returns the same profile with its mean removed, and its own —
 narrower — standard error:
 
-
-```r
+```{r site-predict-n}
 predicted_site <- predict_profiles(fit_site, spm, metric = "nlrmsd")$site  # nlrmsd_msa + nlrmsd_msa_se
 head(predicted_site)
-#> # A tibble: 6 × 4
-#>    site pdb_site nlrmsd_msa nlrmsd_msa_se
-#>   <int>    <int>      <dbl>         <dbl>
-#> 1     1       20      1.67         0.109 
-#> 2     2       21      0.819        0.102 
-#> 3     3       22      1.02         0.0981
-#> 4     4       23      0.573        0.0853
-#> 5     5       24      0.461        0.0787
-#> 6     6       25      0.535        0.0932
 ```
 
 ### Comparing the fit to your data
@@ -299,8 +254,7 @@ To see how well the fitted model matches the measured profile, plot them togethe
 `nlrmsd`, since (as explained above) measured profiles compare on shape, not absolute
 level. First centre your observed profile the same way — subtract its mean:
 
-
-```r
+```{r obs-centred}
 observed_centred_site <- observed_site |>
   mutate(nlrmsd_obs = lrmsd_obs - mean(lrmsd_obs)) |>
   select(pdb_site, nlrmsd_obs)
@@ -322,8 +276,7 @@ curve (and its band, which we build from `_se`) up or down without changing its
 **width** — it only lines the two curves up on a common zero. We build the band from the
 standard error at the same time:
 
-
-```r
+```{r site-band-shift}
 predicted_band_site <- predicted_site |>
   inner_join(observed_centred_site, by = "pdb_site") |>              # keep only residues the data observes
   mutate(shift = mean(nlrmsd_msa),                       # prediction's mean over those residues
@@ -332,8 +285,7 @@ predicted_band_site <- predicted_site |>
          upper = value + z_975 * nlrmsd_msa_se)
 ```
 
-
-```r
+```{r site-band, eval = has_ggplot}
 ggplot(predicted_band_site, aes(pdb_site)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.25) +
   geom_line(aes(y = value), colour = "steelblue") +
@@ -341,8 +293,6 @@ ggplot(predicted_band_site, aes(pdb_site)) +
   labs(title = "Site: fitted profile with 95% band vs. observed",
        x = "Residue (PDB numbering)", y = "nlrmsd (shape, mean removed)")
 ```
-
-![plot of chunk site-band](inference-methods_files/figure-html/site-band-1.png)
 
 The blue band is the model's 95% prediction; the grey points are your data. Where points
 sit inside the band, the fit accounts for them.
@@ -363,14 +313,9 @@ splits the one full profile into contributions you read residue by residue. Both
 reported on the centred (`nlrmsd`) metric — there is no meaningful way to band an overall
 level the data cannot see — so `metric = "nlrmsd"` is the reading here:
 
-
-```r
+```{r site-decomp}
 decomposition_site <- predict_decomposition(fit_site, spm, metric = "nlrmsd")$site
 names(decomposition_site)
-#>  [1] "site"          "pdb_site"      "nlrmsd_mm"     "nlrmsd_ms"    
-#>  [5] "nlrmsd_ma"     "nlrmsd_msa"    "nphi_mut"      "nphi_stab"    
-#>  [9] "nphi_act"      "nlrmsd_mm_se"  "nlrmsd_ms_se"  "nlrmsd_ma_se" 
-#> [13] "nlrmsd_msa_se" "nphi_mut_se"   "nphi_stab_se"  "nphi_act_se"
 ```
 
 ### The nested-model variants
@@ -380,8 +325,7 @@ The nested columns are `nlrmsd_{mm,ms,ma,msa}`, each with an `_se` column furthe
 band from the standard error and plot MM, MS, and MSA on one shape scale (MA omitted to
 keep the panel readable):
 
-
-```r
+```{r site-nested-plot, eval = has_ggplot}
 model_colours <- c(MM = "#FF8C00", MS = "#0000CD", MSA = "#C41E3A")
 # Reshape the value columns and the _se columns to long form separately, then join:
 # one row per (residue, model) carrying both the value and its standard error.
@@ -407,8 +351,6 @@ ggplot(nested_long_site, aes(pdb_site, colour = model, fill = model)) +
        x = "Residue (PDB numbering)", y = "nlrmsd (shape)", colour = "model", fill = "model")
 ```
 
-![plot of chunk site-nested-plot](inference-methods_files/figure-html/site-nested-plot-1.png)
-
 MM's curve varies residue to residue like any profile (mutations perturb different sites
 by different amounts). Its band is the **narrowest** of the four: with both selection
 strengths off it does not depend on `(a1, a2)`, so the parameter part of its uncertainty
@@ -423,8 +365,7 @@ the contribution to the centred profile (the `n` prefix is the same "centred" ma
 `nlrmsd`). They give each residue's divergence split into how much comes from **mutation**
 alone, from **stability** selection, and from **activity** selection:
 
-
-```r
+```{r site-decomposition-plot, eval = has_ggplot}
 # Paper component colours: mutation = orange, stability = blue, activity = red.
 component_colours <- c(nphi_mut = "#FF8C00", nphi_stab = "#0000CD", nphi_act = "#C41E3A")
 decomposition_value_site <- decomposition_site |>
@@ -450,8 +391,6 @@ ggplot(decomposition_long_site, aes(pdb_site, colour = component, fill = compone
        x = "Residue (PDB numbering)", y = "nphi (contribution, log-divergence units)",
        colour = NULL, fill = NULL)
 ```
-
-![plot of chunk site-decomposition-plot](inference-methods_files/figure-html/site-decomposition-plot-1.png)
 
 The three parts add up, residue by residue, to the full centred profile `nlrmsd_msa`
 (the split is exact). Their bands do **not** add — each is the uncertainty of that one
@@ -482,62 +421,34 @@ response matrix `dr2mat_mode`. Your data on this axis is a mode-indexed profile,
 the site fit plus seeded noise purely to exercise the machinery. Treat the numbers below
 as a demonstration of the method, not a result about this protein.
 
-
-```r
+```{r mode-data}
 observed_mode_file <- system.file("extdata", "znb_lrmsd_obs_mode_syn.csv", package = "msamodel")
 observed_mode      <- read_csv(observed_mode_file, show_col_types = FALSE)  # <- your observed mode profile
 head(observed_mode)
-#> # A tibble: 6 × 2
-#>    mode lrmsd_obs
-#>   <dbl>     <dbl>
-#> 1     1     -1.99
-#> 2     2     -2.39
-#> 3     3     -2.17
-#> 4     4     -2.21
-#> 5     5     -2.55
-#> 6     6     -2.85
 ```
 
 ## B2. Fit (mode)
 
 Same fit, mode data:
 
-
-```r
+```{r mode-fit}
 fit_mode <- fit_lrmsd_msa_mode(spm, observed_mode$mode, observed_mode$lrmsd_obs)
 c(a1 = fit_mode$a1, a2 = fit_mode$a2, se_a1 = fit_mode$se_a1, se_a2 = fit_mode$se_a2)
-#>          a1          a2       se_a1       se_a2 
-#>  0.36864527 35.66399411  0.05999435  6.44284225
 ```
 
 ...and, as on the site axis, the fit carries its own goodness of fit:
 
-
-```r
+```{r mode-gof}
 fit_mode$gof
-#> # A tibble: 1 × 9
-#>      D2   AIC   BIC logLik deviance null_deviance  nobs     k sigma_hat
-#>   <dbl> <dbl> <dbl>  <dbl>    <dbl>         <dbl> <int> <int>     <dbl>
-#> 1 0.955  316.  330.  -155.     62.7         1408.   678     3     0.304
 ```
 
 ## B3. Predict the profile (mode)
 
 The same profile prediction, read from `$mode`:
 
-
-```r
+```{r mode-predict}
 predicted_mode <- predict_profiles(fit_mode, spm, metric = "nlrmsd")$mode   # nlrmsd_msa + its _se
 head(predicted_mode)
-#> # A tibble: 6 × 3
-#>    mode nlrmsd_msa nlrmsd_msa_se
-#>   <int>      <dbl>         <dbl>
-#> 1     1       3.28        0.0894
-#> 2     2       3.05        0.0828
-#> 3     3       3.03        0.0854
-#> 4     4       2.85        0.0608
-#> 5     5       2.79        0.0590
-#> 6     6       2.64        0.0524
 ```
 
 Two differences from the site axis, both because modes are not residues. There is no
@@ -546,8 +457,7 @@ here **every mode is observed** (the data covers all of the model's modes), so t
 re-levelling wrinkle from A3 does not arise: the prediction and the data are already
 centred over the same set, and we join directly with no shift.
 
-
-```r
+```{r mode-band-obs}
 observed_centred_mode <- observed_mode |>
   mutate(nlrmsd_obs = lrmsd_obs - mean(lrmsd_obs)) |>
   select(mode, nlrmsd_obs)
@@ -558,8 +468,7 @@ predicted_band_mode <- predicted_mode |>
          upper = nlrmsd_msa + z_975 * nlrmsd_msa_se)
 ```
 
-
-```r
+```{r mode-band, eval = has_ggplot}
 ggplot(predicted_band_mode, aes(mode)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), fill = "seagreen", alpha = 0.25) +
   geom_line(aes(y = nlrmsd_msa), colour = "seagreen") +
@@ -568,19 +477,15 @@ ggplot(predicted_band_mode, aes(mode)) +
        x = "Mode index n", y = "nlrmsd (shape, mean removed)")
 ```
 
-![plot of chunk mode-band](inference-methods_files/figure-html/mode-band-1.png)
-
 ## B4. Nested models and the decomposition (mode)
 
 The mode reading of `predict_decomposition()`, as in A4:
 
-
-```r
+```{r mode-decomp}
 decomposition_mode <- predict_decomposition(fit_mode, spm, metric = "nlrmsd")$mode
 ```
 
-
-```r
+```{r mode-nested-plot, eval = has_ggplot}
 model_colours <- c(MM = "#FF8C00", MS = "#0000CD", MSA = "#C41E3A")
 nested_value_mode <- decomposition_mode |>
   select(mode, nlrmsd_mm, nlrmsd_ms, nlrmsd_msa) |>
@@ -602,13 +507,10 @@ ggplot(nested_long_mode, aes(mode, colour = model, fill = model)) +
        x = "Mode index n", y = "nlrmsd (shape)", colour = "model", fill = "model")
 ```
 
-![plot of chunk mode-nested-plot](inference-methods_files/figure-html/mode-nested-plot-1.png)
-
 As on the site axis, MM has the narrowest band — its parameter part is zero (it does not
 depend on `(a1, a2)`), leaving only the scan-sampling part.
 
-
-```r
+```{r mode-decomposition-plot, eval = has_ggplot}
 decomposition_value_mode <- decomposition_mode |>
   select(mode, nphi_mut, nphi_stab, nphi_act) |>
   pivot_longer(-mode, names_to = "component", values_to = "value")
@@ -631,8 +533,6 @@ ggplot(decomposition_long_mode, aes(mode, colour = component, fill = component))
        colour = NULL, fill = NULL)
 ```
 
-![plot of chunk mode-decomposition-plot](inference-methods_files/figure-html/mode-decomposition-plot-1.png)
-
 As on the site axis, the three parts sum to `nlrmsd_msa`, and the mutation part
 (`nphi_mut`) has the narrowest band — its parameter part is zero, leaving only scan sampling.
 
@@ -645,42 +545,6 @@ As on the site axis, the three parts sum to `nlrmsd_msa`, and the mutation part
 
 ## Session info
 
-
-```
-#> R version 4.2.1 (2022-06-23)
-#> Platform: x86_64-apple-darwin17.0 (64-bit)
-#> Running under: macOS Big Sur ... 10.16
-#> 
-#> Matrix products: default
-#> BLAS:   /Library/Frameworks/R.framework/Versions/4.2/Resources/lib/libRblas.0.dylib
-#> LAPACK: /Library/Frameworks/R.framework/Versions/4.2/Resources/lib/libRlapack.dylib
-#> 
-#> locale:
-#> [1] en_US.UTF-8/en_US.UTF-8/en_US.UTF-8/C/en_US.UTF-8/en_US.UTF-8
-#> 
-#> attached base packages:
-#> [1] stats     graphics  grDevices utils     datasets  methods   base     
-#> 
-#> other attached packages:
-#> [1] ggplot2_4.0.1  readr_2.1.4    tidyr_1.3.1    dplyr_1.1.4    penm_0.2.0    
-#> [6] msamodel_0.5.0
-#> 
-#> loaded via a namespace (and not attached):
-#>  [1] bio3d_2.4-5        Rcpp_1.1.0         lattice_0.22-5     ps_1.7.5          
-#>  [5] digest_0.6.33      mime_0.12          R6_2.6.1           evaluate_0.24.0   
-#>  [9] highr_0.11         pillar_1.11.1      rlang_1.1.6        miniUI_0.1.1.1    
-#> [13] callr_3.7.6        urlchecker_1.0.1   Matrix_1.5-4.1     labeling_0.4.3    
-#> [17] desc_1.4.3         devtools_2.4.5     stringr_1.6.0      htmlwidgets_1.6.4 
-#> [21] S7_0.2.1           bit_4.0.5          shiny_1.8.1.1      compiler_4.2.1    
-#> [25] httpuv_1.6.13      xfun_0.41          pkgconfig_2.0.3    pkgbuild_1.4.4    
-#> [29] htmltools_0.5.8.1  tidyselect_1.2.1   tibble_3.3.0       crayon_1.5.3      
-#> [33] tzdb_0.4.0         withr_3.0.2        later_1.3.2        grid_4.2.1        
-#> [37] xtable_1.8-4       gtable_0.3.6       lifecycle_1.0.4    magrittr_2.0.4    
-#> [41] scales_1.4.0       cli_3.6.5          stringi_1.8.3      vroom_1.6.5       
-#> [45] cachem_1.0.8       farver_2.1.2       fs_1.6.4           promises_1.2.1    
-#> [49] remotes_2.5.0      ellipsis_0.3.2     generics_0.1.4     vctrs_0.6.5       
-#> [53] RColorBrewer_1.1-3 tools_4.2.1        bit64_4.0.5        glue_1.8.0        
-#> [57] purrr_1.2.0        hms_1.1.3          processx_3.8.3     pkgload_1.5.2     
-#> [61] parallel_4.2.1     fastmap_1.1.1      sessioninfo_1.2.2  memoise_2.0.1     
-#> [65] knitr_1.43         profvis_0.3.8      usethis_2.2.3
+```{r session, echo = FALSE}
+sessionInfo()
 ```
