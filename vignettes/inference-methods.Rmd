@@ -16,10 +16,7 @@ knitr::opts_chunk$set(
   dpi = 96
 )
 
-# Every computation chunk below runs for real when this file is knit. ggplot2 is
-# a Suggested dependency; if it is absent the computation still runs and only the
-# plotting chunks are skipped.
-has_ggplot <- requireNamespace("ggplot2", quietly = TRUE)
+# Every chunk below runs for real when this file is knit.
 
 # The fits are deterministic; the seed is harmless but kept for a stable committed
 # render. It does NOT feed generate_spm(): penm draws each mutant from a hash of
@@ -27,9 +24,8 @@ has_ggplot <- requireNamespace("ggplot2", quietly = TRUE)
 set.seed(1024)
 
 # House plot theme for the committed render. The visible `library(ggplot2)` in the
-# Setup section is what a user types; this just sets a consistent look and is skipped
-# if ggplot2 is absent.
-if (has_ggplot) ggplot2::theme_set(ggplot2::theme_minimal(base_size = 12))
+# Setup section is what a user types; this just sets a consistent look.
+ggplot2::theme_set(ggplot2::theme_minimal(base_size = 12))
 ```
 
 ## What this vignette does
@@ -122,9 +118,8 @@ The workflow needs two things from you: a **structure** (a PDB file) and its
 builds. We use the worked example `1znb_A` (zinc beta-lactamase) that ships with the
 package; replace the two marked lines with your own protein.
 
-First, attach the packages. `msamodel` is the package itself; the other three are used
-by the data-wrangling and plotting code shown throughout (ggplot2 is optional — skip it
-if you only want the numeric tables).
+First, attach the packages. `msamodel` is the package itself; the others are used by the
+data-wrangling and plotting code shown throughout.
 
 ```{r attach}
 library(msamodel)
@@ -132,7 +127,7 @@ library(penm)       # penm::set_enm(), the elastic network model msamodel builds
 library(dplyr)      # data-wrangling verbs (mutate, inner_join, ...) used below
 library(tidyr)      # pivot_longer, for reshaping the nested/decomposition bands
 library(readr)      # read_csv, for the example data files
-library(ggplot2)    # the figures below; optional -- skip if you only want the tables
+library(ggplot2)    # the figures below
 ```
 
 Both inputs are files. The active-site table lists one residue per row keyed by `pdb`
@@ -285,7 +280,7 @@ predicted_band_site <- predicted_site |>
          upper = value + z_975 * nlrmsd_msa_se)
 ```
 
-```{r site-band, eval = has_ggplot}
+```{r site-band}
 ggplot(predicted_band_site, aes(pdb_site)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), fill = "steelblue", alpha = 0.25) +
   geom_line(aes(y = value), colour = "steelblue") +
@@ -325,7 +320,7 @@ The nested columns are `nlrmsd_{mm,ms,ma,msa}`, each with an `_se` column furthe
 band from the standard error and plot MM, MS, and MSA on one shape scale (MA omitted to
 keep the panel readable):
 
-```{r site-nested-plot, eval = has_ggplot}
+```{r site-nested-plot}
 model_colours <- c(MM = "#FF8C00", MS = "#0000CD", MSA = "#C41E3A")
 # Reshape the value columns and the _se columns to long form separately, then join:
 # one row per (residue, model) carrying both the value and its standard error.
@@ -365,7 +360,7 @@ the contribution to the centred profile (the `n` prefix is the same "centred" ma
 `nlrmsd`). They give each residue's divergence split into how much comes from **mutation**
 alone, from **stability** selection, and from **activity** selection:
 
-```{r site-decomposition-plot, eval = has_ggplot}
+```{r site-decomposition-plot}
 # Paper component colours: mutation = orange, stability = blue, activity = red.
 component_colours <- c(nphi_mut = "#FF8C00", nphi_stab = "#0000CD", nphi_act = "#C41E3A")
 decomposition_value_site <- decomposition_site |>
@@ -468,7 +463,7 @@ predicted_band_mode <- predicted_mode |>
          upper = nlrmsd_msa + z_975 * nlrmsd_msa_se)
 ```
 
-```{r mode-band, eval = has_ggplot}
+```{r mode-band}
 ggplot(predicted_band_mode, aes(mode)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), fill = "seagreen", alpha = 0.25) +
   geom_line(aes(y = nlrmsd_msa), colour = "seagreen") +
@@ -485,7 +480,7 @@ The mode reading of `predict_decomposition()`, as in A4:
 decomposition_mode <- predict_decomposition(fit_mode, spm, metric = "nlrmsd")$mode
 ```
 
-```{r mode-nested-plot, eval = has_ggplot}
+```{r mode-nested-plot}
 model_colours <- c(MM = "#FF8C00", MS = "#0000CD", MSA = "#C41E3A")
 nested_value_mode <- decomposition_mode |>
   select(mode, nlrmsd_mm, nlrmsd_ms, nlrmsd_msa) |>
@@ -510,7 +505,7 @@ ggplot(nested_long_mode, aes(mode, colour = model, fill = model)) +
 As on the site axis, MM has the narrowest band — its parameter part is zero (it does not
 depend on `(a1, a2)`), leaving only the scan-sampling part.
 
-```{r mode-decomposition-plot, eval = has_ggplot}
+```{r mode-decomposition-plot}
 decomposition_value_mode <- decomposition_mode |>
   select(mode, nphi_mut, nphi_stab, nphi_act) |>
   pivot_longer(-mode, names_to = "component", values_to = "value")

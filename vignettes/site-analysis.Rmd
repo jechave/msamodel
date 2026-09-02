@@ -16,10 +16,7 @@ knitr::opts_chunk$set(
   dpi = 96
 )
 
-# Every computation chunk below runs for real when this file is knit. ggplot2 is
-# a Suggested dependency; if it is absent the computation still runs and only the
-# plotting chunks are skipped.
-has_ggplot <- requireNamespace("ggplot2", quietly = TRUE)
+# Every chunk below runs for real when this file is knit.
 
 # The fit here is ML (deterministic); the seed is harmless but kept for a stable
 # committed render.
@@ -33,10 +30,8 @@ suppressMessages({
   library(dplyr)
   library(tidyr)
 })
-if (has_ggplot) {
-  suppressMessages(library(ggplot2))
-  theme_set(theme_minimal(base_size = 12))
-}
+suppressMessages(library(ggplot2))
+theme_set(theme_minimal(base_size = 12))
 ```
 
 This vignette predicts structural divergence **per residue** and fits it to data.
@@ -56,8 +51,8 @@ non-negative with `0` meaning that pressure is off.
 
 Sections 2–4 evaluate the model at `(a1, a2)` values you supply, to show how the profile
 responds to each pressure; section 5 estimates `(a1, a2)` from observed data instead.
-We use the worked example `1znb_A` (zinc beta-lactamase), whose data ship as the `znb_*`
-datasets.
+We use the worked example `1znb_A` (zinc beta-lactamase), whose files ship with the
+package in `extdata` and are read below with `system.file()`.
 
 Two verbs carry the whole vignette. `calculate_profiles()` returns the divergence
 profile at a given `(a1, a2)` — use it for the profile itself; `calculate_decomposition()`
@@ -80,7 +75,7 @@ library(dplyr)      # data-wrangling verbs (mutate, left_join, ...) used below
 library(tidyr)      # pivot_longer, to reshape profiles for plotting
 library(purrr)      # map_dfr, for the parameter sweeps in section 4
 library(readr)      # read_csv, for the example data files
-library(ggplot2)    # the figures; optional — skip it if you only want the tables
+library(ggplot2)    # the figures
 ```
 
 Both inputs are files; point these at your own to run the vignette on your protein.
@@ -182,7 +177,7 @@ profile_demo <- calculate_profiles(spm, a1, a2, metric = "lrmsd")$site |>
 
 The divergence profile along the chain (active sites marked in red):
 
-```{r profile-residue, eval = has_ggplot}
+```{r profile-residue}
 ggplot(profile_demo, aes(pdb_site, lrmsd_msa)) +
   geom_vline(xintercept = pdb_site_active, colour = "firebrick", alpha = 0.4, linewidth = 0.3) +
   geom_line(colour = "grey40") +
@@ -198,7 +193,7 @@ Divergence is lower (more conserved) at rigid sites and near the active site.
 Plotting `lrmsd` against flexibility and against distance to the active site,
 with a smooth, makes those trends explicit:
 
-```{r profile-lrmsf, eval = has_ggplot}
+```{r profile-lrmsf}
 ggplot(profile_demo, aes(lrmsf, lrmsd_msa)) +
   geom_point(alpha = 0.5, colour = "grey30") +
   geom_smooth(method = "loess", formula = y ~ x, se = TRUE, colour = "steelblue") +
@@ -206,7 +201,7 @@ ggplot(profile_demo, aes(lrmsf, lrmsd_msa)) +
        x = "lrmsf  (log RMSF)", y = "lrmsd")
 ```
 
-```{r profile-dactive, eval = has_ggplot}
+```{r profile-dactive}
 ggplot(profile_demo, aes(dactive, lrmsd_msa)) +
   geom_point(alpha = 0.5, colour = "grey30") +
   geom_smooth(method = "loess", formula = y ~ x, se = TRUE, colour = "darkorange") +
@@ -241,7 +236,7 @@ head(decomposition)
 The four profiles along the chain — each model adds one more selection pressure,
 suppressing divergence further (active sites marked in red):
 
-```{r nested-profiles, eval = has_ggplot}
+```{r nested-profiles}
 model_colours <- c(MM = "#FF8C00", MS = "#0000CD", MA = "#1B9E77", MSA = "#C41E3A")
 nested_profiles_long <- decomposition |>
   tidyr::pivot_longer(c(lrmsd_mm, lrmsd_ms, lrmsd_ma, lrmsd_msa),
@@ -281,7 +276,7 @@ Those three `phi_*` columns are already in the `decomposition` tibble above — 
 profiles are there when you want to *see* them, and the `phi` split is there when you
 want the contributions directly:
 
-```{r decomposition-given, eval = has_ggplot}
+```{r decomposition-given}
 # Paper component colours: mutation = orange, stability = blue, activity = red.
 component_colours <- c(phi_mut = "#FF8C00", phi_stab = "#0000CD", phi_act = "#C41E3A")
 decomposition_long <- decomposition |>
@@ -333,7 +328,7 @@ sweep_a2 <- purrr::map_dfr(a2_values, function(a2)
     left_join(site_descriptors, by = "pdb_site"))
 ```
 
-```{r sweep-a1, eval = has_ggplot}
+```{r sweep-a1}
 ggplot(sweep_a1, aes(pdb_site, lrmsd, colour = factor(a1), group = a1)) +
   geom_vline(xintercept = pdb_site_active, colour = "firebrick",
              alpha = 0.3, linewidth = 0.3) +
@@ -343,7 +338,7 @@ ggplot(sweep_a1, aes(pdb_site, lrmsd, colour = factor(a1), group = a1)) +
        x = "Residue (PDB numbering)", y = "lrmsd", colour = "a1")
 ```
 
-```{r sweep-a2, eval = has_ggplot}
+```{r sweep-a2}
 ggplot(sweep_a2, aes(pdb_site, lrmsd, colour = factor(a2), group = a2)) +
   geom_vline(xintercept = pdb_site_active, colour = "firebrick",
              alpha = 0.3, linewidth = 0.3) +
@@ -447,7 +442,7 @@ observed_vs_predicted_long <- observed_vs_predicted |>
 
 Profile along the chain — observed vs fitted:
 
-```{r fit-profile, eval = has_ggplot}
+```{r fit-profile}
 ggplot(observed_vs_predicted_long, aes(pdb_site, nlrmsd, colour = source)) +
   geom_line(alpha = 0.8) +
   scale_colour_manual(values = c("observed" = "grey25", "fitted (MSA)" = "firebrick")) +
@@ -460,7 +455,7 @@ ggplot(observed_vs_predicted_long, aes(pdb_site, nlrmsd, colour = source)) +
 
 Fitted vs observed as a scatter (points on the dashed line are a perfect match):
 
-```{r fit-scatter, eval = has_ggplot}
+```{r fit-scatter}
 ggplot(observed_vs_predicted, aes(nlrmsd_obs, nlrmsd_fit)) +
   geom_abline(slope = 1, intercept = 0, colour = "grey70", linetype = 2) +
   geom_point(alpha = 0.5, colour = "steelblue") +
@@ -473,7 +468,7 @@ ggplot(observed_vs_predicted, aes(nlrmsd_obs, nlrmsd_fit)) +
 And the fitted/observed divergence against flexibility and distance to the
 active site:
 
-```{r fit-vs-lrmsf, eval = has_ggplot}
+```{r fit-vs-lrmsf}
 ggplot(observed_vs_predicted_long, aes(lrmsf, nlrmsd, colour = source)) +
   geom_point(alpha = 0.4) +
   geom_smooth(method = "loess", formula = y ~ x, se = FALSE) +
@@ -483,7 +478,7 @@ ggplot(observed_vs_predicted_long, aes(lrmsf, nlrmsd, colour = source)) +
   theme(legend.position = "top")
 ```
 
-```{r fit-vs-dactive, eval = has_ggplot}
+```{r fit-vs-dactive}
 ggplot(observed_vs_predicted_long, aes(dactive, nlrmsd, colour = source)) +
   geom_point(alpha = 0.4) +
   geom_smooth(method = "loess", formula = y ~ x, se = FALSE) +
@@ -508,7 +503,7 @@ The mutation term is the divergence under no selection (it still varies among
 sites — mutations perturb sites unequally); a negative selection term means that
 pressure *reduces* divergence at that site relative to the mutation-only model.
 
-```{r decomposition-fit, eval = has_ggplot}
+```{r decomposition-fit}
 decomposition_fit_long <- decomposition_fit |>
   tidyr::pivot_longer(c(phi_mut, phi_stab, phi_act),
                       names_to = "component", values_to = "phi") |>

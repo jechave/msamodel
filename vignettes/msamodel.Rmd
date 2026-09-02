@@ -16,7 +16,6 @@ knitr::opts_chunk$set(
   dpi = 96
 )
 
-has_ggplot <- requireNamespace("ggplot2", quietly = TRUE)
 set.seed(1024)
 ```
 
@@ -26,10 +25,8 @@ suppressMessages({
   library(penm)
   library(dplyr)
 })
-if (has_ggplot) {
-  suppressMessages(library(ggplot2))
-  theme_set(theme_minimal(base_size = 12))
-}
+suppressMessages(library(ggplot2))
+theme_set(theme_minimal(base_size = 12))
 ```
 
 ## What does this package do for me?
@@ -65,7 +62,7 @@ library(msamodel)
 library(penm)       # penm::set_enm(), the elastic network model msamodel builds on
 library(dplyr)      # data-wrangling verbs (mutate, left_join, ...) used below
 library(readr)      # read_csv, for the example data files
-library(ggplot2)    # the two figures; optional
+library(ggplot2)    # the two figures
 ```
 
 Both inputs are **files**. The example ones ship with the package; point these two
@@ -184,7 +181,7 @@ profile_mode <- predicted$mode |>
 **Per residue** — the fitted profile (red, with its band) tracked against the observed
 shape (grey). This is the model compared to real data along the chain.
 
-```{r panel-site, eval = has_ggplot}
+```{r panel-site}
 ggplot(profile_site, aes(pdb_site)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), fill = "firebrick", alpha = 0.2) +
   geom_line(aes(y = nlrmsd_msa, colour = "fitted (MSA)")) +
@@ -201,7 +198,7 @@ collective motions carry most of it. There is no observed profile to compare aga
 here — this panel is a prediction from the fit we already have. (The mode axis can also
 be fit to its own data; see the [mode analysis](mode-analysis.html) vignette.)
 
-```{r panel-mode, eval = has_ggplot}
+```{r panel-mode}
 ggplot(profile_mode, aes(mode)) +
   geom_ribbon(aes(ymin = lower, ymax = upper), fill = "grey70", alpha = 0.4) +
   geom_line(aes(y = nlrmsd_msa), colour = "grey30") +
