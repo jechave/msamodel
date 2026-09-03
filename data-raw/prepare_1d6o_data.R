@@ -16,8 +16,7 @@
 # both), and its 6 active-site residues resolve the activity parameter clearly.
 #
 # NAMING: these files are keyed by the full identifier `1d6o_A`, the PDB entry
-# plus its chain. (The older 1znb_A files ship under a truncated `znb_` prefix,
-# which is a mistake to be corrected separately; do not copy that pattern here.)
+# plus its chain.
 #
 # NOT built here: test fixtures. This script must not read from tests/, and the
 # fixture recipe must not write here -- the two pipelines are independent by
