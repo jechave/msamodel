@@ -72,16 +72,16 @@ returned covariance \code{cov} is on the \verb{(a1, log2(a2+1))} scale; the stan
 of \code{a2} is obtained by the delta method (\verb{da2/d(log2(a2+1)) = 2^(log2(a2+1)) * ln 2}).
 }
 \examples{
-\dontrun{
-ex   <- function(f) system.file("extdata", f, package = "msamodel")
-wt   <- penm::set_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca",
-                            model = "ming_wall", d_max = 10.5, frustrated = FALSE)
-act  <- readr::read_csv(ex("znb_active_site.csv"))
-spm  <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
+if (requireNamespace("bio3d", quietly = TRUE)) {
+  ex   <- function(f) system.file("extdata", f, package = "msamodel")
+  wt   <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
+                              model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+  act  <- read.csv(ex("1d6o_A_active_site.csv"))
+  spm  <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
 
-obs <- readr::read_csv(ex("znb_lrmsd_obs_site.csv"))
-ml  <- fit_lrmsd_msa_site(spm, obs$pdb_site, obs$lrmsd_obs)
-c(a1 = ml$a1, a2 = ml$a2)
+  obs <- read.csv(ex("1d6o_A_lrmsd_obs_site.csv"))
+  ml  <- fit_lrmsd_msa_site(spm, obs$pdb_site, obs$lrmsd_obs)
+  c(a1 = ml$a1, a2 = ml$a2)
 }
 }
 \seealso{

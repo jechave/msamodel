@@ -34,15 +34,15 @@
 #' # Vectorised over many mutants, and 0 switches a pressure off:
 #' pfix_msa(ddg = c(0.5, 1.2, 3.0), ddgact = c(0.1, 0.4, 2.0), a1 = 1, a2 = 0)
 #'
-#' \dontrun{
 #' # A whole scan. `pdb_site_active` is required for the activity term: without it
 #' # every `ddgact` is NA, and so is every fixation probability.
-#' ex  <- function(f) system.file("extdata", f, package = "msamodel")
-#' wt  <- penm::set_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca",
-#'                             model = "ming_wall", d_max = 10.5, frustrated = FALSE)
-#' act <- readr::read_csv(ex("znb_active_site.csv"))
-#' spm <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
-#' pfix_msa(spm$energy_data$ddg, spm$energy_data$ddgact, a1 = 1, a2 = 1)
+#' if (requireNamespace("bio3d", quietly = TRUE)) {
+#'   ex  <- function(f) system.file("extdata", f, package = "msamodel")
+#'   wt  <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
+#'                               model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+#'   act <- read.csv(ex("1d6o_A_active_site.csv"))
+#'   spm <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
+#'   pfix_msa(spm$energy_data$ddg, spm$energy_data$ddgact, a1 = 1, a2 = 1)
 #' }
 #' @export
 pfix_msa <- function(ddg, ddgact, a1, a2) {
@@ -264,13 +264,13 @@ unimplemented_metric_message <- function(metric) {
 #'   [calculate_decomposition()] (the profile split into contributions).
 #' @family api
 #' @examples
-#' \dontrun{
-#' ex  <- function(f) system.file("extdata", f, package = "msamodel")
-#' wt  <- penm::set_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca",
-#'                             model = "ming_wall", d_max = 10.5, frustrated = FALSE)
-#' act <- readr::read_csv(ex("znb_active_site.csv"))
-#' spm <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
-#' calculate_profiles(spm, a1 = 1, a2 = 1, metric = "nlrmsd")$site
+#' if (requireNamespace("bio3d", quietly = TRUE)) {
+#'   ex  <- function(f) system.file("extdata", f, package = "msamodel")
+#'   wt  <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
+#'                               model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+#'   act <- read.csv(ex("1d6o_A_active_site.csv"))
+#'   spm <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
+#'   calculate_profiles(spm, a1 = 1, a2 = 1, metric = "nlrmsd")$site
 #' }
 #' @export
 calculate_profiles <- function(spm, a1, a2, metric = c("lrmsd", "nlrmsd")) {
@@ -326,13 +326,13 @@ calculate_profiles <- function(spm, a1, a2, metric = c("lrmsd", "nlrmsd")) {
 #'   [calculate_profiles()] (the profile these contributions sum to).
 #' @family api
 #' @examples
-#' \dontrun{
-#' ex  <- function(f) system.file("extdata", f, package = "msamodel")
-#' wt  <- penm::set_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca",
-#'                             model = "ming_wall", d_max = 10.5, frustrated = FALSE)
-#' act <- readr::read_csv(ex("znb_active_site.csv"))
-#' spm <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
-#' calculate_decomposition(spm, a1 = 1, a2 = 1, metric = "nlrmsd")$site
+#' if (requireNamespace("bio3d", quietly = TRUE)) {
+#'   ex  <- function(f) system.file("extdata", f, package = "msamodel")
+#'   wt  <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
+#'                               model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+#'   act <- read.csv(ex("1d6o_A_active_site.csv"))
+#'   spm <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
+#'   calculate_decomposition(spm, a1 = 1, a2 = 1, metric = "nlrmsd")$site
 #' }
 #' @export
 calculate_decomposition <- function(spm, a1, a2, metric = c("lrmsd", "nlrmsd")) {

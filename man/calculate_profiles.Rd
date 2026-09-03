@@ -29,13 +29,13 @@ mean-centred profile the fit is on). Returns point values only -- no error bands
 \code{\link[=predict_profiles]{predict_profiles()}}.
 }
 \examples{
-\dontrun{
-ex  <- function(f) system.file("extdata", f, package = "msamodel")
-wt  <- penm::set_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca",
-                            model = "ming_wall", d_max = 10.5, frustrated = FALSE)
-act <- readr::read_csv(ex("znb_active_site.csv"))
-spm <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
-calculate_profiles(spm, a1 = 1, a2 = 1, metric = "nlrmsd")$site
+if (requireNamespace("bio3d", quietly = TRUE)) {
+  ex  <- function(f) system.file("extdata", f, package = "msamodel")
+  wt  <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
+                              model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+  act <- read.csv(ex("1d6o_A_active_site.csv"))
+  spm <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
+  calculate_profiles(spm, a1 = 1, a2 = 1, metric = "nlrmsd")$site
 }
 }
 \seealso{

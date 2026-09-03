@@ -166,19 +166,19 @@ generate_spm_core <- function(wt, n_mutations = 10,
 #'   [calculate_profiles()] and [fit_lrmsd_msa_site()] (consume the returned object).
 #' @family spm
 #' @examples
-#' \dontrun{
-#' ex  <- function(f) system.file("extdata", f, package = "msamodel")
-#' wt  <- penm::set_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca",
-#'                             model = "ming_wall", d_max = 10.5, frustrated = FALSE)
-#' act <- readr::read_csv(ex("znb_active_site.csv"))
-#' spm <- generate_spm(wt, n_mutations = 10, pdb_site_active = act$pdb_site,
-#'                     ensemble = 1L)
+#' if (requireNamespace("bio3d", quietly = TRUE)) {
+#'   ex  <- function(f) system.file("extdata", f, package = "msamodel")
+#'   wt  <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
+#'                               model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+#'   act <- read.csv(ex("1d6o_A_active_site.csv"))
+#'   spm <- generate_spm(wt, n_mutations = 10, pdb_site_active = act$pdb_site,
+#'                       ensemble = 1L)
 #'
-#' dim(spm$dr2mat_site)   # mutants x residues
-#' dim(spm$dr2mat_mode)   # mutants x modes
+#'   dim(spm$dr2mat_site)   # mutants x residues
+#'   dim(spm$dr2mat_mode)   # mutants x modes
 #'
-#' # The same displacement in two bases: each row sums to the same total.
-#' all.equal(rowSums(spm$dr2mat_site), rowSums(spm$dr2mat_mode))
+#'   # The same displacement in two bases: each row sums to the same total.
+#'   all.equal(rowSums(spm$dr2mat_site), rowSums(spm$dr2mat_mode))
 #' }
 #' @export
 generate_spm <- function(wt, n_mutations = 10,

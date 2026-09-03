@@ -44,15 +44,15 @@ pfix_msa(ddg = 1.2, ddgact = 0.4, a1 = 1, a2 = 1)
 # Vectorised over many mutants, and 0 switches a pressure off:
 pfix_msa(ddg = c(0.5, 1.2, 3.0), ddgact = c(0.1, 0.4, 2.0), a1 = 1, a2 = 0)
 
-\dontrun{
 # A whole scan. `pdb_site_active` is required for the activity term: without it
 # every `ddgact` is NA, and so is every fixation probability.
-ex  <- function(f) system.file("extdata", f, package = "msamodel")
-wt  <- penm::set_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca",
-                            model = "ming_wall", d_max = 10.5, frustrated = FALSE)
-act <- readr::read_csv(ex("znb_active_site.csv"))
-spm <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
-pfix_msa(spm$energy_data$ddg, spm$energy_data$ddgact, a1 = 1, a2 = 1)
+if (requireNamespace("bio3d", quietly = TRUE)) {
+  ex  <- function(f) system.file("extdata", f, package = "msamodel")
+  wt  <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
+                              model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+  act <- read.csv(ex("1d6o_A_active_site.csv"))
+  spm <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
+  pfix_msa(spm$energy_data$ddg, spm$energy_data$ddgact, a1 = 1, a2 = 1)
 }
 }
 \seealso{

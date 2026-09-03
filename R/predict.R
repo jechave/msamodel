@@ -65,16 +65,16 @@ validate_ml_fit <- function(fit, producer) {
 #'   [predict_decomposition()] (the profile split into contributions, with standard errors).
 #' @family api
 #' @examples
-#' \dontrun{
-#' ex  <- function(f) system.file("extdata", f, package = "msamodel")
-#' wt  <- penm::set_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca",
-#'                             model = "ming_wall", d_max = 10.5, frustrated = FALSE)
-#' act <- readr::read_csv(ex("znb_active_site.csv"))
-#' spm <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
+#' if (requireNamespace("bio3d", quietly = TRUE)) {
+#'   ex  <- function(f) system.file("extdata", f, package = "msamodel")
+#'   wt  <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
+#'                               model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+#'   act <- read.csv(ex("1d6o_A_active_site.csv"))
+#'   spm <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
 #'
-#' obs <- readr::read_csv(ex("znb_lrmsd_obs_site.csv"))
-#' ml  <- fit_lrmsd_msa_site(spm, obs$pdb_site, obs$lrmsd_obs)
-#' predict_profiles(ml, spm, metric = "nlrmsd")$site
+#'   obs <- read.csv(ex("1d6o_A_lrmsd_obs_site.csv"))
+#'   ml  <- fit_lrmsd_msa_site(spm, obs$pdb_site, obs$lrmsd_obs)
+#'   predict_profiles(ml, spm, metric = "nlrmsd")$site
 #' }
 #' @export
 predict_profiles <- function(fit, spm, metric = c("lrmsd", "nlrmsd")) {
@@ -145,16 +145,16 @@ predict_profiles <- function(fit, spm, metric = c("lrmsd", "nlrmsd")) {
 #'   [predict_profiles()] (the profile these contributions sum to).
 #' @family api
 #' @examples
-#' \dontrun{
-#' ex  <- function(f) system.file("extdata", f, package = "msamodel")
-#' wt  <- penm::set_enm(bio3d::read.pdb(ex("1znb_A.pdb")), node = "ca",
-#'                             model = "ming_wall", d_max = 10.5, frustrated = FALSE)
-#' act <- readr::read_csv(ex("znb_active_site.csv"))
-#' spm <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
+#' if (requireNamespace("bio3d", quietly = TRUE)) {
+#'   ex  <- function(f) system.file("extdata", f, package = "msamodel")
+#'   wt  <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
+#'                               model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+#'   act <- read.csv(ex("1d6o_A_active_site.csv"))
+#'   spm <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
 #'
-#' obs <- readr::read_csv(ex("znb_lrmsd_obs_site.csv"))
-#' ml  <- fit_lrmsd_msa_site(spm, obs$pdb_site, obs$lrmsd_obs)
-#' predict_decomposition(ml, spm)$site
+#'   obs <- read.csv(ex("1d6o_A_lrmsd_obs_site.csv"))
+#'   ml  <- fit_lrmsd_msa_site(spm, obs$pdb_site, obs$lrmsd_obs)
+#'   predict_decomposition(ml, spm)$site
 #' }
 #' @export
 predict_decomposition <- function(fit, spm, metric = c("nlrmsd", "lrmsd")) {
