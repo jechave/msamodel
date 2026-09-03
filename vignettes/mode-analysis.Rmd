@@ -46,8 +46,8 @@ two different bases, so for any single mutant the totals agree — summing over 
 and summing over modes give the same number. Low-index modes are the soft, collective motions of
 the protein; the mode profile shows **which motions** carry the predicted
 divergence, where the site profile shows **which residues** do. We use the worked
-example `1znb_A` (zinc beta-lactamase), whose files ship with the package in `extdata`
-and are read below with `system.file()`.
+example `1d6o_A` (peptidyl-prolyl isomerase FKBP1A), whose files ship with the package
+in `extdata` and are read below with `system.file()`.
 
 Two verbs carry the whole vignette. `calculate_profiles()` returns the divergence
 profile at a given `(a1, a2)` — use it for the profile itself; `calculate_decomposition()`
@@ -58,8 +58,8 @@ you want that breakdown. Each returns a list with a `$site` tibble (per residue)
 ## 1. Setup
 
 Everything starts from your two inputs: a structure file and a vector of
-active-site residue numbers. We use the worked example `1znb_A` (zinc
-beta-lactamase) that ships with the package; swap in your own at the two marked
+active-site residue numbers. We use the worked example `1d6o_A` (peptidyl-prolyl
+isomerase FKBP1A) that ships with the package; swap in your own at the two marked
 lines.
 
 ```{r attach}
@@ -77,11 +77,11 @@ The active-site table is one residue per row, keyed by `pdb` and `chain`, so a s
 file can serve many proteins — filter out the chain you are modelling.
 
 ```{r inputs}
-pdb_file    <- system.file("extdata", "1znb_A.pdb", package = "msamodel")          # <- your PDB
-active_file <- system.file("extdata", "znb_active_site.csv", package = "msamodel") # <- your active sites
+pdb_file    <- system.file("extdata", "1d6o_A.pdb", package = "msamodel")          # <- your PDB
+active_file <- system.file("extdata", "1d6o_A_active_site.csv", package = "msamodel") # <- your active sites
 
 pdb_site_active <- read_csv(active_file, show_col_types = FALSE) |>
-  filter(pdb == "1znb", chain == "A") |>
+  filter(pdb == "1d6o", chain == "A") |>
   pull(pdb_site)
 
 pdb_site_active
@@ -91,7 +91,8 @@ pdb_site_active
 then runs a single-point-mutation scan over that model (`spm`). The settings below are
 the ones we use throughout — keep them for a first run (the
 [site analysis](site-analysis.html) vignette explains what each controls). The scan
-takes a minute or two — it is the one slow step here.
+takes a few seconds on this 107-residue example — it is the one slow step here, and it
+grows quickly with chain length, so expect minutes on a larger protein.
 
 ```{r build}
 wt_pdb <- bio3d::read.pdb(pdb_file)
@@ -104,7 +105,7 @@ The per-mode response the verbs below read lives in `spm$dr2mat_mode`, a matrix 
 one row per mutant and one column per normal mode:
 
 ```{r show-mode-matrix}
-dim(spm$dr2mat_mode)   # rows = mutants (228 sites x 10 mutations), columns = normal modes
+dim(spm$dr2mat_mode)   # rows = mutants (107 sites x 10 mutations), columns = normal modes
 ```
 
 > **For your own protein you can run the mode prediction (sections 1–4). The mode
@@ -263,10 +264,10 @@ So the example profile used here is **synthetic**, not empirical: it was produce
 fitting the site model to the real per-residue data, evaluating the mode forward map at
 that estimate, and adding seeded Gaussian noise. It exists only to run the fitting
 machinery end to end, and the `_syn` in its file name is there to keep that visible.
-Numbers obtained from it say nothing about zinc beta-lactamase.
+Numbers obtained from it say nothing about peptidyl-prolyl isomerase FKBP1A.
 
 ```{r obs}
-observed_file <- system.file("extdata", "znb_lrmsd_obs_mode_syn.csv", package = "msamodel")
+observed_file <- system.file("extdata", "1d6o_A_lrmsd_obs_mode_syn.csv", package = "msamodel")
 observed      <- read_csv(observed_file, show_col_types = FALSE)   # <- your observed mode profile
 head(observed)
 ```

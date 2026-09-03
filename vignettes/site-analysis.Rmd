@@ -51,8 +51,8 @@ non-negative with `0` meaning that pressure is off.
 
 Sections 2–4 evaluate the model at `(a1, a2)` values you supply, to show how the profile
 responds to each pressure; section 5 estimates `(a1, a2)` from observed data instead.
-We use the worked example `1znb_A` (zinc beta-lactamase), whose files ship with the
-package in `extdata` and are read below with `system.file()`.
+We use the worked example `1d6o_A` (peptidyl-prolyl isomerase FKBP1A), whose files ship
+with the package in `extdata` and are read below with `system.file()`.
 
 Two verbs carry the whole vignette. `calculate_profiles()` returns the divergence
 profile at a given `(a1, a2)` — use it for the profile itself; `calculate_decomposition()`
@@ -63,8 +63,8 @@ you want that breakdown. Each returns a list with a `$site` tibble (per residue)
 ## 1. Setup
 
 Everything starts from your two inputs: a structure file and a vector of
-active-site residue numbers. We use the worked example `1znb_A` (zinc
-beta-lactamase) that ships with the package; swap in your own at the two marked
+active-site residue numbers. We use the worked example `1d6o_A` (peptidyl-prolyl
+isomerase FKBP1A) that ships with the package; swap in your own at the two marked
 lines. You read the structure file with bio3d — `bio3d::read.pdb()` for a `.pdb` file,
 `bio3d::read.cif()` for mmCIF — and pass the result to `penm::set_enm()`.
 
@@ -83,11 +83,11 @@ The active-site table is one residue per row, keyed by `pdb` and `chain`, so a s
 file can serve many proteins — filter out the chain you are modelling.
 
 ```{r inputs}
-pdb_file    <- system.file("extdata", "1znb_A.pdb", package = "msamodel")          # <- your PDB
-active_file <- system.file("extdata", "znb_active_site.csv", package = "msamodel") # <- your active sites
+pdb_file    <- system.file("extdata", "1d6o_A.pdb", package = "msamodel")          # <- your PDB
+active_file <- system.file("extdata", "1d6o_A_active_site.csv", package = "msamodel") # <- your active sites
 
 pdb_site_active <- read_csv(active_file, show_col_types = FALSE) |>
-  filter(pdb == "1znb", chain == "A") |>
+  filter(pdb == "1d6o", chain == "A") |>
   pull(pdb_site)
 
 pdb_site_active
@@ -109,8 +109,10 @@ defaults of its own): `node = "ca"` puts one node per residue at its
 C-alpha, `d_max = 10.5` (Å) sets how close two residues must be to be connected, and
 `model`/`frustrated` pick the spring rules. `generate_spm()` runs the scan:
 `n_mutations` mutants per site, `sigma` the mutation strength, `min_sd` the minimum
-sequence separation between coupled sites. The scan takes a minute or two — it is the
-one slow step here. The observed profile we fit to is loaded later, in section 5.
+sequence separation between coupled sites. The scan takes a few seconds on this
+107-residue example — it is the one slow step here, and it grows quickly with chain
+length, so expect minutes on a larger protein. The observed profile we fit to is loaded
+later, in section 5.
 
 The mutations are drawn at random, so a scan is one sample of many possible ones.
 `ensemble` picks which sample you get: run it again with `ensemble = 1L` and you get
@@ -367,7 +369,7 @@ they come from, so your own table keeps whatever column names it already has. Th
 package ships one for the worked example:
 
 ```{r observed}
-observed_file <- system.file("extdata", "znb_lrmsd_obs_site.csv", package = "msamodel")
+observed_file <- system.file("extdata", "1d6o_A_lrmsd_obs_site.csv", package = "msamodel")
 observed      <- read_csv(observed_file, show_col_types = FALSE)   # <- your observed data
 head(observed)
 ```
