@@ -130,38 +130,39 @@ comments and run `document()`, never hand-edit them.
   that made those figures exist): **it is discipline, not a mechanism.** `git rm` on a
   tracked file is fine — git keeps the blob and the deletion is reviewable in the diff.
 
-### Example data vs test fixtures — two places, two scripts
+### Example data — one place, two scripts
 
-The package ships **no datasets**; there is no `data/`. Keep the two kinds apart:
+The package ships **no datasets**; there is no `data/`, and since 2026-09-04 there are
+no cached test fixtures either.
 
-- **User-facing example FILES** → `inst/extdata/` (`1znb_A.pdb`,
-  `znb_active_site.csv`, `znb_lrmsd_obs_site.csv`, `znb_lrmsd_obs_mode_syn.csv`),
-  built by `data-raw/prepare_znb_data.R`. Vignettes read them via `system.file()`,
-  the same call a user makes on their own data.
-- **Test fixtures** → `tests/testthat/fixtures/` (`znb_wt.rds`, `znb_spm.rds`),
-  built by `make-znb-fixtures.R` beside them, which **owns** the ENM/SPM constants.
+- **User-facing example FILES** → `inst/extdata/`, two worked examples:
+  `1d6o_A.pdb` + `1d6o_A_{active_site,lrmsd_obs_site,lrmsd_obs_mode_syn}.csv` (107
+  residues, the one the docs and tests use), built by `data-raw/prepare_1d6o_data.R`;
+  and `1znb_A.pdb` + `znb_*.csv` (228 residues), built by `data-raw/prepare_znb_data.R`.
+  Vignettes, examples and tests all read them via `system.file()` — the same call a user
+  makes on their own data.
+- **Test fixtures** → none. `tests/testthat/helper-setup.R` BUILDS the ENM and the scan
+  on every run (~7.4 s) rather than loading a cache, and owns the ENM/SPM constants for
+  the test side. It also builds `spm_small` (`n_mutations = 2`, ~1.8 s), used by exactly
+  one snapshot — the pin on `generate_spm()` itself, so a generator change is reported
+  as a generator change rather than only as a downstream verb failing.
 
-`data-raw/` must not read from `tests/`, and the fixture recipe must not write to
-`inst/`. If a new artifact seems to need both, that is a signal it belongs to one
-side only — decide which, do not bridge them.
+`data-raw/` must not read from `tests/`. If a new artifact seems to need both, that is a
+signal it belongs to one side only — decide which, do not bridge them.
 
-**Open tension, not yet resolved — do not "tidy" either side.** The nine ENM/SPM
-constants `make-znb-fixtures.R:27-36` owns are *also* declared, with identical values, at
-`data-raw/prepare_znb_data.R:93-102`, which needs them to regenerate the scan
-(`:108-116`) and may not read `tests/`. So the second declaration is forced by the
-independence rule, not sloppiness — but nothing enforces the match (no test reads
-`data-raw/`), so editing one side leaves the suite green while `inst/extdata/` ships from
-different constants. The active site had this same shape and was fixed by moving it to
-`inst/extdata/znb_active_site.csv`, which both sides read legally
-(`data-raw/prepare_znb_data.R:43-46`); the constants have had no equivalent home chosen.
-Until one is, **change both by hand — and do not add a comment that presents that as the
-settled convention.**
+**Duplicated constants, still open on one side.** `data-raw/prepare_1d6o_data.R` and
+`helper-setup.R` each declare the nine ENM/SPM constants, with identical values, because
+`data-raw/` may not read `tests/`. Nothing enforces the match, so editing one side leaves
+the suite green while `inst/extdata/` ships from different constants — change both by
+hand. (The old `make-znb-fixtures.R` was a third declaration; deleting it removed one of
+the three, not the tension.)
 
-The scan fixture is **frozen** — regenerate it intentionally, not incidentally
-(`Rscript tests/testthat/fixtures/make-znb-fixtures.R`). `test-spm-generate.R`
-catches drift; its full 2280-row check is gated behind `MSAMODEL_FULL_TESTS` and
-fires automatically from `.githooks/pre-commit` gate 3 on SPM/ENM commits. The
-always-on cheap check verifies ONE row of 2280 and cannot see a reordering.
+**Why the scan is built, not cached.** The suite's core is a set of drift pins on the
+public verbs' output. That design only works if the scan is rebuilt per run: a cached
+`.rds` cannot notice a regression in `generate_spm()`, so the pins would stay green while
+the generator drifted underneath them. Building closes it by construction — which is why
+`test-spm-generate.R`, `MSAMODEL_FULL_TESTS` and pre-commit gate 3 are all gone. They
+existed only to police the cache.
 
 **Reading shipped files from tests: `system.file()`, never `test_path("..","..")`.**
 Under `check()` the tests run against a built package where `inst/extdata/` has
