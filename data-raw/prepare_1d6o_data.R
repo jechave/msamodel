@@ -6,21 +6,23 @@
 #   1d6o_A_lrmsd_obs_site.csv      observed per-site divergence  (EMPIRICAL)
 #   1d6o_A_lrmsd_obs_mode_syn.csv  observed per-mode divergence  (SYNTHETIC)
 #
-# The structure itself, inst/extdata/1d6o_A.pdb, is NOT built here: it is the
-# chain-extracted PDB file, copied in alongside 1znb_A.pdb.
+# The structure itself, inst/extdata/1d6o_A.pdb, is NOT built here: it is a
+# chain-extracted PDB file, copied in by hand.
 #
-# Why a second worked example, next to 1znb_A: 1d6o_A is 107 residues to 1znb_A's
-# 228, so its scan runs in about 7 seconds rather than minutes. That makes it the
-# example a document can afford to RUN -- the README knits it live rather than
-# showing output typed by hand. It fits about as well as 1znb_A (D2 ~ 0.60 on
-# both), and its 6 active-site residues resolve the activity parameter clearly.
+# Why this protein: at 107 residues its scan runs in about 7 seconds, which makes it
+# the example a document can afford to RUN -- the README and all four vignettes knit
+# it live rather than showing output typed by hand. It fits well (D2 ~ 0.60) and its
+# 6 active-site residues resolve the activity parameter clearly (a2 at 4.2 SE from
+# zero). It replaced a 228-residue example whose scan took one to two minutes; that
+# one was removed on 2026-09-04 once nothing read it any more.
 #
 # NAMING: these files are keyed by the full identifier `1d6o_A`, the PDB entry
 # plus its chain.
 #
-# NOT built here: test fixtures. This script must not read from tests/, and the
-# fixture recipe must not write here -- the two pipelines are independent by
-# design. See CLAUDE.md.
+# NOT built here: anything the test suite uses. As of 2026-09-04 there are no cached
+# test fixtures -- tests/testthat/helper-setup.R builds its own ENM and scan per run,
+# reading the files this script writes via system.file(). This script must not read
+# from tests/, and vice versa. See CLAUDE.md.
 #
 # Re-run with:  Rscript data-raw/prepare_1d6o_data.R   (from the package root)
 
@@ -36,9 +38,9 @@ EXTDATA <- here("inst", "extdata")
 # Reshaped from the vendored source table, which packs the residues into one
 # comma-separated cell ("23,41") and joins pdb+chain into "1d6o_A".
 #
-# One row per residue, pdb and chain as separate columns -- the same shape as the
-# 1znb_A file, so one annotation table can serve many proteins and the vignette
-# code that filters it is identical. The read forces character: a single-residue
+# One row per residue, pdb and chain as separate columns, so one annotation table
+# could serve many proteins -- which is why the vignettes filter it by pdb/chain even
+# though this file holds a single protein. The read forces character: a single-residue
 # cell like "23" would otherwise parse as the NUMBER 23 and look fine, hiding the
 # bug until a multi-residue entry appears.
 #
@@ -65,8 +67,10 @@ pdb_site_active <- active_site$pdb_site[
 # from the ENM (penm::get_dactive(); lrmsf = log(sqrt(penm::get_msf_site()))), so
 # keeping them would duplicate data the package regenerates.
 #
-# Unlike the 1znb_A profile (225 of 228 sites), this one covers all 107 -- the
-# partial-coverage case is exercised by the 1znb_A example and by the tests.
+# This profile covers all 107 modelled sites. An observed profile need not -- an
+# alignment often measures only some -- and that partial-coverage case is exercised in
+# tests/testthat/test-contract.R, which builds a subset from this profile rather than
+# relying on a protein that happens to come with one.
 lrmsd_obs_site <- read_csv(
   here("data-raw", "raw", "profiles_1d6o_A.csv"),
   col_types = cols(pdb_site = col_integer(), .default = col_guess())
@@ -85,9 +89,9 @@ write_csv(lrmsd_obs_site, file.path(EXTDATA, "1d6o_A_lrmsd_obs_site.csv"))
 # evaluate the MODE forward map there, add seeded Gaussian noise. Determinism is a
 # hard project rule, hence SYN_SEED.
 #
-# The constants below are the same ENM/SPM recipe the 1znb_A pipeline uses. As
-# there, they are declared here rather than shared, because data-raw/ must not
-# depend on test infrastructure.
+# The constants below are declared here rather than shared with the test suite,
+# because data-raw/ must not depend on test infrastructure. tests/testthat/helper-setup.R
+# carries an identical copy; nothing enforces the match, so change both by hand.
 ENM_NODE  <- "ca"
 ENM_MODEL <- "ming_wall"
 ENM_DMAX  <- 10.5

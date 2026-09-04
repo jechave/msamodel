@@ -130,17 +130,17 @@ comments and run `document()`, never hand-edit them.
   that made those figures exist): **it is discipline, not a mechanism.** `git rm` on a
   tracked file is fine — git keeps the blob and the deletion is reviewable in the diff.
 
-### Example data — one place, two scripts
+### Example data — one protein, one script
 
 The package ships **no datasets**; there is no `data/`, and since 2026-09-04 there are
 no cached test fixtures either.
 
-- **User-facing example FILES** → `inst/extdata/`, two worked examples:
-  `1d6o_A.pdb` + `1d6o_A_{active_site,lrmsd_obs_site,lrmsd_obs_mode_syn}.csv` (107
-  residues, the one the docs and tests use), built by `data-raw/prepare_1d6o_data.R`;
-  and `1znb_A.pdb` + `znb_*.csv` (228 residues), built by `data-raw/prepare_znb_data.R`.
-  Vignettes, examples and tests all read them via `system.file()` — the same call a user
-  makes on their own data.
+- **User-facing example FILES** → `inst/extdata/`: `1d6o_A.pdb` +
+  `1d6o_A_{active_site,lrmsd_obs_site,lrmsd_obs_mode_syn}.csv` (107 residues), built by
+  `data-raw/prepare_1d6o_data.R`. Vignettes, roxygen examples and tests all read them via
+  `system.file()` — the same call a user makes on their own data. This is the only
+  example protein: a 228-residue `1znb_A` set was removed 2026-09-04 once the docs and
+  tests had moved off it (recoverable from git history if a larger example is wanted).
 - **Test fixtures** → none. `tests/testthat/helper-setup.R` BUILDS the ENM and the scan
   on every run (~7.4 s) rather than loading a cache, and owns the ENM/SPM constants for
   the test side. It also builds `spm_small` (`n_mutations = 2`, ~1.8 s), used by exactly
