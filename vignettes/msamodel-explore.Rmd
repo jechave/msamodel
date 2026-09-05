@@ -34,7 +34,7 @@ theme_set(theme_minimal(base_size = 11))
 
 This vignette evaluates the model at `(a1, a2)` values **you** supply, to see how each
 selection pressure shapes structural divergence. Nothing here is fitted to data: the
-companion [predict vignette](predict.html) estimates `(a1, a2)` from an observed profile
+companion [fit vignette](msamodel-fit.html) estimates `(a1, a2)` from an observed profile
 and puts confidence bands on the result. For a short end-to-end tour, see the
 [package overview](msamodel.html).
 
@@ -148,7 +148,7 @@ active (section 3 introduces the variants with one or both switched off).
 
 The `metric` argument picks the quantity: `"lrmsd"` (used throughout this vignette) is
 the absolute profile, keeping the overall level; `"nlrmsd"` is the same profile with its
-mean subtracted off — its *shape* — which is what the [predict vignette](predict.html)
+mean subtracted off — its *shape* — which is what the [fit vignette](msamodel-fit.html)
 compares against data.
 
 ```{r profile-code}
@@ -370,7 +370,7 @@ reshapes the soft-mode divergence rather than lowering it uniformly.
 
 ## Where to next
 
-- **[Predict](predict.html)** — estimate `(a1, a2)` from an observed divergence profile
+- **[Fit](msamodel-fit.html)** — estimate `(a1, a2)` from an observed divergence profile
   and read the predictions, with confidence bands, on both axes.
 - **[Package overview](msamodel.html)** — the short end-to-end tour.
 

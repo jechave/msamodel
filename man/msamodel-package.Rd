@@ -59,7 +59,7 @@ shape but not level, so \code{"nlrmsd"} is the one to compare against data.
 
 
 \code{vignette("msamodel")} is a short end-to-end tour of both axes. See also
-\code{vignette("calculate")} and \code{vignette("predict")}.
+\code{vignette("msamodel-explore")} and \code{vignette("msamodel-fit")}.
 }
 
 \seealso{

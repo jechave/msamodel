@@ -44,7 +44,7 @@
 #' @section Getting started:
 #'
 #' `vignette("msamodel")` is a short end-to-end tour of both axes. See also
-#' `vignette("calculate")` and `vignette("predict")`.
+#' `vignette("msamodel-explore")` and `vignette("msamodel-fit")`.
 #'
 #' @keywords internal
 "_PACKAGE"

@@ -33,7 +33,7 @@ suppressMessages(library(patchwork))
 theme_set(theme_minimal(base_size = 11))
 ```
 
-The [calculate vignette](calculate.html) evaluated the model at `(a1, a2)` values you
+The [explore vignette](msamodel-explore.html) evaluated the model at `(a1, a2)` values you
 choose. This one **estimates** them from a divergence profile you measured, and reports
 every prediction with a confidence band. For a short end-to-end tour, see the
 [package overview](msamodel.html).
@@ -94,7 +94,7 @@ z_975 <- qnorm(0.975)   # 1.96; the multiplier for a 95% band
 
 ## 1. Setup
 
-The starting point is the same as in the [calculate vignette](calculate.html): a
+The starting point is the same as in the [explore vignette](msamodel-explore.html): a
 structure file, a vector of active-site residue numbers, an elastic network model, and a
 mutation scan. Swap in your own files at the two marked lines.
 
@@ -246,7 +246,7 @@ ggplot(profile_site, aes(nlrmsd_obs, nlrmsd_msa)) +
 
 ## 4. The nested models, with bands
 
-The same four nested variants the [calculate vignette](calculate.html) introduced — MM
+The same four nested variants the [explore vignette](msamodel-explore.html) introduced — MM
 (no selection), MS (stability only), MA (activity only), MSA (both) — come back from
 `predict_decomposition()`, now each with its own standard error:
 
@@ -362,7 +362,7 @@ errors through the decomposition rather than reporting the split alone.
 
 ## Where to next
 
-- **[Calculate](calculate.html)** — how the profiles and their contributions respond to
+- **[Explore](msamodel-explore.html)** — how the profiles and their contributions respond to
   `a1` and `a2` when you set the parameters yourself.
 - **[Package overview](msamodel.html)** — the short end-to-end tour.
 

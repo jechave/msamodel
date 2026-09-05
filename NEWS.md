@@ -4,7 +4,7 @@
 
 * **Three vignettes are gone; two replace them.** `vignette("site-analysis")`,
   `vignette("mode-analysis")` and `vignette("inference-methods")` no longer exist. Use
-  `vignette("calculate")` and `vignette("predict")` instead. `vignette("msamodel")`, the
+  `vignette("msamodel-explore")` and `vignette("msamodel-fit")` instead. `vignette("msamodel")`, the
   short end-to-end tour, is unchanged.
 
   ```r
@@ -12,8 +12,8 @@
   vignette("mode-analysis")        # was: per-mode profiles
   vignette("inference-methods")    # was: fitting and uncertainty
 
-  vignette("calculate")            # now: profiles at parameters you choose, both axes
-  vignette("predict")              # now: fitting to data with bands, both axes
+  vignette("msamodel-explore")     # now: profiles at parameters you choose, both axes
+  vignette("msamodel-fit")         # now: fitting to data with bands, both axes
   ```
 
   The old set was partitioned on crossed criteria: site-analysis and mode-analysis split
@@ -22,8 +22,8 @@
   the same material with the other half missing.
 
   The split is now by verb family, which is the distinction that actually matters when you
-  sit down to work: `calculate` evaluates the model at `(a1, a2)` **you** choose, and
-  `predict` estimates them from your data and bands every prediction. Both show the site
+  sit down to work: `msamodel-explore` evaluates the model at `(a1, a2)` **you** choose,
+  and `msamodel-fit` estimates them from your data and bands every prediction. Both show the site
   and mode readings **side by side**, which is what the verbs already return — one call
   gives `$site` and `$mode` with identical value columns.
 
@@ -32,7 +32,7 @@
 
 ## Documentation
 
-* `predict` fits on the site axis only, with `fit_lrmsd_msa_site()`, and reads both axes
+* `msamodel-fit` fits on the site axis only, with `fit_lrmsd_msa_site()`, and reads both axes
   off that one fit. The per-mode observed profile shipped in `extdata` is synthetic (its
   name ends `_syn`) — no empirical per-mode divergence profile exists — and fitting to it
   taught the fitting machinery at the cost of a caveat repeated throughout. The mode axis

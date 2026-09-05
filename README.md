@@ -5,6 +5,7 @@
 
 <!-- badges: start -->
 
+[![R-CMD-check](https://github.com/jechave/msamodel/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/jechave/msamodel/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
 Across a family of homologous enzymes, some residues change structure a
@@ -88,8 +89,8 @@ over an alignment — is outside this package.
 ``` r
 ?msamodel                        # API, indexed by workflow step
 vignette("msamodel")             # both axes, end to end
-vignette("calculate")            # profiles at parameters you choose, both axes
-vignette("predict")              # fitting to data, with confidence bands
+vignette("msamodel-explore")     # profiles at parameters you choose, both axes
+vignette("msamodel-fit")         # fitting to data, with confidence bands
 ```
 
 ## Reference
