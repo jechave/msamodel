@@ -98,15 +98,17 @@ comments and run `document()`, never hand-edit them.
 
 - **Vignettes are ordinary `.Rmd` files that run at build time**, like any R package.
   There is no precompute step, no `.Rmd.orig`, and no committed figures: `vignettes/`
-  holds exactly the four `.Rmd` sources. `R CMD check` executes them, so a vignette that
+  holds exactly the three `.Rmd` sources. `R CMD check` executes them, so a vignette that
   breaks against the current code **fails the check** — which is the point.
 - **Never commit/push `vignettes/` without the user's explicit HTML approval.** Do NOT
   commit any change touching `vignettes/` until the **user** has said they read the
   rendered HTML and approved it. "Tests pass", or *you* glancing at a render, do not
   satisfy this — only the user's explicit OK. Build with
   `Rscript -e "devtools::build_vignettes()"`, tell the user exactly which
-  `doc/<name>.html` to open, then STOP and wait. `.githooks/pre-commit` gate 1 enforces
-  this mechanically (`VIGNETTE_APPROVED=1`).
+  `doc/<name>.html` to open, then STOP and wait. **Nothing enforces this** — the
+  pre-commit gate that did was removed 2026-09-05, because it keyed on `vignettes/`
+  alone and so let the `R/` changes that move the numbers through untouched, which is
+  what the HTML was being read for. It is discipline again, not a mechanism.
 - **`doc/` and `Meta/` are build output** — git-ignored and `.Rbuildignore`d. Never
   commit them; regenerate on demand.
 - **Never `rm` untracked paths inside the repo.** Report what they are and let the user

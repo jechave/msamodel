@@ -1,39 +1,14 @@
 #!/bin/sh
-# Pre-commit gates for msamodel. Three independent checks; each blocks the commit
-# and explains why. See the comment above each gate for the incident it guards.
+# Pre-commit gate for msamodel. One check; it blocks the commit and explains why.
+#
+# Gate 1 (vignette HTML approval) was removed 2026-09-05 and gate 3 (SPM fixture
+# staleness) on 2026-09-04; see git history for both.
 #
 # Enabled via:  git config core.hooksPath .githooks
 # Bypass once:  git commit --no-verify
 
 blocked=0
 
-# --- Gate 1: vignettes/ require explicit user HTML approval ------------------
-# The user previews doc/<name>.html themselves and must approve before any
-# vignettes/ change is committed. A passing test run, or the model eyeballing a
-# render, do NOT count. This hook makes that mechanical: a commit
-# touching vignettes/ is blocked unless VIGNETTE_APPROVED=1 is set, which the
-# user sets (or tells the model to set) ONLY after approving the rendered HTML.
-#   Approved commit:   VIGNETTE_APPROVED=1 git commit ...
-# (Violated 2026-06-18 — committed re-knit vignettes the user never saw.)
-if git diff --cached --name-only | grep -q '^vignettes/'; then
-  if [ "$VIGNETTE_APPROVED" != "1" ]; then
-    blocked=1
-    cat >&2 <<'EOF'
-✖ Commit blocked: it touches vignettes/ but no user HTML approval is recorded.
-
-  The user previews the rendered HTML and approves it BEFORE vignettes/ is
-  committed. "Tests pass", or the model looking at a render, do NOT satisfy this.
-
-  Rebuild the HTML, have the USER open and approve it, then:
-
-      Rscript -e "devtools::build_vignettes()"   # writes doc/<name>.html
-
-      VIGNETTE_APPROVED=1 git commit ...
-
-  Genuine non-vignette-content edit (e.g. fixing this hook)? bypass: git commit --no-verify
-EOF
-  fi
-fi
 # --- Gate 2: no new R CMD check suppressions ---------------------------------
 # A check finding is information. Silencing one makes check() quiet without
 # making anything true, and the quiet is indistinguishable from a clean run.
