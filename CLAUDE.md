@@ -25,7 +25,7 @@ A permanent test must be able to **fail for a real reason**. Before trusting any
 invariant/value test, run a negative control: feed a deliberately-wrong input and
 confirm the assertion goes red. If it can't go red, it's a tautology — drop it. A
 "numbers didn't change" refactor-invariance check is a one-time scratchpad artifact,
-not a permanent suite test. The **`/test-review` skill** holds the full checklist.
+not a permanent suite test.
 
 ## House conventions
 
