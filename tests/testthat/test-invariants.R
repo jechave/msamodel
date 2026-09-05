@@ -76,9 +76,21 @@ test_that("the fit object is internally consistent", {
   # D2 is deviance-explained; deviance ties the profiled scale to the residual sum of
   # squares. Both are recomputed here from the primitives stored beside them, so a
   # clamped D2 or a sigma_hat that is sd() rather than the MLE goes red.
-  # Measured: both hold exactly (each side is the same arithmetic), so expect_identical.
+  #
+  # D2 is expect_identical: the right-hand side is literally the expression the fitter
+  # evaluates, so the two are the same arithmetic on the same doubles.
+  #
+  # deviance is NOT. The fitter computes `sum(resid^2)` and `sqrt(mean(resid^2))`
+  # separately, so recovering one from the other runs a division, a sqrt, a square and
+  # a multiply that `sum()` never did -- mathematically an identity, in floating point
+  # a round trip. It was expect_identical until 2026-09-05, when CI failed on macOS and
+  # Windows at a relative difference of 4e-15 while passing on Linux; over 1000 random
+  # samples the bit-exact version fails 56% of the time, so the old comment's "each
+  # side is the same arithmetic" was simply wrong and passing here had been luck.
+  # expect_equal's default tolerance (~1.5e-8) still catches what this line is for:
+  # a sigma_hat built from sd() is off by 5e-3, five orders of magnitude above it.
   expect_identical(ml$gof$D2, 1 - ml$gof$deviance / ml$gof$null_deviance)
-  expect_identical(ml$gof$deviance, ml$gof$nobs * ml$gof$sigma_hat^2)
+  expect_equal(ml$gof$deviance, ml$gof$nobs * ml$gof$sigma_hat^2)
   expect_lt(ml$gof$D2, 1)
 })
 
