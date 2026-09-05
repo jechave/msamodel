@@ -59,8 +59,7 @@ shape but not level, so \code{"nlrmsd"} is the one to compare against data.
 
 
 \code{vignette("msamodel")} is a short end-to-end tour of both axes. See also
-\code{vignette("site-analysis")}, \code{vignette("mode-analysis")}, and
-\code{vignette("inference-methods")}.
+\code{vignette("calculate")} and \code{vignette("predict")}.
 }
 
 \seealso{
@@ -68,6 +67,16 @@ Useful links:
 \itemize{
   \item \url{https://github.com/jechave/msamodel}
   \item Report bugs at \url{https://github.com/jechave/msamodel/issues}
+}
+
+}
+\author{
+\strong{Maintainer}: Julian Echave \email{jechave@unsam.edu.ar}
+
+Authors:
+\itemize{
+  \item Julian Echave \email{jechave@unsam.edu.ar}
+  \item Mathilde Carpentier
 }
 
 }

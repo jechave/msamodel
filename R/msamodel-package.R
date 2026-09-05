@@ -44,8 +44,7 @@
 #' @section Getting started:
 #'
 #' `vignette("msamodel")` is a short end-to-end tour of both axes. See also
-#' `vignette("site-analysis")`, `vignette("mode-analysis")`, and
-#' `vignette("inference-methods")`.
+#' `vignette("calculate")` and `vignette("predict")`.
 #'
 #' @keywords internal
 "_PACKAGE"

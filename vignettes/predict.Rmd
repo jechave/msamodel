@@ -1,0 +1,373 @@
+---
+title: "Fitting the model to data, with confidence bands"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Fitting the model to data, with confidence bands}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7.5,
+  fig.height = 3.6,
+  dpi = 96
+)
+
+# Every chunk below runs for real when this file is knit.
+# The fit is ML (deterministic); the seed is harmless but kept for a stable render.
+set.seed(1024)
+```
+
+```{r libs, include = FALSE}
+suppressMessages({
+  library(msamodel)
+  library(penm)
+  library(dplyr)
+  library(tidyr)
+})
+suppressMessages(library(ggplot2))
+suppressMessages(library(patchwork))
+theme_set(theme_minimal(base_size = 11))
+```
+
+The [calculate vignette](calculate.html) evaluated the model at `(a1, a2)` values you
+choose. This one **estimates** them from a divergence profile you measured, and reports
+every prediction with a confidence band. For a short end-to-end tour, see the
+[package overview](msamodel.html).
+
+A point estimate without an uncertainty is not worth much, so each prediction here comes
+with a standard error, and the band is the value plus or minus a couple of standard
+errors. That standard error combines two sources: the fit knows `(a1, a2)` only to within
+its own uncertainty, and a small wobble there produces a small wobble in every predicted
+value; and the mutation scan behind the prediction is finite, which adds its own sampling
+error. The reported `_se` already combines both. The fit is deterministic — a numerical
+optimisation, no chain and no burn-in — so the same data always gives the same answer.
+
+**You fit on one axis and read the prediction on both.** The observed data is per
+residue, so `fit_lrmsd_msa_site()` is what estimates `(a1, a2)`. But the resulting fit
+describes the model, not the axis: `predict_profiles()` and `predict_decomposition()`
+each return a `$site` and a `$mode` tibble from that one fit. Every prediction below is
+shown side by side — the residues you fitted, and the collective motions implied by the
+same parameters.
+
+## One idea to grasp first: `lrmsd` vs. `nlrmsd`
+
+Each prediction verb takes a `metric` argument selecting one of two forms, and knowing
+which to reach for is the one thing worth understanding before you start.
+
+- **`lrmsd`** (`metric = "lrmsd"`) is the profile the model predicts directly: the log of
+  each residue's (or mode's) structural divergence. The raw predicted curve.
+- **`nlrmsd`** (`metric = "nlrmsd"`) is that same curve with its average subtracted off:
+  `nlrmsd = lrmsd - mean(lrmsd)`. It describes the *shape* of the profile — which
+  residues are above or below average — with the overall level removed. The leading `n`
+  marks this centred form.
+
+Why keep both? Because they answer different questions, and each carries its **own**
+confidence band. It is tempting to assume `nlrmsd`'s band is just `lrmsd`'s band shifted
+down by the mean — but it is genuinely narrower. The reason: the mean you subtract is
+itself computed from the model, so it moves with `(a1, a2)` too. When `(a1, a2)` wobble,
+the whole curve and its mean wobble *together*, and part of that wobble cancels in
+`lrmsd - mean(lrmsd)`. The shape is thus more tightly pinned down than the raw curve.
+These are two real predictions with two real uncertainties, not one prediction drawn
+twice.
+
+**Which to use:** compare against measured data with **`nlrmsd`**. A real divergence
+profile can only be compared up to an overall level — the data does not pin down the
+absolute scale — so the meaningful comparison is of shape, exactly what `nlrmsd` holds.
+Reach for **`lrmsd`** when you want the model's raw predicted curve on its own. The
+decomposition exists only in the centred form, because there is no meaningful way to
+split up an overall level the data cannot see.
+
+## From a standard error to a band
+
+Every prediction verb reports each value with a `_se` sibling column. To draw a
+confidence band, turn it into lower/upper bounds: a 95% band is the value plus or minus
+`z_975` standard errors, with `z_975 = qnorm(0.975) ≈ 1.96` (for a 99% band use
+`qnorm(0.995) ≈ 2.58`). We define the multiplier once and reuse it throughout:
+
+```{r zconst}
+z_975 <- qnorm(0.975)   # 1.96; the multiplier for a 95% band
+```
+
+## 1. Setup
+
+The starting point is the same as in the [calculate vignette](calculate.html): a
+structure file, a vector of active-site residue numbers, an elastic network model, and a
+mutation scan. Swap in your own files at the two marked lines.
+
+```{r attach}
+library(msamodel)
+library(penm)       # penm::set_enm(), the elastic network model msamodel builds on
+library(dplyr)      # data-wrangling verbs (mutate, inner_join, ...) used below
+library(tidyr)      # pivot_longer, to reshape profiles for plotting
+library(readr)      # read_csv, for the example data files
+library(ggplot2)    # the figures
+library(patchwork)  # to place the site and mode panels side by side
+```
+
+```{r inputs}
+pdb_file    <- system.file("extdata", "1d6o_A.pdb", package = "msamodel")          # <- your PDB
+active_file <- system.file("extdata", "1d6o_A_active_site.csv", package = "msamodel") # <- your active sites
+
+pdb_site_active <- read_csv(active_file, show_col_types = FALSE) |>
+  filter(pdb == "1d6o", chain == "A") |>
+  pull(pdb_site)
+```
+
+```{r build}
+wt_pdb <- bio3d::read.pdb(pdb_file)
+wt     <- penm::set_enm(wt_pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+spm    <- generate_spm(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
+                            min_sd = 2, pdb_site_active = pdb_site_active, ensemble = 1L)
+```
+
+## 2. Your observed data, and the fit
+
+To fit, you supply an **observed** divergence profile — **your** data, not something
+`msamodel` computes. You obtain it upstream by superimposing a set of homologous
+structures onto your protein over a sequence alignment and measuring, at each residue,
+how much its position varies across the family; the observed value is the log of that
+per-residue variation. `msamodel` does not do this step — you bring the result as **two
+vectors**: the PDB residue numbers, and the observed value at each. They can live in a
+table of any shape, with columns named whatever you already call them.
+
+```{r observed}
+observed_file <- system.file("extdata", "1d6o_A_lrmsd_obs_site.csv", package = "msamodel")
+observed      <- read_csv(observed_file, show_col_types = FALSE)   # <- your observed data
+head(observed)
+```
+
+An observed profile need not cover every residue the model spans — an alignment often
+measures only some of them — and the fitter simply uses the overlap. This example happens
+to cover all 107, but nothing requires that of your own data.
+
+`fit_lrmsd_msa_site()` estimates `(a1, a2)` by maximum likelihood, returning point
+estimates plus an asymptotic covariance from the Hessian at the optimum:
+
+```{r fit}
+fit <- fit_lrmsd_msa_site(spm, observed$pdb_site, observed$lrmsd_obs)
+c(a1 = fit$a1, a2 = fit$a2)
+```
+
+```{r fit-params, echo = FALSE}
+knitr::kable(
+  tibble::tibble(
+    parameter = c("a1", "a2"),
+    estimate  = c(fit$a1, fit$a2),
+    se        = c(fit$se_a1, fit$se_a2)
+  ),
+  digits = 3,
+  caption = "ML estimate of the selection parameters (se from the Hessian)"
+)
+```
+
+### How well does it fit?
+
+Goodness of fit comes back attached to the fit object, as `fit$gof`, so scoring is not a
+separate call:
+
+```{r gof}
+fit$gof
+```
+
+We score with `D²`, the deviance explained relative to a flat (mean-only) null:
+`D² = 1 - deviance/null_deviance`, computed over exactly the residues the fitter scored.
+Note it is `D²`, not `R²`: the model predicts divergence on a fixed scale, and `D²`
+measures agreement with the prediction *as it stands*, where `R²` would credit a
+prediction that is right only up to an arbitrary rescaling. `D²` is at most 1 but has no
+lower bound — a negative value means the fit is worse than a constant profile.
+
+## 3. The predicted profile, with a band
+
+`predict_profiles()` evaluates the model at the fitted `(a1, a2)` and returns both
+readings, each with its standard error:
+
+```{r predict-profiles}
+predicted <- predict_profiles(fit, spm, metric = "nlrmsd")
+head(predicted$site)
+head(predicted$mode)
+```
+
+We turn the standard errors into 95% bands, and centre the observed profile the same way
+the prediction is centred, so the two are on one scale:
+
+```{r bands}
+add_band <- function(d) {
+  d |> mutate(lower = nlrmsd_msa - z_975 * nlrmsd_msa_se,
+              upper = nlrmsd_msa + z_975 * nlrmsd_msa_se)
+}
+
+profile_site <- predicted$site |>
+  add_band() |>
+  inner_join(observed, by = "pdb_site") |>
+  mutate(nlrmsd_obs = lrmsd_obs - mean(lrmsd_obs))
+
+profile_mode <- add_band(predicted$mode)
+```
+
+On the **site** axis the prediction can be compared against your data, because that is
+where the data lives. On the **mode** axis there is nothing to compare against: the panel
+is the same fit read in the other basis, a prediction about which collective motions
+carry the divergence. That asymmetry holds for the rest of the vignette.
+
+```{r profile-panels}
+pp_site <- ggplot(profile_site, aes(pdb_site)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), fill = "firebrick", alpha = 0.2) +
+  geom_line(aes(y = nlrmsd_msa, colour = "fitted (MSA)")) +
+  geom_line(aes(y = nlrmsd_obs, colour = "observed"), alpha = 0.8) +
+  scale_colour_manual(values = c("observed" = "grey25", "fitted (MSA)" = "firebrick")) +
+  labs(subtitle = "by residue: fitted vs. observed",
+       x = "Residue (PDB numbering)", y = "nlrmsd (shape)", colour = NULL) +
+  theme(legend.position = "bottom")
+
+pp_mode <- ggplot(profile_mode, aes(mode)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), fill = "grey60", alpha = 0.35) +
+  geom_line(aes(y = nlrmsd_msa), colour = "grey30") +
+  labs(subtitle = "by normal mode: predicted", x = "Normal-mode index", y = NULL)
+
+pp_site + pp_mode +
+  plot_annotation(title = "Predicted divergence profile at the ML estimate",
+                  subtitle = "Shaded: 95% band from the reported standard errors")
+```
+
+Fitted against observed as a scatter — points on the dashed line are a perfect match:
+
+```{r fit-scatter, fig.width = 4.6, fig.height = 4.2}
+ggplot(profile_site, aes(nlrmsd_obs, nlrmsd_msa)) +
+  geom_abline(slope = 1, intercept = 0, colour = "grey70", linetype = 2) +
+  geom_point(alpha = 0.5, colour = "steelblue") +
+  annotate("text", x = -Inf, y = Inf, hjust = -0.15, vjust = 1.4,
+           label = sprintf("D^2 == %.3f", fit$gof$D2), parse = TRUE) +
+  labs(title = "Fitted vs. observed", x = "observed nlrmsd", y = "fitted nlrmsd")
+```
+
+## 4. The nested models, with bands
+
+The same four nested variants the [calculate vignette](calculate.html) introduced — MM
+(no selection), MS (stability only), MA (activity only), MSA (both) — come back from
+`predict_decomposition()`, now each with its own standard error:
+
+```{r predict-decomposition}
+decomposition <- predict_decomposition(fit, spm, metric = "nlrmsd")
+names(decomposition$site)
+```
+
+Every value column has a `_se` sibling, so any of them can be banded the same way. Here
+we band all four nested profiles and show them together:
+
+```{r nested-panels, fig.height = 4.6}
+model_colours <- c(MM = "#FF8C00", MS = "#0000CD", MA = "#1B9E77", MSA = "#C41E3A")
+
+# `key` is the axis column name ("pdb_site" or "mode"): the value columns and the
+# _se columns are pivoted separately, then joined back on that key plus the model.
+to_nested_long <- function(d, key) {
+  values <- d |>
+    select(all_of(key), nlrmsd_mm, nlrmsd_ms, nlrmsd_ma, nlrmsd_msa) |>
+    pivot_longer(-all_of(key), names_to = "model", values_to = "nlrmsd")
+  errors <- d |>
+    select(all_of(key), nlrmsd_mm_se, nlrmsd_ms_se, nlrmsd_ma_se, nlrmsd_msa_se) |>
+    pivot_longer(-all_of(key), names_to = "model", values_to = "se") |>
+    mutate(model = sub("_se$", "", model))
+  values |>
+    left_join(errors, by = c(key, "model")) |>
+    mutate(model = factor(toupper(sub("nlrmsd_", "", model)),
+                          levels = c("MM", "MS", "MA", "MSA")),
+           lower = nlrmsd - z_975 * se,
+           upper = nlrmsd + z_975 * se)
+}
+
+nested_site <- to_nested_long(decomposition$site, "pdb_site")
+nested_mode <- to_nested_long(decomposition$mode, "mode")
+
+nn_site <- ggplot(nested_site, aes(pdb_site, nlrmsd, colour = model, fill = model)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.15, colour = NA) +
+  geom_line(alpha = 0.9) +
+  scale_colour_manual(values = model_colours) +
+  scale_fill_manual(values = model_colours) +
+  labs(subtitle = "by residue", x = "Residue (PDB numbering)", y = "nlrmsd") +
+  theme(legend.position = "bottom")
+
+nn_mode <- ggplot(nested_mode, aes(mode, nlrmsd, colour = model, fill = model)) +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.15, colour = NA) +
+  geom_line(alpha = 0.9) +
+  scale_colour_manual(values = model_colours, guide = "none") +
+  scale_fill_manual(values = model_colours, guide = "none") +
+  labs(subtitle = "by normal mode", x = "Normal-mode index", y = NULL)
+
+nn_site + nn_mode +
+  plot_annotation(title = "Nested-model profiles at the ML estimate, with 95% bands")
+```
+
+Each model adds one more selection pressure. Where the bands of two variants overlap, the
+data does not distinguish them at that position.
+
+## 5. The decomposition, with bands
+
+The same call carries the mutation / stability / activity split. In the centred form the
+columns are `nphi_mut`, `nphi_stab`, `nphi_act`, each with its `_se`:
+
+```{r decomposition-panels, fig.height = 5.6}
+component_colours <- c(nphi_mut = "#FF8C00", nphi_stab = "#0000CD", nphi_act = "#C41E3A")
+
+to_phi_long <- function(d, key) {
+  values <- d |>
+    select(all_of(key), nphi_mut, nphi_stab, nphi_act) |>
+    pivot_longer(-all_of(key), names_to = "component", values_to = "phi")
+  errors <- d |>
+    select(all_of(key), nphi_mut_se, nphi_stab_se, nphi_act_se) |>
+    pivot_longer(-all_of(key), names_to = "component", values_to = "se") |>
+    mutate(component = sub("_se$", "", component))
+  values |>
+    left_join(errors, by = c(key, "component")) |>
+    mutate(component = factor(component, levels = names(component_colours)),
+           lower = phi - z_975 * se,
+           upper = phi + z_975 * se)
+}
+
+dd_site <- ggplot(to_phi_long(decomposition$site, "pdb_site"),
+                  aes(pdb_site, phi, colour = component, fill = component)) +
+  geom_vline(xintercept = pdb_site_active, colour = "firebrick",
+             alpha = 0.3, linewidth = 0.3) +
+  geom_hline(yintercept = 0, colour = "grey80") +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.2, colour = NA) +
+  geom_line() +
+  scale_colour_manual(values = component_colours, guide = "none") +
+  scale_fill_manual(values = component_colours, guide = "none") +
+  facet_wrap(~ component, ncol = 1) +
+  labs(subtitle = "by residue", x = "Residue (PDB numbering)", y = "contribution to nlrmsd")
+
+dd_mode <- ggplot(to_phi_long(decomposition$mode, "mode"),
+                  aes(mode, phi, colour = component, fill = component)) +
+  geom_hline(yintercept = 0, colour = "grey80") +
+  geom_ribbon(aes(ymin = lower, ymax = upper), alpha = 0.2, colour = NA) +
+  geom_line() +
+  scale_colour_manual(values = component_colours, guide = "none") +
+  scale_fill_manual(values = component_colours, guide = "none") +
+  facet_wrap(~ component, ncol = 1, scales = "free_y") +
+  labs(subtitle = "by normal mode", x = "Normal-mode index", y = NULL)
+
+dd_site + dd_mode +
+  plot_annotation(title = "Decomposition at the ML estimate, with 95% bands",
+                  subtitle = "Left: red lines mark active-site residues")
+```
+
+Each curve is one pressure's contribution at that residue or mode. Where a curve dips
+**below** zero, that pressure reduces divergence there relative to the mutation-only
+model; above zero, it adds divergence. A band that straddles zero means the data does not
+resolve that contribution's sign at that position — the reason for carrying the standard
+errors through the decomposition rather than reporting the split alone.
+
+## Where to next
+
+- **[Calculate](calculate.html)** — how the profiles and their contributions respond to
+  `a1` and `a2` when you set the parameters yourself.
+- **[Package overview](msamodel.html)** — the short end-to-end tour.
+
+## Session info
+
+```{r session, echo = FALSE}
+sessionInfo()
+```

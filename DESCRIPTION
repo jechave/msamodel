@@ -36,7 +36,8 @@ Suggests:
     testthat (>= 3.1.5),
     knitr,
     rmarkdown,
-    ggplot2
+    ggplot2,
+    patchwork
 Remotes:
     jechave/penm
 Config/testthat/edition: 3

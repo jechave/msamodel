@@ -1,0 +1,381 @@
+---
+title: "Exploring the model: profiles at parameters you choose"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Exploring the model: profiles at parameters you choose}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 7.5,
+  fig.height = 3.6,
+  dpi = 96
+)
+
+# Every chunk below runs for real when this file is knit.
+set.seed(1024)
+```
+
+```{r libs, include = FALSE}
+suppressMessages({
+  library(msamodel)
+  library(penm)
+  library(dplyr)
+  library(tidyr)
+})
+suppressMessages(library(ggplot2))
+suppressMessages(library(patchwork))
+theme_set(theme_minimal(base_size = 11))
+```
+
+This vignette evaluates the model at `(a1, a2)` values **you** supply, to see how each
+selection pressure shapes structural divergence. Nothing here is fitted to data: the
+companion [predict vignette](predict.html) estimates `(a1, a2)` from an observed profile
+and puts confidence bands on the result. For a short end-to-end tour, see the
+[package overview](msamodel.html).
+
+Two parameters set the selection weighting: `a1` (strength of selection on
+**stability**) and `a2` (strength of selection on **activity**, proximity to the active
+site), both non-negative, with `0` meaning that pressure is off.
+
+## Two readings of one prediction
+
+A single mutation displaces the structure by a vector `dr`. That displacement can be
+written in two bases, and the model reports both:
+
+- the **site** reading squares the displacement per residue — it answers *which residues
+  diverge most*;
+- the **mode** reading projects `dr` onto the elastic network's normal modes and squares
+  each mode's contribution — it answers *which collective motions carry the divergence*.
+  Low-index modes are the soft, large-scale flexings of the protein.
+
+They are the same displacement in two coordinate systems, so for any single mutant the
+totals agree: summing over residues and summing over modes give the same number.
+
+Every verb in this vignette returns **both** readings from one call, as a list with a
+`$site` tibble and a `$mode` tibble. The two carry identical value columns and differ
+only in their key — `site`/`pdb_site` against `mode`. Throughout, we show them side by
+side: the same quantity, read two ways.
+
+Two verbs carry the whole vignette:
+
+- `calculate_profiles()` — the divergence profile at a given `(a1, a2)`;
+- `calculate_decomposition()` — the four nested model variants plus their
+  mutation/stability/activity split.
+
+## 1. Setup
+
+Everything starts from your two inputs: a structure file and a vector of active-site
+residue numbers. We use the worked example `1d6o_A` (peptidyl-prolyl isomerase FKBP1A)
+that ships with the package; swap in your own at the two marked lines. You read the
+structure with bio3d — `bio3d::read.pdb()` for a `.pdb` file, `bio3d::read.cif()` for
+mmCIF — and pass the result to `penm::set_enm()`.
+
+```{r attach}
+library(msamodel)
+library(penm)       # penm::set_enm(), the elastic network model msamodel builds on
+library(dplyr)      # data-wrangling verbs (mutate, rename, ...) used below
+library(tidyr)      # pivot_longer, to reshape profiles for plotting
+library(purrr)      # map_dfr, for the parameter sweeps in section 4
+library(readr)      # read_csv, for the example data files
+library(ggplot2)    # the figures
+library(patchwork)  # to place the site and mode panels side by side
+```
+
+Both inputs are files; point these at your own to run the vignette on your protein.
+The active-site table is one residue per row, keyed by `pdb` and `chain`, so a single
+file can serve many proteins — filter out the chain you are modelling.
+
+```{r inputs}
+pdb_file    <- system.file("extdata", "1d6o_A.pdb", package = "msamodel")          # <- your PDB
+active_file <- system.file("extdata", "1d6o_A_active_site.csv", package = "msamodel") # <- your active sites
+
+pdb_site_active <- read_csv(active_file, show_col_types = FALSE) |>
+  filter(pdb == "1d6o", chain == "A") |>
+  pull(pdb_site)
+
+pdb_site_active
+```
+
+`penm` reads the structure and builds an elastic network model of it (`wt`); `msamodel`
+then runs a single-point-mutation scan over that model (`spm`):
+
+```{r build}
+wt_pdb <- bio3d::read.pdb(pdb_file)
+wt     <- penm::set_enm(wt_pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+spm    <- generate_spm(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
+                            min_sd = 2, pdb_site_active = pdb_site_active, ensemble = 1L)
+```
+
+The settings above are the ones we use throughout — keep them for a first run.
+`penm::set_enm()` builds the elastic network (it requires all five arguments, having no
+defaults of its own): `node = "ca"` puts one node per residue at its C-alpha,
+`d_max = 10.5` (Å) sets how close two residues must be to be connected, and
+`model`/`frustrated` pick the spring rules. `generate_spm()` runs the scan:
+`n_mutations` mutants per site, `sigma` the mutation strength, `min_sd` the minimum
+sequence separation between coupled sites. The scan takes a few seconds on this
+107-residue example — it is the one slow step here, and it grows quickly with chain
+length, so expect minutes on a larger protein.
+
+The mutations are drawn at random, so a scan is one sample of many possible ones.
+`ensemble` picks which sample you get: run it again with `ensemble = 1L` and you get
+these mutants back exactly, on any machine; run it with `2L` and you get a different,
+equally valid set. Keep one value for everything you intend to compare, and record it
+with your results — it is what lets you reproduce them.
+
+`spm` records, for each mutant, its energy changes and the structural response it
+causes, stored in both bases: `dr2mat_site` per residue and `dr2mat_mode` per mode.
+
+```{r dims}
+dim(spm$dr2mat_site)   # rows = mutants (107 sites x 10 mutations), columns = residues
+dim(spm$dr2mat_mode)   # same rows, columns = normal modes
+```
+
+Two residue identities appear side by side throughout. `site` is msamodel's internal
+1..N index; `pdb_site` is the PDB residue number, used on the chain-plot x-axis. Every
+per-residue tibble the package returns carries both, and `spm$site_map` is the key
+between them.
+
+## 2. The divergence profile at a chosen (a1, a2)
+
+For any `(a1, a2)`, `calculate_profiles()` returns the profile in both bases. The value
+column is `lrmsd_msa` in each — `msa` marks the full model, with both selection pressures
+active (section 3 introduces the variants with one or both switched off).
+
+The `metric` argument picks the quantity: `"lrmsd"` (used throughout this vignette) is
+the absolute profile, keeping the overall level; `"nlrmsd"` is the same profile with its
+mean subtracted off — its *shape* — which is what the [predict vignette](predict.html)
+compares against data.
+
+```{r profile-code}
+a1 <- 2; a2 <- 500
+profiles <- calculate_profiles(spm, a1, a2, metric = "lrmsd")
+
+head(profiles$site)
+head(profiles$mode)
+```
+
+We pick illustrative values here — `a1 = 2` (moderate stability selection) and
+`a2 = 500` (strong activity selection). The two live on different scales, so their
+numbers are not comparable to each other.
+
+The same profile, read both ways:
+
+```{r profile-panels}
+p_site <- ggplot(profiles$site, aes(pdb_site, lrmsd_msa)) +
+  geom_vline(xintercept = pdb_site_active, colour = "firebrick",
+             alpha = 0.4, linewidth = 0.3) +
+  geom_line(colour = "grey40") +
+  geom_point(size = 0.7, colour = "grey20") +
+  labs(subtitle = "by residue", x = "Residue (PDB numbering)", y = "lrmsd")
+
+p_mode <- ggplot(profiles$mode, aes(mode, lrmsd_msa)) +
+  geom_line(colour = "grey40") +
+  labs(subtitle = "by normal mode", x = "Normal-mode index", y = NULL)
+
+p_site + p_mode +
+  plot_annotation(title = sprintf("Divergence profile (a1 = %g, a2 = %g)", a1, a2),
+                  subtitle = "Left: red lines mark active-site residues")
+```
+
+On the site axis, divergence is lower at rigid positions and near the active site. On
+the mode axis, it is largest for the softest (lowest-index) modes: a handful of
+collective motions carry most of the divergence.
+
+## 3. Decomposing the profile
+
+The profile at a chosen `(a1, a2)` splits into additive contributions from mutation,
+stability selection, and activity selection. The split is built from four **nested model
+variants**, each the model evaluated with one or both pressures switched off:
+
+| Variant | a1 (stability) | a2 (activity) | meaning |
+|:--|:--|:--|:--|
+| **MM** | 0 | 0 | mutation only — no selection |
+| **MS** | a1 | 0 | mutation + stability selection |
+| **MA** | 0 | a2 | mutation + activity selection |
+| **MSA** | a1 | a2 | full model — both selections |
+
+(`MSA` — mutation, stability, activity — names the full model, and is the `msa` you see
+throughout the function names.)
+
+`calculate_decomposition()` returns, in each tibble, both the four nested profiles
+(`lrmsd_mm`, `lrmsd_ms`, `lrmsd_ma`, `lrmsd_msa`) and their split (`phi_mut`,
+`phi_stab`, `phi_act`):
+
+```{r decomposition-code}
+decomposition <- calculate_decomposition(spm, a1, a2, metric = "lrmsd")
+head(decomposition$site)
+```
+
+The four nested profiles — each model adds one more selection pressure, suppressing
+divergence further:
+
+```{r nested-panels, fig.height = 3.8}
+model_colours <- c(MM = "#FF8C00", MS = "#0000CD", MA = "#1B9E77", MSA = "#C41E3A")
+
+to_nested_long <- function(d) {
+  d |>
+    pivot_longer(c(lrmsd_mm, lrmsd_ms, lrmsd_ma, lrmsd_msa),
+                 names_to = "model", values_to = "lrmsd") |>
+    mutate(model = factor(toupper(sub("lrmsd_", "", model)),
+                          levels = c("MM", "MS", "MA", "MSA")))
+}
+
+n_site <- ggplot(to_nested_long(decomposition$site), aes(pdb_site, lrmsd, colour = model)) +
+  geom_vline(xintercept = pdb_site_active, colour = "firebrick",
+             alpha = 0.3, linewidth = 0.3) +
+  geom_line(alpha = 0.85) +
+  scale_colour_manual(values = model_colours) +
+  labs(subtitle = "by residue", x = "Residue (PDB numbering)", y = "lrmsd") +
+  theme(legend.position = "bottom")
+
+n_mode <- ggplot(to_nested_long(decomposition$mode), aes(mode, lrmsd, colour = model)) +
+  geom_line(alpha = 0.85) +
+  scale_colour_manual(values = model_colours, guide = "none") +
+  labs(subtitle = "by normal mode", x = "Normal-mode index", y = NULL)
+
+n_site + n_mode +
+  plot_annotation(title = sprintf("Nested-model profiles (a1 = %g, a2 = %g)", a1, a2))
+```
+
+The **sequential** decomposition starts from the mutation-only model and adds one
+pressure at a time along MM → MS → MSA. Each term is the incremental divergence
+contributed by the next pressure. (MA — activity alone, stability off — is the fourth
+variant: not a step on this path, but it lets you see activity selection's effect on its
+own, as the mirror of MS. The decomposition uses MM, MS and MSA.) Writing $\phi$ for the
+contributions,
+
+$$
+\phi_{\text{mut}}  = \text{lrmsd}_{\text{mm}}, \qquad
+\phi_{\text{stab}} = \text{lrmsd}_{\text{ms}} - \text{lrmsd}_{\text{mm}}, \qquad
+\phi_{\text{act}}  = \text{lrmsd}_{\text{msa}} - \text{lrmsd}_{\text{ms}}
+$$
+
+By construction these sum to the full prediction,
+$\phi_{\text{mut}} + \phi_{\text{stab}} + \phi_{\text{act}} = \text{lrmsd}_{\text{msa}}$.
+Those three columns are already in the tibbles above — the nested profiles are there when
+you want to *see* them, the `phi` split when you want the contributions directly:
+
+```{r decomposition-panels, fig.height = 5.4}
+component_colours <- c(phi_mut = "#FF8C00", phi_stab = "#0000CD", phi_act = "#C41E3A")
+
+to_phi_long <- function(d) {
+  d |>
+    pivot_longer(c(phi_mut, phi_stab, phi_act),
+                 names_to = "component", values_to = "phi") |>
+    mutate(component = factor(component, levels = names(component_colours)))
+}
+
+d_site <- ggplot(to_phi_long(decomposition$site), aes(pdb_site, phi, colour = component)) +
+  geom_vline(xintercept = pdb_site_active, colour = "firebrick",
+             alpha = 0.3, linewidth = 0.3) +
+  geom_hline(yintercept = 0, colour = "grey80") +
+  geom_line() +
+  scale_colour_manual(values = component_colours, guide = "none") +
+  facet_wrap(~ component, ncol = 1) +
+  labs(subtitle = "by residue", x = "Residue (PDB numbering)", y = "contribution to lrmsd")
+
+d_mode <- ggplot(to_phi_long(decomposition$mode), aes(mode, phi, colour = component)) +
+  geom_hline(yintercept = 0, colour = "grey80") +
+  geom_line() +
+  scale_colour_manual(values = component_colours, guide = "none") +
+  facet_wrap(~ component, ncol = 1, scales = "free_y") +
+  labs(subtitle = "by normal mode", x = "Normal-mode index", y = NULL)
+
+d_site + d_mode +
+  plot_annotation(title = sprintf("Decomposition (a1 = %g, a2 = %g)", a1, a2))
+```
+
+Reading the panels: each curve is one pressure's contribution at that residue or mode.
+Where a curve dips **below** zero, that pressure *reduces* divergence there (it conserves
+the site, or damps the motion); above zero, it adds divergence. Activity selection
+presses down hardest near the active-site residues (red lines, left).
+
+## 4. How the profile depends on a1 and a2
+
+Stability selection (`a1`, with `a2 = 0`) and activity selection (`a2`, with `a1 = 0`)
+shape the profile in different ways. We vary one parameter at a time and overlay the
+resulting profiles. Because each call returns both readings, one sweep produces both
+panels:
+
+```{r sweep-code}
+a1_values <- c(0, 1, 2, 4, 8)
+a2_values <- c(0, 31, 127, 511, 2047)
+
+sweep_a1 <- map_dfr(a1_values, function(a1) {
+  p <- calculate_profiles(spm, a1, 0, metric = "lrmsd")
+  bind_rows(
+    p$site |> transmute(x = pdb_site, lrmsd = lrmsd_msa, axis = "by residue"),
+    p$mode |> transmute(x = mode,     lrmsd = lrmsd_msa, axis = "by normal mode")
+  ) |> mutate(a1 = a1)
+})
+
+sweep_a2 <- map_dfr(a2_values, function(a2) {
+  p <- calculate_profiles(spm, 0, a2, metric = "lrmsd")
+  bind_rows(
+    p$site |> transmute(x = pdb_site, lrmsd = lrmsd_msa, axis = "by residue"),
+    p$mode |> transmute(x = mode,     lrmsd = lrmsd_msa, axis = "by normal mode")
+  ) |> mutate(a2 = a2)
+})
+```
+
+```{r sweep-a1}
+s1_site <- ggplot(filter(sweep_a1, axis == "by residue"),
+                  aes(x, lrmsd, colour = factor(a1), group = a1)) +
+  geom_vline(xintercept = pdb_site_active, colour = "firebrick",
+             alpha = 0.3, linewidth = 0.3) +
+  geom_line(alpha = 0.85) +
+  scale_colour_viridis_d(end = 0.9) +
+  labs(subtitle = "by residue", x = "Residue (PDB numbering)", y = "lrmsd", colour = "a1") +
+  theme(legend.position = "bottom")
+
+s1_mode <- ggplot(filter(sweep_a1, axis == "by normal mode"),
+                  aes(x, lrmsd, colour = factor(a1), group = a1)) +
+  geom_line(alpha = 0.85) +
+  scale_colour_viridis_d(end = 0.9, guide = "none") +
+  labs(subtitle = "by normal mode", x = "Normal-mode index", y = NULL)
+
+s1_site + s1_mode +
+  plot_annotation(title = "Stability sweep (a2 = 0)")
+```
+
+```{r sweep-a2}
+s2_site <- ggplot(filter(sweep_a2, axis == "by residue"),
+                  aes(x, lrmsd, colour = factor(a2), group = a2)) +
+  geom_vline(xintercept = pdb_site_active, colour = "firebrick",
+             alpha = 0.3, linewidth = 0.3) +
+  geom_line(alpha = 0.85) +
+  scale_colour_viridis_d(option = "C", end = 0.9) +
+  labs(subtitle = "by residue", x = "Residue (PDB numbering)", y = "lrmsd", colour = "a2") +
+  theme(legend.position = "bottom")
+
+s2_mode <- ggplot(filter(sweep_a2, axis == "by normal mode"),
+                  aes(x, lrmsd, colour = factor(a2), group = a2)) +
+  geom_line(alpha = 0.85) +
+  scale_colour_viridis_d(option = "C", end = 0.9, guide = "none") +
+  labs(subtitle = "by normal mode", x = "Normal-mode index", y = NULL)
+
+s2_site + s2_mode +
+  plot_annotation(title = "Activity sweep (a1 = 0)")
+```
+
+Increasing `a1` suppresses divergence broadly — stronger stability selection conserves
+the whole structure, damping the collective motions across the board. Increasing `a2`
+suppresses divergence selectively around the active site, which on the mode axis
+reshapes the soft-mode divergence rather than lowering it uniformly.
+
+## Where to next
+
+- **[Predict](predict.html)** — estimate `(a1, a2)` from an observed divergence profile
+  and read the predictions, with confidence bands, on both axes.
+- **[Package overview](msamodel.html)** — the short end-to-end tour.
+
+## Session info
+
+```{r session, echo = FALSE}
+sessionInfo()
+```

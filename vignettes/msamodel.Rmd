@@ -99,7 +99,7 @@ spm    <- generate_spm(wt, n_mutations = 10, model = "lfenm", sigma = 0.3,
 ```
 
 Those are the settings we use throughout; keep them for a first run and revisit them
-later (the [site analysis](site-analysis.html) vignette explains what each controls).
+later (the [calculate](calculate.html) vignette explains what each controls).
 Note that `penm::set_enm()` requires all five arguments — it has no defaults. The scan
 takes a few seconds on this 107-residue example — it is the one slow step, and it grows
 quickly with chain length, so expect minutes on a larger protein. Everything after it
@@ -199,7 +199,7 @@ ggplot(profile_site, aes(pdb_site)) +
 residue. Divergence is largest for the softest (lowest-index) modes, so a handful of
 collective motions carry most of it. There is no observed profile to compare against
 here — this panel is a prediction from the fit we already have. (The mode axis can also
-be fit to its own data; see the [mode analysis](mode-analysis.html) vignette.)
+be read from any fit; see the [predict](predict.html) vignette.)
 
 ```{r panel-mode}
 ggplot(profile_mode, aes(mode)) +
@@ -213,13 +213,12 @@ The same evolutionary divergence, read per residue and per mode.
 
 ## Where to next
 
-- **[Site analysis](site-analysis.html)** — the per-residue arc in full: predict,
-  decompose into mutation / stability / activity contributions, sweep `a1`/`a2`,
-  fit, and decompose the fitted profile.
-- **[Mode analysis](mode-analysis.html)** — the same arc per normal mode.
-- **[Inference methods](inference-methods.html)** — the maximum-likelihood fit end
-  to end, with delta-method confidence bands on the predicted profile and its
-  decomposition.
+- **[Calculate](calculate.html)** — the model at parameters you choose: profiles,
+  the nested-model decomposition into mutation / stability / activity contributions,
+  and how each responds as you sweep `a1` and `a2`. Both axes side by side.
+- **[Predict](predict.html)** — the maximum-likelihood fit to observed data, with
+  delta-method confidence bands on the predicted profile, the nested models and the
+  decomposition. Both axes side by side.
 
 ## Session info
 

@@ -88,7 +88,7 @@ Rscript -e "devtools::check()"
 Rscript -e "devtools::build_vignettes()"
 
 # One vignette on its own, when iterating (from inside vignettes/)
-Rscript -e "rmarkdown::render('mode-analysis.Rmd')"
+Rscript -e "rmarkdown::render('calculate.Rmd')"
 ```
 
 NAMESPACE and everything under `man/` are roxygen-generated — edit the roxygen

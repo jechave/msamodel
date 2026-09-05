@@ -88,9 +88,8 @@ over an alignment — is outside this package.
 ``` r
 ?msamodel                        # API, indexed by workflow step
 vignette("msamodel")             # both axes, end to end
-vignette("site-analysis")        # per-residue profiles in full
-vignette("mode-analysis")        # per-mode profiles in full
-vignette("inference-methods")    # fitting and uncertainty
+vignette("calculate")            # profiles at parameters you choose, both axes
+vignette("predict")              # fitting to data, with confidence bands
 ```
 
 ## Reference
