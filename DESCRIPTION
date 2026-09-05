@@ -29,6 +29,7 @@ Imports:
     purrr,
     magrittr,
     stats,
+    utils,
     rlang
 Suggests:
     bio3d,
