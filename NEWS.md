@@ -1,3 +1,60 @@
+# msamodel 0.6.0
+
+## Breaking changes
+
+* **Three vignettes are gone; two replace them.** `vignette("site-analysis")`,
+  `vignette("mode-analysis")` and `vignette("inference-methods")` no longer exist. Use
+  `vignette("calculate")` and `vignette("predict")` instead. `vignette("msamodel")`, the
+  short end-to-end tour, is unchanged.
+
+  ```r
+  vignette("site-analysis")        # was: per-residue profiles
+  vignette("mode-analysis")        # was: per-mode profiles
+  vignette("inference-methods")    # was: fitting and uncertainty
+
+  vignette("calculate")            # now: profiles at parameters you choose, both axes
+  vignette("predict")              # now: fitting to data with bands, both axes
+  ```
+
+  The old set was partitioned on crossed criteria: site-analysis and mode-analysis split
+  by *axis* and used the `calculate_*` verbs, while inference-methods split by axis again
+  (Part A / Part B) but used the `predict_*` verbs. Reading any one of them meant meeting
+  the same material with the other half missing.
+
+  The split is now by verb family, which is the distinction that actually matters when you
+  sit down to work: `calculate` evaluates the model at `(a1, a2)` **you** choose, and
+  `predict` estimates them from your data and bands every prediction. Both show the site
+  and mode readings **side by side**, which is what the verbs already return — one call
+  gives `$site` and `$mode` with identical value columns.
+
+  No function changed. This is a documentation reorganisation; it is listed as breaking
+  only because three `vignette()` names a user could type have been removed.
+
+## Documentation
+
+* `predict` fits on the site axis only, with `fit_lrmsd_msa_site()`, and reads both axes
+  off that one fit. The per-mode observed profile shipped in `extdata` is synthetic (its
+  name ends `_syn`) — no empirical per-mode divergence profile exists — and fitting to it
+  taught the fitting machinery at the cost of a caveat repeated throughout. The mode axis
+  now appears as what it is: a prediction, with no data to check it against.
+
+  `fit_lrmsd_msa_mode()` is unchanged, still exported and documented, and
+  `1d6o_A_lrmsd_obs_mode_syn.csv` is still shipped — its roxygen example uses it.
+
+* The `lrmsf` and `dactive` correlation figures are dropped from the vignettes, and with
+  them the `site_descriptors` block that existed to feed them. `penm::get_dactive()` and
+  `penm::get_msf_site()` are unaffected; the vignettes simply no longer plot against them.
+
+## Internal
+
+* `patchwork` added to `Suggests`, for the side-by-side panels.
+
+* The pre-commit suppression gate no longer fires on `suppressMessages(library())`. That
+  construct quiets a package's attach banner in a rendered vignette and cannot make
+  `R CMD check` quieter, which is what the gate exists to prevent; every vignette carries
+  the block, so the gate was asking a question with one sensible answer. Everything else
+  it caught, it still catches.
+
 # msamodel 0.5.0
 
 ## Breaking changes

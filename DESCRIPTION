@@ -1,7 +1,7 @@
 Package: msamodel
 Type: Package
 Title: Mutation-Stability-Activity Model of Neutral Structural Evolution
-Version: 0.5.0
+Version: 0.6.0
 Authors@R: c(
     person("Julian", "Echave", email = "jechave@unsam.edu.ar",
            role = c("aut", "cre")),
