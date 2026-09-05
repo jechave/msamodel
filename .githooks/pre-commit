@@ -48,9 +48,22 @@ fi
 # about removals. If a suppression is genuinely warranted, the MAINTAINER decides
 # and records it by setting the override:
 #   SUPPRESSION_APPROVED=1 git commit ...
+#
+# ONE EXEMPTION: suppressMessages() wrapped around library() only. Those quiet a
+# package's ATTACH banner (dplyr's masking notice and friends) in a rendered
+# vignette. R CMD check reports nothing about which packages a vignette attaches,
+# so this construct cannot make check() quieter -- which is the whole subject of
+# this gate. Every vignette here carries the block, so without the exemption the
+# gate fires on every new vignette and the maintainer is asked a question with
+# only one sensible answer; a prompt that is always approved teaches nothing and
+# trains both of us to wave the real ones through. suppressMessages() around
+# ANYTHING ELSE still blocks, and so does every other construct.
+# (Exemption added 2026-09-05, after it fired on two newly written vignettes.)
 added_suppressions=$(
   git diff --cached -U0 -- '*.R' '*.Rmd' DESCRIPTION NAMESPACE .Rbuildignore 2>/dev/null \
     | grep '^+' | grep -v '^+++' \
+    | grep -vE '^\+[[:space:]]*suppressMessages\((library\([^)]*\))?[[:space:]]*\{?[[:space:]]*$' \
+    | grep -vE '^\+[[:space:]]*suppressMessages\(library\([^)]*\)\)[[:space:]]*$' \
     | grep -nE 'globalVariables|suppressWarnings|suppressMessages|\bna\.rm[[:space:]]*=[[:space:]]*TRUE|@importFrom[[:space:]]+rlang[[:space:]]+\.data' \
     || true
 )
