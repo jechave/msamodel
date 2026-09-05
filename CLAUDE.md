@@ -19,17 +19,6 @@ mutation scans, response matrices. **penm is a dependency, never a source**: cal
 `penm::fn()`; never copy or wrap its code, and never rename a penm function to fit a
 local convention.
 
-## Development context files
-
-None of these is read at session start — the user says what the session is about.
-
-- `dev/LOG.md` — append-only history, newest first. Consult when you need history.
-  Entries describe the code *as it was on their date*; older function names are
-  frequently obsolete.
-- `dev/ideas.md` — parking lot for things to maybe do later. Not a plan.
-
-For what is currently true of the code, read the code.
-
 ## Test discipline
 
 A permanent test must be able to **fail for a real reason**. Before trusting any new
@@ -84,13 +73,13 @@ Rscript -e "devtools::document()"
 # Full suite — the gate before a code/data/roxygen commit
 Rscript -e "devtools::test()"
 
-# AT A MILESTONE ONLY — full check. The old "0E/1W/3N" baseline recorded here was
-# stale: the 1 WARNING was the installed-size one, cleared 2026-08-11 when the
-# datasets moved out (25.8 MB -> 368 KB, see NEWS.md). Rather than carry a number
-# nobody has re-measured, take the current baseline from the newest check() entry
-# in dev/LOG.md, and update that entry when you run one. Standing accepted note:
-# the NSE "no visible binding" one, left visible instead of suppressed with
-# globalVariables() — see the comment in R/msamodel-package.R.
+# AT A MILESTONE ONLY — full check. No baseline count is recorded anywhere: the
+# old "0E/1W/3N" one here went stale (its 1 WARNING was the installed-size one,
+# cleared 2026-08-11 when the datasets moved out, 25.8 MB -> 368 KB, see NEWS.md).
+# Read the current result off the run itself rather than trusting a number nobody
+# has re-measured. Standing accepted note: the NSE "no visible binding" one, left
+# visible instead of suppressed with globalVariables() — see the comment in
+# R/msamodel-package.R.
 Rscript -e "devtools::check()"
 
 # Build the vignettes and render them to HTML for review -> doc/<name>.html
