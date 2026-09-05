@@ -23,9 +23,6 @@ local convention.
 
 None of these is read at session start — the user says what the session is about.
 
-- `dev/findings.md` — durable model/package knowledge that is expensive to
-  rediscover (the precompute architecture, why the package reports centred
-  quantities, the divergence grid).
 - `dev/LOG.md` — append-only history, newest first. Consult when you need history.
   Entries describe the code *as it was on their date*; older function names are
   frequently obsolete.

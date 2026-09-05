@@ -64,3 +64,9 @@ vignettes/*.pdf
 # Preview HTML that rmarkdown emits beside README.md when rendering the
 # github_document. README.Rmd (source) and README.md (rendered) are tracked.
 /README.html
+
+# Development scratch space: log, ideas, validation reports, reference PDFs,
+# helper scripts. Private to the maintainer, deliberately not shared. Already
+# .Rbuildignore'd, so it never shipped; untracked 2026-09-05 so it is not in
+# the public repo either. Files remain on disk.
+/dev/

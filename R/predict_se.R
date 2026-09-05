@@ -72,12 +72,10 @@ grad_theta <- function(f, theta, h = 1e-5) {
 #'   h   = Gc * w                                     # contribution of mutant k
 #' }
 #' Validated to ~1% against a naive uniform-resample bootstrap across all profile and
-#' component families (see `dev/reports/spm_band_validation.Rmd`, which calls this
-#' function by name).
+#' component families.
 #'
 #' This is the one `centred` flag kept in this file: it toggles a single line of one
-#' shared construction rather than selecting between two formulae, and the validation
-#' report depends on the signature.
+#' shared construction rather than selecting between two formulae.
 #'
 #' @param dr2mat Numeric `[mutant k x response]` matrix of per-mutant divergences.
 #' @param weights Length-`nmutant` numeric averaging weights that MUST sum to 1 (as
