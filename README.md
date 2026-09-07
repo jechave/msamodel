@@ -35,7 +35,9 @@ package is on CRAN.
 
 ## Example
 
-Mutate every site, then fit the model to an observed profile:
+The inputs are a structure and its active-site residues.
+`penm::set_enm()` builds the elastic network, and `generate_spm()`
+mutates every site and records how the structure responds.
 
 ``` r
 library(msamodel)
@@ -49,34 +51,115 @@ wt  <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
                      model = "ming_wall", d_max = 10.5, frustrated = FALSE)
 spm <- generate_spm(wt, n_mutations = 10,
                     pdb_site_active = active$pdb_site, ensemble = 1L)
-
-fit  <- fit_lrmsd_msa_site(spm, obs$pdb_site, obs$lrmsd_obs)
-pred <- predict_profiles(fit, spm, metric = "nlrmsd")
-dec  <- predict_decomposition(fit, spm, metric = "nlrmsd")
 ```
 
-The fit is made on the residue axis, and the model is then read on both
-axes: per residue, and per normal mode. The observed profile exists only
-per residue, so it appears in the left panel alone.
+`fit_lrmsd_msa_site()` estimates the two selection strengths from an
+observed profile, given as two vectors: the residue numbers and the
+divergence at each. The fit carries the estimates, their standard
+errors, and a goodness-of-fit summary in `$gof`.
+
+``` r
+fit <- fit_lrmsd_msa_site(spm, obs$pdb_site, obs$lrmsd_obs)
+
+c(a1 = fit$a1, a2 = fit$a2)
+#>         a1         a2 
+#>  0.2261728 78.7206723
+fit$gof
+#> # A tibble: 1 × 9
+#>      D2   AIC   BIC logLik deviance null_deviance  nobs     k sigma_hat
+#>   <dbl> <dbl> <dbl>  <dbl>    <dbl>         <dbl> <int> <int>     <dbl>
+#> 1 0.596  115.  123.  -54.7     17.4          43.1   107     3     0.403
+```
+
+`predict_profiles()` evaluates the model at that fit. It returns a
+`$site` and a `$mode` tibble, each holding the profile and its standard
+error along one axis.
+
+``` r
+pred <- predict_profiles(fit, spm, metric = "nlrmsd")
+
+pred$site
+#> # A tibble: 107 × 4
+#>     site pdb_site nlrmsd_msa nlrmsd_msa_se
+#>    <int>    <int>      <dbl>         <dbl>
+#>  1     1        1    -0.0254        0.160 
+#>  2     2        2    -0.511         0.0754
+#>  3     3        3    -0.103         0.130 
+#>  4     4        4    -0.316         0.110 
+#>  5     5        5     0.0216        0.153 
+#>  6     6        6     0.349         0.101 
+#>  7     7        7     0.325         0.0915
+#>  8     8        8     0.565         0.107 
+#>  9     9        9     0.612         0.0919
+#> 10    10       10     0.723         0.164 
+#> # ℹ 97 more rows
+pred$mode
+#> # A tibble: 315 × 3
+#>     mode nlrmsd_msa nlrmsd_msa_se
+#>    <int>      <dbl>         <dbl>
+#>  1     1       2.39        0.0563
+#>  2     2       2.25        0.0588
+#>  3     3       2.00        0.0642
+#>  4     4       1.98        0.0528
+#>  5     5       1.96        0.0421
+#>  6     6       1.82        0.0482
+#>  7     7       1.98        0.0432
+#>  8     8       2.04        0.0515
+#>  9     9       1.75        0.105 
+#> 10    10       1.83        0.0553
+#> # ℹ 305 more rows
+```
+
+Plotting both: the observed profile exists only per residue, so the
+points appear in the left panel alone.
 
 <img src="man/figures/README-profiles-1.png" width="100%" />
 
-Dropping the selection constraints gives a progression of nested models:
-MM is mutation alone, MS adds selection on stability, and MSA adds
-selection on activity.
+`predict_decomposition()` returns more columns on the same two axes: the
+profiles of the four nested models, in `nlrmsd_mm`, `nlrmsd_ms`,
+`nlrmsd_ma` and `nlrmsd_msa`; the three contributions, in `nphi_mut`,
+`nphi_stab` and `nphi_act`; and a standard error for each.
+
+``` r
+dec <- predict_decomposition(fit, spm, metric = "nlrmsd")
+
+dec$site
+#> # A tibble: 107 × 16
+#>     site pdb_site nlrmsd_mm nlrmsd_ms nlrmsd_ma nlrmsd_msa nphi_mut nphi_stab
+#>    <int>    <int>     <dbl>     <dbl>     <dbl>      <dbl>    <dbl>     <dbl>
+#>  1     1        1   0.00179 -0.0219      0.0151    -0.0254  0.00179  -0.0237 
+#>  2     2        2  -0.322   -0.378      -0.478     -0.511  -0.322    -0.0561 
+#>  3     3        3  -0.137   -0.159      -0.0974    -0.103  -0.137    -0.0222 
+#>  4     4        4  -0.393   -0.429      -0.305     -0.316  -0.393    -0.0356 
+#>  5     5        5  -0.153   -0.146       0.0103     0.0216 -0.153     0.00724
+#>  6     6        6  -0.00368  0.000981    0.353      0.349  -0.00368   0.00467
+#>  7     7        7   0.0368   0.0432      0.297      0.325   0.0368    0.00645
+#>  8     8        8   0.0767   0.0947      0.542      0.565   0.0767    0.0180 
+#>  9     9        9   0.106    0.123       0.608      0.612   0.106     0.0166 
+#> 10    10       10   0.0778   0.106       0.726      0.723   0.0778    0.0280 
+#> # ℹ 97 more rows
+#> # ℹ 8 more variables: nphi_act <dbl>, nlrmsd_mm_se <dbl>, nlrmsd_ms_se <dbl>,
+#> #   nlrmsd_ma_se <dbl>, nlrmsd_msa_se <dbl>, nphi_mut_se <dbl>,
+#> #   nphi_stab_se <dbl>, nphi_act_se <dbl>
+```
+
+MM, MS and MSA form a progression: MM has mutation alone, MS adds
+selection on stability, and MSA adds selection on activity. Each is the
+previous one with one more constraint switched on. MA, activity without
+stability, lies outside this progression and is left out of the figure.
 
 <img src="man/figures/README-nested-1.png" width="100%" />
 
-The three contributions are the increments of that progression: mutation
-is MM, stability is MS minus MM, and activity is MSA minus MS. Each is
-drawn in the colour of the model that introduces it.
+The MSA profile splits into three contributions, one per constraint,
+each the increment its step adds: mutation is MM, stability is MS minus
+MM, and activity is MSA minus MS.
 
 <img src="man/figures/README-decomposition-1.png" width="100%" />
 
-The two fitted selection strengths are 0.23 on stability and 79 on
-activity, accounting for 60% of the variance in the observed profile.
-Dashed lines mark active-site residues; bands are 95% intervals. The
-mode panels show the first 50 of 315 modes.
+Dashed lines mark active-site residues, and bands are 95% intervals. The
+mode panels show the first 50 of 315 modes, which are the slowest and
+highest-divergence ones: `nlrmsd` is centred over all 315, so a cropped
+panel does not appear centred on zero.
 
 ## Interface
 

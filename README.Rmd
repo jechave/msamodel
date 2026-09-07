@@ -46,9 +46,11 @@ installed alongside. Neither package is on CRAN.
 
 ## Example
 
-Mutate every site, then fit the model to an observed profile:
+The inputs are a structure and its active-site residues. `penm::set_enm()` builds
+the elastic network, and `generate_spm()` mutates every site and records how the
+structure responds.
 
-```{r fit, message = FALSE}
+```{r scan, message = FALSE}
 library(msamodel)
 library(penm)
 
@@ -60,13 +62,34 @@ wt  <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
                      model = "ming_wall", d_max = 10.5, frustrated = FALSE)
 spm <- generate_spm(wt, n_mutations = 10,
                     pdb_site_active = active$pdb_site, ensemble = 1L)
-
-fit  <- fit_lrmsd_msa_site(spm, obs$pdb_site, obs$lrmsd_obs)
-pred <- predict_profiles(fit, spm, metric = "nlrmsd")
-dec  <- predict_decomposition(fit, spm, metric = "nlrmsd")
 ```
 
-```{r setup-plots, echo = FALSE, message = FALSE, warning = FALSE}
+`fit_lrmsd_msa_site()` estimates the two selection strengths from an observed
+profile, given as two vectors: the residue numbers and the divergence at each. The
+fit carries the estimates, their standard errors, and a goodness-of-fit summary in
+`$gof`.
+
+```{r fit}
+fit <- fit_lrmsd_msa_site(spm, obs$pdb_site, obs$lrmsd_obs)
+
+c(a1 = fit$a1, a2 = fit$a2)
+fit$gof
+```
+
+`predict_profiles()` evaluates the model at that fit. It returns a `$site` and a
+`$mode` tibble, each holding the profile and its standard error along one axis.
+
+```{r profiles-call}
+pred <- predict_profiles(fit, spm, metric = "nlrmsd")
+
+pred$site
+pred$mode
+```
+
+Plotting both: the observed profile exists only per residue, so the points appear
+in the left panel alone.
+
+```{r profiles, echo = FALSE, message = FALSE, warning = FALSE, fig.height = 3.2}
 library(ggplot2)
 library(dplyr)
 library(tidyr)
@@ -82,13 +105,7 @@ active_lines <- geom_vline(xintercept = active$pdb_site, colour = "grey60",
                            linetype = 2, linewidth = 0.3)
 
 crop_modes <- function(d) filter(d, mode <= n_modes_shown)
-```
 
-The fit is made on the residue axis, and the model is then read on both axes: per
-residue, and per normal mode. The observed profile exists only per residue, so it
-appears in the left panel alone.
-
-```{r profiles, echo = FALSE, message = FALSE, warning = FALSE, fig.height = 3.2}
 site <- pred$site |>
   inner_join(obs, by = "pdb_site") |>
   mutate(observed = lrmsd_obs - mean(lrmsd_obs))
@@ -115,8 +132,21 @@ p_mode <- crop_modes(pred$mode) |>
 p_site | p_mode
 ```
 
-Dropping the selection constraints gives a progression of nested models: MM is
-mutation alone, MS adds selection on stability, and MSA adds selection on activity.
+`predict_decomposition()` returns more columns on the same two axes: the profiles
+of the four nested models, in `nlrmsd_mm`, `nlrmsd_ms`, `nlrmsd_ma` and
+`nlrmsd_msa`; the three contributions, in `nphi_mut`, `nphi_stab` and `nphi_act`;
+and a standard error for each.
+
+```{r decomposition-call}
+dec <- predict_decomposition(fit, spm, metric = "nlrmsd")
+
+dec$site
+```
+
+MM, MS and MSA form a progression: MM has mutation alone, MS adds selection on
+stability, and MSA adds selection on activity. Each is the previous one with one
+more constraint switched on. MA, activity without stability, lies outside this
+progression and is left out of the figure.
 
 ```{r nested, echo = FALSE, message = FALSE, warning = FALSE, fig.height = 3.2}
 nested_long <- function(d, xvar) {
@@ -128,7 +158,7 @@ nested_long <- function(d, xvar) {
                           labels = c("MM", "MS", "MSA")))
 }
 
-# Each component takes the colour of the model that introduces it.
+# Each contribution takes the colour of the model that introduces it.
 nested_cols <- c(MM = "#FF8C00", MS = "#0000CD", MSA = "#C41E3A")
 
 n_site <- nested_long(dec$site, pdb_site) |>
@@ -149,9 +179,9 @@ n_mode <- nested_long(crop_modes(dec$mode), mode) |>
 n_site | n_mode
 ```
 
-The three contributions are the increments of that progression: mutation is MM,
-stability is MS minus MM, and activity is MSA minus MS. Each is drawn in the colour
-of the model that introduces it.
+The MSA profile splits into three contributions, one per constraint, each the
+increment its step adds: mutation is MM, stability is MS minus MM, and activity is
+MSA minus MS.
 
 ```{r decomposition, echo = FALSE, message = FALSE, warning = FALSE, fig.height = 3.2}
 phi_long <- function(d, xvar) {
@@ -185,11 +215,10 @@ d_mode <- phi_long(crop_modes(dec$mode), mode) |>
 d_site | d_mode
 ```
 
-The two fitted selection strengths are `r sprintf("%.2f", fit$a1)` on stability and
-`r sprintf("%.0f", fit$a2)` on activity, accounting for
-`r sprintf("%.0f%%", 100 * fit$gof$D2)` of the variance in the observed profile.
-Dashed lines mark active-site residues; bands are 95% intervals. The mode panels
-show the first `r n_modes_shown` of `r nrow(pred$mode)` modes.
+Dashed lines mark active-site residues, and bands are 95% intervals. The mode
+panels show the first `r n_modes_shown` of `r nrow(pred$mode)` modes, which are the
+slowest and highest-divergence ones: `nlrmsd` is centred over all
+`r nrow(pred$mode)`, so a cropped panel does not appear centred on zero.
 
 ## Interface
 
