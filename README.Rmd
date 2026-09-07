@@ -51,24 +51,23 @@ takes an observed divergence profile, as two vectors: the residue numbers, and t
 divergence at each. Measuring that profile, by superimposing homologs over an
 alignment, is outside this package.
 
-`generate_spm()` mutates every site and records the structural response. Everything
-else works from its output.
-
-| Function | Evaluates the model at | Returns |
+| Function | Does | Returns |
 |---|---|---|
-| `calculate_profiles()` | selection strengths given as arguments | the profile |
-| `calculate_decomposition()` | selection strengths given as arguments | the nested models and the three contributions |
-| `predict_profiles()` | a fit, with standard errors | the profile |
-| `predict_decomposition()` | a fit, with standard errors | the nested models and the three contributions |
+| `generate_spm()` | mutates every site and records the structural response | the scan every other function reads |
+| `fit_lrmsd_msa_site()` | estimates the two selection strengths on the residue axis | the fit, with standard errors and `$gof` |
+| `fit_lrmsd_msa_mode()` | estimates them on the mode axis | the fit, with standard errors and `$gof` |
+| `calculate_profiles()` | evaluates the model at selection strengths given as arguments | the profiles |
+| `calculate_decomposition()` | decomposes the model at selection strengths given as arguments | the nested models and the three contributions |
+| `predict_profiles()` | evaluates the model at a fit | the profiles, with standard errors |
+| `predict_decomposition()` | decomposes the model at a fit | the nested models and the three contributions, with standard errors |
 
 The `calculate_*` pair explores how each constraint shapes the profiles; the
-`predict_*` pair evaluates the model where the data puts it. Fits come from
-`fit_lrmsd_msa_site()` on the residue axis and `fit_lrmsd_msa_mode()` on the mode
-axis.
+`predict_*` pair evaluates the model where the data puts it.
 
-All four return a `$site` and a `$mode` tibble, holding the profiles on the two
-axes. Their `metric` argument chooses the quantity: `"lrmsd"` keeps the profile's
-overall level, `"nlrmsd"` centres it on its mean, which is the form a fit is made on.
+The four `calculate_*` and `predict_*` functions return a `$site` and a `$mode`
+tibble, holding the profiles on the two axes. Their `metric` argument chooses the
+quantity: `"lrmsd"` keeps the profile's overall level, `"nlrmsd"` centres it on its
+mean, which is the form a fit is made on.
 
 ## Documentation
 
