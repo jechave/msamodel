@@ -8,11 +8,19 @@
 [![R-CMD-check](https://github.com/jechave/msamodel/actions/workflows/R-CMD-check.yaml/badge.svg)](https://github.com/jechave/msamodel/actions/workflows/R-CMD-check.yaml)
 <!-- badges: end -->
 
-Across a family of homologous enzymes, some residues change structure a
-lot and others almost not at all. `msamodel` predicts this divergence
-profile from a single structure and its active site, using the
-Mutation-Stability-Activity model, and splits it into the contributions
-of mutation, stability selection, and activity selection.
+The `msamodel` package implements the Mutation-Stability-Activity (MSA)
+model of protein structural evolution. In the MSA model, mutations
+perturb the structure and become fixed or are lost depending on their
+effects on stability and activity, weighted by stability and activity
+selection strengths, respectively. Given a single structure and its
+active-site residues, the model predicts the resulting structural
+divergence profiles, per residue and per normal mode. The two selection
+strengths can be set to chosen values, to explore how each constraint
+shapes the profiles, or estimated from observed profiles by maximum
+likelihood. In addition, predicted profiles can be analysed in terms of
+nested “what-if” scenarios in which one or both selection constraints
+are dropped, and can be decomposed as a sum of mutation, stability, and
+activity contributions.
 
 ## Installation
 
@@ -49,11 +57,11 @@ pred <- predict_profiles(fit, spm, metric = "nlrmsd")$site
 <img src="man/figures/README-profile-1.png" width="100%" />
 
 Observed divergence (points), fitted model with 95% band, active-site
-residues dashed. The fit has two parameters — selection strengths on
-stability (0.23) and on activity (79) — and accounts for 60% of the
-variance in the observed profile.
+residues dashed. The two fitted selection strengths are 0.23 on
+stability and 79 on activity, accounting for 60% of the variance in the
+observed profile.
 
-The same fit splits the profile into its three constituent parts:
+The same fit decomposes the profile into its three contributions:
 
 ``` r
 dec <- predict_decomposition(fit, spm, metric = "nlrmsd")$site
@@ -61,35 +69,34 @@ dec <- predict_decomposition(fit, spm, metric = "nlrmsd")$site
 
 <img src="man/figures/README-decomposition-1.png" width="100%" />
 
-The three curves add up to the profile above. For this enzyme activity
-selection does most of the work and stability almost none; other
-families differ.
+The three contributions add up to the profile above. Their balance
+varies from family to family.
 
 ## Interface
 
 `generate_spm()` mutates every site and records the structural response.
-It is the slow step, and everything else works from its output.
+Everything else works from its output.
 
 `calculate_profiles()` and `calculate_decomposition()` evaluate the
-model at selection strengths given as arguments — for exploring how each
-constraint shapes the profile. `predict_profiles()` and
+model at selection strengths set to chosen values, to explore how each
+constraint shapes the profiles. `predict_profiles()` and
 `predict_decomposition()` evaluate it at a fit obtained from data, with
 error bands. Fits come from `fit_lrmsd_msa_site()` and
 `fit_lrmsd_msa_mode()`.
 
-All four return a `$site` table and a `$mode` table: divergence per
-residue, and per normal mode of the structure.
+All four return a `$site` table and a `$mode` table, holding the
+profiles on the residue axis and on the normal-mode axis.
 
 Inputs are a PDB file, active-site residue numbers, and an observed
-profile to fit against. Measuring that profile — superimposing homologs
-over an alignment — is outside this package.
+profile to fit against. Measuring that profile, by superimposing
+homologs over an alignment, is outside this package.
 
 ## Documentation
 
 ``` r
 ?msamodel                        # API, indexed by workflow step
 vignette("msamodel")             # both axes, end to end
-vignette("msamodel-explore")     # profiles at parameters you choose, both axes
+vignette("msamodel-explore")     # profiles at chosen parameters, both axes
 vignette("msamodel-fit")         # fitting to data, with confidence bands
 ```
 
