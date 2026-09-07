@@ -61,14 +61,15 @@ per residue, so it appears in the left panel alone.
 
 <img src="man/figures/README-profiles-1.png" width="100%" />
 
-Dropping one or both selection constraints gives the nested models: MM
-is mutation alone, MS adds selection on stability, MA adds selection on
-activity, and MSA is the full model.
+Dropping the selection constraints gives a progression of nested models:
+MM is mutation alone, MS adds selection on stability, and MSA adds
+selection on activity.
 
 <img src="man/figures/README-nested-1.png" width="100%" />
 
-The same fit decomposes each profile into its three contributions, which
-add up to the full model above.
+The three contributions are the increments of that progression: mutation
+is MM, stability is MS minus MM, and activity is MSA minus MS. Each is
+drawn in the colour of the model that introduces it.
 
 <img src="man/figures/README-decomposition-1.png" width="100%" />
 

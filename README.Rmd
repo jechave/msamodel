@@ -99,7 +99,7 @@ p_site <- ggplot(site, aes(pdb_site)) +
                   ymax = nlrmsd_msa + 1.96 * nlrmsd_msa_se),
               fill = "#C41E3A", alpha = 0.18) +
   geom_line(aes(y = nlrmsd_msa), colour = "#C41E3A", linewidth = 0.6) +
-  geom_point(aes(y = observed), colour = "grey30", size = 0.8, alpha = 0.85) +
+  geom_point(aes(y = observed), colour = "grey25", size = 0.8, alpha = 0.85) +
   labs(title = "Residue axis", x = "Residue", y = "Structural divergence") +
   theme_readme
 
@@ -115,22 +115,21 @@ p_mode <- crop_modes(pred$mode) |>
 p_site | p_mode
 ```
 
-Dropping one or both selection constraints gives the nested models: MM is mutation
-alone, MS adds selection on stability, MA adds selection on activity, and MSA is the
-full model.
+Dropping the selection constraints gives a progression of nested models: MM is
+mutation alone, MS adds selection on stability, and MSA adds selection on activity.
 
 ```{r nested, echo = FALSE, message = FALSE, warning = FALSE, fig.height = 3.2}
 nested_long <- function(d, xvar) {
   d |>
-    select({{ xvar }}, nlrmsd_mm, nlrmsd_ms, nlrmsd_ma, nlrmsd_msa) |>
+    select({{ xvar }}, nlrmsd_mm, nlrmsd_ms, nlrmsd_msa) |>
     pivot_longer(-{{ xvar }}, names_to = "model", values_to = "nlrmsd") |>
     mutate(model = factor(model,
-                          levels = c("nlrmsd_mm", "nlrmsd_ms",
-                                     "nlrmsd_ma", "nlrmsd_msa"),
-                          labels = c("MM", "MS", "MA", "MSA")))
+                          levels = c("nlrmsd_mm", "nlrmsd_ms", "nlrmsd_msa"),
+                          labels = c("MM", "MS", "MSA")))
 }
 
-nested_cols <- c(MM = "#FF8C00", MS = "#0000CD", MA = "#C41E3A", MSA = "grey20")
+# Each component takes the colour of the model that introduces it.
+nested_cols <- c(MM = "#FF8C00", MS = "#0000CD", MSA = "#C41E3A")
 
 n_site <- nested_long(dec$site, pdb_site) |>
   ggplot(aes(pdb_site, nlrmsd, colour = model)) +
@@ -150,8 +149,9 @@ n_mode <- nested_long(crop_modes(dec$mode), mode) |>
 n_site | n_mode
 ```
 
-The same fit decomposes each profile into its three contributions, which add up to
-the full model above.
+The three contributions are the increments of that progression: mutation is MM,
+stability is MS minus MM, and activity is MSA minus MS. Each is drawn in the colour
+of the model that introduces it.
 
 ```{r decomposition, echo = FALSE, message = FALSE, warning = FALSE, fig.height = 3.2}
 phi_long <- function(d, xvar) {
