@@ -54,12 +54,11 @@ The `calculate_*` pair explores how each constraint shapes the profiles;
 the `predict_*` pair evaluates the model where the data puts it.
 
 Every profile comes in two representations, and the `calculate_*` and
-`predict_*` functions return both: a `$site` tibble, giving divergence
-residue by residue, and a `$mode` tibble, giving it for each normal mode
-of the elastic network, the collective motions in which the structure
-deforms most easily. Their `metric` argument chooses the quantity:
-`"lrmsd"` keeps the profile’s overall level, `"nlrmsd"` centres it on
-its mean, which is the form a fit is made on.
+`predict_*` functions return both: the same divergence written in two
+bases. The `$site` tibble gives it residue by residue, the `$mode`
+tibble gives it per normal mode. Their `metric` argument chooses the
+quantity: `"lrmsd"` keeps the profile’s overall level, `"nlrmsd"`
+centres it on its mean, which is the form a fit is made on.
 
 ## Documentation
 
@@ -216,9 +215,9 @@ MM, and activity is MSA minus MS.
 <img src="man/figures/README-decomposition-1.png" width="100%" />
 
 Dashed lines mark active-site residues, and bands are 95% intervals. The
-mode panels show the first 50 of 315 modes, which are the slowest and
-highest-divergence ones: `nlrmsd` is centred over all 315, so a cropped
-panel does not appear centred on zero.
+mode panels show the first 50 of 315 modes. `nlrmsd` is centred over all
+315, and these are the modes carrying the largest divergence, so the
+cropped panels do not appear centred on zero.
 
 ## Reference
 
