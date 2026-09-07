@@ -44,11 +44,28 @@ remotes::install_github("jechave/msamodel", dependencies = TRUE)
 The elastic network model comes from [penm](https://github.com/jechave/penm),
 installed alongside. Neither package is on CRAN.
 
+## Interface
+
+Inputs are a PDB file, active-site residue numbers, and, to fit, an observed
+profile. Measuring that profile, by superimposing homologs over an alignment, is
+outside this package.
+
+`generate_spm()` mutates every site and records the structural response.
+Everything else works from its output.
+
+`calculate_profiles()` and `calculate_decomposition()` evaluate the model at
+selection strengths set to chosen values, to explore how each constraint shapes the
+profiles. `predict_profiles()` and `predict_decomposition()` evaluate it at a fit
+obtained from data, with error bands. Fits come from `fit_lrmsd_msa_site()` on the
+residue axis and `fit_lrmsd_msa_mode()` on the mode axis.
+
+All four return a `$site` table and a `$mode` table, holding the profiles on the
+residue axis and on the normal-mode axis.
+
 ## Example
 
-The inputs are a structure and its active-site residues. `penm::set_enm()` builds
-the elastic network, and `generate_spm()` mutates every site and records how the
-structure responds.
+`penm::set_enm()` builds the elastic network from the structure, and
+`generate_spm()` mutates every site and records how the structure responds.
 
 ```{r scan, message = FALSE}
 library(msamodel)
@@ -220,24 +237,6 @@ Dashed lines mark active-site residues, and bands are 95% intervals. The mode
 panels show the first `r n_modes_shown` of `r nrow(pred$mode)` modes, which are the
 slowest and highest-divergence ones: `nlrmsd` is centred over all
 `r nrow(pred$mode)`, so a cropped panel does not appear centred on zero.
-
-## Interface
-
-`generate_spm()` mutates every site and records the structural response.
-Everything else works from its output.
-
-`calculate_profiles()` and `calculate_decomposition()` evaluate the model at
-selection strengths set to chosen values, to explore how each constraint shapes the
-profiles. `predict_profiles()` and `predict_decomposition()` evaluate it at a fit
-obtained from data, with error bands. Fits come from `fit_lrmsd_msa_site()` and
-`fit_lrmsd_msa_mode()`.
-
-All four return a `$site` table and a `$mode` table, holding the profiles on the
-residue axis and on the normal-mode axis.
-
-Inputs are a PDB file, active-site residue numbers, and an observed profile to fit
-against. Measuring that profile, by superimposing homologs over an alignment, is
-outside this package.
 
 ## Documentation
 
