@@ -36,6 +36,8 @@ stability, and activity contributions.
 
 ## Installation
 
+Run this at an R prompt, not in the shell:
+
 ```r
 # install.packages("remotes")
 remotes::install_github("jechave/msamodel", dependencies = TRUE)
@@ -43,6 +45,9 @@ remotes::install_github("jechave/msamodel", dependencies = TRUE)
 
 The elastic network model comes from [penm](https://github.com/jechave/penm),
 installed alongside. Neither package is on CRAN.
+
+Every code block below is R as well, to be run in the same session after
+`library(msamodel)`.
 
 ## Interface
 
