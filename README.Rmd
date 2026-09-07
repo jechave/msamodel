@@ -46,7 +46,7 @@ installed alongside. Neither package is on CRAN.
 
 ## Example
 
-Mutate every site, fit the model to an observed profile, predict:
+Mutate every site, then fit the model to an observed profile:
 
 ```{r fit, message = FALSE}
 library(msamodel)
@@ -62,64 +62,134 @@ spm <- generate_spm(wt, n_mutations = 10,
                     pdb_site_active = active$pdb_site, ensemble = 1L)
 
 fit  <- fit_lrmsd_msa_site(spm, obs$pdb_site, obs$lrmsd_obs)
-pred <- predict_profiles(fit, spm, metric = "nlrmsd")$site
+pred <- predict_profiles(fit, spm, metric = "nlrmsd")
+dec  <- predict_decomposition(fit, spm, metric = "nlrmsd")
 ```
 
-```{r profile, echo = FALSE, message = FALSE, warning = FALSE}
+```{r setup-plots, echo = FALSE, message = FALSE, warning = FALSE}
 library(ggplot2)
 library(dplyr)
 library(tidyr)
+library(patchwork)
 
-pred <- pred |>
+n_modes_shown <- 50
+
+theme_readme <- theme_minimal(base_size = 10) +
+  theme(legend.position = "top", legend.title = element_blank(),
+        plot.title = element_text(size = 10, face = "bold"))
+
+active_lines <- geom_vline(xintercept = active$pdb_site, colour = "grey60",
+                           linetype = 2, linewidth = 0.3)
+
+crop_modes <- function(d) filter(d, mode <= n_modes_shown)
+```
+
+The fit is made on the residue axis, and the model is then read on both axes: per
+residue, and per normal mode. The observed profile exists only per residue, so it
+appears in the left panel alone.
+
+```{r profiles, echo = FALSE, message = FALSE, warning = FALSE, fig.height = 3.2}
+site <- pred$site |>
   inner_join(obs, by = "pdb_site") |>
-  mutate(observed = lrmsd_obs - mean(lrmsd_obs),
-         lower = nlrmsd_msa - 1.96 * nlrmsd_msa_se,
-         upper = nlrmsd_msa + 1.96 * nlrmsd_msa_se)
+  mutate(observed = lrmsd_obs - mean(lrmsd_obs))
 
-ggplot(pred, aes(pdb_site)) +
-  geom_vline(xintercept = active$pdb_site, colour = "grey60",
-             linetype = 2, linewidth = 0.35) +
-  geom_ribbon(aes(ymin = lower, ymax = upper), fill = "#C41E3A", alpha = 0.18) +
+p_site <- ggplot(site, aes(pdb_site)) +
+  active_lines +
+  geom_ribbon(aes(ymin = nlrmsd_msa - 1.96 * nlrmsd_msa_se,
+                  ymax = nlrmsd_msa + 1.96 * nlrmsd_msa_se),
+              fill = "#C41E3A", alpha = 0.18) +
   geom_line(aes(y = nlrmsd_msa), colour = "#C41E3A", linewidth = 0.6) +
-  geom_point(aes(y = observed), colour = "grey30", size = 0.9, alpha = 0.85) +
-  labs(x = "Residue", y = "Structural divergence") +
-  theme_minimal(base_size = 11)
+  geom_point(aes(y = observed), colour = "grey30", size = 0.8, alpha = 0.85) +
+  labs(title = "Residue axis", x = "Residue", y = "Structural divergence") +
+  theme_readme
+
+p_mode <- crop_modes(pred$mode) |>
+  ggplot(aes(mode)) +
+  geom_ribbon(aes(ymin = nlrmsd_msa - 1.96 * nlrmsd_msa_se,
+                  ymax = nlrmsd_msa + 1.96 * nlrmsd_msa_se),
+              fill = "#C41E3A", alpha = 0.18) +
+  geom_line(aes(y = nlrmsd_msa), colour = "#C41E3A", linewidth = 0.6) +
+  labs(title = "Mode axis", x = "Normal mode", y = NULL) +
+  theme_readme
+
+p_site | p_mode
 ```
 
-Observed divergence (points), fitted model with 95% band, active-site residues
-dashed. The two fitted selection strengths are
-`r sprintf("%.2f", fit$a1)` on stability and `r sprintf("%.0f", fit$a2)` on
-activity, accounting for `r sprintf("%.0f%%", 100 * fit$gof$D2)` of the variance
-in the observed profile.
+Dropping one or both selection constraints gives the nested models: MM is mutation
+alone, MS adds selection on stability, MA adds selection on activity, and MSA is the
+full model.
 
-The same fit decomposes the profile into its three contributions:
+```{r nested, echo = FALSE, message = FALSE, warning = FALSE, fig.height = 3.2}
+nested_long <- function(d, xvar) {
+  d |>
+    select({{ xvar }}, nlrmsd_mm, nlrmsd_ms, nlrmsd_ma, nlrmsd_msa) |>
+    pivot_longer(-{{ xvar }}, names_to = "model", values_to = "nlrmsd") |>
+    mutate(model = factor(model,
+                          levels = c("nlrmsd_mm", "nlrmsd_ms",
+                                     "nlrmsd_ma", "nlrmsd_msa"),
+                          labels = c("MM", "MS", "MA", "MSA")))
+}
 
-```{r decomp-call}
-dec <- predict_decomposition(fit, spm, metric = "nlrmsd")$site
+nested_cols <- c(MM = "#FF8C00", MS = "#0000CD", MA = "#C41E3A", MSA = "grey20")
+
+n_site <- nested_long(dec$site, pdb_site) |>
+  ggplot(aes(pdb_site, nlrmsd, colour = model)) +
+  active_lines +
+  geom_line(linewidth = 0.5) +
+  scale_colour_manual(values = nested_cols) +
+  labs(title = "Residue axis", x = "Residue", y = "Structural divergence") +
+  theme_readme
+
+n_mode <- nested_long(crop_modes(dec$mode), mode) |>
+  ggplot(aes(mode, nlrmsd, colour = model)) +
+  geom_line(linewidth = 0.5) +
+  scale_colour_manual(values = nested_cols) +
+  labs(title = "Mode axis", x = "Normal mode", y = NULL) +
+  theme_readme
+
+n_site | n_mode
 ```
 
-```{r decomposition, echo = FALSE, message = FALSE, warning = FALSE}
-dec <- dec |>
-  select(pdb_site, nphi_mut, nphi_stab, nphi_act) |>
-  pivot_longer(-pdb_site, names_to = "component", values_to = "phi") |>
-  mutate(component = factor(component,
-                            levels = c("nphi_mut", "nphi_stab", "nphi_act"),
-                            labels = c("Mutation", "Stability", "Activity")))
+The same fit decomposes each profile into its three contributions, which add up to
+the full model above.
 
-ggplot(dec, aes(pdb_site, phi, colour = component)) +
-  geom_vline(xintercept = active$pdb_site, colour = "grey60",
-             linetype = 2, linewidth = 0.35) +
+```{r decomposition, echo = FALSE, message = FALSE, warning = FALSE, fig.height = 3.2}
+phi_long <- function(d, xvar) {
+  d |>
+    select({{ xvar }}, nphi_mut, nphi_stab, nphi_act) |>
+    pivot_longer(-{{ xvar }}, names_to = "component", values_to = "phi") |>
+    mutate(component = factor(component,
+                              levels = c("nphi_mut", "nphi_stab", "nphi_act"),
+                              labels = c("Mutation", "Stability", "Activity")))
+}
+
+phi_cols <- c(Mutation = "#FF8C00", Stability = "#0000CD", Activity = "#C41E3A")
+
+d_site <- phi_long(dec$site, pdb_site) |>
+  ggplot(aes(pdb_site, phi, colour = component)) +
+  active_lines +
   geom_hline(yintercept = 0, colour = "grey85") +
-  geom_line(linewidth = 0.55) +
-  scale_colour_manual(values = c(Mutation = "#FF8C00", Stability = "#0000CD",
-                                 Activity = "#C41E3A")) +
-  labs(x = "Residue", y = "Contribution", colour = NULL) +
-  theme_minimal(base_size = 11) +
-  theme(legend.position = "top")
+  geom_line(linewidth = 0.5) +
+  scale_colour_manual(values = phi_cols) +
+  labs(title = "Residue axis", x = "Residue", y = "Contribution") +
+  theme_readme
+
+d_mode <- phi_long(crop_modes(dec$mode), mode) |>
+  ggplot(aes(mode, phi, colour = component)) +
+  geom_hline(yintercept = 0, colour = "grey85") +
+  geom_line(linewidth = 0.5) +
+  scale_colour_manual(values = phi_cols) +
+  labs(title = "Mode axis", x = "Normal mode", y = NULL) +
+  theme_readme
+
+d_site | d_mode
 ```
 
-The three contributions add up to the profile above. Their balance varies from
-family to family.
+The two fitted selection strengths are `r sprintf("%.2f", fit$a1)` on stability and
+`r sprintf("%.0f", fit$a2)` on activity, accounting for
+`r sprintf("%.0f%%", 100 * fit$gof$D2)` of the variance in the observed profile.
+Dashed lines mark active-site residues; bands are 95% intervals. The mode panels
+show the first `r n_modes_shown` of `r nrow(pred$mode)` modes.
 
 ## Interface
 

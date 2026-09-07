@@ -35,7 +35,7 @@ package is on CRAN.
 
 ## Example
 
-Mutate every site, fit the model to an observed profile, predict:
+Mutate every site, then fit the model to an observed profile:
 
 ``` r
 library(msamodel)
@@ -51,26 +51,31 @@ spm <- generate_spm(wt, n_mutations = 10,
                     pdb_site_active = active$pdb_site, ensemble = 1L)
 
 fit  <- fit_lrmsd_msa_site(spm, obs$pdb_site, obs$lrmsd_obs)
-pred <- predict_profiles(fit, spm, metric = "nlrmsd")$site
+pred <- predict_profiles(fit, spm, metric = "nlrmsd")
+dec  <- predict_decomposition(fit, spm, metric = "nlrmsd")
 ```
 
-<img src="man/figures/README-profile-1.png" width="100%" />
+The fit is made on the residue axis, and the model is then read on both
+axes: per residue, and per normal mode. The observed profile exists only
+per residue, so it appears in the left panel alone.
 
-Observed divergence (points), fitted model with 95% band, active-site
-residues dashed. The two fitted selection strengths are 0.23 on
-stability and 79 on activity, accounting for 60% of the variance in the
-observed profile.
+<img src="man/figures/README-profiles-1.png" width="100%" />
 
-The same fit decomposes the profile into its three contributions:
+Dropping one or both selection constraints gives the nested models: MM
+is mutation alone, MS adds selection on stability, MA adds selection on
+activity, and MSA is the full model.
 
-``` r
-dec <- predict_decomposition(fit, spm, metric = "nlrmsd")$site
-```
+<img src="man/figures/README-nested-1.png" width="100%" />
+
+The same fit decomposes each profile into its three contributions, which
+add up to the full model above.
 
 <img src="man/figures/README-decomposition-1.png" width="100%" />
 
-The three contributions add up to the profile above. Their balance
-varies from family to family.
+The two fitted selection strengths are 0.23 on stability and 79 on
+activity, accounting for 60% of the variance in the observed profile.
+Dashed lines mark active-site residues; bands are 95% intervals. The
+mode panels show the first 50 of 315 modes.
 
 ## Interface
 
