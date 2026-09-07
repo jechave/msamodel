@@ -54,8 +54,8 @@ alignment, is outside this package.
 | Function | Does | Returns |
 |---|---|---|
 | `generate_spm()` | mutates every site and records the structural response | the scan every other function reads |
-| `fit_lrmsd_msa_site()` | estimates the two selection strengths on the residue axis | the fit, with standard errors and `$gof` |
-| `fit_lrmsd_msa_mode()` | estimates them on the mode axis | the fit, with standard errors and `$gof` |
+| `fit_lrmsd_msa_site()` | estimates the two selection strengths by fitting an observed site profile | the fit, with standard errors and `$gof` |
+| `fit_lrmsd_msa_mode()` | estimates them by fitting an observed mode profile | the fit, with standard errors and `$gof` |
 | `calculate_profiles()` | evaluates the model at selection strengths given as arguments | the profiles |
 | `calculate_decomposition()` | decomposes the model at selection strengths given as arguments | the nested models and the three contributions |
 | `predict_profiles()` | evaluates the model at a fit | the profiles, with standard errors |
@@ -64,9 +64,11 @@ alignment, is outside this package.
 The `calculate_*` pair explores how each constraint shapes the profiles; the
 `predict_*` pair evaluates the model where the data puts it.
 
-The four `calculate_*` and `predict_*` functions return a `$site` and a `$mode`
-tibble, holding the profiles on the two axes. Their `metric` argument chooses the
-quantity: `"lrmsd"` keeps the profile's overall level, `"nlrmsd"` centres it on its
+Every profile comes in two representations, and the `calculate_*` and `predict_*`
+functions return both: a `$site` tibble, giving divergence residue by residue, and a
+`$mode` tibble, giving it for each normal mode of the elastic network, the
+collective motions in which the structure deforms most easily. Their `metric`
+argument chooses the quantity: `"lrmsd"` keeps the profile's overall level, `"nlrmsd"` centres it on its
 mean, which is the form a fit is made on.
 
 ## Documentation
@@ -114,7 +116,8 @@ fit$gof
 ```
 
 `predict_profiles()` evaluates the model at that fit. It returns a `$site` and a
-`$mode` tibble, each holding the profile and its standard error along one axis.
+`$mode` tibble, each holding the profile and its standard error in one
+representation.
 
 ```{r profiles-call}
 pred <- predict_profiles(fit, spm, metric = "nlrmsd")
@@ -154,7 +157,7 @@ p_site <- ggplot(site, aes(pdb_site)) +
               fill = "#C41E3A", alpha = 0.18) +
   geom_line(aes(y = nlrmsd_msa), colour = "#C41E3A", linewidth = 0.6) +
   geom_point(aes(y = observed), colour = "grey25", size = 0.8, alpha = 0.85) +
-  labs(title = "Residue axis", x = "Residue", y = "Structural divergence") +
+  labs(title = "Site representation", x = "Residue", y = "Structural divergence") +
   theme_readme
 
 p_mode <- crop_modes(pred$mode) |>
@@ -163,13 +166,14 @@ p_mode <- crop_modes(pred$mode) |>
                   ymax = nlrmsd_msa + 1.96 * nlrmsd_msa_se),
               fill = "#C41E3A", alpha = 0.18) +
   geom_line(aes(y = nlrmsd_msa), colour = "#C41E3A", linewidth = 0.6) +
-  labs(title = "Mode axis", x = "Normal mode", y = NULL) +
+  labs(title = "Mode representation", x = "Normal mode", y = NULL) +
   theme_readme
 
 p_site | p_mode
 ```
 
-`predict_decomposition()` returns more columns on the same two axes: the profiles
+`predict_decomposition()` returns more columns in the same two representations:
+the profiles
 of the four nested models, in `nlrmsd_mm`, `nlrmsd_ms`, `nlrmsd_ma` and
 `nlrmsd_msa`; the three contributions, in `nphi_mut`, `nphi_stab` and `nphi_act`;
 and a standard error for each.
@@ -204,14 +208,14 @@ n_site <- nested_long(dec$site, pdb_site) |>
   active_lines +
   geom_line(linewidth = 0.5) +
   scale_colour_manual(values = nested_cols) +
-  labs(title = "Residue axis", x = "Residue", y = "Structural divergence") +
+  labs(title = "Site representation", x = "Residue", y = "Structural divergence") +
   theme_readme
 
 n_mode <- nested_long(crop_modes(dec$mode), mode) |>
   ggplot(aes(mode, nlrmsd, colour = model)) +
   geom_line(linewidth = 0.5) +
   scale_colour_manual(values = nested_cols) +
-  labs(title = "Mode axis", x = "Normal mode", y = NULL) +
+  labs(title = "Mode representation", x = "Normal mode", y = NULL) +
   theme_readme
 
 n_site | n_mode
@@ -239,7 +243,7 @@ d_site <- phi_long(dec$site, pdb_site) |>
   geom_hline(yintercept = 0, colour = "grey85") +
   geom_line(linewidth = 0.5) +
   scale_colour_manual(values = phi_cols) +
-  labs(title = "Residue axis", x = "Residue", y = "Contribution") +
+  labs(title = "Site representation", x = "Residue", y = "Contribution") +
   theme_readme
 
 d_mode <- phi_long(crop_modes(dec$mode), mode) |>
@@ -247,7 +251,7 @@ d_mode <- phi_long(crop_modes(dec$mode), mode) |>
   geom_hline(yintercept = 0, colour = "grey85") +
   geom_line(linewidth = 0.5) +
   scale_colour_manual(values = phi_cols) +
-  labs(title = "Mode axis", x = "Normal mode", y = NULL) +
+  labs(title = "Mode representation", x = "Normal mode", y = NULL) +
   theme_readme
 
 d_site | d_mode

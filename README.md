@@ -43,8 +43,8 @@ superimposing homologs over an alignment, is outside this package.
 | Function | Does | Returns |
 |----|----|----|
 | `generate_spm()` | mutates every site and records the structural response | the scan every other function reads |
-| `fit_lrmsd_msa_site()` | estimates the two selection strengths on the residue axis | the fit, with standard errors and `$gof` |
-| `fit_lrmsd_msa_mode()` | estimates them on the mode axis | the fit, with standard errors and `$gof` |
+| `fit_lrmsd_msa_site()` | estimates the two selection strengths by fitting an observed site profile | the fit, with standard errors and `$gof` |
+| `fit_lrmsd_msa_mode()` | estimates them by fitting an observed mode profile | the fit, with standard errors and `$gof` |
 | `calculate_profiles()` | evaluates the model at selection strengths given as arguments | the profiles |
 | `calculate_decomposition()` | decomposes the model at selection strengths given as arguments | the nested models and the three contributions |
 | `predict_profiles()` | evaluates the model at a fit | the profiles, with standard errors |
@@ -53,11 +53,13 @@ superimposing homologs over an alignment, is outside this package.
 The `calculate_*` pair explores how each constraint shapes the profiles;
 the `predict_*` pair evaluates the model where the data puts it.
 
-The four `calculate_*` and `predict_*` functions return a `$site` and a
-`$mode` tibble, holding the profiles on the two axes. Their `metric`
-argument chooses the quantity: `"lrmsd"` keeps the profile’s overall
-level, `"nlrmsd"` centres it on its mean, which is the form a fit is
-made on.
+Every profile comes in two representations, and the `calculate_*` and
+`predict_*` functions return both: a `$site` tibble, giving divergence
+residue by residue, and a `$mode` tibble, giving it for each normal mode
+of the elastic network, the collective motions in which the structure
+deforms most easily. Their `metric` argument chooses the quantity:
+`"lrmsd"` keeps the profile’s overall level, `"nlrmsd"` centres it on
+its mean, which is the form a fit is made on.
 
 ## Documentation
 
@@ -112,7 +114,7 @@ fit$gof
 
 `predict_profiles()` evaluates the model at that fit. It returns a
 `$site` and a `$mode` tibble, each holding the profile and its standard
-error along one axis.
+error in one representation.
 
 ``` r
 pred <- predict_profiles(fit, spm, metric = "nlrmsd")
@@ -154,10 +156,10 @@ points appear in the left panel alone.
 
 <img src="man/figures/README-profiles-1.png" width="100%" />
 
-`predict_decomposition()` returns more columns on the same two axes: the
-profiles of the four nested models, in `nlrmsd_mm`, `nlrmsd_ms`,
-`nlrmsd_ma` and `nlrmsd_msa`; the three contributions, in `nphi_mut`,
-`nphi_stab` and `nphi_act`; and a standard error for each.
+`predict_decomposition()` returns more columns in the same two
+representations: the profiles of the four nested models, in `nlrmsd_mm`,
+`nlrmsd_ms`, `nlrmsd_ma` and `nlrmsd_msa`; the three contributions, in
+`nphi_mut`, `nphi_stab` and `nphi_act`; and a standard error for each.
 
 ``` r
 dec <- predict_decomposition(fit, spm, metric = "nlrmsd")
