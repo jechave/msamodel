@@ -4,9 +4,9 @@
 \name{msamodel-package}
 \alias{msamodel}
 \alias{msamodel-package}
-\title{msamodel: Mutation-Stability-Activity Model of Neutral Structural Evolution}
+\title{msamodel: Mutation-Stability-Activity Model of Protein Structural Evolution}
 \description{
-Implementation of the Mutation-Stability-Activity (MSA) model for predicting site-specific structural divergence in protein evolution from single-point-mutation scans (SPMs). Provides maximum-likelihood estimation of the two selection-strength parameters with delta-method standard errors, prediction of divergence profiles under mutation-only and selection-only model variants, and a decomposition of the profile into mutation, stability, and activity contributions. Profiles are reported on two axes: per residue and per normal mode.
+Implementation of the Mutation-Stability-Activity (MSA) model of protein structural evolution, in which mutations perturb the structure and become fixed or are lost depending on their effects on stability and activity, weighted by stability and activity selection strengths, respectively. Given a single structure and its active-site residues, predicts structural divergence profiles in two representations, per residue and per normal mode. The two selection strengths can be set to chosen values or estimated from observed profiles by maximum likelihood, with delta-method standard errors. Predicted profiles can be analysed in terms of nested models in which one or both selection constraints are dropped, and decomposed as a sum of mutation, stability, and activity contributions.
 }
 \details{
 The MSA model predicts how far each part of a protein structure drifts under
