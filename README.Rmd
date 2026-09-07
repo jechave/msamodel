@@ -141,6 +141,7 @@ and a standard error for each.
 dec <- predict_decomposition(fit, spm, metric = "nlrmsd")
 
 dec$site
+dec$mode
 ```
 
 MM, MS and MSA form a progression: MM has mutation alone, MS adds selection on

@@ -141,6 +141,24 @@ dec$site
 #> # ℹ 8 more variables: nphi_act <dbl>, nlrmsd_mm_se <dbl>, nlrmsd_ms_se <dbl>,
 #> #   nlrmsd_ma_se <dbl>, nlrmsd_msa_se <dbl>, nphi_mut_se <dbl>,
 #> #   nphi_stab_se <dbl>, nphi_act_se <dbl>
+dec$mode
+#> # A tibble: 315 × 15
+#>     mode nlrmsd_mm nlrmsd_ms nlrmsd_ma nlrmsd_msa nphi_mut nphi_stab nphi_act
+#>    <int>     <dbl>     <dbl>     <dbl>      <dbl>    <dbl>     <dbl>    <dbl>
+#>  1     1      2.97      2.97      2.37       2.39     2.97   0.00590  -0.578 
+#>  2     2      2.78      2.80      2.23       2.25     2.78   0.0243   -0.548 
+#>  3     3      2.32      2.37      1.95       2.00     2.32   0.0529   -0.372 
+#>  4     4      2.32      2.33      1.95       1.98     2.32   0.00718  -0.346 
+#>  5     5      2.22      2.21      1.94       1.96     2.22  -0.00243  -0.257 
+#>  6     6      2.14      2.15      1.79       1.82     2.14   0.0100   -0.333 
+#>  7     7      2.04      2.05      1.96       1.98     2.04   0.0111   -0.0736
+#>  8     8      1.97      1.98      2.02       2.04     1.97   0.0141    0.0609
+#>  9     9      1.99      2.02      1.67       1.75     1.99   0.0389   -0.278 
+#> 10    10      1.92      1.97      1.78       1.83     1.92   0.0551   -0.145 
+#> # ℹ 305 more rows
+#> # ℹ 7 more variables: nlrmsd_mm_se <dbl>, nlrmsd_ms_se <dbl>,
+#> #   nlrmsd_ma_se <dbl>, nlrmsd_msa_se <dbl>, nphi_mut_se <dbl>,
+#> #   nphi_stab_se <dbl>, nphi_act_se <dbl>
 ```
 
 MM, MS and MSA form a progression: MM has mutation alone, MS adds
