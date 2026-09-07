@@ -16,7 +16,7 @@ profiles.
 
 Every profile comes in two representations, the same divergence written in two
 bases: per residue, and per normal mode. Every profile function returns both at
-once, as a list with a \verb{$site} and a \verb{$mode} tibble.
+once, as a list with a \code{$site} and a \code{$mode} tibble.
 
 Two selection strengths govern the model: \code{a1} (selection on stability) and \code{a2}
 (selection on activity, i.e. proximity to the active site). Both are
@@ -38,7 +38,7 @@ and the mutation/stability/activity split.}
 \item{3b. Or estimate \verb{(a1, a2)} from data}{\code{\link[=fit_lrmsd_msa_site]{fit_lrmsd_msa_site()}} fits an
 observed site profile, \code{\link[=fit_lrmsd_msa_mode]{fit_lrmsd_msa_mode()}} an observed mode profile. Both
 return the estimate, its standard errors, and a goodness-of-fit summary in
-\verb{$gof}.}
+\code{$gof}.}
 \item{4. Propagate the fit}{\code{\link[=predict_profiles]{predict_profiles()}} and \code{\link[=predict_decomposition]{predict_decomposition()}}
 give the same quantities as step 3a, with delta-method standard errors
 carried through from the fit.}

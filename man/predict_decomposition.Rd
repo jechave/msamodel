@@ -16,30 +16,25 @@ carrying \code{a1}, \code{a2}, \code{cov}.}
 (accepted by the signature but not yet derived; it stops).}
 }
 \value{
-A list with two tibbles (\verb{$site}, \verb{$mode}). Each holds the index columns (\code{site},
-\code{pdb_site} for site; \code{mode} for mode), the four nested-model columns
-(\code{nlrmsd_mm}...), the three contribution columns (\verb{nphi_*}), and then the seven
-corresponding \verb{_se} columns in the same order.
+A list of two tibbles, one per representation. \code{$site} has one row per
+residue, \code{$mode} one row per normal mode. Each row carries the divergence under
+the four nested models MM, MS, MA and MSA, in columns \code{nlrmsd_mm}, \code{nlrmsd_ms},
+\code{nlrmsd_ma} and \code{nlrmsd_msa}; the three contributions that decompose the MSA
+profile, in \code{nphi_mut}, \code{nphi_stab} and \code{nphi_act}; and a standard error for each
+of those seven, named by appending \code{_se}. \code{$site} is indexed by \code{site} and
+\code{pdb_site}, \code{$mode} by \code{mode}.
 }
 \description{
 \code{\link[=calculate_decomposition]{calculate_decomposition()}} with uncertainty: the four nested-model profiles and the
-three sequential contributions, then the seven matching \verb{_se} columns, on \strong{both}
-representations.
+three contributions, each with a standard error, in both representations.
 }
 \details{
-Only \code{"nlrmsd"} is currently available, and it is the default so a bare call works.
-\code{metric = "lrmsd"} stops: the uncentred standard error is not yet derived.
+The standard error sums two independent sources: the fit's parameter uncertainty,
+propagated by the delta method, and the SPM finite-mutation sampling error of the
+scan itself.
 
-The standard-error construction differs between the two objects, for mathematical
-reasons set out in \code{R/predict_se.R}:
-\itemize{
-\item \strong{Nested models}: the parameter arm is differentiated at the fit's estimate for
-all four variants, while the SPM arm is evaluated at each variant's own \verb{(a1, a2)}.
-MM has a zero parameter arm but a nonzero SPM arm.
-\item \strong{Components}: the SPM arm differences the per-mutant contributions across nested
-models before squaring (retaining the between-model covariance); the parameter arm
-needs no differencing, the forward map returning the already-formed contrast.
-}
+Only \code{"nlrmsd"} is currently available, and it is the default, so a bare call works.
+\code{metric = "lrmsd"} stops: the uncentred standard error is not yet derived.
 }
 \examples{
 if (requireNamespace("bio3d", quietly = TRUE)) {

@@ -41,7 +41,7 @@ validate_ml_fit <- function(fit, producer) {
 #'
 #' [calculate_profiles()] with uncertainty: the model's per-response log
 #' structural-divergence profile evaluated at a fit's `(a1, a2)`, on **both** response
-#' representations, with the value column followed by its `_se` sibling. `metric` selects
+#' representations, with the value column followed by its \code{_se} sibling. `metric` selects
 #' `"lrmsd"` (the absolute profile) or `"nlrmsd"` (the mean-centred profile the fit is on).
 #'
 #' The standard error sums two independent sources: the fit's parameter uncertainty
@@ -58,9 +58,9 @@ validate_ml_fit <- function(fit, producer) {
 #'   drives both representations.
 #' @param spm The `spm` object from [generate_spm()] (the same one used for the fit).
 #' @param metric `"lrmsd"` (absolute) or `"nlrmsd"` (mean-centred). Default `"lrmsd"`.
-#' @return A list with two tibbles. `$site`: `site`, `pdb_site`, the profile column
-#'   (`lrmsd_msa` or `nlrmsd_msa`), and its `_se`. `$mode`: `mode`, the same profile
-#'   column, and its `_se`.
+#' @return A list with two tibbles. \code{$site}: `site`, `pdb_site`, the profile column
+#'   (`lrmsd_msa` or `nlrmsd_msa`), and its \code{_se}. \code{$mode}: `mode`, the same profile
+#'   column, and its \code{_se}.
 #' @seealso [calculate_profiles()] (point values at a given `(a1, a2)`, no fit);
 #'   [predict_decomposition()] (the profile split into contributions, with standard errors).
 #' @family api
@@ -117,30 +117,27 @@ predict_profiles <- function(fit, spm, metric = c("lrmsd", "nlrmsd")) {
 #' Divergence decomposition with standard errors from an ML fit (both representations)
 #'
 #' [calculate_decomposition()] with uncertainty: the four nested-model profiles and the
-#' three sequential contributions, then the seven matching `_se` columns, on **both**
-#' representations.
+#' three contributions, each with a standard error, in both representations.
 #'
-#' Only `"nlrmsd"` is currently available, and it is the default so a bare call works.
+#' The standard error sums two independent sources: the fit's parameter uncertainty,
+#' propagated by the delta method, and the SPM finite-mutation sampling error of the
+#' scan itself.
+#'
+#' Only `"nlrmsd"` is currently available, and it is the default, so a bare call works.
 #' `metric = "lrmsd"` stops: the uncentred standard error is not yet derived.
-#'
-#' The standard-error construction differs between the two objects, for mathematical
-#' reasons set out in `R/predict_se.R`:
-#' - **Nested models**: the parameter arm is differentiated at the fit's estimate for
-#'   all four variants, while the SPM arm is evaluated at each variant's own `(a1, a2)`.
-#'   MM has a zero parameter arm but a nonzero SPM arm.
-#' - **Components**: the SPM arm differences the per-mutant contributions across nested
-#'   models before squaring (retaining the between-model covariance); the parameter arm
-#'   needs no differencing, the forward map returning the already-formed contrast.
 #'
 #' @param fit A list from [fit_lrmsd_msa_site()] (site) or [fit_lrmsd_msa_mode()] (mode),
 #'   carrying `a1`, `a2`, `cov`.
 #' @param spm The `spm` object from [generate_spm()] (the same one used for the fit).
 #' @param metric `"nlrmsd"` (default, the mean-centred profile the fit is on) or `"lrmsd"`
 #'   (accepted by the signature but not yet derived; it stops).
-#' @return A list with two tibbles (`$site`, `$mode`). Each holds the index columns (`site`,
-#'   `pdb_site` for site; `mode` for mode), the four nested-model columns
-#'   (`nlrmsd_mm`...), the three contribution columns (`nphi_*`), and then the seven
-#'   corresponding `_se` columns in the same order.
+#' @return A list of two tibbles, one per representation. \code{$site} has one row per
+#'   residue, \code{$mode} one row per normal mode. Each row carries the divergence under
+#'   the four nested models MM, MS, MA and MSA, in columns `nlrmsd_mm`, `nlrmsd_ms`,
+#'   `nlrmsd_ma` and `nlrmsd_msa`; the three contributions that decompose the MSA
+#'   profile, in `nphi_mut`, `nphi_stab` and `nphi_act`; and a standard error for each
+#'   of those seven, named by appending \code{_se}. \code{$site} is indexed by `site` and
+#'   `pdb_site`, \code{$mode} by `mode`.
 #' @seealso [calculate_decomposition()] (point values at a given `(a1, a2)`, no fit);
 #'   [predict_profiles()] (the profile these contributions sum to).
 #' @family api

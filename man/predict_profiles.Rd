@@ -16,14 +16,14 @@ drives both representations.}
 \item{metric}{\code{"lrmsd"} (absolute) or \code{"nlrmsd"} (mean-centred). Default \code{"lrmsd"}.}
 }
 \value{
-A list with two tibbles. \verb{$site}: \code{site}, \code{pdb_site}, the profile column
-(\code{lrmsd_msa} or \code{nlrmsd_msa}), and its \verb{_se}. \verb{$mode}: \code{mode}, the same profile
-column, and its \verb{_se}.
+A list with two tibbles. \code{$site}: \code{site}, \code{pdb_site}, the profile column
+(\code{lrmsd_msa} or \code{nlrmsd_msa}), and its \code{_se}. \code{$mode}: \code{mode}, the same profile
+column, and its \code{_se}.
 }
 \description{
 \code{\link[=calculate_profiles]{calculate_profiles()}} with uncertainty: the model's per-response log
 structural-divergence profile evaluated at a fit's \verb{(a1, a2)}, on \strong{both} response
-representations, with the value column followed by its \verb{_se} sibling. \code{metric} selects
+representations, with the value column followed by its \code{_se} sibling. \code{metric} selects
 \code{"lrmsd"} (the absolute profile) or \code{"nlrmsd"} (the mean-centred profile the fit is on).
 }
 \details{

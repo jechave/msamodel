@@ -257,8 +257,8 @@ unimplemented_metric_message <- function(metric) {
 #' @param a1 Stability selection strength (non-negative). `0` disables it.
 #' @param a2 Activity selection strength (non-negative). `0` disables it.
 #' @param metric `"lrmsd"` (absolute) or `"nlrmsd"` (mean-centred). Default `"lrmsd"`.
-#' @return A list with two tibbles. `$site`: `site`, `pdb_site`, and the profile column
-#'   (`lrmsd_msa` or `nlrmsd_msa`). `$mode`: `mode` and the same profile column. Both
+#' @return A list with two tibbles. \code{$site}: `site`, `pdb_site`, and the profile column
+#'   (`lrmsd_msa` or `nlrmsd_msa`). \code{$mode}: `mode` and the same profile column. Both
 #'   branches use identical value-column names; only the key column differs.
 #' @seealso [predict_profiles()] (the same profiles with error bands, from a fit);
 #'   [calculate_decomposition()] (the profile split into contributions).
@@ -318,7 +318,7 @@ calculate_profiles <- function(spm, a1, a2, metric = c("lrmsd", "nlrmsd")) {
 #' @param a1 Stability selection strength (non-negative).
 #' @param a2 Activity selection strength (non-negative).
 #' @param metric `"lrmsd"` (absolute) or `"nlrmsd"` (mean-centred). Default `"lrmsd"`.
-#' @return A list with two tibbles (`$site`, `$mode`). Each holds the index columns
+#' @return A list with two tibbles (\code{$site}, \code{$mode}). Each holds the index columns
 #'   (`site`, `pdb_site` for site; `mode` for mode), the four nested-model columns, and
 #'   the three contribution columns, all on the requested `metric`. Both branches
 #'   use identical value-column names.

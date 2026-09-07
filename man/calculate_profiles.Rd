@@ -16,8 +16,8 @@ calculate_profiles(spm, a1, a2, metric = c("lrmsd", "nlrmsd"))
 \item{metric}{\code{"lrmsd"} (absolute) or \code{"nlrmsd"} (mean-centred). Default \code{"lrmsd"}.}
 }
 \value{
-A list with two tibbles. \verb{$site}: \code{site}, \code{pdb_site}, and the profile column
-(\code{lrmsd_msa} or \code{nlrmsd_msa}). \verb{$mode}: \code{mode} and the same profile column. Both
+A list with two tibbles. \code{$site}: \code{site}, \code{pdb_site}, and the profile column
+(\code{lrmsd_msa} or \code{nlrmsd_msa}). \code{$mode}: \code{mode} and the same profile column. Both
 branches use identical value-column names; only the key column differs.
 }
 \description{

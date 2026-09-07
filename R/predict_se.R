@@ -18,8 +18,21 @@
 #                    weighted mean over a FINITE ensemble of mutants, so it carries
 #                    sampling error even at perfectly known (a1, a2).
 #
+# The two arms are combined differently for the three objects:
+#
+#   nested      the parameter arm is differentiated at the FIT's estimate for all four
+#               variants, while the SPM arm is evaluated at each variant's OWN (a1, a2).
+#               MM therefore has a zero parameter arm but a nonzero SPM arm.
+#   components  the SPM arm differences the per-mutant contributions across nested
+#               models BEFORE squaring, which retains the between-model covariance; the
+#               parameter arm needs no differencing, since the forward map already
+#               returns the formed contrast.
+#
+# (This lived in predict_decomposition()'s user-facing @details until 2026-09-07. It is
+# a note about the derivation, not something a caller needs.)
+#
 # lrmsd and nlrmsd are separate functions, never a flag, because they are different
-# formulae. `spm_hmat()` below is the one exception -- see its docstring.
+# formulae. `spm_hmat()` below is the one exception, see its docstring.
 
 # ---- shared primitives ------------------------------------------------------------
 

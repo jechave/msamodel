@@ -16,7 +16,7 @@ calculate_decomposition(spm, a1, a2, metric = c("lrmsd", "nlrmsd"))
 \item{metric}{\code{"lrmsd"} (absolute) or \code{"nlrmsd"} (mean-centred). Default \code{"lrmsd"}.}
 }
 \value{
-A list with two tibbles (\verb{$site}, \verb{$mode}). Each holds the index columns
+A list with two tibbles (\code{$site}, \code{$mode}). Each holds the index columns
 (\code{site}, \code{pdb_site} for site; \code{mode} for mode), the four nested-model columns, and
 the three contribution columns, all on the requested \code{metric}. Both branches
 use identical value-column names.
