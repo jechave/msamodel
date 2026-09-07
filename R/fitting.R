@@ -22,7 +22,7 @@
 
 #' Matched, mean-centred residuals at one (a1, a2)
 #'
-#' The single definition of "how far the model is from the data" -- everything else in the
+#' The single definition of "how far the model is from the data". Everything else in the
 #' fit is a reduction of this. Evaluates the forward map at `(a1, a2)`, inner-joins it to
 #' the observations on the internal index, and centres BOTH over the matched support (each
 #' by its own mean over the joined rows).
@@ -67,7 +67,7 @@ loglik_lrmsd_msa <- function(dr2mat, energy_data, obs, a1, a2) {
 #'
 #' `D2` is deviance-explained (`= 1 - Var(resid)/Var(obs)`, since both deviances are sums
 #' of squares on the same `n`). It is at most `1` but has **no lower bound**: negative
-#' means the prediction is worse than a flat/mean-only null. Returned unclamped -- a
+#' means the prediction is worse than a flat/mean-only null. Returned unclamped: a
 #' negative `D2` is a real signal that the fit is poor, not an error. `AIC`/`BIC` are
 #' per-fit numbers, meaningful only *compared* against another model fit at its own maximum.
 #'
@@ -99,7 +99,7 @@ gof_lrmsd_msa <- function(r, logLik, k) {
 #' The shared fitter both exported wrappers delegate to, top to bottom: validate the box,
 #' optimise, form the asymptotic covariance, build the goodness-of-fit row, return.
 #'
-#' Optimisation runs in the coordinates `theta = (a1, log2(a2 + 1))` -- the coordinates in
+#' Optimisation runs in the coordinates `theta = (a1, log2(a2 + 1))`, the coordinates in
 #' which the prior is uniform, and in which `a2 = 2^theta2 - 1 >= 0` holds by construction.
 #'
 #' @inheritParams residuals_lrmsd_msa
@@ -184,7 +184,7 @@ fit_lrmsd_msa <- function(dr2mat, energy_data, obs,
 #' The total sum of squares of the observed profile about its mean,
 #' `sum((y - mean(y))^2)` (glm's `null.deviance` for a Gaussian; `= (n-1)*var(y)`). It
 #' is the deviance of the best constant prediction, so it depends only on the data, not
-#' on any model -- the same null for every model fit to that data, which is what makes
+#' on any model, the same null for every model fit to that data, which is what makes
 #' `D^2 = 1 - deviance/null_deviance` comparable. Centres internally, so the result is
 #' the same whether the caller passes raw or already-centred `y`. Axis-agnostic, pure.
 #'
@@ -279,7 +279,7 @@ resolve_mode_obs <- function(valid_modes, mode, lrmsd_obs) {
 }
 
 
-#' Maximum-likelihood point fit of the MSA model to a site-axis profile
+#' Maximum-likelihood point fit of the MSA model to a site profile
 #'
 #' Maximises the profiled Gaussian log-likelihood (`loglik_lrmsd_msa()`, evaluated on
 #' `spm$dr2mat_site`)
@@ -289,14 +289,14 @@ resolve_mode_obs <- function(valid_modes, mode, lrmsd_obs) {
 #'
 #' The optimiser works in the coordinates `a1` and
 #' `log2(a2 + 1)` (so `a2 = 2^(log2(a2+1)) - 1 >= 0`), on the box `a1_range` ×
-#' `log2_a2_plus1_range` — the coordinates in which the prior is uniform. The
+#' `log2_a2_plus1_range`, the coordinates in which the prior is uniform. The
 #' returned covariance `cov` is on the `(a1, log2(a2+1))` scale; the standard error
 #' of `a2` is obtained by the delta method (`da2/d(log2(a2+1)) = 2^(log2(a2+1)) * ln 2`).
 #'
 #' @param spm A single-point-mutation `spm` object from [generate_spm()] (its `site_map` keys the fit to PDB residues).
 #' @param pdb_site Integer vector of PDB residue numbers identifying the observations.
 #'   Observations are a `(pdb_site, lrmsd_obs)` vector pair rather than a data frame, so
-#'   the columns of your own table can be named anything. May cover a subset of the
+#'   the columns of the user's own table can be named anything. May cover a subset of the
 #'   model's sites; every value must exist in the model.
 #' @param lrmsd_obs Numeric vector of observed log structural divergences (the fit
 #'   target), the same length as `pdb_site`.
@@ -323,8 +323,9 @@ resolve_mode_obs <- function(valid_modes, mode, lrmsd_obs) {
 #'       `nobs` (matched observations scored), `k` (`3`: `a1`, `a2`, profiled `sigma`),
 #'       `sigma_hat`. `AIC`/`BIC` are per-fit numbers, meaningful only compared against
 #'       another model fit at its own maximum.}
-#'     \item{call}{The matched call that produced this fit -- the fit itself is
-#'       axis-free, so this is what records which fitter made it.}
+#'     \item{call}{The matched call that produced this fit. The fit itself does not
+#'       record which representation it came from, so this is what identifies the
+#'       fitter that made it.}
 #'   }
 #' @seealso [predict_profiles()] (propagate the fit to a banded profile),
 #'   [fit_lrmsd_msa_mode()] (the mode counterpart),
@@ -358,18 +359,18 @@ fit_lrmsd_msa_site <- function(spm,
                 call = match.call())
 }
 
-#' Maximum-likelihood point fit of the MSA model to a mode-axis profile
+#' Maximum-likelihood point fit of the MSA model to a mode profile
 #'
 #' Mode counterpart of [fit_lrmsd_msa_site()]: maximises the profiled Gaussian
 #' log-likelihood over `(a1, a2)` by numerical optimisation, returning a point estimate
 #' plus an asymptotic covariance from the Hessian at the optimum. Identical machinery to
-#' the site fit -- the same axis-blind objective `loglik_lrmsd_msa()`, evaluated on
+#' the site fit: the same representation-blind objective `loglik_lrmsd_msa()`, evaluated on
 #' `spm$dr2mat_mode` instead of `spm$dr2mat_site`; the response index is the mode (no `site_map`
 #' / `pdb_site`).
 #'
 #' The optimiser works in the same coordinates as the site fit: `a1` and
 #' `log2(a2 + 1)` (so `a2 = 2^(log2(a2+1)) - 1 >= 0`), on the box `a1_range` ×
-#' `log2_a2_plus1_range` — the coordinates in which the prior is uniform. The
+#' `log2_a2_plus1_range`, the coordinates in which the prior is uniform. The
 #' returned covariance `cov` is on the `(a1, log2(a2+1))` scale; the standard error
 #' of `a2` is obtained by the delta method (`da2/d(log2(a2+1)) = 2^(log2(a2+1)) * ln 2`).
 #'
@@ -377,7 +378,7 @@ fit_lrmsd_msa_site <- function(spm,
 #'   the `dr2mat_mode` matrix; no `site_map`).
 #' @param mode Integer vector of mode indices identifying the observations. Observations
 #'   are a `(mode, lrmsd_obs)` vector pair rather than a data frame, so the columns of
-#'   your own table can be named anything. Every value must exist in the model.
+#'   the user's own table can be named anything. Every value must exist in the model.
 #' @param lrmsd_obs Numeric vector of observed log structural divergences (the fit
 #'   target), the same length as `mode`.
 #' @param a1_range Length-2 `[min, max]` box bound for `a1`.

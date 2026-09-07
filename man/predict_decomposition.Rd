@@ -2,7 +2,7 @@
 % Please edit documentation in R/predict.R
 \name{predict_decomposition}
 \alias{predict_decomposition}
-\title{Divergence decomposition with standard errors from an ML fit (both axes)}
+\title{Divergence decomposition with standard errors from an ML fit (both representations)}
 \usage{
 predict_decomposition(fit, spm, metric = c("nlrmsd", "lrmsd"))
 }
@@ -13,10 +13,10 @@ carrying \code{a1}, \code{a2}, \code{cov}.}
 \item{spm}{The \code{spm} object from \code{\link[=generate_spm]{generate_spm()}} (the same one used for the fit).}
 
 \item{metric}{\code{"nlrmsd"} (default, the mean-centred profile the fit is on) or \code{"lrmsd"}
-(accepted by the signature but not yet derived -- it stops).}
+(accepted by the signature but not yet derived; it stops).}
 }
 \value{
-A list with two tibbles (\verb{$site}, \verb{$mode}). Each holds the axis key (\code{site},
+A list with two tibbles (\verb{$site}, \verb{$mode}). Each holds the index columns (\code{site},
 \code{pdb_site} for site; \code{mode} for mode), the four nested-model columns
 (\code{nlrmsd_mm}...), the three contribution columns (\verb{nphi_*}), and then the seven
 corresponding \verb{_se} columns in the same order.
@@ -24,7 +24,7 @@ corresponding \verb{_se} columns in the same order.
 \description{
 \code{\link[=calculate_decomposition]{calculate_decomposition()}} with uncertainty: the four nested-model profiles and the
 three sequential contributions, then the seven matching \verb{_se} columns, on \strong{both}
-response axes.
+representations.
 }
 \details{
 Only \code{"nlrmsd"} is currently available, and it is the default so a bare call works.
@@ -33,10 +33,10 @@ Only \code{"nlrmsd"} is currently available, and it is the default so a bare cal
 The standard-error construction differs between the two objects, for mathematical
 reasons set out in \code{R/predict_se.R}:
 \itemize{
-\item \strong{Nested models} -- the parameter arm is differentiated at the fit's estimate for
+\item \strong{Nested models}: the parameter arm is differentiated at the fit's estimate for
 all four variants, while the SPM arm is evaluated at each variant's own \verb{(a1, a2)}.
 MM has a zero parameter arm but a nonzero SPM arm.
-\item \strong{Components} -- the SPM arm differences the per-mutant contributions across nested
+\item \strong{Components}: the SPM arm differences the per-mutant contributions across nested
 models before squaring (retaining the between-model covariance); the parameter arm
 needs no differencing, the forward map returning the already-formed contrast.
 }

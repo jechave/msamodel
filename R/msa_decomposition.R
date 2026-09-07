@@ -8,7 +8,7 @@
 #' `phi_act` is the further change when activity selection is added (MSA minus MS).
 #' The three contributions sum exactly to the full-model profile.
 #'
-#' The inputs are four numeric vectors of equal length -- the divergence under each
+#' The inputs are four numeric vectors of equal length, the divergence under each
 #' of the four model variants. The function works on the values alone and does not
 #' care whether they are indexed by site or by mode, so the same call serves both;
 #' the caller supplies whichever four columns it holds and attaches the result.
@@ -22,8 +22,8 @@
 #'   plus-activity (`ma`), and the full model (`msa`). `ma` is accepted but not used
 #'   by the current sequential formula; it is kept so an alternative decomposition
 #'   that needs it can be added later without changing the signature.
-#' @return A named list of three numeric vectors -- `phi_mut`, `phi_stab`,
-#'   `phi_act` -- one value per input element.
+#' @return A named list of three numeric vectors (`phi_mut`, `phi_stab`,
+#'   `phi_act`), one value per input element.
 #' @noRd
 decompose_nested <- function(mm, ms, ma, msa) {
   # Sequential M0 -> MM -> MS -> MSA decomposition. `ma` is unused here but kept

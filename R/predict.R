@@ -37,11 +37,11 @@ validate_ml_fit <- function(fit, producer) {
 
 # ---- predict_profiles ------------------------------------------------------------
 
-#' Predicted divergence profiles with standard errors from an ML fit (both axes)
+#' Predicted divergence profiles with standard errors from an ML fit (both representations)
 #'
 #' [calculate_profiles()] with uncertainty: the model's per-response log
 #' structural-divergence profile evaluated at a fit's `(a1, a2)`, on **both** response
-#' axes, with the value column followed by its `_se` sibling. `metric` selects
+#' representations, with the value column followed by its `_se` sibling. `metric` selects
 #' `"lrmsd"` (the absolute profile) or `"nlrmsd"` (the mean-centred profile the fit is on).
 #'
 #' The standard error sums two independent sources: the fit's parameter uncertainty
@@ -55,7 +55,7 @@ validate_ml_fit <- function(fit, producer) {
 #'
 #' @param fit A list from [fit_lrmsd_msa_site()] (site) or [fit_lrmsd_msa_mode()] (mode),
 #'   carrying `a1`, `a2`, and the 2x2 `cov` on the `(a1, log2(a2+1))` scale. One fit
-#'   drives both axes.
+#'   drives both representations.
 #' @param spm The `spm` object from [generate_spm()] (the same one used for the fit).
 #' @param metric `"lrmsd"` (absolute) or `"nlrmsd"` (mean-centred). Default `"lrmsd"`.
 #' @return A list with two tibbles. `$site`: `site`, `pdb_site`, the profile column
@@ -114,21 +114,21 @@ predict_profiles <- function(fit, spm, metric = c("lrmsd", "nlrmsd")) {
 
 # ---- predict_decomposition -------------------------------------------------------
 
-#' Divergence decomposition with standard errors from an ML fit (both axes)
+#' Divergence decomposition with standard errors from an ML fit (both representations)
 #'
 #' [calculate_decomposition()] with uncertainty: the four nested-model profiles and the
 #' three sequential contributions, then the seven matching `_se` columns, on **both**
-#' response axes.
+#' representations.
 #'
 #' Only `"nlrmsd"` is currently available, and it is the default so a bare call works.
 #' `metric = "lrmsd"` stops: the uncentred standard error is not yet derived.
 #'
 #' The standard-error construction differs between the two objects, for mathematical
 #' reasons set out in `R/predict_se.R`:
-#' - **Nested models** -- the parameter arm is differentiated at the fit's estimate for
+#' - **Nested models**: the parameter arm is differentiated at the fit's estimate for
 #'   all four variants, while the SPM arm is evaluated at each variant's own `(a1, a2)`.
 #'   MM has a zero parameter arm but a nonzero SPM arm.
-#' - **Components** -- the SPM arm differences the per-mutant contributions across nested
+#' - **Components**: the SPM arm differences the per-mutant contributions across nested
 #'   models before squaring (retaining the between-model covariance); the parameter arm
 #'   needs no differencing, the forward map returning the already-formed contrast.
 #'
@@ -136,8 +136,8 @@ predict_profiles <- function(fit, spm, metric = c("lrmsd", "nlrmsd")) {
 #'   carrying `a1`, `a2`, `cov`.
 #' @param spm The `spm` object from [generate_spm()] (the same one used for the fit).
 #' @param metric `"nlrmsd"` (default, the mean-centred profile the fit is on) or `"lrmsd"`
-#'   (accepted by the signature but not yet derived -- it stops).
-#' @return A list with two tibbles (`$site`, `$mode`). Each holds the axis key (`site`,
+#'   (accepted by the signature but not yet derived; it stops).
+#' @return A list with two tibbles (`$site`, `$mode`). Each holds the index columns (`site`,
 #'   `pdb_site` for site; `mode` for mode), the four nested-model columns
 #'   (`nlrmsd_mm`...), the three contribution columns (`nphi_*`), and then the seven
 #'   corresponding `_se` columns in the same order.

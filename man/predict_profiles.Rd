@@ -2,14 +2,14 @@
 % Please edit documentation in R/predict.R
 \name{predict_profiles}
 \alias{predict_profiles}
-\title{Predicted divergence profiles with standard errors from an ML fit (both axes)}
+\title{Predicted divergence profiles with standard errors from an ML fit (both representations)}
 \usage{
 predict_profiles(fit, spm, metric = c("lrmsd", "nlrmsd"))
 }
 \arguments{
 \item{fit}{A list from \code{\link[=fit_lrmsd_msa_site]{fit_lrmsd_msa_site()}} (site) or \code{\link[=fit_lrmsd_msa_mode]{fit_lrmsd_msa_mode()}} (mode),
 carrying \code{a1}, \code{a2}, and the 2x2 \code{cov} on the \verb{(a1, log2(a2+1))} scale. One fit
-drives both axes.}
+drives both representations.}
 
 \item{spm}{The \code{spm} object from \code{\link[=generate_spm]{generate_spm()}} (the same one used for the fit).}
 
@@ -23,7 +23,7 @@ column, and its \verb{_se}.
 \description{
 \code{\link[=calculate_profiles]{calculate_profiles()}} with uncertainty: the model's per-response log
 structural-divergence profile evaluated at a fit's \verb{(a1, a2)}, on \strong{both} response
-axes, with the value column followed by its \verb{_se} sibling. \code{metric} selects
+representations, with the value column followed by its \verb{_se} sibling. \code{metric} selects
 \code{"lrmsd"} (the absolute profile) or \code{"nlrmsd"} (the mean-centred profile the fit is on).
 }
 \details{

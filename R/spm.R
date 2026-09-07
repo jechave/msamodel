@@ -10,11 +10,11 @@
 #' internal core that [generate_spm()] wraps: it keeps the per-mutant record of
 #' reductions, which [generate_spm()] then reshapes into the lean, model-ready `spm`
 #' object. A future motion arm adds its quantities here the same way `dr2_i` / `dr2_n`
-#' are added -- by calling penm's own per-mutant primitives (`penm::delta_motion_*`,
+#' are added, by calling penm's own per-mutant primitives (`penm::delta_motion_*`,
 #' which take `(wt, mut)`) inside this loop, while the mutant is live.
 #'
 #' The list-column names here keep the index-signature convention (`dr2_ijm`,
-#' `dr2_njm`): this is internal, and the letters state the shape exactly -- one row per
+#' `dr2_njm`): this is internal, and the letters state the shape exactly, one row per
 #' mutant `(j, m)`, each cell a vector over response sites `i` (or modes `n`). The
 #' public object renames them to `dr2mat_site` / `dr2mat_mode`; [generate_spm()]
 #' is the boundary between the two vocabularies.
@@ -123,14 +123,14 @@ generate_spm_core <- function(wt, n_mutations = 10,
 #' row `k` of either is the mutant described by row `k` of `energy_data`. They differ
 #' in what a column is:
 #'
-#' - `dr2mat_site` — one column per **residue**. Cell `[k, i]` is the squared
+#' - `dr2mat_site`, one column per **residue**. Cell `[k, i]` is the squared
 #'   displacement of residue `i` (Å²) under mutant `k`.
-#' - `dr2mat_mode` — one column per **normal mode**. Cell `[k, n]` is the squared
+#' - `dr2mat_mode`, one column per **normal mode**. Cell `[k, n]` is the squared
 #'   projection of the same displacement onto mode `n`.
 #'
 #' The modes are orthonormal, so each row sums to the same total in both matrices: they
-#' hold one displacement written in two bases. Neither carries column names — the
-#' response index is the column position — so that `colSums()` and the like return bare
+#' hold one displacement written in two bases. Neither carries column names, the
+#' response index being the column position, so that `colSums()` and the like return bare
 #' vectors.
 #'
 #' @param wt The protein to mutate, carrying its elastic network model.
@@ -148,13 +148,13 @@ generate_spm_core <- function(wt, n_mutations = 10,
 #' @param ensemble Which sample of mutants to draw. The mutations are random, so a scan
 #'   is one of many possible ones; a given `ensemble` always yields the same mutants, on
 #'   any machine, and a different one yields an equally valid different set. Use a single
-#'   value across anything you intend to compare, and record it -- it is what makes the
+#'   value across anything to be compared, and record it: it is what makes the
 #'   scan reproducible. Any integer. See [penm::penm_ensemble].
 #' @return An `spm` object (a classed list) with five elements:
 #'   \describe{
 #'     \item{`energy_data`}{One row per mutant, aligned with the matrix rows: `j` (the
 #'       mutated site), `m` (which replicate), `ddg` (change in folding free energy)
-#'       and `ddgact` (change in activity free energy, or `NA` — see
+#'       and `ddgact` (change in activity free energy, or `NA`; see
 #'       `pdb_site_active`).}
 #'     \item{`dr2mat_site`}{`[mutant x residue]` squared displacements (Å²).}
 #'     \item{`dr2mat_mode`}{`[mutant x mode]` squared displacements.}

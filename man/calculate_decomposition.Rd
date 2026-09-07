@@ -2,7 +2,7 @@
 % Please edit documentation in R/model.R
 \name{calculate_decomposition}
 \alias{calculate_decomposition}
-\title{Divergence decomposition at one selection strength (both axes)}
+\title{Divergence decomposition at one selection strength (both representations)}
 \usage{
 calculate_decomposition(spm, a1, a2, metric = c("lrmsd", "nlrmsd"))
 }
@@ -16,15 +16,15 @@ calculate_decomposition(spm, a1, a2, metric = c("lrmsd", "nlrmsd"))
 \item{metric}{\code{"lrmsd"} (absolute) or \code{"nlrmsd"} (mean-centred). Default \code{"lrmsd"}.}
 }
 \value{
-A list with two tibbles (\verb{$site}, \verb{$mode}). Each holds the axis key
+A list with two tibbles (\verb{$site}, \verb{$mode}). Each holds the index columns
 (\code{site}, \code{pdb_site} for site; \code{mode} for mode), the four nested-model columns, and
-the three contribution columns, all on the \code{metric} you asked for. Both branches
+the three contribution columns, all on the requested \code{metric}. Both branches
 use identical value-column names.
 }
 \description{
 The nested-model profiles AND the three sequential contributions of the divergence
-profile at a single \verb{(a1, a2)}, on \strong{both} response axes. \code{metric} applies to every
-returned column at once -- you never get some columns absolute and others centred.
+profile at a single \verb{(a1, a2)}, in \strong{both} representations. \code{metric} applies to
+every returned column at once: no result mixes absolute and centred columns.
 \code{"lrmsd"} returns the absolute nested models (\code{lrmsd_mm}...) with the absolute
 contributions (\code{phi_mut}, \code{phi_stab}, \code{phi_act}); \code{"nlrmsd"} returns the mean-centred
 nested models (\code{nlrmsd_mm}...) with the centred contributions (\code{nphi_mut},

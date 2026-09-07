@@ -2,7 +2,7 @@
 % Please edit documentation in R/model.R
 \name{calculate_profiles}
 \alias{calculate_profiles}
-\title{Predicted divergence profiles at one selection strength (both axes)}
+\title{Predicted divergence profiles at one selection strength (both representations)}
 \usage{
 calculate_profiles(spm, a1, a2, metric = c("lrmsd", "nlrmsd"))
 }
@@ -22,9 +22,9 @@ branches use identical value-column names; only the key column differs.
 }
 \description{
 The model's forward per-response log structural-divergence profile at a single pair
-of selection strengths \verb{(a1, a2)}, on \strong{both} response axes at once. \code{metric} selects
+of selection strengths \verb{(a1, a2)}, in \strong{both} representations at once. \code{metric} selects
 the quantity: \code{"lrmsd"} (the absolute profile \code{log(sqrt(dr2))}) or \code{"nlrmsd"} (the
-mean-centred profile the fit is on). Returns point values only -- no error bands
+mean-centred profile the fit is on). Returns point values only, with no error bands
 (there is no fit and hence no parameter covariance); for bands from a fit use
 \code{\link[=predict_profiles]{predict_profiles()}}.
 }

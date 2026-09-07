@@ -6,14 +6,14 @@
 #' The MSA model proper: the probability that a single-point mutant fixes under
 #' stability selection (strength `a1`) and activity selection (strength `a2`),
 #' `p_fix = min(exp(-a1 * ddg), 1) * min(exp(-a2 * ddgact), 1)`. This is a property
-#' of a mutant on its own -- it depends only on the mutant's two energy changes and
-#' the selection strengths, not on any ensemble -- so it is the elementary quantity
+#' of a mutant on its own. It depends only on the mutant's two energy changes and
+#' the selection strengths, not on any ensemble, so it is the elementary quantity
 #' an evolutionary-trajectory simulation would evaluate step by step, as well as the
 #' primitive the model's ensemble-averaging weights are built from.
 #'
 #' Pure and vectorised: `ddg` and `ddgact` may be scalars (one mutant) or
 #' equal-length vectors (many mutants), and the result matches their shape. This is
-#' *not* normalised -- turning fixation probabilities into averaging weights over a
+#' *not* normalised. Turning fixation probabilities into averaging weights over a
 #' particular ensemble of mutants is a separate, ensemble-specific step.
 #'
 #' @param ddg Stability free-energy change(s) of the mutant(s), as carried in an
@@ -183,8 +183,8 @@ nlrmsd_msa_decomposition <- function(dr2mat, energy_data, a1, a2) {
 
 #' Prepend the site key to a site-axis value tibble
 #'
-#' `site_map` IS the key table -- `(site, pdb_site)`, one row per site, already in
-#' `dr2mat_site` column order -- so it is bound on positionally rather than joined against a
+#' `site_map` IS the key table: `(site, pdb_site)`, one row per site, already in
+#' `dr2mat_site` column order, so it is bound on positionally rather than joined against a
 #' manufactured index. The row-count equality that makes that valid is asserted, not
 #' assumed: a positional bind fails loud on a mismatch where a join would have silently
 #' filled `pdb_site` with `NA`.
@@ -204,7 +204,7 @@ prepend_site_key <- function(site_map, body) {
 #' Prepend the mode key to a mode-axis value tibble
 #'
 #' The mode-axis counterpart of `prepend_site_key()`. Modes are not residue-anchored, so
-#' `mode_map` is a single `mode` column -- the index is the whole map -- but it is a
+#' `mode_map` is a single `mode` column, the index being the whole map, but it is a
 #' STORED key bound on positionally, and its row count is asserted for the same reason.
 #'
 #' @param mode_map The `(mode)` key tibble, i.e. `spm$mode_map`.
@@ -232,7 +232,7 @@ prepend_mode_key <- function(mode_map, body) {
 #'
 #' TO THE MAINTAINER, if you are reading this from a traceback: add the missing branch
 #' to the verb that raised it, or drop the metric from that verb's formals. The message
-#' itself stays user-facing -- it says what happened, not what to go edit.
+#' itself stays user-facing: it says what happened, not what to go edit.
 #'
 #' @param metric The metric string that reached no branch.
 #' @return A character message for `stop()`.
@@ -244,12 +244,12 @@ unimplemented_metric_message <- function(metric) {
 # ---- the model layer public verbs: evaluate at a GIVEN (a1, a2), no fit ----------
 
 
-#' Predicted divergence profiles at one selection strength (both axes)
+#' Predicted divergence profiles at one selection strength (both representations)
 #'
 #' The model's forward per-response log structural-divergence profile at a single pair
-#' of selection strengths `(a1, a2)`, on **both** response axes at once. `metric` selects
+#' of selection strengths `(a1, a2)`, in **both** representations at once. `metric` selects
 #' the quantity: `"lrmsd"` (the absolute profile `log(sqrt(dr2))`) or `"nlrmsd"` (the
-#' mean-centred profile the fit is on). Returns point values only -- no error bands
+#' mean-centred profile the fit is on). Returns point values only, with no error bands
 #' (there is no fit and hence no parameter covariance); for bands from a fit use
 #' [predict_profiles()].
 #'
@@ -301,11 +301,11 @@ calculate_profiles <- function(spm, a1, a2, metric = c("lrmsd", "nlrmsd")) {
 
 # ---- calculate_decomposition -----------------------------------------------------
 
-#' Divergence decomposition at one selection strength (both axes)
+#' Divergence decomposition at one selection strength (both representations)
 #'
 #' The nested-model profiles AND the three sequential contributions of the divergence
-#' profile at a single `(a1, a2)`, on **both** response axes. `metric` applies to every
-#' returned column at once -- you never get some columns absolute and others centred.
+#' profile at a single `(a1, a2)`, in **both** representations. `metric` applies to
+#' every returned column at once: no result mixes absolute and centred columns.
 #' `"lrmsd"` returns the absolute nested models (`lrmsd_mm`...) with the absolute
 #' contributions (`phi_mut`, `phi_stab`, `phi_act`); `"nlrmsd"` returns the mean-centred
 #' nested models (`nlrmsd_mm`...) with the centred contributions (`nphi_mut`,
@@ -318,9 +318,9 @@ calculate_profiles <- function(spm, a1, a2, metric = c("lrmsd", "nlrmsd")) {
 #' @param a1 Stability selection strength (non-negative).
 #' @param a2 Activity selection strength (non-negative).
 #' @param metric `"lrmsd"` (absolute) or `"nlrmsd"` (mean-centred). Default `"lrmsd"`.
-#' @return A list with two tibbles (`$site`, `$mode`). Each holds the axis key
+#' @return A list with two tibbles (`$site`, `$mode`). Each holds the index columns
 #'   (`site`, `pdb_site` for site; `mode` for mode), the four nested-model columns, and
-#'   the three contribution columns, all on the `metric` you asked for. Both branches
+#'   the three contribution columns, all on the requested `metric`. Both branches
 #'   use identical value-column names.
 #' @seealso [predict_decomposition()] (the same, with error bands from a fit);
 #'   [calculate_profiles()] (the profile these contributions sum to).

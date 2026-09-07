@@ -26,15 +26,15 @@ A numeric vector of fixation probabilities, the same length as \code{ddg}.
 The MSA model proper: the probability that a single-point mutant fixes under
 stability selection (strength \code{a1}) and activity selection (strength \code{a2}),
 \code{p_fix = min(exp(-a1 * ddg), 1) * min(exp(-a2 * ddgact), 1)}. This is a property
-of a mutant on its own -- it depends only on the mutant's two energy changes and
-the selection strengths, not on any ensemble -- so it is the elementary quantity
+of a mutant on its own. It depends only on the mutant's two energy changes and
+the selection strengths, not on any ensemble, so it is the elementary quantity
 an evolutionary-trajectory simulation would evaluate step by step, as well as the
 primitive the model's ensemble-averaging weights are built from.
 }
 \details{
 Pure and vectorised: \code{ddg} and \code{ddgact} may be scalars (one mutant) or
 equal-length vectors (many mutants), and the result matches their shape. This is
-\emph{not} normalised -- turning fixation probabilities into averaging weights over a
+\emph{not} normalised. Turning fixation probabilities into averaging weights over a
 particular ensemble of mutants is a separate, ensemble-specific step.
 }
 \examples{

@@ -57,7 +57,7 @@ grad_theta <- function(f, theta, h = 1e-5) {
 #'
 #' It is returned as a matrix rather than already reduced to that variance because a
 #' DIFFERENCE of two models on the same mutant ensemble (a component contrast) must
-#' difference the contributions BEFORE squaring -- `Var = sum_k (h_A - h_B)[k, ]^2` -- so
+#' difference the contributions BEFORE squaring (`Var = sum_k (h_A - h_B)[k, ]^2`), so
 #' the shared-sample cross term is retained automatically, the same mutant `k` appearing
 #' in both `h`'s. Reducing to a variance first would lose that.
 #'
@@ -107,7 +107,7 @@ spm_hmat <- function(dr2mat, weights, centred) {
 #' sums of squares by construction (the parameter arm is a quadratic form in a
 #' positive-definite `cov`; the SPM arm is a sum of squared contributions) and the fitter
 #' already rejects a non-positive-definite Hessian (`R/fitting.R`), so a negative here
-#' means a real defect upstream -- a mis-wired Jacobian, a corrupted covariance, or a sign
+#' means a real defect upstream: a mis-wired Jacobian, a corrupted covariance, or a sign
 #' error in the component differencing. Clamping to zero would produce a clean-looking
 #' zero se, and zero is a PLAUSIBLE value here (the MM nested model has a zero parameter
 #' arm by construction), so the corruption would not even look anomalous.
@@ -250,7 +250,7 @@ var_param_nested_nlrmsd <- function(dr2mat, energy_data, fit) {
 
 #' SPM-arm variances of the four mean-centred nested models
 #'
-#' Each variant's weights come from its OWN selection strengths, not the fit's -- the
+#' Each variant's weights come from its OWN selection strengths, not the fit's. The
 #' four `(a1, a2)` pairs below ARE the MM/MS/MA/MSA definition.
 #'
 #' @inheritParams var_param_profile_lrmsd
@@ -282,14 +282,14 @@ se_nested_nlrmsd <- function(dr2mat, energy_data, fit) {
   )
 }
 
-#' Standard errors of the four uncentred nested models -- TO BE DEVELOPED
+#' Standard errors of the four uncentred nested models (TO BE DEVELOPED)
 #'
 #' The uncentred nested-model standard error has not been derived. This function exists
 #' so the gap has a named home rather than a guard at the top of the calling verb: the
 #' lrmsd branch is undeveloped, not absent.
 #'
 #' The message is what a user sees from `predict_decomposition(metric = "lrmsd")`, so it
-#' names that call and the way forward -- not this helper, which they never called.
+#' names that call and the way forward, not this helper, which they never called.
 #'
 #' @inheritParams var_param_profile_lrmsd
 #' @return Never returns; stops.
@@ -345,7 +345,7 @@ var_param_components_nlrmsd <- function(dr2mat, energy_data, fit) {
 #' `mut` is a LEVEL (`nphi_mut = nlrmsd_mm`); `stab` and `act` are DIFFERENCES, and their
 #' contributions are differenced before squaring so the shared-sample cross term is
 #' retained. `h_ma` is never built: the sequential split uses MM/MS/MSA only, so the MA
-#' variant -- reported as its own nested column -- does not enter any contrast.
+#' variant, reported as its own nested column, does not enter any contrast.
 #'
 #' @inheritParams var_param_profile_lrmsd
 #' @return A named list `mut`/`stab`/`act` of per-element variance vectors.
@@ -376,14 +376,14 @@ se_components_nlrmsd <- function(dr2mat, energy_data, fit) {
   )
 }
 
-#' Standard errors of the three uncentred components -- TO BE DEVELOPED
+#' Standard errors of the three uncentred components (TO BE DEVELOPED)
 #'
 #' The uncentred component standard error has not been derived. This function exists so
 #' the gap has a named home rather than a guard at the top of the calling verb: the lrmsd
 #' branch is undeveloped, not absent.
 #'
 #' The message is what a user sees from `predict_decomposition(metric = "lrmsd")`, so it
-#' names that call and the way forward -- not this helper, which they never called.
+#' names that call and the way forward, not this helper, which they never called.
 #'
 #' @inheritParams var_param_profile_lrmsd
 #' @return Never returns; stops.

@@ -36,7 +36,7 @@ leaves the model's activity term unusable.}
 \item{ensemble}{Which sample of mutants to draw. The mutations are random, so a scan
 is one of many possible ones; a given \code{ensemble} always yields the same mutants, on
 any machine, and a different one yields an equally valid different set. Use a single
-value across anything you intend to compare, and record it -- it is what makes the
+value across anything to be compared, and record it: it is what makes the
 scan reproducible. Any integer. See \link[penm:penm_ensemble]{penm::penm_ensemble}.}
 }
 \value{
@@ -44,7 +44,7 @@ An \code{spm} object (a classed list) with five elements:
 \describe{
 \item{\code{energy_data}}{One row per mutant, aligned with the matrix rows: \code{j} (the
 mutated site), \code{m} (which replicate), \code{ddg} (change in folding free energy)
-and \code{ddgact} (change in activity free energy, or \code{NA} — see
+and \code{ddgact} (change in activity free energy, or \code{NA}; see
 \code{pdb_site_active}).}
 \item{\code{dr2mat_site}}{\verb{[mutant x residue]} squared displacements (Å²).}
 \item{\code{dr2mat_mode}}{\verb{[mutant x mode]} squared displacements.}
@@ -72,15 +72,15 @@ squared displacements.
 row \code{k} of either is the mutant described by row \code{k} of \code{energy_data}. They differ
 in what a column is:
 \itemize{
-\item \code{dr2mat_site} — one column per \strong{residue}. Cell \verb{[k, i]} is the squared
+\item \code{dr2mat_site}, one column per \strong{residue}. Cell \verb{[k, i]} is the squared
 displacement of residue \code{i} (Å²) under mutant \code{k}.
-\item \code{dr2mat_mode} — one column per \strong{normal mode}. Cell \verb{[k, n]} is the squared
+\item \code{dr2mat_mode}, one column per \strong{normal mode}. Cell \verb{[k, n]} is the squared
 projection of the same displacement onto mode \code{n}.
 }
 
 The modes are orthonormal, so each row sums to the same total in both matrices: they
-hold one displacement written in two bases. Neither carries column names — the
-response index is the column position — so that \code{colSums()} and the like return bare
+hold one displacement written in two bases. Neither carries column names, the
+response index being the column position, so that \code{colSums()} and the like return bare
 vectors.
 }
 

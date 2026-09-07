@@ -2,7 +2,7 @@
 % Please edit documentation in R/fitting.R
 \name{fit_lrmsd_msa_site}
 \alias{fit_lrmsd_msa_site}
-\title{Maximum-likelihood point fit of the MSA model to a site-axis profile}
+\title{Maximum-likelihood point fit of the MSA model to a site profile}
 \usage{
 fit_lrmsd_msa_site(
   spm,
@@ -19,7 +19,7 @@ fit_lrmsd_msa_site(
 
 \item{pdb_site}{Integer vector of PDB residue numbers identifying the observations.
 Observations are a \verb{(pdb_site, lrmsd_obs)} vector pair rather than a data frame, so
-the columns of your own table can be named anything. May cover a subset of the
+the columns of the user's own table can be named anything. May cover a subset of the
 model's sites; every value must exist in the model.}
 
 \item{lrmsd_obs}{Numeric vector of observed log structural divergences (the fit
@@ -53,8 +53,9 @@ negative means worse than a constant profile, a real signal, not an error),
 \code{nobs} (matched observations scored), \code{k} (\code{3}: \code{a1}, \code{a2}, profiled \code{sigma}),
 \code{sigma_hat}. \code{AIC}/\code{BIC} are per-fit numbers, meaningful only compared against
 another model fit at its own maximum.}
-\item{call}{The matched call that produced this fit -- the fit itself is
-axis-free, so this is what records which fitter made it.}
+\item{call}{The matched call that produced this fit. The fit itself does not
+record which representation it came from, so this is what identifies the
+fitter that made it.}
 }
 }
 \description{
@@ -67,7 +68,7 @@ and path simulations.
 \details{
 The optimiser works in the coordinates \code{a1} and
 \code{log2(a2 + 1)} (so \code{a2 = 2^(log2(a2+1)) - 1 >= 0}), on the box \code{a1_range} ×
-\code{log2_a2_plus1_range} — the coordinates in which the prior is uniform. The
+\code{log2_a2_plus1_range}, the coordinates in which the prior is uniform. The
 returned covariance \code{cov} is on the \verb{(a1, log2(a2+1))} scale; the standard error
 of \code{a2} is obtained by the delta method (\verb{da2/d(log2(a2+1)) = 2^(log2(a2+1)) * ln 2}).
 }
