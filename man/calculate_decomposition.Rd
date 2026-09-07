@@ -22,17 +22,20 @@ the three contribution columns, all on the requested \code{metric}. Both branche
 use identical value-column names.
 }
 \description{
-The nested-model profiles AND the three sequential contributions of the divergence
-profile at a single \verb{(a1, a2)}, in \strong{both} representations. \code{metric} applies to
-every returned column at once: no result mixes absolute and centred columns.
-\code{"lrmsd"} returns the absolute nested models (\code{lrmsd_mm}...) with the absolute
-contributions (\code{phi_mut}, \code{phi_stab}, \code{phi_act}); \code{"nlrmsd"} returns the mean-centred
-nested models (\code{nlrmsd_mm}...) with the centred contributions (\code{nphi_mut},
-\code{nphi_stab}, \code{nphi_act}). Point values only; for bands from a fit use
-\code{\link[=predict_decomposition]{predict_decomposition()}}.
+The nested-model profiles and the three contributions that decompose them, at a
+single pair of selection strengths, in both representations.
 }
 \details{
-The three contributions sum exactly to the full-model (\code{msa}) profile.
+Switching each selection constraint off in turn gives four nested models: MM with
+both off, MS with stability only, MA with activity only, and MSA with both. Each is
+evaluated as in \code{\link[=calculate_profiles]{calculate_profiles()}}, at its own selection strengths. The three
+contributions are the increments along the path MM to MS to MSA: mutation is MM
+itself, stability is MS minus MM, and activity is MSA minus MS. They sum exactly to
+the MSA profile.
+
+\code{metric} applies to every returned column at once, so no result mixes absolute and
+centred columns. The selection strengths are given as arguments, so the values come
+back without standard errors; for bands from a fit use \code{\link[=predict_decomposition]{predict_decomposition()}}.
 }
 \examples{
 if (requireNamespace("bio3d", quietly = TRUE)) {

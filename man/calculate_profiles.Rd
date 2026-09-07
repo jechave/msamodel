@@ -21,12 +21,20 @@ A list with two tibbles. \code{$site}: \code{site}, \code{pdb_site}, and the pro
 branches use identical value-column names; only the key column differs.
 }
 \description{
-The model's forward per-response log structural-divergence profile at a single pair
-of selection strengths \verb{(a1, a2)}, in \strong{both} representations at once. \code{metric} selects
-the quantity: \code{"lrmsd"} (the absolute profile \code{log(sqrt(dr2))}) or \code{"nlrmsd"} (the
-mean-centred profile the fit is on). Returns point values only, with no error bands
-(there is no fit and hence no parameter covariance); for bands from a fit use
-\code{\link[=predict_profiles]{predict_profiles()}}.
+The model's divergence profile at a single pair of selection strengths, in both
+representations at once.
+}
+\details{
+Each mutant in the scan carries a squared displacement at every residue and every
+mode, and, at the given \verb{(a1, a2)}, a fixation probability. Averaging the squared
+displacements over the mutant ensemble, weighted by the normalised fixation
+probabilities, gives the mean squared displacement at each response; the profile is
+its log root. \code{metric} selects the quantity: \code{"lrmsd"} is that profile,
+\code{"nlrmsd"} the same profile with its mean subtracted.
+
+The selection strengths are given as arguments, so there is no fit and no parameter
+covariance: the values come back without standard errors. For a profile at fitted
+strengths, with error bands, use \code{\link[=predict_profiles]{predict_profiles()}}.
 }
 \examples{
 if (requireNamespace("bio3d", quietly = TRUE)) {

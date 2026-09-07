@@ -11,10 +11,10 @@
 #' an evolutionary-trajectory simulation would evaluate step by step, as well as the
 #' primitive the model's ensemble-averaging weights are built from.
 #'
-#' Pure and vectorised: `ddg` and `ddgact` may be scalars (one mutant) or
-#' equal-length vectors (many mutants), and the result matches their shape. This is
-#' *not* normalised. Turning fixation probabilities into averaging weights over a
-#' particular ensemble of mutants is a separate, ensemble-specific step.
+#' Pure and vectorised: `ddg` and `ddgact` may be scalars (one mutant) or equal-length
+#' vectors (many mutants), and the result matches their shape. The value is *not*
+#' normalised. Turning fixation probabilities into averaging weights over a particular
+#' ensemble of mutants is a separate, ensemble-specific step.
 #'
 #' @param ddg Stability free-energy change(s) of the mutant(s), as carried in an
 #'   `spm` object's `energy_data$ddg`. Scalar or vector.
@@ -246,12 +246,19 @@ unimplemented_metric_message <- function(metric) {
 
 #' Predicted divergence profiles at one selection strength (both representations)
 #'
-#' The model's forward per-response log structural-divergence profile at a single pair
-#' of selection strengths `(a1, a2)`, in **both** representations at once. `metric` selects
-#' the quantity: `"lrmsd"` (the absolute profile `log(sqrt(dr2))`) or `"nlrmsd"` (the
-#' mean-centred profile the fit is on). Returns point values only, with no error bands
-#' (there is no fit and hence no parameter covariance); for bands from a fit use
-#' [predict_profiles()].
+#' The model's divergence profile at a single pair of selection strengths, in both
+#' representations at once.
+#'
+#' Each mutant in the scan carries a squared displacement at every residue and every
+#' mode, and, at the given `(a1, a2)`, a fixation probability. Averaging the squared
+#' displacements over the mutant ensemble, weighted by the normalised fixation
+#' probabilities, gives the mean squared displacement at each response; the profile is
+#' its log root. `metric` selects the quantity: `"lrmsd"` is that profile,
+#' `"nlrmsd"` the same profile with its mean subtracted.
+#'
+#' The selection strengths are given as arguments, so there is no fit and no parameter
+#' covariance: the values come back without standard errors. For a profile at fitted
+#' strengths, with error bands, use [predict_profiles()].
 #'
 #' @param spm A single-point-mutation `spm` object from [generate_spm()].
 #' @param a1 Stability selection strength (non-negative). `0` disables it.
@@ -303,16 +310,19 @@ calculate_profiles <- function(spm, a1, a2, metric = c("lrmsd", "nlrmsd")) {
 
 #' Divergence decomposition at one selection strength (both representations)
 #'
-#' The nested-model profiles AND the three sequential contributions of the divergence
-#' profile at a single `(a1, a2)`, in **both** representations. `metric` applies to
-#' every returned column at once: no result mixes absolute and centred columns.
-#' `"lrmsd"` returns the absolute nested models (`lrmsd_mm`...) with the absolute
-#' contributions (`phi_mut`, `phi_stab`, `phi_act`); `"nlrmsd"` returns the mean-centred
-#' nested models (`nlrmsd_mm`...) with the centred contributions (`nphi_mut`,
-#' `nphi_stab`, `nphi_act`). Point values only; for bands from a fit use
-#' [predict_decomposition()].
+#' The nested-model profiles and the three contributions that decompose them, at a
+#' single pair of selection strengths, in both representations.
 #'
-#' The three contributions sum exactly to the full-model (`msa`) profile.
+#' Switching each selection constraint off in turn gives four nested models: MM with
+#' both off, MS with stability only, MA with activity only, and MSA with both. Each is
+#' evaluated as in [calculate_profiles()], at its own selection strengths. The three
+#' contributions are the increments along the path MM to MS to MSA: mutation is MM
+#' itself, stability is MS minus MM, and activity is MSA minus MS. They sum exactly to
+#' the MSA profile.
+#'
+#' `metric` applies to every returned column at once, so no result mixes absolute and
+#' centred columns. The selection strengths are given as arguments, so the values come
+#' back without standard errors; for bands from a fit use [predict_decomposition()].
 #'
 #' @param spm A single-point-mutation `spm` object from [generate_spm()].
 #' @param a1 Stability selection strength (non-negative).

@@ -27,14 +27,17 @@ representations, with the value column followed by its \code{_se} sibling. \code
 \code{"lrmsd"} (the absolute profile) or \code{"nlrmsd"} (the mean-centred profile the fit is on).
 }
 \details{
-The standard error sums two independent sources: the fit's parameter uncertainty
-(propagated by the delta method) and the SPM finite-mutation sampling error of the
-scan itself.
+Evaluates the model at the selection strengths a fit estimated, and returns the
+divergence profile in both representations with a standard error on every value.
 
-For \code{metric = "nlrmsd"} the profile is centred by its own mean over the full model
-support. Prediction centres over all model residues, agnostic to which residues a
-given dataset observes; when overlaying observed data, centre it on its own matched
-support.
+The standard error sums two independent sources: the uncertainty of the fitted
+\verb{(a1, a2)}, propagated through the model by the delta method, and the
+finite-mutation sampling error of the scan, which is present even at perfectly
+known selection strengths.
+
+With \code{metric = "nlrmsd"} the profile is centred on its mean over all model
+residues, not over the residues a particular dataset happens to observe. Observed
+data overlaid on it should be centred on its own matched support.
 }
 \examples{
 if (requireNamespace("bio3d", quietly = TRUE)) {

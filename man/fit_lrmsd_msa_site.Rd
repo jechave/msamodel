@@ -59,13 +59,16 @@ fitter that made it.}
 }
 }
 \description{
-Maximises the profiled Gaussian log-likelihood (\code{loglik_lrmsd_msa()}, evaluated on
-\code{spm$dr2mat_site})
-over \verb{(a1, a2)} by numerical optimisation, returning a point estimate plus an
-asymptotic covariance from the Hessian at the optimum. Intended for large proteins
-and path simulations.
+Finds the pair of selection strengths under which the model's site profile best
+matches an observed one.
 }
 \details{
+The observations are given as two vectors, the residue numbers and the divergence at
+each. They may cover a subset of the model's residues, in which case the fit uses the
+overlap. Maximising the profiled Gaussian log-likelihood over \verb{(a1, a2)} by numerical
+optimisation gives a point estimate, with an asymptotic covariance from the Hessian
+at the optimum, and a goodness-of-fit summary in \verb{$gof}.
+
 The optimiser works in the coordinates \code{a1} and
 \code{log2(a2 + 1)} (so \code{a2 = 2^(log2(a2+1)) - 1 >= 0}), on the box \code{a1_range} ×
 \code{log2_a2_plus1_range}, the coordinates in which the prior is uniform. The

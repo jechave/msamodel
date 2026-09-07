@@ -29,9 +29,14 @@ of those seven, named by appending \code{_se}. \code{$site} is indexed by \code{
 three contributions, each with a standard error, in both representations.
 }
 \details{
-The standard error sums two independent sources: the fit's parameter uncertainty,
-propagated by the delta method, and the SPM finite-mutation sampling error of the
-scan itself.
+Evaluates the nested models and the decomposition at the selection strengths a fit
+estimated, and returns them in both representations with a standard error on every
+value.
+
+The four nested models and the three contributions are formed as in
+\code{\link[=calculate_decomposition]{calculate_decomposition()}}. The standard error sums two independent sources: the
+uncertainty of the fitted \verb{(a1, a2)}, propagated through the model by the delta
+method, and the finite-mutation sampling error of the scan.
 
 Only \code{"nlrmsd"} is currently available, and it is the default, so a bare call works.
 \code{metric = "lrmsd"} stops: the uncentred standard error is not yet derived.

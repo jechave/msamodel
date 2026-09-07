@@ -44,14 +44,17 @@ validate_ml_fit <- function(fit, producer) {
 #' representations, with the value column followed by its \code{_se} sibling. `metric` selects
 #' `"lrmsd"` (the absolute profile) or `"nlrmsd"` (the mean-centred profile the fit is on).
 #'
-#' The standard error sums two independent sources: the fit's parameter uncertainty
-#' (propagated by the delta method) and the SPM finite-mutation sampling error of the
-#' scan itself.
+#' Evaluates the model at the selection strengths a fit estimated, and returns the
+#' divergence profile in both representations with a standard error on every value.
 #'
-#' For `metric = "nlrmsd"` the profile is centred by its own mean over the full model
-#' support. Prediction centres over all model residues, agnostic to which residues a
-#' given dataset observes; when overlaying observed data, centre it on its own matched
-#' support.
+#' The standard error sums two independent sources: the uncertainty of the fitted
+#' `(a1, a2)`, propagated through the model by the delta method, and the
+#' finite-mutation sampling error of the scan, which is present even at perfectly
+#' known selection strengths.
+#'
+#' With `metric = "nlrmsd"` the profile is centred on its mean over all model
+#' residues, not over the residues a particular dataset happens to observe. Observed
+#' data overlaid on it should be centred on its own matched support.
 #'
 #' @param fit A list from [fit_lrmsd_msa_site()] (site) or [fit_lrmsd_msa_mode()] (mode),
 #'   carrying `a1`, `a2`, and the 2x2 `cov` on the `(a1, log2(a2+1))` scale. One fit
@@ -119,9 +122,14 @@ predict_profiles <- function(fit, spm, metric = c("lrmsd", "nlrmsd")) {
 #' [calculate_decomposition()] with uncertainty: the four nested-model profiles and the
 #' three contributions, each with a standard error, in both representations.
 #'
-#' The standard error sums two independent sources: the fit's parameter uncertainty,
-#' propagated by the delta method, and the SPM finite-mutation sampling error of the
-#' scan itself.
+#' Evaluates the nested models and the decomposition at the selection strengths a fit
+#' estimated, and returns them in both representations with a standard error on every
+#' value.
+#'
+#' The four nested models and the three contributions are formed as in
+#' [calculate_decomposition()]. The standard error sums two independent sources: the
+#' uncertainty of the fitted `(a1, a2)`, propagated through the model by the delta
+#' method, and the finite-mutation sampling error of the scan.
 #'
 #' Only `"nlrmsd"` is currently available, and it is the default, so a bare call works.
 #' `metric = "lrmsd"` stops: the uncentred standard error is not yet derived.

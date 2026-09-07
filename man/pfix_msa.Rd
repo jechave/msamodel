@@ -32,10 +32,10 @@ an evolutionary-trajectory simulation would evaluate step by step, as well as th
 primitive the model's ensemble-averaging weights are built from.
 }
 \details{
-Pure and vectorised: \code{ddg} and \code{ddgact} may be scalars (one mutant) or
-equal-length vectors (many mutants), and the result matches their shape. This is
-\emph{not} normalised. Turning fixation probabilities into averaging weights over a
-particular ensemble of mutants is a separate, ensemble-specific step.
+Pure and vectorised: \code{ddg} and \code{ddgact} may be scalars (one mutant) or equal-length
+vectors (many mutants), and the result matches their shape. The value is \emph{not}
+normalised. Turning fixation probabilities into averaging weights over a particular
+ensemble of mutants is a separate, ensemble-specific step.
 }
 \examples{
 # One mutant, from its two energy changes:

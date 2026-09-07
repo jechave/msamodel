@@ -60,13 +60,16 @@ fitter that made it.}
 }
 \description{
 Mode counterpart of \code{\link[=fit_lrmsd_msa_site]{fit_lrmsd_msa_site()}}: maximises the profiled Gaussian
-log-likelihood over \verb{(a1, a2)} by numerical optimisation, returning a point estimate
-plus an asymptotic covariance from the Hessian at the optimum. Identical machinery to
-the site fit: the same representation-blind objective \code{loglik_lrmsd_msa()}, evaluated on
-\code{spm$dr2mat_mode} instead of \code{spm$dr2mat_site}; the response index is the mode (no \code{site_map}
-/ \code{pdb_site}).
+log-likelihood over \verb{(a1, a2)} by numerical optimisation, giving a point estimate,
+an asymptotic covariance from the Hessian at the optimum, and a goodness-of-fit
+summary in \verb{$gof}.
 }
 \details{
+The observations are given as two vectors, the mode indices and the divergence at
+each. The machinery is identical to the site fit, the same objective evaluated on the
+mode representation of the scan; the response index is the mode, so there is no
+\code{pdb_site}.
+
 The optimiser works in the same coordinates as the site fit: \code{a1} and
 \code{log2(a2 + 1)} (so \code{a2 = 2^(log2(a2+1)) - 1 >= 0}), on the box \code{a1_range} ×
 \code{log2_a2_plus1_range}, the coordinates in which the prior is uniform. The

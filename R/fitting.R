@@ -281,11 +281,14 @@ resolve_mode_obs <- function(valid_modes, mode, lrmsd_obs) {
 
 #' Maximum-likelihood point fit of the MSA model to a site profile
 #'
-#' Maximises the profiled Gaussian log-likelihood (`loglik_lrmsd_msa()`, evaluated on
-#' `spm$dr2mat_site`)
-#' over `(a1, a2)` by numerical optimisation, returning a point estimate plus an
-#' asymptotic covariance from the Hessian at the optimum. Intended for large proteins
-#' and path simulations.
+#' Finds the pair of selection strengths under which the model's site profile best
+#' matches an observed one.
+#'
+#' The observations are given as two vectors, the residue numbers and the divergence at
+#' each. They may cover a subset of the model's residues, in which case the fit uses the
+#' overlap. Maximising the profiled Gaussian log-likelihood over `(a1, a2)` by numerical
+#' optimisation gives a point estimate, with an asymptotic covariance from the Hessian
+#' at the optimum, and a goodness-of-fit summary in `$gof`.
 #'
 #' The optimiser works in the coordinates `a1` and
 #' `log2(a2 + 1)` (so `a2 = 2^(log2(a2+1)) - 1 >= 0`), on the box `a1_range` ×
@@ -362,11 +365,14 @@ fit_lrmsd_msa_site <- function(spm,
 #' Maximum-likelihood point fit of the MSA model to a mode profile
 #'
 #' Mode counterpart of [fit_lrmsd_msa_site()]: maximises the profiled Gaussian
-#' log-likelihood over `(a1, a2)` by numerical optimisation, returning a point estimate
-#' plus an asymptotic covariance from the Hessian at the optimum. Identical machinery to
-#' the site fit: the same representation-blind objective `loglik_lrmsd_msa()`, evaluated on
-#' `spm$dr2mat_mode` instead of `spm$dr2mat_site`; the response index is the mode (no `site_map`
-#' / `pdb_site`).
+#' log-likelihood over `(a1, a2)` by numerical optimisation, giving a point estimate,
+#' an asymptotic covariance from the Hessian at the optimum, and a goodness-of-fit
+#' summary in `$gof`.
+#'
+#' The observations are given as two vectors, the mode indices and the divergence at
+#' each. The machinery is identical to the site fit, the same objective evaluated on the
+#' mode representation of the scan; the response index is the mode, so there is no
+#' `pdb_site`.
 #'
 #' The optimiser works in the same coordinates as the site fit: `a1` and
 #' `log2(a2 + 1)` (so `a2 = 2^(log2(a2+1)) - 1 >= 0`), on the box `a1_range` ×
