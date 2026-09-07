@@ -46,21 +46,42 @@ installed alongside. Neither package is on CRAN.
 
 ## Interface
 
-Inputs are a PDB file, active-site residue numbers, and, to fit, an observed
-profile. Measuring that profile, by superimposing homologs over an alignment, is
-outside this package.
+The inputs are a PDB file and a vector of active-site residue numbers. Fitting also
+takes an observed divergence profile, as two vectors: the residue numbers, and the
+divergence at each. Measuring that profile, by superimposing homologs over an
+alignment, is outside this package.
 
-`generate_spm()` mutates every site and records the structural response.
-Everything else works from its output.
+`generate_spm()` mutates every site and records the structural response. Everything
+else works from its output.
 
-`calculate_profiles()` and `calculate_decomposition()` evaluate the model at
-selection strengths set to chosen values, to explore how each constraint shapes the
-profiles. `predict_profiles()` and `predict_decomposition()` evaluate it at a fit
-obtained from data, with error bands. Fits come from `fit_lrmsd_msa_site()` on the
-residue axis and `fit_lrmsd_msa_mode()` on the mode axis.
+| Function | Evaluates the model at | Returns |
+|---|---|---|
+| `calculate_profiles()` | selection strengths given as arguments | the profile |
+| `calculate_decomposition()` | selection strengths given as arguments | the nested models and the three contributions |
+| `predict_profiles()` | a fit, with standard errors | the profile |
+| `predict_decomposition()` | a fit, with standard errors | the nested models and the three contributions |
 
-All four return a `$site` table and a `$mode` table, holding the profiles on the
-residue axis and on the normal-mode axis.
+The `calculate_*` pair explores how each constraint shapes the profiles; the
+`predict_*` pair evaluates the model where the data puts it. Fits come from
+`fit_lrmsd_msa_site()` on the residue axis and `fit_lrmsd_msa_mode()` on the mode
+axis.
+
+All four return a `$site` and a `$mode` tibble, holding the profiles on the two
+axes. Their `metric` argument chooses the quantity: `"lrmsd"` keeps the profile's
+overall level, `"nlrmsd"` centres it on its mean, which is the form a fit is made on.
+
+## Documentation
+
+`?msamodel` is the package page: the workflow in order, with a link to each
+function.
+
+Three vignettes, each a worked example on the shipped protein:
+
+```r
+vignette("msamodel")             # the whole workflow, scan to decomposition
+vignette("msamodel-explore")     # the model at chosen selection strengths
+vignette("msamodel-fit")         # estimating those strengths from data
+```
 
 ## Example
 
@@ -237,15 +258,6 @@ Dashed lines mark active-site residues, and bands are 95% intervals. The mode
 panels show the first `r n_modes_shown` of `r nrow(pred$mode)` modes, which are the
 slowest and highest-divergence ones: `nlrmsd` is centred over all
 `r nrow(pred$mode)`, so a cropped panel does not appear centred on zero.
-
-## Documentation
-
-```r
-?msamodel                        # API, indexed by workflow step
-vignette("msamodel")             # both axes, end to end
-vignette("msamodel-explore")     # profiles at chosen parameters, both axes
-vignette("msamodel-fit")         # fitting to data, with confidence bands
-```
 
 ## Reference
 
