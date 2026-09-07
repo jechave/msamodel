@@ -3,18 +3,21 @@
 
 #' Fixation probability of a mutant under the MSA model
 #'
-#' The MSA model proper: the probability that a single-point mutant fixes under
-#' stability selection (strength `a1`) and activity selection (strength `a2`),
-#' `p_fix = min(exp(-a1 * ddg), 1) * min(exp(-a2 * ddgact), 1)`. This is a property
-#' of a mutant on its own. It depends only on the mutant's two energy changes and
-#' the selection strengths, not on any ensemble, so it is the elementary quantity
-#' an evolutionary-trajectory simulation would evaluate step by step, as well as the
-#' primitive the model's ensemble-averaging weights are built from.
+#' The probability that a single-point mutant fixes, under stability selection of
+#' strength `a1` and activity selection of strength `a2`.
 #'
-#' Pure and vectorised: `ddg` and `ddgact` may be scalars (one mutant) or equal-length
-#' vectors (many mutants), and the result matches their shape. The value is *not*
-#' normalised. Turning fixation probabilities into averaging weights over a particular
-#' ensemble of mutants is a separate, ensemble-specific step.
+#' @details
+#' The probability is
+#' `p_fix = min(exp(-a1 * ddg), 1) * min(exp(-a2 * ddgact), 1)`, a property of one
+#' mutant on its own: it depends only on that mutant's two energy changes and the
+#' selection strengths, not on any ensemble of mutants.
+#'
+#' The function is vectorised. `ddg` and `ddgact` may be scalars, for one mutant, or
+#' equal-length vectors, for many, and the result matches their shape.
+#'
+#' The value is not normalised. Turning fixation probabilities into averaging weights
+#' over a particular ensemble of mutants is a separate step, which the profile
+#' functions perform internally.
 #'
 #' @param ddg Stability free-energy change(s) of the mutant(s), as carried in an
 #'   `spm` object's `energy_data$ddg`. Scalar or vector.
@@ -244,40 +247,49 @@ unimplemented_metric_message <- function(metric) {
 # ---- the model layer public verbs: evaluate at a GIVEN (a1, a2), no fit ----------
 
 
-#' Predicted divergence profiles at one selection strength (both representations)
+#' Divergence profile at given selection strengths
 #'
-#' The model's divergence profile at a single pair of selection strengths, in both
-#' representations at once.
+#' Calculates the structural divergence profile predicted by the MSA model at given
+#' selection strengths, per residue and per normal mode.
 #'
-#' Each mutant in the scan carries a squared displacement at every residue and every
-#' mode, and, at the given `(a1, a2)`, a fixation probability. Averaging the squared
-#' displacements over the mutant ensemble, weighted by the normalised fixation
-#' probabilities, gives the mean squared displacement at each response; the profile is
-#' its log root. `metric` selects the quantity: `"lrmsd"` is that profile,
-#' `"nlrmsd"` the same profile with its mean subtracted.
+#' @details
+#' The profile is `lrmsd_msa`, the divergence predicted by the full model, with both
+#' selection pressures acting at the strengths given. `metric = "nlrmsd"` returns it
+#' centred on its own mean instead, as `nlrmsd_msa`.
 #'
-#' The selection strengths are given as arguments, so there is no fit and no parameter
-#' covariance: the values come back without standard errors. For a profile at fitted
-#' strengths, with error bands, use [predict_profiles()].
+#' The selection strengths are supplied here rather than estimated, so the result
+#' carries no standard errors. For the profile at fitted strengths, with standard
+#' errors, see [predict_profiles()].
 #'
-#' @param spm A single-point-mutation `spm` object from [generate_spm()].
-#' @param a1 Stability selection strength (non-negative). `0` disables it.
-#' @param a2 Activity selection strength (non-negative). `0` disables it.
-#' @param metric `"lrmsd"` (absolute) or `"nlrmsd"` (mean-centred). Default `"lrmsd"`.
-#' @return A list with two tibbles. \code{$site}: `site`, `pdb_site`, and the profile column
-#'   (`lrmsd_msa` or `nlrmsd_msa`). \code{$mode}: `mode` and the same profile column. Both
-#'   branches use identical value-column names; only the key column differs.
-#' @seealso [predict_profiles()] (the same profiles with error bands, from a fit);
-#'   [calculate_decomposition()] (the profile split into contributions).
+#' @param spm An `spm` object from [generate_spm()].
+#' @param a1 Stability selection strength, non-negative. `0` switches stability
+#'   selection off.
+#' @param a2 Activity selection strength, non-negative. `0` switches activity
+#'   selection off. It is on a different scale from `a1`, so the two numbers are not
+#'   comparable to each other.
+#' @param metric `"lrmsd"` for the profile as predicted, `"nlrmsd"` for the
+#'   mean-centred one. Default `"lrmsd"`.
+#' @return A list of two tibbles, `$site` (one row per residue, keyed by `site`, the
+#'   column position in the scan, and `pdb_site`, the PDB residue number) and `$mode`
+#'   (one row per normal mode, keyed by `mode`). Each carries one value column,
+#'   `lrmsd_msa` or `nlrmsd_msa` according to `metric`.
+#' @seealso [calculate_decomposition()] for the same profile split into the
+#'   contributions of mutation, stability and activity selection;
+#'   [predict_profiles()] for the profile at fitted selection strengths, with standard
+#'   errors; [pfix_msa()] for the fixation probability `a1` and `a2` enter.
 #' @family api
 #' @examples
 #' if (requireNamespace("bio3d", quietly = TRUE)) {
 #'   ex  <- function(f) system.file("extdata", f, package = "msamodel")
 #'   wt  <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
-#'                               model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+#'                        model = "ming_wall", d_max = 10.5, frustrated = FALSE)
 #'   act <- read.csv(ex("1d6o_A_active_site.csv"))
 #'   spm <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
-#'   calculate_profiles(spm, a1 = 1, a2 = 1, metric = "nlrmsd")$site
+#'
+#'   calculate_profiles(spm, a1 = 2, a2 = 500)$site
+#'
+#'   # With both pressures off, the profile is mutation alone.
+#'   calculate_profiles(spm, a1 = 0, a2 = 0)$site
 #' }
 #' @export
 calculate_profiles <- function(spm, a1, a2, metric = c("lrmsd", "nlrmsd")) {
@@ -308,41 +320,75 @@ calculate_profiles <- function(spm, a1, a2, metric = c("lrmsd", "nlrmsd")) {
 
 # ---- calculate_decomposition -----------------------------------------------------
 
-#' Divergence decomposition at one selection strength (both representations)
+#' Nested-model profiles and their mutation, stability and activity contributions
 #'
-#' The nested-model profiles and the three contributions that decompose them, at a
-#' single pair of selection strengths, in both representations.
+#' Calculates the divergence profiles predicted by four nested models at given
+#' selection strengths, and decomposes the full model's profile into mutation,
+#' stability and activity contributions, per residue and per normal mode.
 #'
-#' Switching each selection constraint off in turn gives four nested models: MM with
-#' both off, MS with stability only, MA with activity only, and MSA with both. Each is
-#' evaluated as in [calculate_profiles()], at its own selection strengths. The three
-#' contributions are the increments along the path MM to MS to MSA: mutation is MM
-#' itself, stability is MS minus MM, and activity is MSA minus MS. They sum exactly to
-#' the MSA profile.
+#' @details
+#' Setting a selection strength to zero switches that pressure off, giving four
+#' models: MM `(0, 0)`, MS `(a1, 0)`, MA `(0, a2)` and MSA `(a1, a2)`. All four are
+#' evaluated, as `lrmsd_mm`, `lrmsd_ms`, `lrmsd_ma` and `lrmsd_msa`. The full model's
+#' profile is then split into increments along MM to MS to MSA:
 #'
-#' `metric` applies to every returned column at once, so no result mixes absolute and
-#' centred columns. The selection strengths are given as arguments, so the values come
-#' back without standard errors; for bands from a fit use [predict_decomposition()].
+#' \preformatted{phi_mut  = lrmsd_mm
+#' phi_stab = lrmsd_ms  - lrmsd_mm
+#' phi_act  = lrmsd_msa - lrmsd_ms}
 #'
-#' @param spm A single-point-mutation `spm` object from [generate_spm()].
-#' @param a1 Stability selection strength (non-negative).
-#' @param a2 Activity selection strength (non-negative).
-#' @param metric `"lrmsd"` (absolute) or `"nlrmsd"` (mean-centred). Default `"lrmsd"`.
-#' @return A list with two tibbles (\code{$site}, \code{$mode}). Each holds the index columns
-#'   (`site`, `pdb_site` for site; `mode` for mode), the four nested-model columns, and
-#'   the three contribution columns, all on the requested `metric`. Both branches
-#'   use identical value-column names.
-#' @seealso [predict_decomposition()] (the same, with error bands from a fit);
-#'   [calculate_profiles()] (the profile these contributions sum to).
+#' These sum to `lrmsd_msa`. MA is outside the progression.
+#'
+#' `metric = "nlrmsd"` centres every column on its own mean, renaming the
+#' contributions `nphi_mut`, `nphi_stab` and `nphi_act`.
+#'
+#' @param spm An `spm` object from [generate_spm()], carrying the per-mutant energies
+#'   and squared displacements the profiles are averaged from.
+#' @param a1 Stability selection strength, non-negative. It enters a mutant's fixation
+#'   probability as `min(exp(-a1 * ddg), 1)`, so larger values suppress destabilising
+#'   mutants more sharply, and `0` switches stability selection off.
+#' @param a2 Activity selection strength, non-negative. It enters the same way, as
+#'   `min(exp(-a2 * ddgact), 1)`, and `0` switches activity selection off. It is on a
+#'   different scale from `a1`, so the two numbers are not comparable to each other.
+#' @param metric `"lrmsd"` for the profiles as predicted, `"nlrmsd"` for the
+#'   mean-centred ones. Default `"lrmsd"`.
+#'
+#' @return A list of two tibbles, `$site` (one row per residue, keyed by `site`, the
+#'   column position in the scan, and `pdb_site`, the PDB residue number) and `$mode`
+#'   (one row per normal mode, keyed by `mode`). Apart from those keys the two have the
+#'   same columns.
+#'
+#'   With `metric = "lrmsd"`: `lrmsd_mm`, `lrmsd_ms`, `lrmsd_ma` and `lrmsd_msa`, the
+#'   profile predicted by each of the four models, then `phi_mut`, `phi_stab` and
+#'   `phi_act`, the three contributions, which sum to `lrmsd_msa`.
+#'
+#'   With `metric = "nlrmsd"`: the same seven columns, each mean-centred, named
+#'   `nlrmsd_mm`, `nlrmsd_ms`, `nlrmsd_ma`, `nlrmsd_msa`, `nphi_mut`, `nphi_stab` and
+#'   `nphi_act`. The three contributions sum to `nlrmsd_msa`.
+#'
+#' @seealso [calculate_profiles()] for the full model's profile alone, without the
+#'   nested models and the contributions; [predict_decomposition()] for the same
+#'   decomposition at fitted selection strengths, with standard errors;
+#'   [fit_lrmsd_msa_site()] and [fit_lrmsd_msa_mode()] to estimate `a1` and `a2` from an
+#'   observed profile. `vignette("msamodel-explore")` plots the nested models and the
+#'   contributions in both representations.
 #' @family api
 #' @examples
 #' if (requireNamespace("bio3d", quietly = TRUE)) {
 #'   ex  <- function(f) system.file("extdata", f, package = "msamodel")
 #'   wt  <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
-#'                               model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+#'                        model = "ming_wall", d_max = 10.5, frustrated = FALSE)
 #'   act <- read.csv(ex("1d6o_A_active_site.csv"))
 #'   spm <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
-#'   calculate_decomposition(spm, a1 = 1, a2 = 1, metric = "nlrmsd")$site
+#'
+#'   # Moderate stability selection, strong activity selection.
+#'   d <- calculate_decomposition(spm, a1 = 2, a2 = 500, metric = "nlrmsd")
+#'   d$site
+#'
+#'   # The residues where activity selection changes the profile most.
+#'   head(d$site[order(d$site$nphi_act), c("pdb_site", "nphi_stab", "nphi_act")])
+#'
+#'   # The same decomposition in the per-mode representation.
+#'   d$mode
 #' }
 #' @export
 calculate_decomposition <- function(spm, a1, a2, metric = c("lrmsd", "nlrmsd")) {

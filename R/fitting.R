@@ -279,22 +279,24 @@ resolve_mode_obs <- function(valid_modes, mode, lrmsd_obs) {
 }
 
 
-#' Maximum-likelihood point fit of the MSA model to a site profile
+#' Fit the MSA model to an observed site profile
 #'
-#' Finds the pair of selection strengths under which the model's site profile best
-#' matches an observed one.
+#' Estimates the selection strengths that best fit an observed per-residue divergence
+#' profile, by maximum likelihood.
 #'
-#' The observations are given as two vectors, the residue numbers and the divergence at
-#' each. They may cover a subset of the model's residues, in which case the fit uses the
-#' overlap. Maximising the profiled Gaussian log-likelihood over `(a1, a2)` by numerical
-#' optimisation gives a point estimate, with an asymptotic covariance from the Hessian
-#' at the optimum, and a goodness-of-fit summary in `$gof`.
+#' @details
+#' The observations are an observed divergence profile, given as two vectors: the PDB
+#' residue numbers, and the divergence measured at each. They may cover a subset of the
+#' model's residues, in which case the fit uses the overlap.
 #'
-#' The optimiser works in the coordinates `a1` and
-#' `log2(a2 + 1)` (so `a2 = 2^(log2(a2+1)) - 1 >= 0`), on the box `a1_range` ×
-#' `log2_a2_plus1_range`, the coordinates in which the prior is uniform. The
-#' returned covariance `cov` is on the `(a1, log2(a2+1))` scale; the standard error
-#' of `a2` is obtained by the delta method (`da2/d(log2(a2+1)) = 2^(log2(a2+1)) * ln 2`).
+#' The estimate maximises the profiled Gaussian log-likelihood over `(a1, a2)` by
+#' numerical optimisation. Its covariance comes from the Hessian at the optimum, and is
+#' asymptotic. `$gof` summarises how well the fitted profile matches the observations.
+#'
+#' Optimisation runs in the coordinates `a1` and `log2(a2 + 1)`, which keep `a2`
+#' non-negative and are the coordinates in which the prior is uniform, over the box set
+#' by `a1_range` and `log2_a2_plus1_range`. The returned `cov` is on those coordinates;
+#' `se_a2` converts to the natural scale by the delta method.
 #'
 #' @param spm A single-point-mutation `spm` object from [generate_spm()] (its `site_map` keys the fit to PDB residues).
 #' @param pdb_site Integer vector of PDB residue numbers identifying the observations.
@@ -308,7 +310,7 @@ resolve_mode_obs <- function(valid_modes, mode, lrmsd_obs) {
 #' @param init Optional length-2 numeric start `c(a1, log2(a2+1))`. When `NULL`
 #'   (default), a deterministic coarse grid-max of the likelihood over the box is
 #'   used as the start (robust against a bad local start; cheap).
-#' @param grid_n Number of points per axis for the default grid-max start (ignored
+#' @param grid_n Number of grid points per coordinate for the default grid-max start (ignored
 #'   when `init` is supplied).
 #' @return A list. The top level is the **point estimate**; goodness of fit is the
 #'   `gof` tibble (computed here, so there is no accessor to call):
@@ -362,23 +364,25 @@ fit_lrmsd_msa_site <- function(spm,
                 call = match.call())
 }
 
-#' Maximum-likelihood point fit of the MSA model to a mode profile
+#' Fit the MSA model to an observed mode profile
 #'
-#' Mode counterpart of [fit_lrmsd_msa_site()]: maximises the profiled Gaussian
-#' log-likelihood over `(a1, a2)` by numerical optimisation, giving a point estimate,
-#' an asymptotic covariance from the Hessian at the optimum, and a goodness-of-fit
-#' summary in `$gof`.
+#' Estimates the selection strengths that best fit an observed per-mode divergence
+#' profile, by maximum likelihood.
 #'
-#' The observations are given as two vectors, the mode indices and the divergence at
-#' each. The machinery is identical to the site fit, the same objective evaluated on the
-#' mode representation of the scan; the response index is the mode, so there is no
-#' `pdb_site`.
+#' @details
+#' The observations are an observed divergence profile, given as two vectors: the mode
+#' indices, and the divergence measured at each. They may cover a subset of the model's
+#' modes, in which case the fit uses the overlap. The response index is the mode, so
+#' there is no `pdb_site`.
 #'
-#' The optimiser works in the same coordinates as the site fit: `a1` and
-#' `log2(a2 + 1)` (so `a2 = 2^(log2(a2+1)) - 1 >= 0`), on the box `a1_range` ×
-#' `log2_a2_plus1_range`, the coordinates in which the prior is uniform. The
-#' returned covariance `cov` is on the `(a1, log2(a2+1))` scale; the standard error
-#' of `a2` is obtained by the delta method (`da2/d(log2(a2+1)) = 2^(log2(a2+1)) * ln 2`).
+#' The estimate maximises the profiled Gaussian log-likelihood over `(a1, a2)` by
+#' numerical optimisation. Its covariance comes from the Hessian at the optimum, and is
+#' asymptotic. `$gof` summarises how well the fitted profile matches the observations.
+#'
+#' Optimisation runs in the coordinates `a1` and `log2(a2 + 1)`, which keep `a2`
+#' non-negative and are the coordinates in which the prior is uniform, over the box set
+#' by `a1_range` and `log2_a2_plus1_range`. The returned `cov` is on those coordinates;
+#' `se_a2` converts to the natural scale by the delta method.
 #'
 #' @param spm A single-point-mutation `spm` object from [generate_spm()] (energy_data +
 #'   the `dr2mat_mode` matrix; no `site_map`).
@@ -392,7 +396,7 @@ fit_lrmsd_msa_site <- function(spm,
 #' @param init Optional length-2 numeric start `c(a1, log2(a2+1))`. When `NULL`
 #'   (default), a deterministic coarse grid-max of the likelihood over the box is
 #'   used as the start (robust against a bad local start; cheap).
-#' @param grid_n Number of points per axis for the default grid-max start (ignored
+#' @param grid_n Number of grid points per coordinate for the default grid-max start (ignored
 #'   when `init` is supplied).
 #' @inherit fit_lrmsd_msa_site return
 #' @seealso [fit_lrmsd_msa_site()] (the site counterpart),

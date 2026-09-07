@@ -2,7 +2,7 @@
 % Please edit documentation in R/fitting.R
 \name{fit_lrmsd_msa_site}
 \alias{fit_lrmsd_msa_site}
-\title{Maximum-likelihood point fit of the MSA model to a site profile}
+\title{Fit the MSA model to an observed site profile}
 \usage{
 fit_lrmsd_msa_site(
   spm,
@@ -33,7 +33,7 @@ target), the same length as \code{pdb_site}.}
 (default), a deterministic coarse grid-max of the likelihood over the box is
 used as the start (robust against a bad local start; cheap).}
 
-\item{grid_n}{Number of points per axis for the default grid-max start (ignored
+\item{grid_n}{Number of grid points per coordinate for the default grid-max start (ignored
 when \code{init} is supplied).}
 }
 \value{
@@ -59,21 +59,22 @@ fitter that made it.}
 }
 }
 \description{
-Finds the pair of selection strengths under which the model's site profile best
-matches an observed one.
+Estimates the selection strengths that best fit an observed per-residue divergence
+profile, by maximum likelihood.
 }
 \details{
-The observations are given as two vectors, the residue numbers and the divergence at
-each. They may cover a subset of the model's residues, in which case the fit uses the
-overlap. Maximising the profiled Gaussian log-likelihood over \verb{(a1, a2)} by numerical
-optimisation gives a point estimate, with an asymptotic covariance from the Hessian
-at the optimum, and a goodness-of-fit summary in \verb{$gof}.
+The observations are an observed divergence profile, given as two vectors: the PDB
+residue numbers, and the divergence measured at each. They may cover a subset of the
+model's residues, in which case the fit uses the overlap.
 
-The optimiser works in the coordinates \code{a1} and
-\code{log2(a2 + 1)} (so \code{a2 = 2^(log2(a2+1)) - 1 >= 0}), on the box \code{a1_range} ×
-\code{log2_a2_plus1_range}, the coordinates in which the prior is uniform. The
-returned covariance \code{cov} is on the \verb{(a1, log2(a2+1))} scale; the standard error
-of \code{a2} is obtained by the delta method (\verb{da2/d(log2(a2+1)) = 2^(log2(a2+1)) * ln 2}).
+The estimate maximises the profiled Gaussian log-likelihood over \verb{(a1, a2)} by
+numerical optimisation. Its covariance comes from the Hessian at the optimum, and is
+asymptotic. \verb{$gof} summarises how well the fitted profile matches the observations.
+
+Optimisation runs in the coordinates \code{a1} and \code{log2(a2 + 1)}, which keep \code{a2}
+non-negative and are the coordinates in which the prior is uniform, over the box set
+by \code{a1_range} and \code{log2_a2_plus1_range}. The returned \code{cov} is on those coordinates;
+\code{se_a2} converts to the natural scale by the delta method.
 }
 \examples{
 if (requireNamespace("bio3d", quietly = TRUE)) {

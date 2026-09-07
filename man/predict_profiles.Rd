@@ -2,48 +2,46 @@
 % Please edit documentation in R/predict.R
 \name{predict_profiles}
 \alias{predict_profiles}
-\title{Predicted divergence profiles with standard errors from an ML fit (both representations)}
+\title{Divergence profile at fitted selection strengths}
 \usage{
 predict_profiles(fit, spm, metric = c("lrmsd", "nlrmsd"))
 }
 \arguments{
-\item{fit}{A list from \code{\link[=fit_lrmsd_msa_site]{fit_lrmsd_msa_site()}} (site) or \code{\link[=fit_lrmsd_msa_mode]{fit_lrmsd_msa_mode()}} (mode),
-carrying \code{a1}, \code{a2}, and the 2x2 \code{cov} on the \verb{(a1, log2(a2+1))} scale. One fit
-drives both representations.}
+\item{fit}{A fit from \code{\link[=fit_lrmsd_msa_site]{fit_lrmsd_msa_site()}} or \code{\link[=fit_lrmsd_msa_mode]{fit_lrmsd_msa_mode()}}, carrying
+\code{a1}, \code{a2} and the 2x2 covariance \code{cov}. One fit drives both representations.}
 
-\item{spm}{The \code{spm} object from \code{\link[=generate_spm]{generate_spm()}} (the same one used for the fit).}
+\item{spm}{The \code{spm} object from \code{\link[=generate_spm]{generate_spm()}}, the same one the fit used.}
 
-\item{metric}{\code{"lrmsd"} (absolute) or \code{"nlrmsd"} (mean-centred). Default \code{"lrmsd"}.}
+\item{metric}{\code{"lrmsd"} for the profile as predicted, \code{"nlrmsd"} for the
+mean-centred one. Default \code{"lrmsd"}.}
 }
 \value{
-A list with two tibbles. \code{$site}: \code{site}, \code{pdb_site}, the profile column
-(\code{lrmsd_msa} or \code{nlrmsd_msa}), and its \code{_se}. \code{$mode}: \code{mode}, the same profile
-column, and its \code{_se}.
+A list of two tibbles, \verb{$site} (one row per residue, keyed by \code{site} and
+\code{pdb_site}) and \verb{$mode} (one row per normal mode, keyed by \code{mode}). Each carries
+the profile column, \code{lrmsd_msa} or \code{nlrmsd_msa} according to \code{metric}, followed by
+its standard error in \code{lrmsd_msa_se} or \code{nlrmsd_msa_se}.
 }
 \description{
-\code{\link[=calculate_profiles]{calculate_profiles()}} with uncertainty: the model's per-response log
-structural-divergence profile evaluated at a fit's \verb{(a1, a2)}, on \strong{both} response
-representations, with the value column followed by its \code{_se} sibling. \code{metric} selects
-\code{"lrmsd"} (the absolute profile) or \code{"nlrmsd"} (the mean-centred profile the fit is on).
+Calculates the structural divergence profile predicted by the MSA model at fitted
+selection strengths, with its standard error, per residue and per normal mode.
 }
 \details{
-Evaluates the model at the selection strengths a fit estimated, and returns the
-divergence profile in both representations with a standard error on every value.
+The profile itself is what \code{\link[=calculate_profiles]{calculate_profiles()}} returns at \code{fit$a1} and \code{fit$a2}.
+What this function adds is the \verb{_se} column beside it, combining two independent
+sources of error: the uncertainty of the fitted \verb{(a1, a2)}, propagated through the
+model by the delta method, and the sampling error of the scan, which comes from
+having a finite number of mutants and remains even at exactly known selection
+strengths.
 
-The standard error sums two independent sources: the uncertainty of the fitted
-\verb{(a1, a2)}, propagated through the model by the delta method, and the
-finite-mutation sampling error of the scan, which is present even at perfectly
-known selection strengths.
-
-With \code{metric = "nlrmsd"} the profile is centred on its mean over all model
-residues, not over the residues a particular dataset happens to observe. Observed
-data overlaid on it should be centred on its own matched support.
+With \code{metric = "nlrmsd"} the profile is centred on its mean over all model residues,
+not over the residues a particular dataset happens to observe. Observed data
+overlaid on it needs centring on its own matched support.
 }
 \examples{
 if (requireNamespace("bio3d", quietly = TRUE)) {
   ex  <- function(f) system.file("extdata", f, package = "msamodel")
   wt  <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
-                              model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+                       model = "ming_wall", d_max = 10.5, frustrated = FALSE)
   act <- read.csv(ex("1d6o_A_active_site.csv"))
   spm <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
 
@@ -53,8 +51,10 @@ if (requireNamespace("bio3d", quietly = TRUE)) {
 }
 }
 \seealso{
-\code{\link[=calculate_profiles]{calculate_profiles()}} (point values at a given \verb{(a1, a2)}, no fit);
-\code{\link[=predict_decomposition]{predict_decomposition()}} (the profile split into contributions, with standard errors).
+\code{\link[=calculate_profiles]{calculate_profiles()}} for the profile at selection strengths given as
+arguments, without standard errors; \code{\link[=predict_decomposition]{predict_decomposition()}} for the nested
+models and the contributions, also with standard errors;
+\code{\link[=fit_lrmsd_msa_site]{fit_lrmsd_msa_site()}} and \code{\link[=fit_lrmsd_msa_mode]{fit_lrmsd_msa_mode()}}, which produce the \code{fit}.
 
 Other api:
 \code{\link[=calculate_decomposition]{calculate_decomposition()}},

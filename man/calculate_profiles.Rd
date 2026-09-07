@@ -2,53 +2,61 @@
 % Please edit documentation in R/model.R
 \name{calculate_profiles}
 \alias{calculate_profiles}
-\title{Predicted divergence profiles at one selection strength (both representations)}
+\title{Divergence profile at given selection strengths}
 \usage{
 calculate_profiles(spm, a1, a2, metric = c("lrmsd", "nlrmsd"))
 }
 \arguments{
-\item{spm}{A single-point-mutation \code{spm} object from \code{\link[=generate_spm]{generate_spm()}}.}
+\item{spm}{An \code{spm} object from \code{\link[=generate_spm]{generate_spm()}}.}
 
-\item{a1}{Stability selection strength (non-negative). \code{0} disables it.}
+\item{a1}{Stability selection strength, non-negative. \code{0} switches stability
+selection off.}
 
-\item{a2}{Activity selection strength (non-negative). \code{0} disables it.}
+\item{a2}{Activity selection strength, non-negative. \code{0} switches activity
+selection off. It is on a different scale from \code{a1}, so the two numbers are not
+comparable to each other.}
 
-\item{metric}{\code{"lrmsd"} (absolute) or \code{"nlrmsd"} (mean-centred). Default \code{"lrmsd"}.}
+\item{metric}{\code{"lrmsd"} for the profile as predicted, \code{"nlrmsd"} for the
+mean-centred one. Default \code{"lrmsd"}.}
 }
 \value{
-A list with two tibbles. \code{$site}: \code{site}, \code{pdb_site}, and the profile column
-(\code{lrmsd_msa} or \code{nlrmsd_msa}). \code{$mode}: \code{mode} and the same profile column. Both
-branches use identical value-column names; only the key column differs.
+A list of two tibbles, \verb{$site} (one row per residue, keyed by \code{site}, the
+column position in the scan, and \code{pdb_site}, the PDB residue number) and \verb{$mode}
+(one row per normal mode, keyed by \code{mode}). Each carries one value column,
+\code{lrmsd_msa} or \code{nlrmsd_msa} according to \code{metric}.
 }
 \description{
-The model's divergence profile at a single pair of selection strengths, in both
-representations at once.
+Calculates the structural divergence profile predicted by the MSA model at given
+selection strengths, per residue and per normal mode.
 }
 \details{
-Each mutant in the scan carries a squared displacement at every residue and every
-mode, and, at the given \verb{(a1, a2)}, a fixation probability. Averaging the squared
-displacements over the mutant ensemble, weighted by the normalised fixation
-probabilities, gives the mean squared displacement at each response; the profile is
-its log root. \code{metric} selects the quantity: \code{"lrmsd"} is that profile,
-\code{"nlrmsd"} the same profile with its mean subtracted.
+The profile is \code{lrmsd_msa}, the divergence predicted by the full model, with both
+selection pressures acting at the strengths given. \code{metric = "nlrmsd"} returns it
+centred on its own mean instead, as \code{nlrmsd_msa}.
 
-The selection strengths are given as arguments, so there is no fit and no parameter
-covariance: the values come back without standard errors. For a profile at fitted
-strengths, with error bands, use \code{\link[=predict_profiles]{predict_profiles()}}.
+The selection strengths are supplied here rather than estimated, so the result
+carries no standard errors. For the profile at fitted strengths, with standard
+errors, see \code{\link[=predict_profiles]{predict_profiles()}}.
 }
 \examples{
 if (requireNamespace("bio3d", quietly = TRUE)) {
   ex  <- function(f) system.file("extdata", f, package = "msamodel")
   wt  <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
-                              model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+                       model = "ming_wall", d_max = 10.5, frustrated = FALSE)
   act <- read.csv(ex("1d6o_A_active_site.csv"))
   spm <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
-  calculate_profiles(spm, a1 = 1, a2 = 1, metric = "nlrmsd")$site
+
+  calculate_profiles(spm, a1 = 2, a2 = 500)$site
+
+  # With both pressures off, the profile is mutation alone.
+  calculate_profiles(spm, a1 = 0, a2 = 0)$site
 }
 }
 \seealso{
-\code{\link[=predict_profiles]{predict_profiles()}} (the same profiles with error bands, from a fit);
-\code{\link[=calculate_decomposition]{calculate_decomposition()}} (the profile split into contributions).
+\code{\link[=calculate_decomposition]{calculate_decomposition()}} for the same profile split into the
+contributions of mutation, stability and activity selection;
+\code{\link[=predict_profiles]{predict_profiles()}} for the profile at fitted selection strengths, with standard
+errors; \code{\link[=pfix_msa]{pfix_msa()}} for the fixation probability \code{a1} and \code{a2} enter.
 
 Other api:
 \code{\link[=calculate_decomposition]{calculate_decomposition()}},

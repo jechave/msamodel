@@ -54,9 +54,8 @@ column position (\code{site}).}
 }
 }
 \description{
-Runs a single-point-mutation (SPM) scan: every site of the protein is mutated
-\code{n_mutations} times, and for each mutant the scan records two free-energy changes
-and how far every residue moved.
+Performs a mutational scan, mutating every residue multiple times and calculating
+mutational changes of energy and structure.
 }
 \details{
 Mutating site \code{j} perturbs the equilibrium length of every network edge touching
@@ -64,26 +63,16 @@ Mutating site \code{j} perturbs the equilibrium length of every network edge tou
 separation is at least \code{min_sd} are perturbed). Those altered lengths put the
 structure under strain, and relaxing it displaces the residues. The scan stores the
 squared displacements.
-}
-\section{The mutation-response matrices}{
 
-
-\code{dr2mat_site} and \code{dr2mat_mode} both have \strong{one row per mutant}, in scan order;
-row \code{k} of either is the mutant described by row \code{k} of \code{energy_data}. They differ
-in what a column is:
-\itemize{
-\item \code{dr2mat_site}, one column per \strong{residue}. Cell \verb{[k, i]} is the squared
-displacement of residue \code{i} (Å²) under mutant \code{k}.
-\item \code{dr2mat_mode}, one column per \strong{normal mode}. Cell \verb{[k, n]} is the squared
-projection of the same displacement onto mode \code{n}.
-}
-
+The squared displacements are stored in two matrices, \code{dr2mat_site} and
+\code{dr2mat_mode}, both with one row per mutant, in scan order: row \code{k} of either is the
+mutant described by row \code{k} of \code{energy_data}. They differ in what a column is. In
+\code{dr2mat_site} a column is a residue, and cell \verb{[k, i]} is the squared displacement
+of residue \code{i} (Å²) under mutant \code{k}. In \code{dr2mat_mode} a column is a normal mode,
+and cell \verb{[k, n]} is the squared projection of that same displacement onto mode \code{n}.
 The modes are orthonormal, so each row sums to the same total in both matrices: they
-hold one displacement written in two bases. Neither carries column names, the
-response index being the column position, so that \code{colSums()} and the like return bare
-vectors.
+hold one displacement written in two bases.
 }
-
 \examples{
 if (requireNamespace("bio3d", quietly = TRUE)) {
   ex  <- function(f) system.file("extdata", f, package = "msamodel")

@@ -2,50 +2,49 @@
 % Please edit documentation in R/predict.R
 \name{predict_decomposition}
 \alias{predict_decomposition}
-\title{Divergence decomposition with standard errors from an ML fit (both representations)}
+\title{Nested-model profiles and contributions at fitted selection strengths}
 \usage{
 predict_decomposition(fit, spm, metric = c("nlrmsd", "lrmsd"))
 }
 \arguments{
-\item{fit}{A list from \code{\link[=fit_lrmsd_msa_site]{fit_lrmsd_msa_site()}} (site) or \code{\link[=fit_lrmsd_msa_mode]{fit_lrmsd_msa_mode()}} (mode),
-carrying \code{a1}, \code{a2}, \code{cov}.}
+\item{fit}{A fit from \code{\link[=fit_lrmsd_msa_site]{fit_lrmsd_msa_site()}} or \code{\link[=fit_lrmsd_msa_mode]{fit_lrmsd_msa_mode()}}, carrying
+\code{a1}, \code{a2} and the 2x2 covariance \code{cov}.}
 
-\item{spm}{The \code{spm} object from \code{\link[=generate_spm]{generate_spm()}} (the same one used for the fit).}
+\item{spm}{The \code{spm} object from \code{\link[=generate_spm]{generate_spm()}}, the same one the fit used.}
 
-\item{metric}{\code{"nlrmsd"} (default, the mean-centred profile the fit is on) or \code{"lrmsd"}
-(accepted by the signature but not yet derived; it stops).}
+\item{metric}{\code{"nlrmsd"}, the mean-centred profile the fit is on. Default, and
+currently the only value; \code{"lrmsd"} is accepted by the signature but stops.}
 }
 \value{
-A list of two tibbles, one per representation. \code{$site} has one row per
-residue, \code{$mode} one row per normal mode. Each row carries the divergence under
-the four nested models MM, MS, MA and MSA, in columns \code{nlrmsd_mm}, \code{nlrmsd_ms},
-\code{nlrmsd_ma} and \code{nlrmsd_msa}; the three contributions that decompose the MSA
-profile, in \code{nphi_mut}, \code{nphi_stab} and \code{nphi_act}; and a standard error for each
-of those seven, named by appending \code{_se}. \code{$site} is indexed by \code{site} and
-\code{pdb_site}, \code{$mode} by \code{mode}.
+A list of two tibbles, \verb{$site} (one row per residue, keyed by \code{site} and
+\code{pdb_site}) and \verb{$mode} (one row per normal mode, keyed by \code{mode}). Each carries
+the profile predicted by the four nested models, in \code{nlrmsd_mm}, \code{nlrmsd_ms},
+\code{nlrmsd_ma} and \code{nlrmsd_msa}, then the three contributions, in \code{nphi_mut},
+\code{nphi_stab} and \code{nphi_act}, and a standard error for each of those seven, named by
+appending \verb{_se}.
 }
 \description{
-\code{\link[=calculate_decomposition]{calculate_decomposition()}} with uncertainty: the four nested-model profiles and the
-three contributions, each with a standard error, in both representations.
+Calculates the divergence profiles predicted by four nested models at fitted
+selection strengths, and decomposes the full model's profile into mutation,
+stability and activity contributions, with standard errors, per residue and per
+normal mode.
 }
 \details{
-Evaluates the nested models and the decomposition at the selection strengths a fit
-estimated, and returns them in both representations with a standard error on every
-value.
+The models and the contributions are those of \code{\link[=calculate_decomposition]{calculate_decomposition()}}, evaluated
+at \code{fit$a1} and \code{fit$a2}. What this function adds is a \verb{_se} column beside each of
+the seven values, combining two independent sources of error: the uncertainty of the
+fitted \verb{(a1, a2)}, propagated through the model by the delta method, and the
+sampling error of the scan, which comes from having a finite number of mutants and
+remains even at exactly known selection strengths.
 
-The four nested models and the three contributions are formed as in
-\code{\link[=calculate_decomposition]{calculate_decomposition()}}. The standard error sums two independent sources: the
-uncertainty of the fitted \verb{(a1, a2)}, propagated through the model by the delta
-method, and the finite-mutation sampling error of the scan.
-
-Only \code{"nlrmsd"} is currently available, and it is the default, so a bare call works.
-\code{metric = "lrmsd"} stops: the uncentred standard error is not yet derived.
+Only \code{"nlrmsd"} is available, and it is the default, so a bare call works.
+\code{metric = "lrmsd"} stops: the uncentred standard error has not been derived.
 }
 \examples{
 if (requireNamespace("bio3d", quietly = TRUE)) {
   ex  <- function(f) system.file("extdata", f, package = "msamodel")
   wt  <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
-                              model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+                       model = "ming_wall", d_max = 10.5, frustrated = FALSE)
   act <- read.csv(ex("1d6o_A_active_site.csv"))
   spm <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
 
@@ -55,8 +54,10 @@ if (requireNamespace("bio3d", quietly = TRUE)) {
 }
 }
 \seealso{
-\code{\link[=calculate_decomposition]{calculate_decomposition()}} (point values at a given \verb{(a1, a2)}, no fit);
-\code{\link[=predict_profiles]{predict_profiles()}} (the profile these contributions sum to).
+\code{\link[=calculate_decomposition]{calculate_decomposition()}} for the same quantities at selection strengths
+given as arguments, without standard errors; \code{\link[=predict_profiles]{predict_profiles()}} for the full
+model's profile alone, also with standard errors; \code{\link[=fit_lrmsd_msa_site]{fit_lrmsd_msa_site()}} and
+\code{\link[=fit_lrmsd_msa_mode]{fit_lrmsd_msa_mode()}}, which produce the \code{fit}.
 
 Other api:
 \code{\link[=calculate_decomposition]{calculate_decomposition()}},

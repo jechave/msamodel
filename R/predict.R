@@ -37,41 +37,42 @@ validate_ml_fit <- function(fit, producer) {
 
 # ---- predict_profiles ------------------------------------------------------------
 
-#' Predicted divergence profiles with standard errors from an ML fit (both representations)
+#' Divergence profile at fitted selection strengths
 #'
-#' [calculate_profiles()] with uncertainty: the model's per-response log
-#' structural-divergence profile evaluated at a fit's `(a1, a2)`, on **both** response
-#' representations, with the value column followed by its \code{_se} sibling. `metric` selects
-#' `"lrmsd"` (the absolute profile) or `"nlrmsd"` (the mean-centred profile the fit is on).
+#' Calculates the structural divergence profile predicted by the MSA model at fitted
+#' selection strengths, with its standard error, per residue and per normal mode.
 #'
-#' Evaluates the model at the selection strengths a fit estimated, and returns the
-#' divergence profile in both representations with a standard error on every value.
+#' @details
+#' The profile itself is what [calculate_profiles()] returns at `fit$a1` and `fit$a2`.
+#' What this function adds is the `_se` column beside it, combining two independent
+#' sources of error: the uncertainty of the fitted `(a1, a2)`, propagated through the
+#' model by the delta method, and the sampling error of the scan, which comes from
+#' having a finite number of mutants and remains even at exactly known selection
+#' strengths.
 #'
-#' The standard error sums two independent sources: the uncertainty of the fitted
-#' `(a1, a2)`, propagated through the model by the delta method, and the
-#' finite-mutation sampling error of the scan, which is present even at perfectly
-#' known selection strengths.
+#' With `metric = "nlrmsd"` the profile is centred on its mean over all model residues,
+#' not over the residues a particular dataset happens to observe. Observed data
+#' overlaid on it needs centring on its own matched support.
 #'
-#' With `metric = "nlrmsd"` the profile is centred on its mean over all model
-#' residues, not over the residues a particular dataset happens to observe. Observed
-#' data overlaid on it should be centred on its own matched support.
-#'
-#' @param fit A list from [fit_lrmsd_msa_site()] (site) or [fit_lrmsd_msa_mode()] (mode),
-#'   carrying `a1`, `a2`, and the 2x2 `cov` on the `(a1, log2(a2+1))` scale. One fit
-#'   drives both representations.
-#' @param spm The `spm` object from [generate_spm()] (the same one used for the fit).
-#' @param metric `"lrmsd"` (absolute) or `"nlrmsd"` (mean-centred). Default `"lrmsd"`.
-#' @return A list with two tibbles. \code{$site}: `site`, `pdb_site`, the profile column
-#'   (`lrmsd_msa` or `nlrmsd_msa`), and its \code{_se}. \code{$mode}: `mode`, the same profile
-#'   column, and its \code{_se}.
-#' @seealso [calculate_profiles()] (point values at a given `(a1, a2)`, no fit);
-#'   [predict_decomposition()] (the profile split into contributions, with standard errors).
+#' @param fit A fit from [fit_lrmsd_msa_site()] or [fit_lrmsd_msa_mode()], carrying
+#'   `a1`, `a2` and the 2x2 covariance `cov`. One fit drives both representations.
+#' @param spm The `spm` object from [generate_spm()], the same one the fit used.
+#' @param metric `"lrmsd"` for the profile as predicted, `"nlrmsd"` for the
+#'   mean-centred one. Default `"lrmsd"`.
+#' @return A list of two tibbles, `$site` (one row per residue, keyed by `site` and
+#'   `pdb_site`) and `$mode` (one row per normal mode, keyed by `mode`). Each carries
+#'   the profile column, `lrmsd_msa` or `nlrmsd_msa` according to `metric`, followed by
+#'   its standard error in `lrmsd_msa_se` or `nlrmsd_msa_se`.
+#' @seealso [calculate_profiles()] for the profile at selection strengths given as
+#'   arguments, without standard errors; [predict_decomposition()] for the nested
+#'   models and the contributions, also with standard errors;
+#'   [fit_lrmsd_msa_site()] and [fit_lrmsd_msa_mode()], which produce the `fit`.
 #' @family api
 #' @examples
 #' if (requireNamespace("bio3d", quietly = TRUE)) {
 #'   ex  <- function(f) system.file("extdata", f, package = "msamodel")
 #'   wt  <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
-#'                               model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+#'                        model = "ming_wall", d_max = 10.5, frustrated = FALSE)
 #'   act <- read.csv(ex("1d6o_A_active_site.csv"))
 #'   spm <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
 #'
@@ -117,43 +118,45 @@ predict_profiles <- function(fit, spm, metric = c("lrmsd", "nlrmsd")) {
 
 # ---- predict_decomposition -------------------------------------------------------
 
-#' Divergence decomposition with standard errors from an ML fit (both representations)
+#' Nested-model profiles and contributions at fitted selection strengths
 #'
-#' [calculate_decomposition()] with uncertainty: the four nested-model profiles and the
-#' three contributions, each with a standard error, in both representations.
+#' Calculates the divergence profiles predicted by four nested models at fitted
+#' selection strengths, and decomposes the full model's profile into mutation,
+#' stability and activity contributions, with standard errors, per residue and per
+#' normal mode.
 #'
-#' Evaluates the nested models and the decomposition at the selection strengths a fit
-#' estimated, and returns them in both representations with a standard error on every
-#' value.
+#' @details
+#' The models and the contributions are those of [calculate_decomposition()], evaluated
+#' at `fit$a1` and `fit$a2`. What this function adds is a `_se` column beside each of
+#' the seven values, combining two independent sources of error: the uncertainty of the
+#' fitted `(a1, a2)`, propagated through the model by the delta method, and the
+#' sampling error of the scan, which comes from having a finite number of mutants and
+#' remains even at exactly known selection strengths.
 #'
-#' The four nested models and the three contributions are formed as in
-#' [calculate_decomposition()]. The standard error sums two independent sources: the
-#' uncertainty of the fitted `(a1, a2)`, propagated through the model by the delta
-#' method, and the finite-mutation sampling error of the scan.
+#' Only `"nlrmsd"` is available, and it is the default, so a bare call works.
+#' `metric = "lrmsd"` stops: the uncentred standard error has not been derived.
 #'
-#' Only `"nlrmsd"` is currently available, and it is the default, so a bare call works.
-#' `metric = "lrmsd"` stops: the uncentred standard error is not yet derived.
-#'
-#' @param fit A list from [fit_lrmsd_msa_site()] (site) or [fit_lrmsd_msa_mode()] (mode),
-#'   carrying `a1`, `a2`, `cov`.
-#' @param spm The `spm` object from [generate_spm()] (the same one used for the fit).
-#' @param metric `"nlrmsd"` (default, the mean-centred profile the fit is on) or `"lrmsd"`
-#'   (accepted by the signature but not yet derived; it stops).
-#' @return A list of two tibbles, one per representation. \code{$site} has one row per
-#'   residue, \code{$mode} one row per normal mode. Each row carries the divergence under
-#'   the four nested models MM, MS, MA and MSA, in columns `nlrmsd_mm`, `nlrmsd_ms`,
-#'   `nlrmsd_ma` and `nlrmsd_msa`; the three contributions that decompose the MSA
-#'   profile, in `nphi_mut`, `nphi_stab` and `nphi_act`; and a standard error for each
-#'   of those seven, named by appending \code{_se}. \code{$site} is indexed by `site` and
-#'   `pdb_site`, \code{$mode} by `mode`.
-#' @seealso [calculate_decomposition()] (point values at a given `(a1, a2)`, no fit);
-#'   [predict_profiles()] (the profile these contributions sum to).
+#' @param fit A fit from [fit_lrmsd_msa_site()] or [fit_lrmsd_msa_mode()], carrying
+#'   `a1`, `a2` and the 2x2 covariance `cov`.
+#' @param spm The `spm` object from [generate_spm()], the same one the fit used.
+#' @param metric `"nlrmsd"`, the mean-centred profile the fit is on. Default, and
+#'   currently the only value; `"lrmsd"` is accepted by the signature but stops.
+#' @return A list of two tibbles, `$site` (one row per residue, keyed by `site` and
+#'   `pdb_site`) and `$mode` (one row per normal mode, keyed by `mode`). Each carries
+#'   the profile predicted by the four nested models, in `nlrmsd_mm`, `nlrmsd_ms`,
+#'   `nlrmsd_ma` and `nlrmsd_msa`, then the three contributions, in `nphi_mut`,
+#'   `nphi_stab` and `nphi_act`, and a standard error for each of those seven, named by
+#'   appending `_se`.
+#' @seealso [calculate_decomposition()] for the same quantities at selection strengths
+#'   given as arguments, without standard errors; [predict_profiles()] for the full
+#'   model's profile alone, also with standard errors; [fit_lrmsd_msa_site()] and
+#'   [fit_lrmsd_msa_mode()], which produce the `fit`.
 #' @family api
 #' @examples
 #' if (requireNamespace("bio3d", quietly = TRUE)) {
 #'   ex  <- function(f) system.file("extdata", f, package = "msamodel")
 #'   wt  <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
-#'                               model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+#'                        model = "ming_wall", d_max = 10.5, frustrated = FALSE)
 #'   act <- read.csv(ex("1d6o_A_active_site.csv"))
 #'   spm <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
 #'

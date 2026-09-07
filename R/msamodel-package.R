@@ -1,17 +1,25 @@
 #' @details
-#' In the MSA model, mutations perturb the structure and become fixed or are lost
-#' depending on their effects on stability and activity. Given a structure and a
-#' list of its active-site residues, the model predicts structural divergence
-#' profiles.
+#' Three things recur throughout the package.
 #'
-#' Every profile comes in two representations, the same divergence written in two
-#' bases: per residue, and per normal mode. Every profile function returns both at
-#' once, as a list with a \code{$site} and a \code{$mode} tibble.
+#' **The selection strengths, `a1` and `a2`.** `a1` sets the strength of selection on
+#' stability, `a2` the strength of selection on activity, that is on proximity to the
+#' active site. Both are non-negative, and `0` switches that pressure off. They are
+#' either set to chosen values, in [calculate_profiles()] and
+#' [calculate_decomposition()], or estimated from an observed profile by
+#' [fit_lrmsd_msa_site()] and [fit_lrmsd_msa_mode()] and then passed to
+#' [predict_profiles()] and [predict_decomposition()].
+#' They are on different scales, so the two numbers are not comparable to each other.
 #'
-#' Two selection strengths govern the model: `a1` (selection on stability) and `a2`
-#' (selection on activity, i.e. proximity to the active site). Both are
-#' non-negative, and `0` switches that pressure off. They are either set to chosen
-#' values, or estimated from an observed divergence profile.
+#' **The two representations, `site` and `mode`.** A mutation displaces the structure,
+#' and that displacement is written in two bases: per residue, and per normal mode of
+#' the elastic network. Both hold the same divergence. Every profile function returns
+#' both at once, as a list with a \code{$site} tibble, keyed by `site` and `pdb_site`,
+#' and a \code{$mode} tibble, keyed by `mode`.
+#'
+#' **The two metrics, `lrmsd` and `nlrmsd`.** `lrmsd` is the divergence profile as the
+#' model predicts it, keeping its overall level. `nlrmsd` is the same profile with its
+#' mean subtracted off. An observed divergence profile fixes shape but not level, so
+#' `nlrmsd` is the one to compare against data.
 #'
 #' @section The workflow:
 #'
@@ -35,13 +43,6 @@
 #'
 #' [pfix_msa()] exposes the model's elementary quantity, a single mutant's fixation
 #' probability.
-#'
-#' @section Two metrics:
-#'
-#' Every profile function takes a `metric` argument. `"lrmsd"` is the profile as the
-#' model predicts it, keeping its overall level; `"nlrmsd"` is the same profile with
-#' its mean subtracted off. An observed divergence profile pins down shape but not
-#' level, so `"nlrmsd"` is the one to compare against data.
 #'
 #' @section Getting started:
 #'

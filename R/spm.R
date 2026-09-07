@@ -107,9 +107,8 @@ generate_spm_core <- function(wt, n_mutations = 10,
 
 #' Run a single-point-mutation scan over a protein
 #'
-#' Runs a single-point-mutation (SPM) scan: every site of the protein is mutated
-#' `n_mutations` times, and for each mutant the scan records two free-energy changes
-#' and how far every residue moved.
+#' Performs a mutational scan, mutating every residue multiple times and calculating
+#' mutational changes of energy and structure.
 #'
 #' Mutating site `j` perturbs the equilibrium length of every network edge touching
 #' `j`, each by an independent draw from `Normal(0, sigma)` (only edges whose sequence
@@ -117,21 +116,14 @@ generate_spm_core <- function(wt, n_mutations = 10,
 #' structure under strain, and relaxing it displaces the residues. The scan stores the
 #' squared displacements.
 #'
-#' @section The mutation-response matrices:
-#'
-#' `dr2mat_site` and `dr2mat_mode` both have **one row per mutant**, in scan order;
-#' row `k` of either is the mutant described by row `k` of `energy_data`. They differ
-#' in what a column is:
-#'
-#' - `dr2mat_site`, one column per **residue**. Cell `[k, i]` is the squared
-#'   displacement of residue `i` (Å²) under mutant `k`.
-#' - `dr2mat_mode`, one column per **normal mode**. Cell `[k, n]` is the squared
-#'   projection of the same displacement onto mode `n`.
-#'
+#' The squared displacements are stored in two matrices, `dr2mat_site` and
+#' `dr2mat_mode`, both with one row per mutant, in scan order: row `k` of either is the
+#' mutant described by row `k` of `energy_data`. They differ in what a column is. In
+#' `dr2mat_site` a column is a residue, and cell `[k, i]` is the squared displacement
+#' of residue `i` (Å²) under mutant `k`. In `dr2mat_mode` a column is a normal mode,
+#' and cell `[k, n]` is the squared projection of that same displacement onto mode `n`.
 #' The modes are orthonormal, so each row sums to the same total in both matrices: they
-#' hold one displacement written in two bases. Neither carries column names, the
-#' response index being the column position, so that `colSums()` and the like return bare
-#' vectors.
+#' hold one displacement written in two bases.
 #'
 #' @param wt The protein to mutate, carrying its elastic network model.
 #' @param n_mutations Mutants generated per site. The scan produces

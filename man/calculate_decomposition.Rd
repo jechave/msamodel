@@ -2,54 +2,85 @@
 % Please edit documentation in R/model.R
 \name{calculate_decomposition}
 \alias{calculate_decomposition}
-\title{Divergence decomposition at one selection strength (both representations)}
+\title{Nested-model profiles and their mutation, stability and activity contributions}
 \usage{
 calculate_decomposition(spm, a1, a2, metric = c("lrmsd", "nlrmsd"))
 }
 \arguments{
-\item{spm}{A single-point-mutation \code{spm} object from \code{\link[=generate_spm]{generate_spm()}}.}
+\item{spm}{An \code{spm} object from \code{\link[=generate_spm]{generate_spm()}}, carrying the per-mutant energies
+and squared displacements the profiles are averaged from.}
 
-\item{a1}{Stability selection strength (non-negative).}
+\item{a1}{Stability selection strength, non-negative. It enters a mutant's fixation
+probability as \code{min(exp(-a1 * ddg), 1)}, so larger values suppress destabilising
+mutants more sharply, and \code{0} switches stability selection off.}
 
-\item{a2}{Activity selection strength (non-negative).}
+\item{a2}{Activity selection strength, non-negative. It enters the same way, as
+\code{min(exp(-a2 * ddgact), 1)}, and \code{0} switches activity selection off. It is on a
+different scale from \code{a1}, so the two numbers are not comparable to each other.}
 
-\item{metric}{\code{"lrmsd"} (absolute) or \code{"nlrmsd"} (mean-centred). Default \code{"lrmsd"}.}
+\item{metric}{\code{"lrmsd"} for the profiles as predicted, \code{"nlrmsd"} for the
+mean-centred ones. Default \code{"lrmsd"}.}
 }
 \value{
-A list with two tibbles (\code{$site}, \code{$mode}). Each holds the index columns
-(\code{site}, \code{pdb_site} for site; \code{mode} for mode), the four nested-model columns, and
-the three contribution columns, all on the requested \code{metric}. Both branches
-use identical value-column names.
+A list of two tibbles, \verb{$site} (one row per residue, keyed by \code{site}, the
+column position in the scan, and \code{pdb_site}, the PDB residue number) and \verb{$mode}
+(one row per normal mode, keyed by \code{mode}). Apart from those keys the two have the
+same columns.
+
+With \code{metric = "lrmsd"}: \code{lrmsd_mm}, \code{lrmsd_ms}, \code{lrmsd_ma} and \code{lrmsd_msa}, the
+profile predicted by each of the four models, then \code{phi_mut}, \code{phi_stab} and
+\code{phi_act}, the three contributions, which sum to \code{lrmsd_msa}.
+
+With \code{metric = "nlrmsd"}: the same seven columns, each mean-centred, named
+\code{nlrmsd_mm}, \code{nlrmsd_ms}, \code{nlrmsd_ma}, \code{nlrmsd_msa}, \code{nphi_mut}, \code{nphi_stab} and
+\code{nphi_act}. The three contributions sum to \code{nlrmsd_msa}.
 }
 \description{
-The nested-model profiles and the three contributions that decompose them, at a
-single pair of selection strengths, in both representations.
+Calculates the divergence profiles predicted by four nested models at given
+selection strengths, and decomposes the full model's profile into mutation,
+stability and activity contributions, per residue and per normal mode.
 }
 \details{
-Switching each selection constraint off in turn gives four nested models: MM with
-both off, MS with stability only, MA with activity only, and MSA with both. Each is
-evaluated as in \code{\link[=calculate_profiles]{calculate_profiles()}}, at its own selection strengths. The three
-contributions are the increments along the path MM to MS to MSA: mutation is MM
-itself, stability is MS minus MM, and activity is MSA minus MS. They sum exactly to
-the MSA profile.
+Setting a selection strength to zero switches that pressure off, giving four
+models: MM \verb{(0, 0)}, MS \verb{(a1, 0)}, MA \verb{(0, a2)} and MSA \verb{(a1, a2)}. All four are
+evaluated, as \code{lrmsd_mm}, \code{lrmsd_ms}, \code{lrmsd_ma} and \code{lrmsd_msa}. The full model's
+profile is then split into increments along MM to MS to MSA:
 
-\code{metric} applies to every returned column at once, so no result mixes absolute and
-centred columns. The selection strengths are given as arguments, so the values come
-back without standard errors; for bands from a fit use \code{\link[=predict_decomposition]{predict_decomposition()}}.
+\preformatted{phi_mut  = lrmsd_mm
+phi_stab = lrmsd_ms  - lrmsd_mm
+phi_act  = lrmsd_msa - lrmsd_ms}
+
+These sum to \code{lrmsd_msa}. MA is outside the progression.
+
+\code{metric = "nlrmsd"} centres every column on its own mean, renaming the
+contributions \code{nphi_mut}, \code{nphi_stab} and \code{nphi_act}.
 }
 \examples{
 if (requireNamespace("bio3d", quietly = TRUE)) {
   ex  <- function(f) system.file("extdata", f, package = "msamodel")
   wt  <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
-                              model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+                       model = "ming_wall", d_max = 10.5, frustrated = FALSE)
   act <- read.csv(ex("1d6o_A_active_site.csv"))
   spm <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
-  calculate_decomposition(spm, a1 = 1, a2 = 1, metric = "nlrmsd")$site
+
+  # Moderate stability selection, strong activity selection.
+  d <- calculate_decomposition(spm, a1 = 2, a2 = 500, metric = "nlrmsd")
+  d$site
+
+  # The residues where activity selection changes the profile most.
+  head(d$site[order(d$site$nphi_act), c("pdb_site", "nphi_stab", "nphi_act")])
+
+  # The same decomposition in the per-mode representation.
+  d$mode
 }
 }
 \seealso{
-\code{\link[=predict_decomposition]{predict_decomposition()}} (the same, with error bands from a fit);
-\code{\link[=calculate_profiles]{calculate_profiles()}} (the profile these contributions sum to).
+\code{\link[=calculate_profiles]{calculate_profiles()}} for the full model's profile alone, without the
+nested models and the contributions; \code{\link[=predict_decomposition]{predict_decomposition()}} for the same
+decomposition at fitted selection strengths, with standard errors;
+\code{\link[=fit_lrmsd_msa_site]{fit_lrmsd_msa_site()}} and \code{\link[=fit_lrmsd_msa_mode]{fit_lrmsd_msa_mode()}} to estimate \code{a1} and \code{a2} from an
+observed profile. \code{vignette("msamodel-explore")} plots the nested models and the
+contributions in both representations.
 
 Other api:
 \code{\link[=calculate_profiles]{calculate_profiles()}},
