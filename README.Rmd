@@ -102,9 +102,8 @@ active <- read.csv(ex("1d6o_A_active_site.csv"))
 obs    <- read.csv(ex("1d6o_A_lrmsd_obs_site.csv"))
 
 wt  <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
-                     model = "ming_wall", d_max = 10.5, frustrated = FALSE)
-spm <- generate_spm(wt, n_mutations = 10,
-                    pdb_site_active = active$pdb_site, ensemble = 1L)
+                     model = "ming_wall", d_max = 10.5, ensemble = 1L)
+spm <- generate_spm(wt, pdb_site_active = active$pdb_site)
 ```
 
 `fit_lrmsd_msa_site()` estimates the two selection strengths from an observed

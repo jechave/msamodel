@@ -341,9 +341,9 @@ resolve_mode_obs <- function(valid_modes, mode, lrmsd_obs) {
 #' if (requireNamespace("bio3d", quietly = TRUE)) {
 #'   ex   <- function(f) system.file("extdata", f, package = "msamodel")
 #'   wt   <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
-#'                               model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+#'                               model = "ming_wall", d_max = 10.5, ensemble = 1L)
 #'   act  <- read.csv(ex("1d6o_A_active_site.csv"))
-#'   spm  <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
+#'   spm  <- generate_spm(wt, pdb_site_active = act$pdb_site)
 #'
 #'   obs <- read.csv(ex("1d6o_A_lrmsd_obs_site.csv"))
 #'   ml  <- fit_lrmsd_msa_site(spm, obs$pdb_site, obs$lrmsd_obs)
@@ -408,9 +408,9 @@ fit_lrmsd_msa_site <- function(spm,
 #' if (requireNamespace("bio3d", quietly = TRUE)) {
 #'   ex   <- function(f) system.file("extdata", f, package = "msamodel")
 #'   wt   <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
-#'                               model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+#'                               model = "ming_wall", d_max = 10.5, ensemble = 1L)
 #'   act  <- read.csv(ex("1d6o_A_active_site.csv"))
-#'   spm  <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
+#'   spm  <- generate_spm(wt, pdb_site_active = act$pdb_site)
 #'
 #'   # Synthetic observations: no empirical per-mode profile exists (see the file name).
 #'   obs <- read.csv(ex("1d6o_A_lrmsd_obs_mode_syn.csv"))

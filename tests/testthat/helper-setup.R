@@ -14,11 +14,12 @@
 # separate drift-guard test, an env-var gate and a pre-commit hook. All three are gone:
 # the hole they covered no longer exists.
 #
-# COST: ~7.4 s (pdb + ENM + scan) on this 107-residue protein, once per run. On the old
-# 228-residue example the same build was ~22.6 s, and under the planned sclfenm mutation
-# model -- which re-diagonalises the ENM per mutant -- it would be ~13.6 min against
-# ~41 s here (one eigen() is 0.357 s vs 0.038 s, O(N^3)). That gap is why the suite
-# uses 1d6o_A.
+# COST: ~5.7 s (pdb + ENM + scan, nine mutations per site) on this 107-residue protein,
+# once per run. On the old 228-residue example the same build was ~22.6 s (measured at ten
+# mutations per site), and under penm's genm mutation model -- which re-diagonalises the
+# ENM per mutant, on top of minimising its energy -- the eigen() calls alone would take
+# ~12.2 min against ~37 s here (one eigen() is 0.357 s vs 0.038 s, O(N^3)). That gap is
+# why the suite uses 1d6o_A.
 #
 # system.file(), NOT test_path("..", ".."): under R CMD check the tests run against a
 # BUILT package where inst/extdata/ has become extdata/ and no inst/ exists. A relative
@@ -36,13 +37,12 @@ extdata_file <- function(name) {
 ENM_NODE  <- "ca"
 ENM_MODEL <- "ming_wall"
 ENM_DMAX  <- 10.5
-ENM_FRUST <- FALSE
 
-SPM_N_MUTATIONS <- 10
-SPM_MODEL       <- "lfenm"
-SPM_SIGMA       <- 0.3
-SPM_MIN_SD      <- 2
-SPM_ENSEMBLE    <- 1L
+SPM_ALPHABET_SIZE <- 10L
+SPM_MODEL         <- "lfenm"
+SPM_SIGMA         <- 0.3
+SPM_MIN_SD        <- 2L
+SPM_ENSEMBLE      <- 1L
 
 # --- The fixture ------------------------------------------------------------
 pdb_site_active <- {
@@ -50,20 +50,18 @@ pdb_site_active <- {
   act$pdb_site[act$pdb == "1d6o" & act$chain == "A"]
 }
 
+pdb_1d6o <- bio3d::read.pdb(extdata_file("1d6o_A.pdb"))
+
+# The protein carries how it mutates: penm::set_enm() takes the SPM_* constants, and
+# generate_spm() reads them from wt.
 wt <- penm::set_enm(
-  bio3d::read.pdb(extdata_file("1d6o_A.pdb")),
-  node = ENM_NODE, model = ENM_MODEL, d_max = ENM_DMAX, frustrated = ENM_FRUST
+  pdb_1d6o,
+  node = ENM_NODE, model = ENM_MODEL, d_max = ENM_DMAX,
+  mut_model = SPM_MODEL, mut_dl_sigma = SPM_SIGMA, mut_sd_min = SPM_MIN_SD,
+  ensemble = SPM_ENSEMBLE, alphabet_size = SPM_ALPHABET_SIZE
 )
 
-spm <- generate_spm(
-  wt,
-  n_mutations     = SPM_N_MUTATIONS,
-  model           = SPM_MODEL,
-  sigma           = SPM_SIGMA,
-  min_sd          = SPM_MIN_SD,
-  pdb_site_active = pdb_site_active,
-  ensemble        = SPM_ENSEMBLE
-)
+spm <- generate_spm(wt, pdb_site_active = pdb_site_active)
 
 # The observed profiles. obs_site is EMPIRICAL; obs_mode is SYNTHETIC (the `_syn` in its
 # name) -- built by evaluating the model and adding seeded noise, because no empirical
@@ -78,15 +76,14 @@ obs_mode <- utils::read.csv(extdata_file("1d6o_A_lrmsd_obs_mode_syn.csv"))
 # from. This scan is pinned directly, so a generator change is reported as a generator
 # change.
 #
-# n_mutations = 2 rather than 10: the point is to pin the generator's output, and two
-# mutations per site exercise the same code path as ten. Costs ~1.8 s against ~7 s.
+# alphabet_size = 3 (two mutations per site) rather than 10: the point is to pin the
+# generator's output, and two mutations per site exercise the same code path as nine.
+# The alphabet is a property of the protein, so this scan needs its own wt.
 # It is NOT used by anything else -- every other test reads `spm` above.
-spm_small <- generate_spm(
-  wt,
-  n_mutations     = 2L,
-  model           = SPM_MODEL,
-  sigma           = SPM_SIGMA,
-  min_sd          = SPM_MIN_SD,
-  pdb_site_active = pdb_site_active,
-  ensemble        = SPM_ENSEMBLE
+wt_small <- penm::set_enm(
+  pdb_1d6o,
+  node = ENM_NODE, model = ENM_MODEL, d_max = ENM_DMAX,
+  mut_model = SPM_MODEL, mut_dl_sigma = SPM_SIGMA, mut_sd_min = SPM_MIN_SD,
+  ensemble = SPM_ENSEMBLE, alphabet_size = 3L
 )
+spm_small <- generate_spm(wt_small, pdb_site_active = pdb_site_active)

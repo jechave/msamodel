@@ -130,16 +130,17 @@ no cached test fixtures either.
   example protein: a 228-residue `1znb_A` set was removed 2026-09-04 once the docs and
   tests had moved off it (recoverable from git history if a larger example is wanted).
 - **Test fixtures** → none. `tests/testthat/helper-setup.R` BUILDS the ENM and the scan
-  on every run (~7.4 s) rather than loading a cache, and owns the ENM/SPM constants for
-  the test side. It also builds `spm_small` (`n_mutations = 2`, ~1.8 s), used by exactly
-  one snapshot — the pin on `generate_spm()` itself, so a generator change is reported
-  as a generator change rather than only as a downstream verb failing.
+  on every run (~5.7 s) rather than loading a cache, and owns the ENM/SPM constants for
+  the test side. It also builds `spm_small` from its own `wt` (`alphabet_size = 3`,
+  two mutations per site), used by exactly one snapshot — the pin on `generate_spm()`
+  itself, so a generator change is reported as a generator change rather than only as
+  a downstream verb failing.
 
 `data-raw/` must not read from `tests/`. If a new artifact seems to need both, that is a
 signal it belongs to one side only — decide which, do not bridge them.
 
 **Duplicated constants, still open on one side.** `data-raw/prepare_1d6o_data.R` and
-`helper-setup.R` each declare the nine ENM/SPM constants, with identical values, because
+`helper-setup.R` each declare the eight ENM/SPM constants, with identical values, because
 `data-raw/` may not read `tests/`. Nothing enforces the match, so editing one side leaves
 the suite green while `inst/extdata/` ships from different constants — change both by
 hand. (The old `make-znb-fixtures.R` was a third declaration; deleting it removed one of

@@ -51,9 +51,9 @@ pfix_msa(ddg = c(0.5, 1.2, 3.0), ddgact = c(0.1, 0.4, 2.0), a1 = 1, a2 = 0)
 if (requireNamespace("bio3d", quietly = TRUE)) {
   ex  <- function(f) system.file("extdata", f, package = "msamodel")
   wt  <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
-                              model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+                              model = "ming_wall", d_max = 10.5, ensemble = 1L)
   act <- read.csv(ex("1d6o_A_active_site.csv"))
-  spm <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
+  spm <- generate_spm(wt, pdb_site_active = act$pdb_site)
   pfix_msa(spm$energy_data$ddg, spm$energy_data$ddgact, a1 = 1, a2 = 1)
 }
 }

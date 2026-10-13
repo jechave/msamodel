@@ -59,9 +59,9 @@ contributions \code{nphi_mut}, \code{nphi_stab} and \code{nphi_act}.
 if (requireNamespace("bio3d", quietly = TRUE)) {
   ex  <- function(f) system.file("extdata", f, package = "msamodel")
   wt  <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
-                       model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+                       model = "ming_wall", d_max = 10.5, ensemble = 1L)
   act <- read.csv(ex("1d6o_A_active_site.csv"))
-  spm <- generate_spm(wt, pdb_site_active = act$pdb_site, ensemble = 1L)
+  spm <- generate_spm(wt, pdb_site_active = act$pdb_site)
 
   # Moderate stability selection, strong activity selection.
   d <- calculate_decomposition(spm, a1 = 2, a2 = 500, metric = "nlrmsd")

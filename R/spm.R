@@ -3,10 +3,11 @@
 
 #' Run the raw single-point-mutation scan (per-mutant record)
 #'
-#' The lossless SPM primitive: for every site it generates `n_mutations` mutants and
-#' records each mutant's measured effects, returning one **row per mutant**. Mutants are
-#' processed one at a time and only the metrics are kept (never a tibble of full mutant
-#' structures), so the scan stays memory-efficient on large proteins. This is the
+#' The lossless SPM primitive: it gives every site each letter of the alphabet other
+#' than the wild type's, one mutant per letter, and records each mutant's measured
+#' effects, returning one **row per mutant**. Mutants are processed one at a time and
+#' only the metrics are kept (never a tibble of full mutant structures), so the scan
+#' stays memory-efficient on large proteins. This is the
 #' internal core that [generate_spm()] wraps: it keeps the per-mutant record of
 #' reductions, which [generate_spm()] then reshapes into the lean, model-ready `spm`
 #' object. A future motion arm adds its quantities here the same way `dr2_i` / `dr2_n`
@@ -20,15 +21,11 @@
 #' is the boundary between the two vocabularies.
 #'
 #' @param wt Wild-type protein structure with an elastic network model, as
-#'   returned by [penm::set_enm()].
-#' @param n_mutations Number of mutant replicates to generate per site.
-#' @param model Name of the mutation model to apply (passed to the ENM machinery).
-#' @param sigma Mutation strength (the perturbation magnitude).
-#' @param min_sd Minimum sequence separation between coupled sites.
+#'   returned by [penm::set_enm()], which also fixes how it mutates.
 #' @param pdb_site_active Optional integer vector of active-site residue numbers
 #'   (PDB numbering).
-#' @param ensemble Which sample of mutants to draw; see [generate_spm()].
-#' @return A tibble with one row per mutant `(j, m)` (`m = 0` is the wild type),
+#' @return A tibble with one row per mutant `(j, m)`, `m` the letter given to site `j`
+#'   (`m = 0` is the wild type),
 #'   carrying all measured effects of that mutation: scalar energy changes
 #'   (`ddg_dv_jm`, `ddg_tds_jm`, `ddgact_dv_jm`, `ddgact_tds_jm`) and list-columns
 #'   `site` / `pdb_site` (the site index to PDB-residue map), `dr2_ijm` (per-site
@@ -36,10 +33,7 @@
 #'   mutant), `mode` (penm's normal-mode index, [penm::get_mode()]), and `dr2_njm`
 #'   (per-mode squared contribution; each cell a `dr2_n` vector over response modes `n`).
 #' @noRd
-generate_spm_core <- function(wt, n_mutations = 10,
-                             model = "lfenm", sigma = 0.3,
-                             min_sd = 2, pdb_site_active = NULL,
-                             ensemble) {
+generate_spm_core <- function(wt, pdb_site_active = NULL) {
   # Get site information once
   site_vector <- penm::get_site(wt)
   pdb_site_vector <- penm::get_pdb_site(wt)
@@ -47,18 +41,22 @@ generate_spm_core <- function(wt, n_mutations = 10,
   # means the label cannot drift from the modes it names if penm's mode set ever changes.
   mode_vector <- penm::get_mode(wt)
 
+  # How the protein mutates was fixed by penm::set_enm(): the mutational model, the
+  # ensemble, and the size of the sequence alphabet.
+  param <- penm::get_enm_param(wt)
+  alphabet_size <- param$alphabet_size
+
   # Initialize empty results tibble
   results <- tibble()
 
-  # Process each site and mutation state
+  # Process each site and letter
   for (j in site_vector) {
-    for (m in 0:n_mutations) {
+    for (m in 0:(alphabet_size - 1)) {
       # Generate single mutant (m=0 is wild type)
-      mut <- penm::get_mutant_site(wt, j, m,
-                                   mut_model = model,
-                                   mut_dl_sigma = sigma,
-                                   mut_sd_min = min_sd,
-                                   ensemble = ensemble)
+      mut <- penm::get_mutant_site(wt, j, m)
+      # A genm mutant comes back without normal modes, which the entropy terms below
+      # need; an lfenm mutant keeps wt's.
+      if (param$mut_model == "genm") mut <- penm::set_enm_nma(mut)
 
       # Calculate energies
       ddg_dv_jm <- penm::ddg_dv(wt, mut)
@@ -98,7 +96,7 @@ generate_spm_core <- function(wt, n_mutations = 10,
 
       # Free memory by removing the mutant
       rm(mut)
-      if (j %% 50 == 0 && m == n_mutations) gc()  # Occasional garbage collection
+      if (j %% 50 == 0 && m == alphabet_size - 1) gc()  # Occasional garbage collection
     }
   }
 
@@ -107,14 +105,29 @@ generate_spm_core <- function(wt, n_mutations = 10,
 
 #' Run a single-point-mutation scan over a protein
 #'
-#' Performs a mutational scan, mutating every residue multiple times and calculating
-#' mutational changes of energy and structure.
+#' Performs a complete single-point mutational scan, giving every residue each other
+#' letter of the sequence alphabet and calculating mutational changes of energy and
+#' structure.
 #'
-#' Mutating site `j` perturbs the equilibrium length of every network edge touching
-#' `j`, each by an independent draw from `Normal(0, sigma)` (only edges whose sequence
-#' separation is at least `min_sd` are perturbed). Those altered lengths put the
-#' structure under strain, and relaxing it displaces the residues. The scan stores the
-#' squared displacements.
+#' How the protein mutates is set when it is built, by [penm::set_enm()]: the
+#' mutational model (`mut_model`), the spread of a letter's shift of a spring length
+#' (`mut_dl_sigma`), which springs a mutation leaves alone (`mut_sd_min`), the size of
+#' the sequence alphabet (`alphabet_size`) and which sample of mutants is drawn
+#' (`ensemble`). The scan reads them from `wt`.
+#'
+#' Each site carries a letter of the alphabet, numbered `0` to `alphabet_size - 1`; the
+#' wild type carries letter `0`, the residue in the pdb, at every site. The scan gives
+#' every site `j` each of the other letters in turn, `1` to `alphabet_size - 1`, one
+#' mutant per letter. Letters are labels within a site: the same letter at two sites has
+#' unrelated effects (see the Details of [penm::set_enm()]). Giving `j` a letter shifts
+#' the equilibrium length of every spring touching `j`, each by an independent draw from
+#' `Normal(0, mut_dl_sigma)` (only springs between sites at least `mut_sd_min` apart in
+#' sequence are shifted). Those altered lengths put the structure under strain, and
+#' relaxing it displaces the residues. The scan stores the squared displacements.
+#'
+#' Experimental, and not covered by the tests: with `mut_model = "genm"`, penm returns
+#' each mutant without normal modes; the scan adds them with [penm::set_enm_nma()], since
+#' the entropic energy terms need them.
 #'
 #' The squared displacements are stored in two matrices, `dr2mat_site` and
 #' `dr2mat_mode`, both with one row per mutant, in scan order: row `k` of either is the
@@ -125,28 +138,18 @@ generate_spm_core <- function(wt, n_mutations = 10,
 #' The modes are orthonormal, so each row sums to the same total in both matrices: they
 #' hold one displacement written in two bases.
 #'
-#' @param wt The protein to mutate, carrying its elastic network model.
-#' @param n_mutations Mutants generated per site. The scan produces
-#'   `n_sites * n_mutations` mutants in all, which is the row count of both matrices.
-#' @param model Mutation model, passed to penm as `mut_model`: `"lfenm"` (the default)
-#'   or `"sclfenm"`. Any other value is an error.
-#' @param sigma Standard deviation (Å) of the `Normal(0, sigma)` perturbation applied
-#'   to each affected edge length. It sets the size of a mutation.
-#' @param min_sd Minimum sequence separation for an edge to be perturbed: at the
-#'   default `2`, edges to immediate sequence neighbours are left alone.
+#' @param wt The protein to mutate, carrying its elastic network model and how it
+#'   mutates, as returned by [penm::set_enm()]. The scan produces
+#'   `n_sites * (alphabet_size - 1)` mutants in all, which is the row count of both
+#'   matrices.
 #' @param pdb_site_active Active-site residue numbers, in **PDB numbering**. If `NULL`,
 #'   no activity energy is computed and `energy_data$ddgact` is `NA` throughout, which
 #'   leaves the model's activity term unusable.
-#' @param ensemble Which sample of mutants to draw. The mutations are random, so a scan
-#'   is one of many possible ones; a given `ensemble` always yields the same mutants, on
-#'   any machine, and a different one yields an equally valid different set. Use a single
-#'   value across anything to be compared, and record it: it is what makes the
-#'   scan reproducible. Any integer. See [penm::penm_ensemble].
 #' @return An `spm` object (a classed list) with five elements:
 #'   \describe{
 #'     \item{`energy_data`}{One row per mutant, aligned with the matrix rows: `j` (the
-#'       mutated site), `m` (which replicate), `ddg` (change in folding free energy)
-#'       and `ddgact` (change in activity free energy, or `NA`; see
+#'       mutated site), `m` (the letter `j` was given), `ddg` (change in folding
+#'       free energy) and `ddgact` (change in activity free energy, or `NA`; see
 #'       `pdb_site_active`).}
 #'     \item{`dr2mat_site`}{`[mutant x residue]` squared displacements (Å²).}
 #'     \item{`dr2mat_mode`}{`[mutant x mode]` squared displacements.}
@@ -154,17 +157,17 @@ generate_spm_core <- function(wt, n_mutations = 10,
 #'       column position (`site`).}
 #'     \item{`mode_map`}{The mode index for each `dr2mat_mode` column.}
 #'   }
-#' @seealso [penm::set_enm()] (builds the elastic network model this needs);
+#' @seealso [penm::set_enm()] (builds the elastic network model this needs, and sets
+#'   how it mutates); [penm::penm_ensemble] (what `ensemble` means);
 #'   [calculate_profiles()] and [fit_lrmsd_msa_site()] (consume the returned object).
 #' @family spm
 #' @examples
 #' if (requireNamespace("bio3d", quietly = TRUE)) {
 #'   ex  <- function(f) system.file("extdata", f, package = "msamodel")
 #'   wt  <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
-#'                               model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+#'                        model = "ming_wall", d_max = 10.5, ensemble = 1L)
 #'   act <- read.csv(ex("1d6o_A_active_site.csv"))
-#'   spm <- generate_spm(wt, n_mutations = 10, pdb_site_active = act$pdb_site,
-#'                       ensemble = 1L)
+#'   spm <- generate_spm(wt, pdb_site_active = act$pdb_site)
 #'
 #'   dim(spm$dr2mat_site)   # mutants x residues
 #'   dim(spm$dr2mat_mode)   # mutants x modes
@@ -173,13 +176,8 @@ generate_spm_core <- function(wt, n_mutations = 10,
 #'   all.equal(rowSums(spm$dr2mat_site), rowSums(spm$dr2mat_mode))
 #' }
 #' @export
-generate_spm <- function(wt, n_mutations = 10,
-                             model = "lfenm", sigma = 0.3,
-                             min_sd = 2, pdb_site_active = NULL,
-                             ensemble) {
-  scan <- generate_spm_core(wt, n_mutations = n_mutations, model = model,
-                            sigma = sigma, min_sd = min_sd,
-                            pdb_site_active = pdb_site_active, ensemble = ensemble)
+generate_spm <- function(wt, pdb_site_active = NULL) {
+  scan <- generate_spm_core(wt, pdb_site_active = pdb_site_active)
 
   # Drop the wild-type rows (m = 0): every model-ready array is per MUTANT.
   scan <- scan %>% filter(m > 0)

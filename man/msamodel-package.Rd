@@ -37,9 +37,9 @@ mean subtracted off. An observed divergence profile fixes shape but not level, s
 \describe{
 \item{1. Build the elastic network}{\code{\link[penm:set_enm]{penm::set_enm()}}, which belongs to the penm
 package, not to msamodel.}
-\item{2. Run the mutation scan}{\code{\link[=generate_spm]{generate_spm()}} mutates every site many times
-and records how the structure responds. Returns the \code{spm} object every later
-function reads.}
+\item{2. Run the mutation scan}{\code{\link[=generate_spm]{generate_spm()}} gives every site each other
+letter of the sequence alphabet and records how the structure responds.
+Returns the \code{spm} object every later function reads.}
 \item{3a. Evaluate at chosen \verb{(a1, a2)}}{\code{\link[=calculate_profiles]{calculate_profiles()}} for the
 divergence profiles, \code{\link[=calculate_decomposition]{calculate_decomposition()}} for the four nested models
 and the mutation/stability/activity split.}

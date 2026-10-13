@@ -26,9 +26,9 @@
 #' \describe{
 #'   \item{1. Build the elastic network}{[penm::set_enm()], which belongs to the penm
 #'     package, not to msamodel.}
-#'   \item{2. Run the mutation scan}{[generate_spm()] mutates every site many times
-#'     and records how the structure responds. Returns the `spm` object every later
-#'     function reads.}
+#'   \item{2. Run the mutation scan}{[generate_spm()] gives every site each other
+#'     letter of the sequence alphabet and records how the structure responds.
+#'     Returns the `spm` object every later function reads.}
 #'   \item{3a. Evaluate at chosen `(a1, a2)`}{[calculate_profiles()] for the
 #'     divergence profiles, [calculate_decomposition()] for the four nested models
 #'     and the mutation/stability/activity split.}

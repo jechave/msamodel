@@ -1,3 +1,49 @@
+# msamodel 0.7.0
+
+## Breaking changes
+
+* **msamodel requires penm 0.5.0, and the protein now carries how it mutates.** Since
+  penm 0.4.0 the mutational model, the spread of a letter's shift of a spring length,
+  the springs a mutation leaves alone, the size of the sequence alphabet and the
+  ensemble are arguments of `penm::set_enm()`, stored in the protein. `generate_spm()`
+  follows: it loses `n_mutations`, `model`, `sigma`, `min_sd` and `ensemble`, and reads
+  them from `wt`. penm 0.4.0 also removed `set_enm()`'s `frustrated` argument.
+
+  ```r
+  # 0.6.0
+  wt  <- penm::set_enm(pdb, node = "ca", model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+  spm <- generate_spm(wt, n_mutations = 10, model = "lfenm", sigma = 0.3, min_sd = 2,
+                      pdb_site_active = act, ensemble = 1L)
+
+  # 0.7.0
+  wt  <- penm::set_enm(pdb, node = "ca", model = "ming_wall", d_max = 10.5,
+                       mut_model = "lfenm", mut_dl_sigma = 0.3, mut_sd_min = 2,
+                       alphabet_size = 10, ensemble = 1L)
+  spm <- generate_spm(wt, pdb_site_active = act)
+  ```
+
+* **A scan is a complete single-point scan over the sequence alphabet.** Each site
+  carries a letter, numbered `0` to `alphabet_size - 1`; the wild type carries letter
+  `0` everywhere. The scan gives every site each of the other `alphabet_size - 1`
+  letters in turn, and `energy_data$m` is the letter the site was given. Letters are
+  labels within a site: the same letter at two sites has unrelated effects. At penm's
+  default `alphabet_size = 10` a scan has 9 mutants per site, where the old default
+  `n_mutations = 10` gave 10.
+
+* **Scans differ from those of 0.6.0.** penm 0.4.0 assigns its random draws to springs
+  differently, so the same settings and `ensemble` give different mutants, and results
+  computed with 0.6.0 are not reproduced exactly. On 1d6o_A, over 30 ensembles per
+  version, the means of `ddg`, `ddgact` and the total squared displacement per mutant,
+  and the mean log squared displacement per site and per mode, agree within
+  ensemble-to-ensemble variation. The synthetic `1d6o_A_lrmsd_obs_mode_syn.csv`, built
+  from the scan, is regenerated.
+
+## Other changes
+
+* `generate_spm()` accepts proteins built with `mut_model = "genm"`, adding each
+  mutant's normal modes with `penm::set_enm_nma()`. This path is experimental: it runs,
+  but it has not been validated, and the test suite does not cover it.
+
 # msamodel 0.6.0
 
 ## Breaking changes

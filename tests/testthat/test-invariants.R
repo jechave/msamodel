@@ -105,8 +105,8 @@ test_that("the two axes describe the same displacement", {
   # tolerance is far too slack for it: measured, it lets a single cell of dr2mat_mode be
   # scaled by 1.001 without failing.
   #
-  # Measured agreement over the 1070 mutants: max absolute difference 3.2e-15, max
-  # relative difference 3.0e-14 -- about 134x machine epsilon, i.e. ordinary accumulated
+  # Measured agreement over the 963 mutants: max absolute difference 3.1e-15, max
+  # relative difference 2.5e-14 -- about 114x machine epsilon, i.e. ordinary accumulated
   # round-off over the 315 summed terms. 1e-12 sits safely above that while staying ~10
   # orders of magnitude tighter than the default, so a real assembly or alignment error
   # cannot hide under it.

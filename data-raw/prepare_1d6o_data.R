@@ -9,10 +9,10 @@
 # The structure itself, inst/extdata/1d6o_A.pdb, is NOT built here: it is a
 # chain-extracted PDB file, copied in by hand.
 #
-# Why this protein: at 107 residues its scan runs in about 7 seconds, which makes it
-# the example a document can afford to RUN -- the README and all four vignettes knit
+# Why this protein: at 107 residues its scan runs in about 6 seconds, which makes it
+# the example a document can afford to RUN -- the README and all three vignettes knit
 # it live rather than showing output typed by hand. It fits well (D2 ~ 0.60) and its
-# 6 active-site residues resolve the activity parameter clearly (a2 at 4.2 SE from
+# 6 active-site residues resolve the activity parameter clearly (a2 at 3.5 SE from
 # zero). It replaced a 228-residue example whose scan took one to two minutes; that
 # one was removed on 2026-09-04 once nothing read it any more.
 #
@@ -95,27 +95,22 @@ write_csv(lrmsd_obs_site, file.path(EXTDATA, "1d6o_A_lrmsd_obs_site.csv"))
 ENM_NODE  <- "ca"
 ENM_MODEL <- "ming_wall"
 ENM_DMAX  <- 10.5
-ENM_FRUST <- FALSE
 
-SPM_N_MUTATIONS <- 10
-SPM_MODEL       <- "lfenm"
-SPM_SIGMA       <- 0.3
-SPM_MIN_SD      <- 2
-SPM_ENSEMBLE    <- 1L
+SPM_ALPHABET_SIZE <- 10L
+SPM_MODEL         <- "lfenm"
+SPM_SIGMA         <- 0.3
+SPM_MIN_SD        <- 2L
+SPM_ENSEMBLE      <- 1L
 
 SYN_SEED     <- 2025
 SYN_NOISE_SD <- 0.30
 
 pdb <- bio3d::read.pdb(file.path(EXTDATA, "1d6o_A.pdb"))
-wt  <- penm::set_enm(pdb, node = ENM_NODE, model = ENM_MODEL,
-                     d_max = ENM_DMAX, frustrated = ENM_FRUST)
-spm <- generate_spm(wt,
-                    n_mutations     = SPM_N_MUTATIONS,
-                    model           = SPM_MODEL,
-                    sigma           = SPM_SIGMA,
-                    min_sd          = SPM_MIN_SD,
-                    pdb_site_active = pdb_site_active,
-                    ensemble        = SPM_ENSEMBLE)
+wt  <- penm::set_enm(pdb, node = ENM_NODE, model = ENM_MODEL, d_max = ENM_DMAX,
+                     mut_model = SPM_MODEL, mut_dl_sigma = SPM_SIGMA,
+                     mut_sd_min = SPM_MIN_SD, ensemble = SPM_ENSEMBLE,
+                     alphabet_size = SPM_ALPHABET_SIZE)
+spm <- generate_spm(wt, pdb_site_active = pdb_site_active)
 
 site_fit <- fit_lrmsd_msa_site(spm, lrmsd_obs_site$pdb_site,
                                lrmsd_obs_site$lrmsd_obs)   # deterministic (a1,a2)

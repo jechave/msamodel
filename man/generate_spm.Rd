@@ -4,47 +4,24 @@
 \alias{generate_spm}
 \title{Run a single-point-mutation scan over a protein}
 \usage{
-generate_spm(
-  wt,
-  n_mutations = 10,
-  model = "lfenm",
-  sigma = 0.3,
-  min_sd = 2,
-  pdb_site_active = NULL,
-  ensemble
-)
+generate_spm(wt, pdb_site_active = NULL)
 }
 \arguments{
-\item{wt}{The protein to mutate, carrying its elastic network model.}
-
-\item{n_mutations}{Mutants generated per site. The scan produces
-\code{n_sites * n_mutations} mutants in all, which is the row count of both matrices.}
-
-\item{model}{Mutation model, passed to penm as \code{mut_model}: \code{"lfenm"} (the default)
-or \code{"sclfenm"}. Any other value is an error.}
-
-\item{sigma}{Standard deviation (Å) of the \code{Normal(0, sigma)} perturbation applied
-to each affected edge length. It sets the size of a mutation.}
-
-\item{min_sd}{Minimum sequence separation for an edge to be perturbed: at the
-default \code{2}, edges to immediate sequence neighbours are left alone.}
+\item{wt}{The protein to mutate, carrying its elastic network model and how it
+mutates, as returned by \code{\link[penm:set_enm]{penm::set_enm()}}. The scan produces
+\code{n_sites * (alphabet_size - 1)} mutants in all, which is the row count of both
+matrices.}
 
 \item{pdb_site_active}{Active-site residue numbers, in \strong{PDB numbering}. If \code{NULL},
 no activity energy is computed and \code{energy_data$ddgact} is \code{NA} throughout, which
 leaves the model's activity term unusable.}
-
-\item{ensemble}{Which sample of mutants to draw. The mutations are random, so a scan
-is one of many possible ones; a given \code{ensemble} always yields the same mutants, on
-any machine, and a different one yields an equally valid different set. Use a single
-value across anything to be compared, and record it: it is what makes the
-scan reproducible. Any integer. See \link[penm:penm_ensemble]{penm::penm_ensemble}.}
 }
 \value{
 An \code{spm} object (a classed list) with five elements:
 \describe{
 \item{\code{energy_data}}{One row per mutant, aligned with the matrix rows: \code{j} (the
-mutated site), \code{m} (which replicate), \code{ddg} (change in folding free energy)
-and \code{ddgact} (change in activity free energy, or \code{NA}; see
+mutated site), \code{m} (the letter \code{j} was given), \code{ddg} (change in folding
+free energy) and \code{ddgact} (change in activity free energy, or \code{NA}; see
 \code{pdb_site_active}).}
 \item{\code{dr2mat_site}}{\verb{[mutant x residue]} squared displacements (Å²).}
 \item{\code{dr2mat_mode}}{\verb{[mutant x mode]} squared displacements.}
@@ -54,15 +31,30 @@ column position (\code{site}).}
 }
 }
 \description{
-Performs a mutational scan, mutating every residue multiple times and calculating
-mutational changes of energy and structure.
+Performs a complete single-point mutational scan, giving every residue each other
+letter of the sequence alphabet and calculating mutational changes of energy and
+structure.
 }
 \details{
-Mutating site \code{j} perturbs the equilibrium length of every network edge touching
-\code{j}, each by an independent draw from \code{Normal(0, sigma)} (only edges whose sequence
-separation is at least \code{min_sd} are perturbed). Those altered lengths put the
-structure under strain, and relaxing it displaces the residues. The scan stores the
-squared displacements.
+How the protein mutates is set when it is built, by \code{\link[penm:set_enm]{penm::set_enm()}}: the
+mutational model (\code{mut_model}), the spread of a letter's shift of a spring length
+(\code{mut_dl_sigma}), which springs a mutation leaves alone (\code{mut_sd_min}), the size of
+the sequence alphabet (\code{alphabet_size}) and which sample of mutants is drawn
+(\code{ensemble}). The scan reads them from \code{wt}.
+
+Each site carries a letter of the alphabet, numbered \code{0} to \code{alphabet_size - 1}; the
+wild type carries letter \code{0}, the residue in the pdb, at every site. The scan gives
+every site \code{j} each of the other letters in turn, \code{1} to \code{alphabet_size - 1}, one
+mutant per letter. Letters are labels within a site: the same letter at two sites has
+unrelated effects (see the Details of \code{\link[penm:set_enm]{penm::set_enm()}}). Giving \code{j} a letter shifts
+the equilibrium length of every spring touching \code{j}, each by an independent draw from
+\code{Normal(0, mut_dl_sigma)} (only springs between sites at least \code{mut_sd_min} apart in
+sequence are shifted). Those altered lengths put the structure under strain, and
+relaxing it displaces the residues. The scan stores the squared displacements.
+
+Experimental, and not covered by the tests: with \code{mut_model = "genm"}, penm returns
+each mutant without normal modes; the scan adds them with \code{\link[penm:set_enm_nma]{penm::set_enm_nma()}}, since
+the entropic energy terms need them.
 
 The squared displacements are stored in two matrices, \code{dr2mat_site} and
 \code{dr2mat_mode}, both with one row per mutant, in scan order: row \code{k} of either is the
@@ -77,10 +69,9 @@ hold one displacement written in two bases.
 if (requireNamespace("bio3d", quietly = TRUE)) {
   ex  <- function(f) system.file("extdata", f, package = "msamodel")
   wt  <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
-                              model = "ming_wall", d_max = 10.5, frustrated = FALSE)
+                       model = "ming_wall", d_max = 10.5, ensemble = 1L)
   act <- read.csv(ex("1d6o_A_active_site.csv"))
-  spm <- generate_spm(wt, n_mutations = 10, pdb_site_active = act$pdb_site,
-                      ensemble = 1L)
+  spm <- generate_spm(wt, pdb_site_active = act$pdb_site)
 
   dim(spm$dr2mat_site)   # mutants x residues
   dim(spm$dr2mat_mode)   # mutants x modes
@@ -90,7 +81,8 @@ if (requireNamespace("bio3d", quietly = TRUE)) {
 }
 }
 \seealso{
-\code{\link[penm:set_enm]{penm::set_enm()}} (builds the elastic network model this needs);
+\code{\link[penm:set_enm]{penm::set_enm()}} (builds the elastic network model this needs, and sets
+how it mutates); \link[penm:penm_ensemble]{penm::penm_ensemble} (what \code{ensemble} means);
 \code{\link[=calculate_profiles]{calculate_profiles()}} and \code{\link[=fit_lrmsd_msa_site]{fit_lrmsd_msa_site()}} (consume the returned object).
 }
 \concept{spm}
