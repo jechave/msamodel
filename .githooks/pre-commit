@@ -34,12 +34,17 @@ blocked=0
 # trains both of us to wave the real ones through. suppressMessages() around
 # ANYTHING ELSE still blocks, and so does every other construct.
 # (Exemption added 2026-09-05, after it fired on two newly written vignettes.)
+#
+# NOT GATED: the rlang `.data` pronoun. It also clears the "no visible binding" NOTE,
+# but by changing the code, not the checker: `.data$col` errors when the column is
+# missing, where a bare name falls back to the surrounding environment. It was on the
+# list until 2026-10-14 and was removed with the maintainer's agreement.
 added_suppressions=$(
   git diff --cached -U0 -- '*.R' '*.Rmd' DESCRIPTION NAMESPACE .Rbuildignore 2>/dev/null \
     | grep '^+' | grep -v '^+++' \
     | grep -vE '^\+[[:space:]]*suppressMessages\((library\([^)]*\))?[[:space:]]*\{?[[:space:]]*$' \
     | grep -vE '^\+[[:space:]]*suppressMessages\(library\([^)]*\)\)[[:space:]]*$' \
-    | grep -nE 'globalVariables|suppressWarnings|suppressMessages|\bna\.rm[[:space:]]*=[[:space:]]*TRUE|@importFrom[[:space:]]+rlang[[:space:]]+\.data' \
+    | grep -nE 'globalVariables|suppressWarnings|suppressMessages|\bna\.rm[[:space:]]*=[[:space:]]*TRUE' \
     || true
 )
 if [ -n "$added_suppressions" ] && [ "$SUPPRESSION_APPROVED" != "1" ]; then
