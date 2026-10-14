@@ -57,23 +57,17 @@
 #' @importFrom tidyr complete fill pivot_longer pivot_wider
 #' @importFrom tibble as_tibble tibble
 #' @importFrom purrr discard map_dfr possibly
-#' @importFrom rlang sym !!
+#' @importFrom rlang sym !! .data
 #' @importFrom stats cor dnorm dunif fitted loess median optim optimHess predict qnorm quantile residuals rnorm runif sd var
 #' @importFrom magrittr %>%
 ## usethis namespace: end
 NULL
 
-# NOTE: R CMD check reports "no visible binding for global variable" for column
-# names referenced bare inside dplyr/tidyr verbs (NSE). It is a NOTE, not an error
-# or a warning -- the code is correct. A utils::globalVariables() call used to
-# suppress it; that list had grown to 47 names of which only 11 corresponded to a
-# real complaint, so it was asserting things about the package that were not true.
-# The note is left visible rather than silenced.
-#
-# The names R actually cannot resolve, in 2 functions:
-#   generate_spm     : m, j, ddg_dv_jm, ddg_tds_jm, ddgact_dv_jm, ddgact_tds_jm,
-#                      ddg, ddgact
-#   resolve_site_obs : site, obs
-#
-# (ddg / ddgact are assigned by mutate() and then named bare in select(); the
-# _dv_ / _tds_ names are the raw scan columns the reshape reads.)
+# Column names inside dplyr verbs are written `.data$col` (and as strings in
+# select()), not bare. A bare name is looked up as a column first and then in the
+# surrounding environment, so a missing column can silently pick up an unrelated
+# variable; `.data$col` can only mean the column and errors when it is absent.
+# R CMD check used to report the bare ones as "no visible binding for global
+# variable" (in generate_spm and resolve_site_obs). They were rewritten rather than
+# declared in utils::globalVariables(): an earlier such list had grown to 47 names,
+# only 11 of them real, and it muted the check for those names package-wide.

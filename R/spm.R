@@ -180,16 +180,16 @@ generate_spm <- function(wt, pdb_site_active = NULL) {
   scan <- generate_spm_core(wt, pdb_site_active = pdb_site_active)
 
   # Drop the wild-type rows (m = 0): every model-ready array is per MUTANT.
-  scan <- scan %>% filter(m > 0)
+  scan <- scan %>% filter(.data$m > 0)
 
   # --- per-mutant energies. Computed once: the fixation weights are axis-agnostic,
   # so the site and mode arrays below share this one table.
   energy_data <- scan %>%
     mutate(
-      ddg = ddg_dv_jm + ddg_tds_jm,
-      ddgact = ddgact_dv_jm + ddgact_tds_jm
+      ddg = .data$ddg_dv_jm + .data$ddg_tds_jm,
+      ddgact = .data$ddgact_dv_jm + .data$ddgact_tds_jm
     ) %>%
-    dplyr::select(j, m, ddg, ddgact)
+    dplyr::select("j", "m", "ddg", "ddgact")
 
   n_rows <- nrow(scan)
 

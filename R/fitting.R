@@ -254,7 +254,7 @@ resolve_site_obs <- function(spm, pdb_site, lrmsd_obs) {
   }
   tibble::tibble(pdb_site = pdb_site, obs = lrmsd_obs) %>%
     inner_join(spm$site_map, by = "pdb_site") %>%
-    dplyr::transmute(idx = site, obs = obs)
+    dplyr::transmute(idx = .data$site, obs = .data$obs)
 }
 
 #' Resolve mode observations to the internal index (mode boundary)
@@ -341,7 +341,7 @@ resolve_mode_obs <- function(valid_modes, mode, lrmsd_obs) {
 #' if (requireNamespace("bio3d", quietly = TRUE)) {
 #'   ex   <- function(f) system.file("extdata", f, package = "msamodel")
 #'   wt   <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
-#'                               model = "ming_wall", d_max = 10.5, ensemble = 1L)
+#'                         model = "ming_wall", d_max = 10.5, ensemble = 1L)
 #'   act  <- read.csv(ex("1d6o_A_active_site.csv"))
 #'   spm  <- generate_spm(wt, pdb_site_active = act$pdb_site)
 #'
@@ -408,7 +408,7 @@ fit_lrmsd_msa_site <- function(spm,
 #' if (requireNamespace("bio3d", quietly = TRUE)) {
 #'   ex   <- function(f) system.file("extdata", f, package = "msamodel")
 #'   wt   <- penm::set_enm(bio3d::read.pdb(ex("1d6o_A.pdb")), node = "ca",
-#'                               model = "ming_wall", d_max = 10.5, ensemble = 1L)
+#'                         model = "ming_wall", d_max = 10.5, ensemble = 1L)
 #'   act  <- read.csv(ex("1d6o_A_active_site.csv"))
 #'   spm  <- generate_spm(wt, pdb_site_active = act$pdb_site)
 #'
