@@ -77,9 +77,9 @@ Rscript -e "devtools::test()"
 # old "0E/1W/3N" one here went stale (its 1 WARNING was the installed-size one,
 # cleared 2026-08-11 when the datasets moved out, 25.8 MB -> 368 KB, see NEWS.md).
 # Read the current result off the run itself rather than trusting a number nobody
-# has re-measured. Standing accepted note: the NSE "no visible binding" one, left
-# visible instead of suppressed with globalVariables() — see the comment in
-# R/msamodel-package.R.
+# has re-measured. There is no accepted NOTE: the NSE "no visible binding" one was
+# cleared 2026-10-14 by writing dplyr columns as `.data$col` (see the comment in
+# R/msamodel-package.R), so any NOTE a check reports is new and needs reading.
 Rscript -e "devtools::check()"
 
 # Build the vignettes and render them to HTML for review -> doc/<name>.html
