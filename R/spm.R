@@ -138,6 +138,14 @@ generate_spm_core <- function(wt, pdb_site_active = NULL) {
 #' The modes are orthonormal, so each row sums to the same total in both matrices: they
 #' hold one displacement written in two bases.
 #'
+#' The energy changes `ddg` and `ddgact` are in kcal/mol, the unit penm uses for every
+#' elastic network model. The scale is calibrated only for models whose spring constants
+#' come from the literature (`"ming_wall"`, `"hnm"`, `"reach"`). For `"anm"`,
+#' `"anm_smooth"`, `"pfanm"` and `"hnm0"` the spring constant is a convention, so the
+#' energies carry an arbitrary scale, and so do the selection strengths `a1`, `a2`
+#' (mol/kcal) that multiply them, whether given or fitted (see the Details of
+#' [penm::set_enm()]).
+#'
 #' @param wt The protein to mutate, carrying its elastic network model and how it
 #'   mutates, as returned by [penm::set_enm()]. The scan produces
 #'   `n_sites * (alphabet_size - 1)` mutants in all, which is the row count of both
@@ -149,10 +157,10 @@ generate_spm_core <- function(wt, pdb_site_active = NULL) {
 #'   \describe{
 #'     \item{`energy_data`}{One row per mutant, aligned with the matrix rows: `j` (the
 #'       mutated site), `m` (the letter `j` was given), `ddg` (change in folding
-#'       free energy) and `ddgact` (change in activity free energy, or `NA`; see
-#'       `pdb_site_active`).}
+#'       free energy, kcal/mol) and `ddgact` (change in activity free energy, kcal/mol,
+#'       or `NA`; see `pdb_site_active`).}
 #'     \item{`dr2mat_site`}{`[mutant x residue]` squared displacements (Å²).}
-#'     \item{`dr2mat_mode`}{`[mutant x mode]` squared displacements.}
+#'     \item{`dr2mat_mode`}{`[mutant x mode]` squared displacements (Å²).}
 #'     \item{`site_map`}{The PDB residue number (`pdb_site`) for each `dr2mat_site`
 #'       column position (`site`).}
 #'     \item{`mode_map`}{The mode index for each `dr2mat_mode` column.}

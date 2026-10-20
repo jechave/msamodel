@@ -7,17 +7,17 @@
 pfix_msa(ddg, ddgact, a1, a2)
 }
 \arguments{
-\item{ddg}{Stability free-energy change(s) of the mutant(s), as carried in an
-\code{spm} object's \code{energy_data$ddg}. Scalar or vector.}
+\item{ddg}{Stability free-energy change(s) of the mutant(s), in kcal/mol, as carried
+in an \code{spm} object's \code{energy_data$ddg}. Scalar or vector.}
 
-\item{ddgact}{Activity free-energy change(s) of the mutant(s)
+\item{ddgact}{Activity free-energy change(s) of the mutant(s), in kcal/mol
 (\code{energy_data$ddgact}), the same length as \code{ddg}.}
 
-\item{a1}{Stability selection strength (non-negative). \code{0} disables stability
-selection.}
+\item{a1}{Stability selection strength, in mol/kcal (non-negative). \code{0} disables
+stability selection.}
 
-\item{a2}{Activity selection strength (non-negative). \code{0} disables activity
-selection.}
+\item{a2}{Activity selection strength, in mol/kcal (non-negative). \code{0} disables
+activity selection.}
 }
 \value{
 A numeric vector of fixation probabilities, the same length as \code{ddg}.
@@ -31,6 +31,11 @@ The probability is
 \code{p_fix = min(exp(-a1 * ddg), 1) * min(exp(-a2 * ddgact), 1)}, a property of one
 mutant on its own: it depends only on that mutant's two energy changes and the
 selection strengths, not on any ensemble of mutants.
+
+The energy changes are in kcal/mol and the selection strengths in mol/kcal, so
+\code{a1 * ddg} and \code{a2 * ddgact} are dimensionless. For elastic network models without a
+calibrated spring constant, such as \code{"anm"} and \code{"pfanm"}, the energies carry an
+arbitrary scale, and so do \code{a1} and \code{a2}; see the Details of \code{\link[=generate_spm]{generate_spm()}}.
 
 The function is vectorised. \code{ddg} and \code{ddgact} may be scalars, for one mutant, or
 equal-length vectors, for many, and the result matches their shape.

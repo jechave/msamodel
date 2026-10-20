@@ -9,12 +9,11 @@ calculate_profiles(spm, a1, a2, metric = c("lrmsd", "nlrmsd"))
 \arguments{
 \item{spm}{An \code{spm} object from \code{\link[=generate_spm]{generate_spm()}}.}
 
-\item{a1}{Stability selection strength, non-negative. \code{0} switches stability
-selection off.}
+\item{a1}{Stability selection strength, in mol/kcal, non-negative. \code{0} switches
+stability selection off.}
 
-\item{a2}{Activity selection strength, non-negative. \code{0} switches activity
-selection off. It is on a different scale from \code{a1}, so the two numbers are not
-comparable to each other.}
+\item{a2}{Activity selection strength, in mol/kcal, non-negative. \code{0} switches
+activity selection off.}
 
 \item{metric}{\code{"lrmsd"} for the profile as predicted, \code{"nlrmsd"} for the
 mean-centred one. Default \code{"lrmsd"}.}

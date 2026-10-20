@@ -3,12 +3,12 @@
 #'
 #' **The selection strengths, `a1` and `a2`.** `a1` sets the strength of selection on
 #' stability, `a2` the strength of selection on activity, that is on proximity to the
-#' active site. Both are non-negative, and `0` switches that pressure off. They are
-#' either set to chosen values, in [calculate_profiles()] and
-#' [calculate_decomposition()], or estimated from an observed profile by
+#' active site. Both are non-negative, and `0` switches that pressure off. They are in
+#' mol/kcal, the inverse of the unit of the energy changes they multiply (see
+#' [generate_spm()]). They are either set to chosen values, in [calculate_profiles()]
+#' and [calculate_decomposition()], or estimated from an observed profile by
 #' [fit_lrmsd_msa_site()] and [fit_lrmsd_msa_mode()] and then passed to
 #' [predict_profiles()] and [predict_decomposition()].
-#' They are on different scales, so the two numbers are not comparable to each other.
 #'
 #' **The two representations, `site` and `mode`.** A mutation displaces the structure,
 #' and that displacement is written in two bases: per residue, and per normal mode of

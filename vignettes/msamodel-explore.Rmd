@@ -164,8 +164,7 @@ head(profiles$mode)
 ```
 
 We pick illustrative values here — `a1 = 2` (moderate stability selection) and
-`a2 = 500` (strong activity selection). The two live on different scales, so their
-numbers are not comparable to each other.
+`a2 = 500` (strong activity selection).
 
 The same profile, read both ways:
 

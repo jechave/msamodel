@@ -12,6 +12,11 @@
 #' mutant on its own: it depends only on that mutant's two energy changes and the
 #' selection strengths, not on any ensemble of mutants.
 #'
+#' The energy changes are in kcal/mol and the selection strengths in mol/kcal, so
+#' `a1 * ddg` and `a2 * ddgact` are dimensionless. For elastic network models without a
+#' calibrated spring constant, such as `"anm"` and `"pfanm"`, the energies carry an
+#' arbitrary scale, and so do `a1` and `a2`; see the Details of [generate_spm()].
+#'
 #' The function is vectorised. `ddg` and `ddgact` may be scalars, for one mutant, or
 #' equal-length vectors, for many, and the result matches their shape.
 #'
@@ -19,14 +24,14 @@
 #' over a particular ensemble of mutants is a separate step, which the profile
 #' functions perform internally.
 #'
-#' @param ddg Stability free-energy change(s) of the mutant(s), as carried in an
-#'   `spm` object's `energy_data$ddg`. Scalar or vector.
-#' @param ddgact Activity free-energy change(s) of the mutant(s)
+#' @param ddg Stability free-energy change(s) of the mutant(s), in kcal/mol, as carried
+#'   in an `spm` object's `energy_data$ddg`. Scalar or vector.
+#' @param ddgact Activity free-energy change(s) of the mutant(s), in kcal/mol
 #'   (`energy_data$ddgact`), the same length as `ddg`.
-#' @param a1 Stability selection strength (non-negative). `0` disables stability
-#'   selection.
-#' @param a2 Activity selection strength (non-negative). `0` disables activity
-#'   selection.
+#' @param a1 Stability selection strength, in mol/kcal (non-negative). `0` disables
+#'   stability selection.
+#' @param a2 Activity selection strength, in mol/kcal (non-negative). `0` disables
+#'   activity selection.
 #' @return A numeric vector of fixation probabilities, the same length as `ddg`.
 #' @seealso [calculate_profiles()] (the forward map built on these: it averages the
 #'   per-mutant divergences, weighted by these fixation probabilities).
@@ -262,11 +267,10 @@ unimplemented_metric_message <- function(metric) {
 #' errors, see [predict_profiles()].
 #'
 #' @param spm An `spm` object from [generate_spm()].
-#' @param a1 Stability selection strength, non-negative. `0` switches stability
-#'   selection off.
-#' @param a2 Activity selection strength, non-negative. `0` switches activity
-#'   selection off. It is on a different scale from `a1`, so the two numbers are not
-#'   comparable to each other.
+#' @param a1 Stability selection strength, in mol/kcal, non-negative. `0` switches
+#'   stability selection off.
+#' @param a2 Activity selection strength, in mol/kcal, non-negative. `0` switches
+#'   activity selection off.
 #' @param metric `"lrmsd"` for the profile as predicted, `"nlrmsd"` for the
 #'   mean-centred one. Default `"lrmsd"`.
 #' @return A list of two tibbles, `$site` (one row per residue, keyed by `site`, the
@@ -343,12 +347,12 @@ calculate_profiles <- function(spm, a1, a2, metric = c("lrmsd", "nlrmsd")) {
 #'
 #' @param spm An `spm` object from [generate_spm()], carrying the per-mutant energies
 #'   and squared displacements the profiles are averaged from.
-#' @param a1 Stability selection strength, non-negative. It enters a mutant's fixation
-#'   probability as `min(exp(-a1 * ddg), 1)`, so larger values suppress destabilising
-#'   mutants more sharply, and `0` switches stability selection off.
-#' @param a2 Activity selection strength, non-negative. It enters the same way, as
-#'   `min(exp(-a2 * ddgact), 1)`, and `0` switches activity selection off. It is on a
-#'   different scale from `a1`, so the two numbers are not comparable to each other.
+#' @param a1 Stability selection strength, in mol/kcal, non-negative. It enters a
+#'   mutant's fixation probability as `min(exp(-a1 * ddg), 1)`, so larger values
+#'   suppress destabilising mutants more sharply, and `0` switches stability selection
+#'   off.
+#' @param a2 Activity selection strength, in mol/kcal, non-negative. It enters the same
+#'   way, as `min(exp(-a2 * ddgact), 1)`, and `0` switches activity selection off.
 #' @param metric `"lrmsd"` for the profiles as predicted, `"nlrmsd"` for the
 #'   mean-centred ones. Default `"lrmsd"`.
 #'

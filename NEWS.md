@@ -18,6 +18,17 @@
   at given `a1`, `a2` with `calculate_profiles()` or `calculate_decomposition()` do
   change, since the same `a1`, `a2` now act on smaller energies.
 
+## Documentation
+
+* The help pages give units: `ddg` and `ddgact` in kcal/mol, `a1` and `a2` in
+  mol/kcal, `dr2mat_mode` in Å² like `dr2mat_site`. `?generate_spm` says the energy
+  scale is calibrated only for `"ming_wall"`, `"hnm"` and `"reach"`, and arbitrary for
+  `"anm"`, `"anm_smooth"`, `"pfanm"` and `"hnm0"`, and with it the scale of `a1` and
+  `a2`.
+* The statement that `a1` and `a2` are on different scales and not comparable is
+  removed from `?msamodel`, `?calculate_profiles`, `?calculate_decomposition` and
+  `vignette("msamodel-explore")`.
+
 ## Other changes
 
 * The synthetic `1d6o_A_lrmsd_obs_mode_syn.csv` is regenerated; no value moves by more

@@ -13,12 +13,12 @@ Three things recur throughout the package.
 
 \strong{The selection strengths, \code{a1} and \code{a2}.} \code{a1} sets the strength of selection on
 stability, \code{a2} the strength of selection on activity, that is on proximity to the
-active site. Both are non-negative, and \code{0} switches that pressure off. They are
-either set to chosen values, in \code{\link[=calculate_profiles]{calculate_profiles()}} and
-\code{\link[=calculate_decomposition]{calculate_decomposition()}}, or estimated from an observed profile by
+active site. Both are non-negative, and \code{0} switches that pressure off. They are in
+mol/kcal, the inverse of the unit of the energy changes they multiply (see
+\code{\link[=generate_spm]{generate_spm()}}). They are either set to chosen values, in \code{\link[=calculate_profiles]{calculate_profiles()}}
+and \code{\link[=calculate_decomposition]{calculate_decomposition()}}, or estimated from an observed profile by
 \code{\link[=fit_lrmsd_msa_site]{fit_lrmsd_msa_site()}} and \code{\link[=fit_lrmsd_msa_mode]{fit_lrmsd_msa_mode()}} and then passed to
 \code{\link[=predict_profiles]{predict_profiles()}} and \code{\link[=predict_decomposition]{predict_decomposition()}}.
-They are on different scales, so the two numbers are not comparable to each other.
 
 \strong{The two representations, \code{site} and \code{mode}.} A mutation displaces the structure,
 and that displacement is written in two bases: per residue, and per normal mode of

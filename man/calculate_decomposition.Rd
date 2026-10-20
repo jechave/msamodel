@@ -10,13 +10,13 @@ calculate_decomposition(spm, a1, a2, metric = c("lrmsd", "nlrmsd"))
 \item{spm}{An \code{spm} object from \code{\link[=generate_spm]{generate_spm()}}, carrying the per-mutant energies
 and squared displacements the profiles are averaged from.}
 
-\item{a1}{Stability selection strength, non-negative. It enters a mutant's fixation
-probability as \code{min(exp(-a1 * ddg), 1)}, so larger values suppress destabilising
-mutants more sharply, and \code{0} switches stability selection off.}
+\item{a1}{Stability selection strength, in mol/kcal, non-negative. It enters a
+mutant's fixation probability as \code{min(exp(-a1 * ddg), 1)}, so larger values
+suppress destabilising mutants more sharply, and \code{0} switches stability selection
+off.}
 
-\item{a2}{Activity selection strength, non-negative. It enters the same way, as
-\code{min(exp(-a2 * ddgact), 1)}, and \code{0} switches activity selection off. It is on a
-different scale from \code{a1}, so the two numbers are not comparable to each other.}
+\item{a2}{Activity selection strength, in mol/kcal, non-negative. It enters the same
+way, as \code{min(exp(-a2 * ddgact), 1)}, and \code{0} switches activity selection off.}
 
 \item{metric}{\code{"lrmsd"} for the profiles as predicted, \code{"nlrmsd"} for the
 mean-centred ones. Default \code{"lrmsd"}.}

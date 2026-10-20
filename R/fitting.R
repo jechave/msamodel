@@ -316,7 +316,8 @@ resolve_mode_obs <- function(valid_modes, mode, lrmsd_obs) {
 #'   `gof` tibble (computed here, so there is no accessor to call):
 #'   \describe{
 #'     \item{a1, a2}{Point estimate of the stability (`a1`) and activity (`a2`)
-#'       selection strengths, on the natural scale (the paper's `aS`, `aA`).}
+#'       selection strengths, on the natural scale (the paper's `aS`, `aA`), in
+#'       mol/kcal.}
 #'     \item{logLik}{Profiled Gaussian log-likelihood at the optimum.}
 #'     \item{cov}{2×2 covariance matrix on the `(a1, log2(a2+1))` scale.}
 #'     \item{se_a1, se_a2}{Standard errors; `se_a2` via the delta method.}

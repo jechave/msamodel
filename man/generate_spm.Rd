@@ -21,10 +21,10 @@ An \code{spm} object (a classed list) with five elements:
 \describe{
 \item{\code{energy_data}}{One row per mutant, aligned with the matrix rows: \code{j} (the
 mutated site), \code{m} (the letter \code{j} was given), \code{ddg} (change in folding
-free energy) and \code{ddgact} (change in activity free energy, or \code{NA}; see
-\code{pdb_site_active}).}
+free energy, kcal/mol) and \code{ddgact} (change in activity free energy, kcal/mol,
+or \code{NA}; see \code{pdb_site_active}).}
 \item{\code{dr2mat_site}}{\verb{[mutant x residue]} squared displacements (Å²).}
-\item{\code{dr2mat_mode}}{\verb{[mutant x mode]} squared displacements.}
+\item{\code{dr2mat_mode}}{\verb{[mutant x mode]} squared displacements (Å²).}
 \item{\code{site_map}}{The PDB residue number (\code{pdb_site}) for each \code{dr2mat_site}
 column position (\code{site}).}
 \item{\code{mode_map}}{The mode index for each \code{dr2mat_mode} column.}
@@ -64,6 +64,14 @@ of residue \code{i} (Å²) under mutant \code{k}. In \code{dr2mat_mode} a column
 and cell \verb{[k, n]} is the squared projection of that same displacement onto mode \code{n}.
 The modes are orthonormal, so each row sums to the same total in both matrices: they
 hold one displacement written in two bases.
+
+The energy changes \code{ddg} and \code{ddgact} are in kcal/mol, the unit penm uses for every
+elastic network model. The scale is calibrated only for models whose spring constants
+come from the literature (\code{"ming_wall"}, \code{"hnm"}, \code{"reach"}). For \code{"anm"},
+\code{"anm_smooth"}, \code{"pfanm"} and \code{"hnm0"} the spring constant is a convention, so the
+energies carry an arbitrary scale, and so do the selection strengths \code{a1}, \code{a2}
+(mol/kcal) that multiply them, whether given or fitted (see the Details of
+\code{\link[penm:set_enm]{penm::set_enm()}}).
 }
 \examples{
 if (requireNamespace("bio3d", quietly = TRUE)) {
