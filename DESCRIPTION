@@ -1,7 +1,7 @@
 Package: msamodel
 Type: Package
 Title: Mutation-Stability-Activity Model of Protein Structural Evolution
-Version: 0.7.0
+Version: 0.8.0
 Authors@R: c(
     person("Julian", "Echave", email = "jechave@unsam.edu.ar",
            role = c("aut", "cre")),
@@ -25,7 +25,7 @@ Roxygen: list(markdown = TRUE)
 Depends:
     R (>= 3.5)
 Imports:
-    penm (>= 0.5.0),
+    penm (>= 0.6.0),
     dplyr,
     tidyr,
     tibble,

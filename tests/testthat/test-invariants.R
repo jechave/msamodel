@@ -21,7 +21,7 @@ test_that("the decomposition sums exactly to the profile it splits", {
       tb <- d[[axis]]
       total <- tb[[paste0(pre, "phi_mut")]] + tb[[paste0(pre, "phi_stab")]] +
                tb[[paste0(pre, "phi_act")]]
-      # Measured max relative deviation 3.8e-14 (round-off from the telescoping sum);
+      # Measured max relative deviation 7.8e-15 (round-off from the telescoping sum);
       # 1e-12 sits above that and far below anything a sign or term error would produce.
       expect_equal(total, tb[[paste0(pre, "lrmsd_msa")]],
                    tolerance = 1e-12, info = paste(metric, axis))
@@ -105,8 +105,8 @@ test_that("the two axes describe the same displacement", {
   # tolerance is far too slack for it: measured, it lets a single cell of dr2mat_mode be
   # scaled by 1.001 without failing.
   #
-  # Measured agreement over the 963 mutants: max absolute difference 3.1e-15, max
-  # relative difference 2.5e-14 -- about 114x machine epsilon, i.e. ordinary accumulated
+  # Measured agreement over the 963 mutants: max absolute difference 3.4e-15, max
+  # relative difference 2.7e-14 -- about 123x machine epsilon, i.e. ordinary accumulated
   # round-off over the 315 summed terms. 1e-12 sits safely above that while staying ~10
   # orders of magnitude tighter than the default, so a real assembly or alignment error
   # cannot hide under it.

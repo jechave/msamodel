@@ -107,7 +107,7 @@ fit <- fit_lrmsd_msa_site(spm, obs$pdb_site, obs$lrmsd_obs)
 
 c(a1 = fit$a1, a2 = fit$a2)
 #>         a1         a2 
-#>  0.3479049 83.1321529
+#>  0.3675052 87.8156581
 fit$gof
 #> # A tibble: 1 × 9
 #>      D2   AIC   BIC logLik deviance null_deviance  nobs     k sigma_hat

@@ -1,3 +1,28 @@
+# msamodel 0.8.0
+
+## Breaking changes
+
+* **msamodel requires penm 0.6.0, and fitted selection strengths change.** penm 0.6.0
+  puts every model's spring constants in kcal/(mol Å²), so `ddg` and `ddgact` are in
+  kcal/mol and `a1`, `a2` in mol/kcal. For `model = "ming_wall"` the spring constant
+  is now 4.26 kcal/(mol Å²), the value Ming & Wall (2005) published, instead of 4.5;
+  other models change by other factors or not at all (see penm's NEWS).
+
+  With `ming_wall`, every spring scales by 4.26/4.5, and so do `ddg` and `ddgact`.
+  Under `mut_model = "lfenm"`, `dr2mat_site` and `dr2mat_mode` do not change: the
+  force a mutation applies and the network's stiffness scale together, so the
+  displacement does not. A fit absorbs the factor: `a1`, `a2` and their standard
+  errors are 4.5/4.26 = 1.056 times their 0.7.0 values, and the fit quality and the
+  predicted profiles at the fitted parameters are unchanged (within 4e-8 on 1d6o_A,
+  where `a1` goes from 0.348 to 0.368 and `a2` from 83.1 to 87.8). Profiles computed
+  at given `a1`, `a2` with `calculate_profiles()` or `calculate_decomposition()` do
+  change, since the same `a1`, `a2` now act on smaller energies.
+
+## Other changes
+
+* The synthetic `1d6o_A_lrmsd_obs_mode_syn.csv` is regenerated; no value moves by more
+  than 2e-8.
+
 # msamodel 0.7.0
 
 ## Breaking changes
